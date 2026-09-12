@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-09-12-v-texto-original';
+var VERSAO = '2026-09-12-v-insight-relatorio-rodada';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -145,7 +145,7 @@ function executar(action, p) {
   if (action === 'insightRodadas') return { ok: true, rodadas: listarInsightRodadas(5) };
   // O app manda tudo por GET (ver api() no index.html) - marcacoes vira uma
   // unica string JSON num parametro so, em vez de um objeto de verdade.
-  if (action === 'insightSalvar') return comTrava(function () { return salvarInsightRodada(parseOuVazio(p.marcacoes, {})); });
+  if (action === 'insightSalvar') return comTrava(function () { return salvarInsightRodada(parseOuVazio(p.marcacoes, {}), String(p.data || '')); });
   if (action === 'insightRodadaRemover') return comTrava(function () { return removerInsightRodada(p.id); });
   if (action === 'insightMembroRemover') return comTrava(function () { return removerMembroDoInsight(String(p.id || '')); });
   if (action === 'insightMembroReincluir') return comTrava(function () { return reincluirMembroNoInsight(String(p.id || '')); });
@@ -1256,12 +1256,16 @@ function membrosElegiveisInsight() {
 // em InsightPresencas, tudo em lote (uma unica escrita por aba) - mesmo
 // motivo do ajustarParticipantes: um membro de cada vez, com quase 100
 // membros, arrisca timeout e leitura no meio da escrita.
-function salvarInsightRodada(marcacoes) {
+// dataEscolhida (opcional): 'yyyy-mm-dd' pra registrar uma rodada atrasada
+// com a data certa, em vez da data de hoje - ver "Registrar com outra data"
+// no index.html. Vazio ou formato invalido cai no dia de hoje, igual sempre foi.
+function salvarInsightRodada(marcacoes, dataEscolhida) {
   var elegiveis = membrosElegiveisInsight();
   if (!elegiveis.length) throw new Error('Nenhum membro elegivel para o insight');
 
   var id = novoId();
-  var dataIso = Utilities.formatDate(new Date(), fuso(), 'yyyy-MM-dd');
+  var dataValida = /^\d{4}-\d{2}-\d{2}$/.test(String(dataEscolhida || ''));
+  var dataIso = dataValida ? dataEscolhida : Utilities.formatDate(new Date(), fuso(), 'yyyy-MM-dd');
   aba(ABA_INSIGHT_RODADAS, CAB_INSIGHT_RODADAS).appendRow([id, dataIso, agora()]);
 
   var totalSim = 0;
@@ -1286,19 +1290,31 @@ function listarInsightRodadas(limite) {
     .reverse()
     .slice(0, limite || 5);
 
+  var idsVisiveis = {};
+  rodadas.forEach(function (r) { idsVisiveis[r.id] = true; });
+
   var porRodada = {};
   linhas(aba(ABA_INSIGHT_PRESENCAS, CAB_INSIGHT_PRESENCAS)).forEach(function (l) {
     var rid = String(l[0]);
-    if (!porRodada[rid]) porRodada[rid] = { total: 0, sim: 0 };
+    if (!porRodada[rid]) porRodada[rid] = { total: 0, sim: 0, membros: [] };
     porRodada[rid].total++;
-    if (ehSim(l[4])) porRodada[rid].sim++;
+    var fez = ehSim(l[4]);
+    if (fez) porRodada[rid].sim++;
+    // So guarda a lista de nomes das rodadas que vao ser devolvidas (dentro
+    // do limite) - sem essa checagem, rodadas antigas de fora tambem
+    // acumulariam a lista de membros a toa.
+    if (idsVisiveis[rid]) porRodada[rid].membros.push({ id: String(l[1] || ''), nome: String(l[2] || ''), divisao: String(l[3] || ''), fez: fez });
   });
 
   return rodadas.map(function (r) {
-    var c = porRodada[r.id] || { total: 0, sim: 0 };
+    var c = porRodada[r.id] || { total: 0, sim: 0, membros: [] };
     return {
       id: r.id, data: r.data, totalSim: c.sim, totalElegiveis: c.total,
-      percentual: c.total ? Math.round((c.sim / c.total) * 100) : null
+      percentual: c.total ? Math.round((c.sim / c.total) * 100) : null,
+      // Usado pelo botao "Copiar relatorio" de cada rodada, no index.html
+      // (buildInsightReportText) - lista quem fez/nao fez pra colar no
+      // WhatsApp, igual ja existe pra eventos.
+      membros: c.membros
     };
   });
 }
@@ -1363,7 +1379,7 @@ function calcularEstatisticasInsights() {
   var membros = membrosElegiveis.map(function (m) {
     var c = porMembro[m.id] || { convites: 0, confirmacoes: 0 };
     return {
-      id: m.id, nome: m.nome, divisao: m.divisao,
+      id: m.id, nome: m.nome, divisao: m.divisao, grau: m.grau, funcoes: m.funcoes,
       rodadas: c.convites, confirmacoes: c.confirmacoes,
       percentual: c.convites ? Math.round((c.confirmacoes / c.convites) * 100) : null
     };
