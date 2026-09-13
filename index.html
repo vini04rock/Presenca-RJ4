@@ -1012,6 +1012,14 @@ let state = {
   // inclusive) restringe eventos/membros so aquela categoria. Ver
   // eventosDoRelatorioEscopo()/membrosVisiveisRelatorio().
   relatorioFiltroDivisao: 'todas',
+  // Filtro de periodo (data inicial/final, 'yyyy-mm-dd') do painel de
+  // Relatorios - vazio nos dois = sem filtro (desde sempre). Diferente do
+  // seletor "1/3/6/12 meses" de cada donut (relatorioPeriodoPorGrafico, uma
+  // janela relativa que sempre termina hoje), este e um intervalo fixo
+  // escolhido a mao, pra tirar um relatorio de um mes especifico por
+  // exemplo. Ver eventosDoRelatorioEscopo().
+  relatorioFiltroDataInicio: '',
+  relatorioFiltroDataFim: '',
   // Tipo escolhido na tela de colar (um de TIPOS_EVENTO) - quando marcado,
   // vence o palpite que o parser tenta tirar do titulo do texto colado.
   relatorioTipoEscolhido: null,
@@ -3019,6 +3027,8 @@ async function checkRelatorioPin() {
       state.relatorioColarStep = 'texto';
       state.relatorioTipoDetalhe = null;
       state.relatorioFiltroDivisao = 'todas';
+      state.relatorioFiltroDataInicio = '';
+      state.relatorioFiltroDataFim = '';
       render();
       await loadReportData();
     } else {
@@ -3089,6 +3099,35 @@ function renderRelatorioFiltroDivisao() {
   `;
 }
 
+// Filtro de periodo (data inicial/final) - mesmas abas do filtro de
+// divisao, mas visivel pra qualquer escopo (Barra ou Regional), ja que
+// tirar um relatorio de um mes especifico e util pras duas situacoes. Vazio
+// nos dois campos = sem filtro (comportamento de sempre).
+function renderRelatorioFiltroPeriodo() {
+  if (!ABAS_COM_FILTRO_DIVISAO.includes(state.relatorioTab)) return '';
+  const ativo = state.relatorioFiltroDataInicio || state.relatorioFiltroDataFim;
+  const textoAtivo = ativo
+    ? `${state.relatorioFiltroDataInicio ? formatDataBR(state.relatorioFiltroDataInicio) : 'início'} até ${state.relatorioFiltroDataFim ? formatDataBR(state.relatorioFiltroDataFim) : 'hoje'}`
+    : 'Desde sempre';
+  return `
+    <div class="card no-print" style="margin-bottom:14px;">
+      <div style="font-weight:600; margin-bottom:8px;">Filtrar por período</div>
+      <div class="row-gap">
+        <div class="field" style="margin-bottom:0; flex:1;">
+          <label>Data inicial</label>
+          <input type="date" id="relatorio-filtro-data-inicio" value="${state.relatorioFiltroDataInicio}">
+        </div>
+        <div class="field" style="margin-bottom:0; flex:1;">
+          <label>Data final</label>
+          <input type="date" id="relatorio-filtro-data-fim" value="${state.relatorioFiltroDataFim}">
+        </div>
+      </div>
+      ${ativo ? `<div class="btn ghost" data-action="limpar-relatorio-filtro-periodo" style="margin-top:8px; padding:2px 0; font-size:12px;">Limpar (voltar a mostrar tudo)</div>` : ''}
+    </div>
+    <div class="print-only" style="margin-bottom:10px; font-size:13px; color:var(--text-muted);">Período: ${escapeHtml(textoAtivo)}</div>
+  `;
+}
+
 function renderRelatorioShell(app) {
   // Ficha do membro fica "por cima" de qualquer aba - abre com o nome de
   // onde a pessoa veio (Resumo ou uma aba fixa de tipo) e o "Voltar" fecha
@@ -3117,6 +3156,7 @@ function renderRelatorioShell(app) {
       ${RELATORIO_TABS.map(t => `<div class="tab ${state.relatorioTab === t.chave ? 'active' : ''}" data-action="relatorio-tab" data-tab="${t.chave}">${t.label}</div>`).join('')}
     </div>
     ${renderRelatorioFiltroDivisao()}
+    ${renderRelatorioFiltroPeriodo()}
     ${conteudo}
   `;
 }
@@ -3553,8 +3593,17 @@ function conteudoRelatorioResultado() {
 function eventosDoRelatorioEscopo() {
   return state.events
     .filter(e => {
-      if (state.relatorioEscopo !== 'regional') return e.categoria === state.relatorioEscopo;
-      return state.relatorioFiltroDivisao === 'todas' || e.categoria === state.relatorioFiltroDivisao;
+      const bateDivisao = state.relatorioEscopo !== 'regional'
+        ? e.categoria === state.relatorioEscopo
+        : (state.relatorioFiltroDivisao === 'todas' || e.categoria === state.relatorioFiltroDivisao);
+      if (!bateDivisao) return false;
+      // Comparacao de texto funciona porque a data e sempre ISO (yyyy-mm-dd) -
+      // ordem alfabetica bate com ordem cronologica. Evento sem data marcada
+      // fica de fora assim que qualquer um dos dois limites for escolhido
+      // (nao da pra saber se ele cai dentro do intervalo ou nao).
+      if (state.relatorioFiltroDataInicio && (!e.data || e.data < state.relatorioFiltroDataInicio)) return false;
+      if (state.relatorioFiltroDataFim && (!e.data || e.data > state.relatorioFiltroDataFim)) return false;
+      return true;
     })
     .sort((a, b) => (b.data || '').localeCompare(a.data || '') || (b.criadoEm || '').localeCompare(a.criadoEm || ''));
 }
@@ -5043,6 +5092,14 @@ document.getElementById('app').addEventListener('input', (e) => {
   if (e.target.id === 'relatorio-texto-field') {
     state.relatorioTextoBruto = e.target.value;
   }
+  if (e.target.id === 'relatorio-filtro-data-inicio') {
+    state.relatorioFiltroDataInicio = e.target.value;
+    return render();
+  }
+  if (e.target.id === 'relatorio-filtro-data-fim') {
+    state.relatorioFiltroDataFim = e.target.value;
+    return render();
+  }
   if (e.target.dataset && e.target.dataset.action === 'resolver-membro') {
     const i = Number(e.target.dataset.index);
     const row = state.relatorioParsed.membrosParsed[i];
@@ -5086,6 +5143,11 @@ document.getElementById('app').addEventListener('click', async (e) => {
   if (action === 'set-relatorio-filtro-divisao') {
     state.relatorioFiltroDivisao = target.dataset.value;
     state.relatorioTipoDetalhe = null;
+    return render();
+  }
+  if (action === 'limpar-relatorio-filtro-periodo') {
+    state.relatorioFiltroDataInicio = '';
+    state.relatorioFiltroDataFim = '';
     return render();
   }
   if (action === 'fechar-relatorio-tipo-detalhe') {
@@ -5194,6 +5256,8 @@ document.getElementById('app').addEventListener('click', async (e) => {
     state.relatorioTipoEscolhido = null;
     state.relatorioTipoDetalhe = null;
     state.relatorioFiltroDivisao = 'todas';
+    state.relatorioFiltroDataInicio = '';
+    state.relatorioFiltroDataFim = '';
     state.relatorioEstatisticasExpandidas = new Set();
     state.relatorioEventosExpandidos = new Set();
     state.relatorioMembroFichaId = null;
