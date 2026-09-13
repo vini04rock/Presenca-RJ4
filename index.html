@@ -2599,10 +2599,13 @@ function renderCalendario(app) {
           const marcacao = marcacoesEscopo[dataIso];
           const tipo = marcacao && marcacao.tipo;
           const estilo = tipo ? `border-color:${corTipoEvento(tipo)}; background:${hexParaRgba(corTipoEvento(tipo), 0.18)};` : '';
-          // So no calendario Regional, e so quando o evento veio de uma
-          // divisao (nao do proprio Regional) - mostra de qual divisao e.
-          const nomeOrigem = tipo && state.calendarioEscopo === 'regional' && marcacao.origem !== 'regional'
-            ? escopoPorChave(marcacao.origem).nome.split(' - ')[0]
+          // Mostra de onde o evento veio sempre que a origem for diferente
+          // de quem esta olhando - no Regional, aparece o nome da divisao
+          // (ex: "Barra"); numa divisao, um evento vindo do Regional
+          // aparece com "Regional" embaixo. O proprio evento da divisao,
+          // visto por ela mesma, nao precisa de rotulo nenhum.
+          const nomeOrigem = tipo && marcacao.origem !== state.calendarioEscopo
+            ? (marcacao.origem === 'regional' ? 'Regional' : escopoPorChave(marcacao.origem).nome.split(' - ')[0])
             : '';
           return `
             <div class="calendario-dia${ehHoje(dia) ? ' calendario-dia-hoje' : ''}" style="${estilo}" title="${tipo ? escapeHtml(tipo + (nomeOrigem ? ' - ' + nomeOrigem : '')) : ''}">
