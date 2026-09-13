@@ -960,16 +960,20 @@ let state = {
   calendarioOrganizarEtapa: null,
   calendarioPinErro: null,
   calendarioPinVerificando: false,
-  // So em memoria por enquanto, nao salva nada no servidor ainda - um mapa
-  // por escopo, cada um { 'yyyy-mm-dd': tipoDeEvento }.
-  calendarioMarcacoes: {},
+  // Os dias marcados no calendario sao eventos de verdade (ver
+  // eventosCalendarioVisiveis) - nao existe mais um mapa em memoria
+  // separado, state.events (ja carregado pro resto do app) e a fonte.
   calendarioMarcarAviso: null,
+  calendarioSalvando: false,
   // Trava de tudo-ou-nada: se sobrar linha nao reconhecida, nao marca nada
   // e devolve o texto tal como foi colado (calendarioOrganizarTextoValor)
   // junto com a lista do que precisa corrigir, pra pessoa editar em cima do
   // que ja tinha colado em vez de perder tudo e ter que colar de novo.
   calendarioOrganizarTextoValor: '',
   calendarioOrganizarTextoErro: null,
+  // Erro de rede/planilha ao tentar criar os eventos (diferente do erro de
+  // reconhecimento acima) - mostrado na propria tela do Adicionar.
+  calendarioOrganizarErroSalvar: null,
   // Sub-abas dentro da etapa 'texto' do Organizar: 'adicionar' (colar texto,
   // igual ja existia) ou 'editar' (calendario replicado, so com o que essa
   // divisao/regional marcou por conta propria - so da pra editar o que a
@@ -2548,15 +2552,35 @@ function parseTextoOrganizarCalendario(texto, ano) {
 // marcou (uma divisao, ou 'regional') - usado so pra rotular de qual
 // divisao e o evento quando visto pelo calendario Regional (ver
 // renderCalendario). Uma divisao nunca precisa dessa info pra si mesma.
+// Eventos com tipo marcado (os que a tela "Organizar" cria/mostra) visiveis
+// num escopo do calendario - Regional ve o proprio + o de todas as
+// divisoes; uma divisao ve o proprio + o que o Regional marcou (vale pra
+// todo mundo), nunca o que outra divisao marcou. Eventos sem tipo (ex: um
+// evento antigo criado manualmente sem selecionar tipo) nao aparecem no
+// calendario - continuam existindo normalmente na aba Eventos.
+function eventosCalendarioVisiveis(chaveEscopo) {
+  if (chaveEscopo === 'regional') return state.events.filter(ev => ev.tipo);
+  return state.events.filter(ev => ev.tipo && (ev.categoria === chaveEscopo || ev.categoria === 'regional'));
+}
+
+// Membros convidados quando um evento nasce da tela "Organizar" do
+// Calendario - mesmo criterio de membrosElegiveisEvento() (Modo
+// organizador): Regional convida todo mundo, uma divisao so os proprios.
+function membrosElegiveisCalendario(chaveEscopo) {
+  if (chaveEscopo === 'regional') return state.roster;
+  const nomeDivisao = escopoPorChave(chaveEscopo).nome;
+  return state.roster.filter(m => m.divisao === nomeDivisao);
+}
+
+// Mapa 'yyyy-mm-dd' -> { tipo, origem, id } pra desenhar a grade do
+// calendario (renderCalendario) - origem e a categoria do evento (uma
+// divisao, ou 'regional'), usada so pro rotulo de origem.
 function marcacoesVisiveisCalendario(chaveEscopo) {
-  const todas = state.calendarioMarcacoes;
-  const comOrigem = (mapa, origem) => Object.fromEntries(Object.entries(mapa || {}).map(([data, tipo]) => [data, { tipo, origem }]));
-  if (chaveEscopo === 'regional') {
-    let combinado = {};
-    divisoesSemRegional().forEach(e => { combinado = { ...combinado, ...comOrigem(todas[e.chave], e.chave) }; });
-    return { ...combinado, ...comOrigem(todas.regional, 'regional') };
-  }
-  return { ...comOrigem(todas.regional, 'regional'), ...comOrigem(todas[chaveEscopo], chaveEscopo) };
+  const mapa = {};
+  eventosCalendarioVisiveis(chaveEscopo).forEach(ev => {
+    if (ev.data) mapa[ev.data] = { tipo: ev.tipo, origem: ev.categoria, id: ev.id };
+  });
+  return mapa;
 }
 
 function renderCalendario(app) {
@@ -2570,8 +2594,6 @@ function renderCalendario(app) {
   const escopo = escopoPorChave(state.calendarioEscopo);
   const celulas = construirGradeCalendario(state.calendarioAno, state.calendarioMes);
   const ehHoje = (dia) => dia === hoje.getDate() && state.calendarioMes === hoje.getMonth() && state.calendarioAno === hoje.getFullYear();
-  // So em memoria por enquanto (ver calendarioMarcacoes no state) - nao cria
-  // evento de verdade nenhum, so pinta o dia com a cor do tipo colado.
   const marcacoesEscopo = marcacoesVisiveisCalendario(state.calendarioEscopo);
 
   app.innerHTML = `
@@ -2684,27 +2706,41 @@ function conteudoCalendarioOrganizarAdicionar() {
           <div class="alert-msg">Corrija abaixo e tente marcar de novo - nenhum evento foi marcado ainda.<br>${erro.map(l => '- ' + escapeHtml(l)).join('<br>')}</div>
         </div>
       ` : ''}
+      ${state.calendarioOrganizarErroSalvar ? `
+        <div class="alert" style="margin-bottom:12px;">
+          <div class="alert-title">Não consegui salvar</div>
+          <div class="alert-msg">${escapeHtml(state.calendarioOrganizarErroSalvar)}.<br>Nenhum evento foi criado - o texto continua aqui embaixo, tente de novo.</div>
+        </div>
+      ` : ''}
       <textarea id="calendario-organizar-texto" rows="8" placeholder="01/09 - Pub&#10;15/09 - Bate e Volta&#10;20/09 - Ação Social&#10;30/09 - Reunião">${escapeHtml(state.calendarioOrganizarTextoValor)}</textarea>
-      <button class="btn block" style="margin-top:10px;" data-action="marcar-calendario-texto">Marcar no calendário</button>
+      <button class="btn block" style="margin-top:10px;" data-action="marcar-calendario-texto" ${state.calendarioSalvando ? 'disabled' : ''}>${state.calendarioSalvando ? 'Salvando…' : 'Marcar no calendário'}</button>
     </div>
   `;
 }
 
-// Calendario replicado, so com o que a propria divisao/regional marcou por
-// conta propria (state.calendarioMarcacoes[escopo] puro, sem o merge de
-// marcacoesVisiveisCalendario) - so da pra editar/excluir o que essa mesma
-// divisao criou, igual so da pra ver isso na tela normal do calendario;
-// um evento do Regional nao pode ser editado a partir de uma divisao, e
-// vice-versa.
+// Calendario replicado, so com os eventos que a propria divisao/regional
+// criou (categoria === o proprio escopo, sem o merge de
+// eventosCalendarioVisiveis/marcacoesVisiveisCalendario) - so da pra
+// editar/excluir o que essa mesma divisao criou, igual so da pra ver isso
+// na tela normal do calendario; um evento do Regional nao pode ser editado
+// a partir de uma divisao, e vice-versa.
 function conteudoCalendarioOrganizarEditar() {
   const hoje = new Date();
   if (state.calendarioAno === null) state.calendarioAno = hoje.getFullYear();
   if (state.calendarioMes === null) state.calendarioMes = hoje.getMonth();
 
   const celulas = construirGradeCalendario(state.calendarioAno, state.calendarioMes);
-  const marcacoesProprias = state.calendarioMarcacoes[state.calendarioEscopo] || {};
+  // So os eventos que a propria divisao/regional criou (categoria === o
+  // escopo atual) - editar/excluir so vale pra quem tem o PIN de quem
+  // criou, um evento do Regional nunca aparece editavel aqui de dentro de
+  // uma divisao, e vice-versa.
+  const marcacoesProprias = {};
+  eventosCalendarioVisiveis(state.calendarioEscopo)
+    .filter(ev => ev.categoria === state.calendarioEscopo)
+    .forEach(ev => { marcacoesProprias[ev.data] = ev; });
   const ehHoje = (dia) => dia === hoje.getDate() && state.calendarioMes === hoje.getMonth() && state.calendarioAno === hoje.getFullYear();
   const dataSelecionada = state.calendarioEditandoData;
+  const eventoSelecionado = dataSelecionada ? marcacoesProprias[dataSelecionada] : null;
 
   return `
     <div class="card calendario-card">
@@ -2718,7 +2754,8 @@ function conteudoCalendarioOrganizarEditar() {
         ${celulas.map(dia => {
           if (dia === null) return '<div class="calendario-dia calendario-dia-vazio"></div>';
           const dataIso = `${state.calendarioAno}-${String(state.calendarioMes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
-          const tipo = marcacoesProprias[dataIso];
+          const evento = marcacoesProprias[dataIso];
+          const tipo = evento && evento.tipo;
           const estilo = tipo ? `border-color:${corTipoEvento(tipo)}; background:${hexParaRgba(corTipoEvento(tipo), 0.18)};` : '';
           const classes = ['calendario-dia'];
           if (ehHoje(dia)) classes.push('calendario-dia-hoje');
@@ -2733,22 +2770,23 @@ function conteudoCalendarioOrganizarEditar() {
         }).join('')}
       </div>
     </div>
-    ${dataSelecionada && marcacoesProprias[dataSelecionada] ? renderCalendarioEditorPainel(dataSelecionada, marcacoesProprias[dataSelecionada]) : `
+    ${eventoSelecionado ? renderCalendarioEditorPainel(eventoSelecionado) : `
       <div class="empty" style="margin-top:10px;">Toque num dia marcado pra ajustar a data ou remover.</div>
     `}
   `;
 }
 
-function renderCalendarioEditorPainel(dataIso, tipo) {
-  const [ano, mes, dia] = dataIso.split('-');
+function renderCalendarioEditorPainel(evento) {
+  const [ano, mes, dia] = evento.data.split('-');
+  const tipo = evento.tipo;
   if (state.calendarioAjustandoData) {
     return `
       <div class="card" style="margin-top:12px;">
         <div style="font-weight:600; margin-bottom:8px;">${emojiTipoEvento(tipo)} ${escapeHtml(tipo)} - ${dia}/${mes}/${ano}</div>
         <label>Nova data</label>
-        <input type="date" id="calendario-editar-data-field" value="${dataIso}">
+        <input type="date" id="calendario-editar-data-field" value="${evento.data}">
         <div class="row-gap" style="margin-top:10px;">
-          <button class="btn block" data-action="calendario-editar-confirmar-data">Confirmar</button>
+          <button class="btn block" data-action="calendario-editar-confirmar-data" data-id="${evento.id}">Confirmar</button>
           <button class="btn secondary" data-action="calendario-editar-cancelar-ajuste">Cancelar</button>
         </div>
       </div>
@@ -2758,9 +2796,9 @@ function renderCalendarioEditorPainel(dataIso, tipo) {
     return `
       <div class="alert" style="margin-top:12px;">
         <div class="alert-title">Excluir ${escapeHtml(tipo)} de ${dia}/${mes}/${ano}?</div>
-        <div class="alert-msg">Isso so tira a marcação do calendário (ainda não mexe em nenhum evento de verdade).</div>
+        <div class="alert-msg">Apaga o evento e as confirmações de todos os membros. Não dá para desfazer.</div>
         <div class="row-gap" style="margin-top:10px;">
-          <button class="btn danger" data-action="calendario-editar-excluir">Sim, excluir</button>
+          <button class="btn danger" data-action="calendario-editar-excluir" data-id="${evento.id}">Sim, excluir</button>
           <button class="btn secondary" data-action="calendario-editar-cancelar-exclusao">Cancelar</button>
         </div>
       </div>
@@ -4976,6 +5014,7 @@ document.getElementById('app').addEventListener('click', async (e) => {
     state.calendarioPinErro = null;
     state.calendarioOrganizarTextoValor = '';
     state.calendarioOrganizarTextoErro = null;
+    state.calendarioOrganizarErroSalvar = null;
     state.calendarioOrganizarSubTab = 'adicionar';
     state.calendarioEditandoData = null;
     state.calendarioAjustandoData = false;
@@ -4986,6 +5025,7 @@ document.getElementById('app').addEventListener('click', async (e) => {
     state.calendarioOrganizarEtapa = null;
     state.calendarioOrganizarTextoValor = '';
     state.calendarioOrganizarTextoErro = null;
+    state.calendarioOrganizarErroSalvar = null;
     state.calendarioEditandoData = null;
     state.calendarioAjustandoData = false;
     state.calendarioConfirmandoExclusao = false;
@@ -4993,6 +5033,7 @@ document.getElementById('app').addEventListener('click', async (e) => {
   }
   if (action === 'check-calendario-pin') return checkCalendarioPin();
   if (action === 'marcar-calendario-texto') {
+    if (state.calendarioSalvando) return;
     const texto = document.getElementById('calendario-organizar-texto').value;
     if (!texto.trim()) return;
     const { marcacoes, naoReconhecidas } = parseTextoOrganizarCalendario(texto, state.calendarioAno);
@@ -5004,15 +5045,48 @@ document.getElementById('app').addEventListener('click', async (e) => {
       state.calendarioOrganizarTextoErro = naoReconhecidas;
       return render();
     }
-    state.calendarioMarcacoes[state.calendarioEscopo] = {
-      ...(state.calendarioMarcacoes[state.calendarioEscopo] || {}),
-      ...marcacoes
-    };
-    const qtd = Object.keys(marcacoes).length;
-    state.calendarioMarcarAviso = `✅ ${qtd} ${qtd === 1 ? 'evento marcado' : 'eventos marcados'} no calendário.`;
-    state.calendarioOrganizarEtapa = null;
-    state.calendarioOrganizarTextoValor = '';
-    state.calendarioOrganizarTextoErro = null;
+    // Nao duplica se a mesma data ja tiver um evento criado por esse mesmo
+    // escopo (ex: colar o mesmo texto duas vezes sem querer).
+    const existentes = new Set(
+      eventosCalendarioVisiveis(state.calendarioEscopo)
+        .filter(ev => ev.categoria === state.calendarioEscopo)
+        .map(ev => ev.data)
+    );
+    const novos = Object.entries(marcacoes).filter(([data]) => !existentes.has(data));
+    const duplicados = Object.keys(marcacoes).length - novos.length;
+    if (!novos.length) {
+      state.calendarioMarcarAviso = `⚠️ ${duplicados === 1 ? 'Essa data já tinha' : 'Essas datas já tinham'} evento marcado - nada novo foi criado.`;
+      state.calendarioOrganizarEtapa = null;
+      state.calendarioOrganizarTextoValor = '';
+      state.calendarioOrganizarTextoErro = null;
+      return render();
+    }
+
+    state.calendarioSalvando = true;
+    state.calendarioOrganizarErroSalvar = null;
+    render();
+    try {
+      const membroIds = membrosElegiveisCalendario(state.calendarioEscopo).map(m => m.id);
+      await apiPost('criarEventosDeCalendario', {
+        categoria: state.calendarioEscopo,
+        membroIds,
+        eventos: novos.map(([data, tipo]) => ({ data, tipo }))
+      });
+      await loadInitial();
+      state.calendarioMarcarAviso = `✅ ${novos.length} ${novos.length === 1 ? 'evento criado' : 'eventos criados'} no calendário.` +
+        (duplicados ? ` (${duplicados} ${duplicados === 1 ? 'já existia e foi mantido' : 'já existiam e foram mantidos'} sem duplicar)` : '');
+      state.calendarioOrganizarEtapa = null;
+      state.calendarioOrganizarTextoValor = '';
+      state.calendarioOrganizarTextoErro = null;
+    } catch (e) {
+      // Mantem o texto colado (senao a pessoa perde tudo e tem que colar de
+      // novo) e mostra o erro na propria tela do Adicionar, nao so no aviso
+      // do calendario - que so aparece depois de sair desta tela, e sem
+      // sucesso a gente nunca sai dela.
+      state.calendarioOrganizarTextoValor = texto;
+      state.calendarioOrganizarErroSalvar = e.message;
+    }
+    state.calendarioSalvando = false;
     return render();
   }
   if (action === 'calendario-organizar-subtab') {
@@ -5045,20 +5119,19 @@ document.getElementById('app').addEventListener('click', async (e) => {
     return render();
   }
   if (action === 'calendario-editar-excluir') {
-    const marcas = state.calendarioMarcacoes[state.calendarioEscopo];
-    if (marcas) delete marcas[state.calendarioEditandoData];
+    state.events = state.events.filter(ev => ev.id !== id);
     state.calendarioEditandoData = null;
     state.calendarioConfirmandoExclusao = false;
-    return render();
+    render();
+    await salvarOuAvisar('eventoRemover', { id });
+    return;
   }
   if (action === 'calendario-editar-confirmar-data') {
     const novaData = document.getElementById('calendario-editar-data-field').value;
     if (!novaData) return;
-    const marcas = state.calendarioMarcacoes[state.calendarioEscopo] || {};
-    const tipo = marcas[state.calendarioEditandoData];
-    delete marcas[state.calendarioEditandoData];
-    marcas[novaData] = tipo;
-    state.calendarioMarcacoes[state.calendarioEscopo] = marcas;
+    const ev = state.events.find(e => e.id === id);
+    if (!ev) return;
+    state.events = state.events.map(e => e.id === id ? { ...e, data: novaData } : e);
     // Pula direto pro mes/ano da nova data, pra ja mostrar o quadrado certo
     // sem precisar navegar manualmente ate lá.
     const [ano, mes] = novaData.split('-').map(Number);
@@ -5066,7 +5139,9 @@ document.getElementById('app').addEventListener('click', async (e) => {
     state.calendarioMes = mes - 1;
     state.calendarioEditandoData = novaData;
     state.calendarioAjustandoData = false;
-    return render();
+    render();
+    await salvarOuAvisar('eventoSalvar', paramsDeEvento({ ...ev, data: novaData }));
+    return;
   }
   if (action === 'select-relatorio-divisao') {
     state.relatorioEscopo = target.dataset.value;

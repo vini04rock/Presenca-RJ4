@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-09-12-v-aguardando-vira-infracional';
+var VERSAO = '2026-09-13-v-calendario-eventos-reais';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -130,6 +130,7 @@ function executar(action, p) {
   if (action === 'membroRemover') return comTrava(function () { return removerMembro(p.id); });
   if (action === 'eventoSalvar') return comTrava(function () { return salvarEvento(p); });
   if (action === 'criarEventoDeTexto') return comTrava(function () { return criarEventoDeTexto(p); });
+  if (action === 'criarEventosDeCalendario') return comTrava(function () { return criarEventosDeCalendario(p); });
   if (action === 'eventoRemover') return comTrava(function () { return removerEvento(p.id); });
   if (action === 'relatorio') return comTrava(function () {
     atualizarRelatorio();
@@ -1068,6 +1069,33 @@ function criarEventoDeTexto(p) {
   // linhas existem.
   if ((p.status || 'ativo') === 'encerrado') converterAguardandoParaInfracionalAoEncerrar(eventoResp.id);
   return { ok: true, id: eventoResp.id };
+}
+
+// Cria varios eventos de uma vez, um por dia marcado na tela "Organizar" do
+// Calendario (index.html) - chega por apiPost (corpo JSON de verdade),
+// entao p.eventos ja e um array de { data, tipo } e p.membroIds ja e um
+// array de ids, sem precisar de parseOuVazio. Todos os eventos criados
+// aqui usam a mesma categoria e os mesmos convidados (a lista de membros
+// elegiveis daquele escopo, calculada no index.html) - nascem sempre
+// "ativo" (o calendario e pra marcar coisa futura, nao pra registrar
+// presenca retroativa). O nome de cada evento e o proprio tipo (ex: "Pub"),
+// ja que o texto colado so traz data+tipo, sem um nome proprio.
+function criarEventosDeCalendario(p) {
+  var eventos = Array.isArray(p.eventos) ? p.eventos : parseOuVazio(p.eventos, []);
+  if (!eventos.length) throw new Error('Nenhum evento para criar');
+  var categoria = String(p.categoria || 'barra');
+  var membroIds = Array.isArray(p.membroIds) ? p.membroIds.map(String) : listaDe(p.membroIds);
+
+  var criados = eventos.map(function (e) {
+    var nome = String(e.tipo || 'Evento');
+    var resp = salvarEvento({
+      nome: nome, data: String(e.data || ''), categoria: categoria,
+      tipo: String(e.tipo || ''), status: 'ativo'
+    });
+    ajustarParticipantes(resp.id, nome, membroIds);
+    return { id: resp.id, data: e.data, tipo: e.tipo };
+  });
+  return { ok: true, criados: criados };
 }
 
 function renomearEmPresencas(coluna, id, nome) {
