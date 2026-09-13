@@ -422,6 +422,11 @@
   .status-falta { color: var(--text-muted); background: var(--surface-alt); border: 1px solid var(--line); text-decoration: line-through; text-decoration-color: var(--line-strong); }
   .status-familia { color: var(--text-muted); background: var(--surface-alt); border: 1px solid var(--line); text-decoration: line-through; text-decoration-color: var(--line-strong); }
   .status-trabalho { color: var(--text-muted); background: var(--surface-alt); border: 1px solid var(--line); text-decoration: line-through; text-decoration-color: var(--line-strong); }
+  /* So usados na Ficha do membro (historico evento a evento) - "justificada"
+     e "infracional" nunca aparecem no picker manual (STATUS_PICKER_KEYS),
+     entao nao tinham selo proprio ate agora. */
+  .status-justificada { color: var(--status-justificada); border: 1px dashed var(--status-justificada); background: transparent; }
+  .status-infracional { color: var(--status-infracional); border: 1px dashed var(--status-infracional); background: transparent; }
   .picker {
     margin-top: 12px;
     padding: 12px;
@@ -503,7 +508,7 @@
   }
   .checkbox-row:last-child { border-bottom: none; }
   .checkbox-row input { width: auto; margin: 0; }
-  .count-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 12px; }
+  .count-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
   .count-box-report {
     border: 1px solid var(--line);
     border-radius: var(--radius);
@@ -521,7 +526,9 @@
     justify-content: space-between;
     gap: 14px;
     padding: 14px 16px;
+    cursor: pointer;
   }
+  .presenca-row:active { background: var(--surface-alt); }
   .presenca-nome { font-size: 15px; font-weight: 500; color: var(--text); }
   .presenca-contagem { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
   .presenca-sem-dados { font-size: 12px; color: var(--text-muted); font-style: italic; }
@@ -932,15 +939,15 @@ let state = {
   // "Confirmar" - so um aviso, nao bloqueia (ver eventosPossivelmenteDuplicados).
   relatorioDuplicidadeAviso: null,
   relatorioDuplicidadeConfirmada: false,
-  // Aba "Presenca": % de cada integrante (mesmo motor de lerEstatisticasMembros
-  // que ja alimenta o Modo organizador, so que aqui roda para relatorioEscopo).
-  relatorioEstatisticas: null,
-  relatorioEstatisticasLoading: false,
-  relatorioEstatisticasError: null,
   // Quais divisoes estao abertas na lista "% de cada integrante" (comeca
   // tudo fechado - senao o Regional com "Todas as divisões" vira uma
   // lista sem fim de nomes de cara).
   relatorioEstatisticasExpandidas: new Set(),
+  // Id do membro cuja "Ficha" esta aberta (historico evento a evento) -
+  // aberta a partir de qualquer lista de "% de cada integrante" no
+  // Resumo Relatorio ou nas abas fixas por tipo. null = nenhuma aberta,
+  // mostra a aba normal.
+  relatorioMembroFichaId: null,
   // Mesma ideia, para a aba Eventos agrupada por divisao (Regional +
   // "Todas as divisões").
   relatorioEventosExpandidos: new Set(),
@@ -2435,7 +2442,7 @@ async function checkRelatorioPin() {
       state.relatorioTipoDetalhe = null;
       state.relatorioFiltroDivisao = 'todas';
       render();
-      await Promise.all([loadReportData(), loadRelatorioEstatisticas()]);
+      await loadReportData();
     } else {
       state.relatorioPinErro = 'PIN incorreto.';
     }
@@ -2484,6 +2491,17 @@ function renderRelatorioFiltroDivisao() {
 }
 
 function renderRelatorioShell(app) {
+  // Ficha do membro fica "por cima" de qualquer aba - abre com o nome de
+  // onde a pessoa veio (Resumo ou uma aba fixa de tipo) e o "Voltar" fecha
+  // ela, devolvendo pra mesma aba/filtro, sem trocar state.relatorioTab.
+  if (state.relatorioMembroFichaId) {
+    app.innerHTML = `
+      <div class="back-link on-photo no-print" data-action="fechar-ficha-membro">‹ Voltar ao relatório</div>
+      ${renderFichaMembro(state.relatorioMembroFichaId)}
+    `;
+    return;
+  }
+
   const conteudo = state.relatorioTab === 'eventos' ? conteudoRelatorioEventos()
     : state.relatorioTab === 'resumo' ? conteudoRelatorioPresenca()
     : state.relatorioTab === 'enviar' ? conteudoRelatorioColar()
@@ -2902,7 +2920,7 @@ function conteudoRelatorioResultado() {
   ev.memberIds.forEach(mid => {
     const m = state.roster.find(r => r.id === mid);
     if (!m) return;
-    const st = statusPorMembro[mid] || 'aguardando';
+    const st = statusEfetivo(ev, statusPorMembro[mid] || 'aguardando');
     (groups[st] || groups.aguardando).push(m.nome);
   });
   const total = ev.memberIds.length;
@@ -2913,7 +2931,7 @@ function conteudoRelatorioResultado() {
     <div class="card">
       <div class="info-line"><b>${pct}% de presença</b> (${groups.confirmado.length} de ${total})</div>
       <div class="info-line">✅ Confirmados: ${groups.confirmado.length}</div>
-      <div class="info-line">⚠️ Aguardando: ${groups.aguardando.length}</div>
+      ${ev.status !== 'encerrado' ? `<div class="info-line">⚠️ Aguardando: ${groups.aguardando.length}</div>` : ''}
       <div class="info-line">❌ Faltas justificadas: ${groups.familia.length + groups.trabalho.length + groups.justificada.length}</div>
       <div class="info-line">⭕ Faltas infracionais (inclui quem não respondeu): ${groups.infracional.length}</div>
       ${groups.infracional.length ? `<div class="info-line" style="white-space:pre-wrap; color:var(--text-muted);">${groups.infracional.map(n => '- ' + n).join('\n')}</div>` : ''}
@@ -3057,30 +3075,6 @@ function conteudoRelatorioEventos() {
   `;
 }
 
-// Aba "Presenca": % por evento, % total do periodo e % de cada integrante -
-// os dois primeiros calculados no navegador a partir do mesmo cache
-// (state.reportData) que a aba Eventos usa; o ultimo reaproveita
-// lerEstatisticasMembros no Code.gs, o mesmo motor que ja alimenta a aba
-// Presencas do Modo organizador.
-async function loadRelatorioEstatisticas() {
-  state.relatorioEstatisticasLoading = true;
-  state.relatorioEstatisticasError = null;
-  render();
-  try {
-    // No Regional, respeita o filtro de divisao do painel - categoria vazia
-    // e o proprio sinal que lerEstatisticasMembros usa pra "sem filtro,
-    // todo mundo" (ver Code.gs), entao "todas" vira uma string vazia.
-    const categoria = state.relatorioEscopo !== 'regional' ? state.relatorioEscopo
-      : (state.relatorioFiltroDivisao === 'todas' ? '' : state.relatorioFiltroDivisao);
-    const r = await api('estatisticas', { categoria });
-    state.relatorioEstatisticas = r.membros || [];
-  } catch (e) {
-    state.relatorioEstatisticasError = e.message;
-  }
-  state.relatorioEstatisticasLoading = false;
-  render();
-}
-
 // yyyy-MM-dd de N meses atras, no fuso local - mesma ideia de dataCorte no
 // Code.gs, so que calculada no navegador (aqui nao precisamos ler a
 // planilha de novo, so filtrar o que ja esta em state.events/reportData).
@@ -3142,10 +3136,11 @@ function renderDonutChart(segments, centro, centroLabel, tamanho) {
 // Status agrupado em 4 fatias (confirmado/aguardando/faltas justificadas/
 // faltas infracionais) para o donut - familia+trabalho+justificada viram
 // uma unica fatia, igual ao que buildReportText ja agrupa.
+// So 3 fatias - eventos encerrados nunca deveriam ter "Aguardando" de
+// verdade (ver statusEfetivo), entao esse status nem entra no donut.
 function segmentosDonutStatus(statusPeriodo) {
   return [
     { label: 'Confirmado', value: statusPeriodo.confirmado, cor: 'var(--status-confirmado)' },
-    { label: 'Aguardando', value: statusPeriodo.aguardando, cor: 'var(--status-aguardando)' },
     { label: 'Faltas justificadas', value: statusPeriodo.justificada, cor: 'var(--status-justificada)' },
     { label: 'Faltas infracionais', value: statusPeriodo.infracional, cor: 'var(--status-infracional)' },
   ];
@@ -3163,7 +3158,7 @@ function rankingFaltasInfracionais(encerrados, meses) {
     const statusData = state.reportData[ev.id];
     if (!statusData) return;
     ev.memberIds.forEach(mid => {
-      const s = (statusData[mid] && statusData[mid].status) || 'aguardando';
+      const s = statusEfetivo(ev, (statusData[mid] && statusData[mid].status) || 'aguardando');
       if (s === 'infracional') porMembro[mid] = (porMembro[mid] || 0) + 1;
     });
   });
@@ -3333,18 +3328,13 @@ function conteudoRelatorioTipoDetalhe(encerrados, chave) {
   `;
 }
 
-// % de cada integrante calculado so a partir dos eventos ENCERRADOS de um
-// tipo especifico - diferente de state.relatorioEstatisticas (que vem do
-// Code.gs e ignora tipo, olha a divisao toda). Convites conta so eventos
-// daquele tipo em que o membro foi convidado (tem linha em Presencas);
-// confirmacoes so as que tem status "confirmado". Roster/eventos respeitam
-// o filtro de divisao do painel (membrosVisiveisRelatorio/eventosDoRelatorioEscopo).
-function estatisticasMembrosPorTipo(tipo) {
-  const membros = membrosVisiveisRelatorio();
-  const eventosTipo = eventosDoRelatorioEscopo().filter(e => e.status === 'encerrado' && e.tipo === tipo);
-
+// Conta convites/confirmacoes por membro a partir de uma lista de eventos ja
+// filtrada (por tipo, por periodo, o que for) - motor comum de
+// estatisticasMembrosPorTipo e estatisticasMembrosPorPeriodo, pra nao
+// duplicar o mesmo loop com filtro diferente por fora.
+function contarConfirmacoesPorMembro(eventos) {
   const contagem = {};
-  eventosTipo.forEach(ev => {
+  eventos.forEach(ev => {
     const presencas = state.reportData[ev.id];
     if (!presencas) return;
     ev.memberIds.forEach(mid => {
@@ -3353,7 +3343,10 @@ function estatisticasMembrosPorTipo(tipo) {
       if (presencas[mid] && presencas[mid].status === 'confirmado') contagem[mid].confirmacoes++;
     });
   });
+  return contagem;
+}
 
+function estatisticasDeContagem(membros, contagem) {
   return membros.map(m => {
     const c = contagem[m.id] || { convites: 0, confirmacoes: 0 };
     return {
@@ -3362,6 +3355,107 @@ function estatisticasMembrosPorTipo(tipo) {
       percentual: c.convites ? Math.round((c.confirmacoes / c.convites) * 100) : null
     };
   });
+}
+
+// % de cada integrante calculado so a partir dos eventos ENCERRADOS de um
+// tipo especifico. Convites conta so eventos daquele tipo em que o membro
+// foi convidado (tem linha em Presencas); confirmacoes so as que tem status
+// "confirmado". Roster/eventos respeitam o filtro de divisao do painel
+// (membrosVisiveisRelatorio/eventosDoRelatorioEscopo).
+function estatisticasMembrosPorTipo(tipo) {
+  const eventosTipo = eventosDoRelatorioEscopo().filter(e => e.status === 'encerrado' && e.tipo === tipo);
+  return estatisticasDeContagem(membrosVisiveisRelatorio(), contarConfirmacoesPorMembro(eventosTipo));
+}
+
+// % de cada integrante dentro de uma janela de tempo (1/3/6/12 meses) - usa
+// o mesmo corte de data do card "Presença total" (dataCorteMeses,
+// resumoDonutPeriodo), pra nao mostrar uma % "desde sempre" embaixo de
+// donuts que ja tem um periodo escolhido. Calculado no navegador a partir de
+// state.reportData (ja carregado pra aba Resumo Relatorio inteira), sem
+// round-trip novo ao servidor.
+function estatisticasMembrosPorPeriodo(meses) {
+  const corte = dataCorteMeses(meses);
+  const eventosNoPeriodo = eventosDoRelatorioEscopo().filter(e => e.status === 'encerrado' && e.data && e.data >= corte);
+  return estatisticasDeContagem(membrosVisiveisRelatorio(), contarConfirmacoesPorMembro(eventosNoPeriodo));
+}
+
+// Historico evento a evento de um membro (mais recente primeiro) - base da
+// "Ficha do membro" (renderFichaMembro), aberta ao tocar num nome em
+// qualquer lista de "% de cada integrante". So eventos encerrados em que
+// esse membro foi convidado (tem linha em Presencas), dentro do mesmo
+// filtro de divisao do painel (eventosDoRelatorioEscopo).
+function historicoMembro(membroId) {
+  const eventosOrdemCronologica = eventosDoRelatorioEscopo()
+    .filter(ev => ev.status === 'encerrado' && ev.memberIds.includes(membroId))
+    .sort((a, b) => (a.data || '').localeCompare(b.data || '') || (a.criadoEm || '').localeCompare(b.criadoEm || ''));
+
+  let convites = 0, confirmacoes = 0, justificadas = 0, infracionais = 0;
+  const itens = eventosOrdemCronologica.map(ev => {
+    const presencas = state.reportData[ev.id];
+    const statusBruto = presencas && presencas[membroId] ? presencas[membroId].status : null;
+    // Evento encerrado sem resposta vira falta infracional (ver statusEfetivo) -
+    // aplicado aqui tambem, senao a ficha mostraria "Aguardando" pra eventos
+    // ja fechados de antes dessa regra existir.
+    const status = presencas ? statusEfetivo(ev, statusBruto || 'aguardando') : null;
+    if (presencas) {
+      convites++;
+      if (status === 'confirmado') confirmacoes++;
+      else if (status === 'familia' || status === 'trabalho' || status === 'justificada') justificadas++;
+      else if (status === 'infracional') infracionais++;
+    }
+    return {
+      ev, status,
+      // % acumulada ate esse evento (inclusive), na ordem cronologica - da
+      // o "sparkline" pessoal (como a media do membro foi evoluindo ao
+      // longo do tempo), reaproveitando renderSparklineTendencia que ja
+      // existe pro Rank Total. Fica null enquanto o evento ainda nao
+      // carregou (ver faltaCarregar em renderFichaMembro).
+      pctAcumulado: presencas ? Math.round((confirmacoes / convites) * 100) : null
+    };
+  });
+  return { itens: itens.slice().reverse(), convites, confirmacoes, justificadas, infracionais };
+}
+
+function renderFichaMembro(membroId) {
+  const m = state.roster.find(x => x.id === membroId);
+  if (!m) return '<div class="empty">Membro não encontrado.</div>';
+
+  const { itens, convites, confirmacoes, justificadas, infracionais } = historicoMembro(membroId);
+  const percentual = convites ? Math.round((confirmacoes / convites) * 100) : null;
+  // renderSparklineTendencia espera ordem cronologica (mais antigo primeiro) -
+  // itens ja vem invertido (mais recente primeiro) pra lista embaixo, entao
+  // desfaz so pra montar a linha.
+  const itensSparkline = itens.slice().reverse()
+    .filter(it => it.pctAcumulado !== null)
+    .map(it => ({ ev: it.ev, pct: it.pctAcumulado }));
+
+  return `
+    <div class="card" style="margin-bottom:14px;">
+      <div style="font-family:'Rye',serif; font-size:19px; color:var(--white-strong);">${escapeHtml(m.nome)}${m.grau ? ` <span class="grade-box">${escapeHtml(m.grau)}</span>` : ''}</div>
+      <div style="color:var(--text-muted); font-size:12.5px; margin-top:4px;">${escapeHtml(m.divisao || '—')}</div>
+      ${linhaFuncoes(m.funcoes)}
+      ${renderDonutChart(segmentosDonutStatus({ confirmado: confirmacoes, justificada: justificadas, infracional: infracionais }), percentual === null ? '—' : percentual + '%', 'presença', 130)}
+      <div class="info-line" style="padding:8px 0 0; color:var(--text-muted); font-size:12px;">${convites} ${convites === 1 ? 'evento' : 'eventos'} no histórico</div>
+      ${itensSparkline.length > 1 ? renderSparklineTendencia(itensSparkline) : ''}
+    </div>
+    <div class="card">
+      <div style="font-weight:600; margin-bottom:6px;">Histórico evento a evento</div>
+      ${!itens.length ? '<div class="empty">Nenhum evento encerrado ainda.</div>' : itens.map(it => {
+        const s = STATUS[it.status] || STATUS.aguardando;
+        return `
+          <div class="member-row">
+            <div class="member-head">
+              <div class="member-info-wrap">
+                <span class="member-name">${escapeHtml(it.ev.nome)}</span>
+                <div style="color:var(--text-muted); font-size:11.5px;">${it.ev.data ? formatDataBR(it.ev.data) : '—'}</div>
+              </div>
+              <span class="status-badge status-${it.status || 'aguardando'}">${s.emoji} ${s.label}</span>
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
 }
 
 // Agrupa uma lista de estatisticas de membro (precisa de nome/divisao/
@@ -3398,7 +3492,7 @@ function renderLinhaEstatisticaMembro(m) {
   const nomeComGrau = `${escapeHtml(m.nome)}${m.grau ? ` <span class="grade-box">${escapeHtml(m.grau)}</span>` : ''}`;
   if (m.percentual === null) {
     return `
-      <div class="card presenca-row">
+      <div class="card presenca-row" data-action="abrir-ficha-membro" data-id="${m.id}">
         <div class="presenca-info">
           <div class="presenca-nome">${nomeComGrau}</div>
           ${linhaFuncoes(m.funcoes)}
@@ -3408,7 +3502,7 @@ function renderLinhaEstatisticaMembro(m) {
     `;
   }
   return `
-    <div class="card presenca-row">
+    <div class="card presenca-row" data-action="abrir-ficha-membro" data-id="${m.id}">
       <div class="presenca-info">
         <div class="presenca-nome">${nomeComGrau}</div>
         ${linhaFuncoes(m.funcoes)}
@@ -3494,13 +3588,15 @@ function conteudoRelatorioTipoFixo(tipo) {
 function conteudoRelatorioPresenca() {
   const encerrados = eventosDoRelatorioEscopo().filter(e => e.status === 'encerrado');
 
-  // state.relatorioEstatisticas vem do Code.gs so com id/nome/convites/
-  // confirmacoes/percentual - junta com state.roster pra ter grau/divisao/
-  // funcoes tambem, pro agrupamento e pros selos na lista.
-  const listaMembros = state.relatorioEstatisticas ? state.relatorioEstatisticas.map(m => {
-    const r = state.roster.find(x => x.id === m.id);
-    return { ...m, grau: r ? r.grau : '', divisao: r ? r.divisao : '', funcoes: r ? r.funcoes : [] };
-  }) : null;
+  // % de cada integrante no mesmo periodo do card "Presença total" (em vez
+  // de sempre "desde sempre") - antes essa lista vinha de uma acao propria
+  // no Code.gs (lerEstatisticasMembros) que ignorava o periodo escolhido
+  // nos donuts acima; agora usa o mesmo state.reportData ja carregado pra
+  // aba inteira, sem round-trip novo ao servidor.
+  const mesesLista = state.relatorioPeriodoPorGrafico.total || 3;
+  const corteLista = dataCorteMeses(mesesLista);
+  const faltaCarregarLista = encerrados.some(e => e.data && e.data >= corteLista && !(e.id in state.reportData));
+  const listaMembros = faltaCarregarLista ? null : estatisticasMembrosPorPeriodo(mesesLista);
 
   const corpoPrincipal = state.relatorioTipoDetalhe
     ? conteudoRelatorioTipoDetalhe(encerrados, state.relatorioTipoDetalhe)
@@ -3519,11 +3615,8 @@ function conteudoRelatorioPresenca() {
     ${corpoPrincipal}
 
     <div class="card" style="margin-top:14px;">
-      <div style="font-weight:600; margin-bottom:6px;">% de cada integrante</div>
-      ${state.relatorioEstatisticasError ? `
-        <div class="alert"><div class="alert-msg">${escapeHtml(state.relatorioEstatisticasError)}</div></div>
-        <button class="btn secondary block" data-action="retry-relatorio-estatisticas" style="margin-top:10px;">Tentar de novo</button>
-      ` : state.relatorioEstatisticasLoading || !listaMembros ? '<div class="empty">Calculando…</div>' : !listaMembros.length ? '<div class="empty">Nenhum membro cadastrado ainda.</div>' : renderListaEstatisticasPorDivisao(listaMembros)}
+      <div style="font-weight:600; margin-bottom:6px;">% de cada integrante <span style="color:var(--text-muted); font-weight:400; font-size:12px;">(últimos ${mesesLista === 1 ? 'mês' : mesesLista + ' meses'})</span></div>
+      ${!listaMembros ? '<div class="empty">Carregando…</div>' : !listaMembros.length ? '<div class="empty">Nenhum membro cadastrado ainda.</div>' : renderListaEstatisticasPorDivisao(listaMembros)}
     </div>
   `;
 }
@@ -3801,11 +3894,23 @@ function renderAdminInsights() {
   `;
 }
 
+// Nao responder a convocacao e falta igual a uma falta sem justificativa
+// (decisao do clube) - so faz sentido continuar "Aguardando" enquanto o
+// evento ainda esta aberto (a pessoa ainda pode responder). O Code.gs ja
+// converte isso na planilha ao encerrar (converterAguardandoParaInfracionalAoEncerrar),
+// mas essa funcao e chamada aqui tambem, na leitura, como rede de seguranca
+// pra eventos que ja estavam encerrados antes dessa regra existir - sem
+// isso eles ficariam eternamente mostrando "Aguardando" ate alguem rodar a
+// migracao manual na planilha (migrarAguardandoDeEventosJaEncerrados).
+function statusEfetivo(ev, statusBruto) {
+  return (ev.status === 'encerrado' && statusBruto === 'aguardando') ? 'infracional' : statusBruto;
+}
+
 function computeCounts(ev) {
   const statusData = state.reportData[ev.id] || {};
   const counts = { confirmado: 0, familia: 0, trabalho: 0, aguardando: 0, justificada: 0, infracional: 0 };
   ev.memberIds.forEach(mid => {
-    const s = (statusData[mid] && statusData[mid].status) || 'aguardando';
+    const s = statusEfetivo(ev, (statusData[mid] && statusData[mid].status) || 'aguardando');
     if (counts[s] !== undefined) counts[s]++; else counts.aguardando++;
   });
   return counts;
@@ -3817,7 +3922,7 @@ function getReportGroups(ev) {
   ev.memberIds.forEach(mid => {
     const m = state.roster.find(r => r.id === mid);
     if (!m) return;
-    const s = (statusData[mid] && statusData[mid].status) || 'aguardando';
+    const s = statusEfetivo(ev, (statusData[mid] && statusData[mid].status) || 'aguardando');
     (groups[s] || groups.aguardando).push(m.nome);
   });
   return groups;
@@ -3850,9 +3955,8 @@ function buildReportText(ev) {
   lines.push(`❌ NÃO PUDERAM IR (${naoPuderamIr.length})`);
   lines.push(...(naoPuderamIr.length ? naoPuderamIr.map(m => `- ${m.nome} (${m.motivo})`) : ['- Ninguém avisou falta']));
   lines.push('');
-  lines.push(`⚠️ NÃO RESPONDERAM (${groups.aguardando.length})`);
-  lines.push(...(groups.aguardando.length ? groups.aguardando.map(n => '- ' + n) : ['- Todos responderam']));
-  lines.push('');
+  // Sem secao de "Nao responderam": evento encerrado nao tem mais esse
+  // status (ver statusEfetivo) - quem nao respondeu ja caiu em Infracional.
   lines.push(`⭕ FALTA INFRACIONAL (${groups.infracional.length})`);
   lines.push(...(groups.infracional.length ? groups.infracional.map(n => '- ' + n) : ['- Nenhuma']));
   return lines.join('\n');
@@ -3992,9 +4096,8 @@ function renderAdminRelatorio() {
         </div>
         <div class="count-grid">
           <div class="count-box-report">✅ Confirmados <b>${n(counts.confirmado)}</b></div>
-          <div class="count-box-report">⚠️ Não responderam <b>${n(counts.aguardando)}</b></div>
-          <div class="count-box-report">❌ Família <b>${n(counts.familia)}</b></div>
-          <div class="count-box-report">❌ Trabalho <b>${n(counts.trabalho)}</b></div>
+          <div class="count-box-report">❌ Falta justificada <b>${n(counts.familia + counts.trabalho + counts.justificada)}</b></div>
+          <div class="count-box-report">⭕ Falta infracional <b>${n(counts.infracional)}</b></div>
         </div>
         ${carregado ? `<button class="btn secondary block" data-action="copy-report" data-id="${ev.id}" style="margin-top:10px;">${state.copiedEventId === ev.id ? 'Copiado ✓' : '📋 Copiar relatório'}</button>` : ''}
         ${isOpen && carregado ? renderReportDetail(ev) : ''}
@@ -4029,18 +4132,37 @@ function renderExcluirEvento(ev) {
 
 function renderReportDetail(ev) {
   const groups = getReportGroups(ev);
+  const counts = computeCounts(ev);
   const section = (label, emoji, list) => list.length ? `
     <div style="margin-top:10px;">
       <div style="font-size:11px; color:var(--text-muted); letter-spacing:0.03em; margin-bottom:4px;">${emoji} ${label.toUpperCase()}</div>
       <div style="font-size:13.5px; color:var(--text); line-height:1.6;">${list.map(escapeHtml).join(', ')}</div>
     </div>
   ` : '';
+  // Familia, trabalho e justificada sao razoes de falta justificada - juntas
+  // numa unica secao, com o motivo ao lado do nome (mesmo agrupamento de
+  // buildReportText, pro texto copiado bater com o que aparece aqui). Sem
+  // secao de "Nao responderam": evento encerrado nao tem mais esse status
+  // (ver statusEfetivo) - quem nao respondeu ja caiu em Infracional.
+  const faltaJustificada = [
+    ...groups.familia.map(n => `${n} (Família)`),
+    ...groups.trabalho.map(n => `${n} (Trabalho)`),
+    ...groups.justificada.map(n => `${n} (Justificada)`),
+  ];
+  // Donut so aqui no detalhe expandido (nao no card recolhido) - senao toda
+  // a lista de eventos encerrados ficaria mais alta a toa, so pra mostrar um
+  // grafico que a maioria vai abrir so de vez em quando.
+  const donut = renderDonutChart(segmentosDonutStatus({
+    confirmado: counts.confirmado,
+    justificada: counts.familia + counts.trabalho + counts.justificada,
+    infracional: counts.infracional
+  }), ev.memberIds.length ? Math.round((counts.confirmado / ev.memberIds.length) * 100) + '%' : '—', 'presença', 130);
   return `
-    <div style="border-top:1px solid var(--line); margin-top:12px; padding-top:2px;">
+    <div style="border-top:1px solid var(--line); margin-top:12px; padding-top:12px;">
+      ${donut}
       ${section('Confirmados', '✅', groups.confirmado)}
-      ${section('Falta - Família', '❌', groups.familia)}
-      ${section('Falta - Trabalho', '❌', groups.trabalho)}
-      ${section('Não responderam', '⚠️', groups.aguardando)}
+      ${section('Falta - Justificada', '❌', faltaJustificada)}
+      ${section('Falta - Infracional', '⭕', groups.infracional)}
     </div>
   `;
 }
@@ -4297,13 +4419,14 @@ document.getElementById('app').addEventListener('click', async (e) => {
   if (action === 'retry-load') return loadInitial();
   if (action === 'retry-report') return loadReportData();
   if (action === 'retry-estatisticas') return loadEstatisticas();
-  if (action === 'retry-relatorio-estatisticas') return loadRelatorioEstatisticas();
   if (action === 'toggle-relatorio-estatisticas-divisao') {
     const chave = target.dataset.value;
     if (state.relatorioEstatisticasExpandidas.has(chave)) state.relatorioEstatisticasExpandidas.delete(chave);
     else state.relatorioEstatisticasExpandidas.add(chave);
     return render();
   }
+  if (action === 'abrir-ficha-membro') { state.relatorioMembroFichaId = id; return render(); }
+  if (action === 'fechar-ficha-membro') { state.relatorioMembroFichaId = null; return render(); }
   if (action === 'toggle-relatorio-eventos-divisao') {
     const chave = target.dataset.value;
     if (state.relatorioEventosExpandidos.has(chave)) state.relatorioEventosExpandidos.delete(chave);
@@ -4321,9 +4444,7 @@ document.getElementById('app').addEventListener('click', async (e) => {
   if (action === 'set-relatorio-filtro-divisao') {
     state.relatorioFiltroDivisao = target.dataset.value;
     state.relatorioTipoDetalhe = null;
-    render();
-    await loadRelatorioEstatisticas();
-    return;
+    return render();
   }
   if (action === 'fechar-relatorio-tipo-detalhe') {
     state.relatorioTipoDetalhe = null;
@@ -4408,13 +4529,13 @@ document.getElementById('app').addEventListener('click', async (e) => {
     state.relatorioEditandoEventoId = null;
     state.relatorioTab = 'resumo';
     state.relatorioColarStep = 'texto';
-    state.relatorioEstatisticas = null;
     state.relatorioCategoriaAlvo = null;
     state.relatorioTipoEscolhido = null;
     state.relatorioTipoDetalhe = null;
     state.relatorioFiltroDivisao = 'todas';
     state.relatorioEstatisticasExpandidas = new Set();
     state.relatorioEventosExpandidos = new Set();
+    state.relatorioMembroFichaId = null;
     return render();
   }
   if (action === 'select-relatorio-divisao') {
@@ -4449,7 +4570,6 @@ document.getElementById('app').addEventListener('click', async (e) => {
     // dispara essa busca.
     const precisaReportData = ['eventos', 'resumo', ...TIPOS_EVENTO_TABS_ORDEM].includes(target.dataset.tab);
     if (precisaReportData) await loadReportData();
-    if (target.dataset.tab === 'resumo') await loadRelatorioEstatisticas();
     return;
   }
   if (action === 'go-relatorio-texto') {

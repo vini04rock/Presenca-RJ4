@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-09-12-v-insight-relatorio-rodada';
+var VERSAO = '2026-09-12-v-aguardando-vira-infracional';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -898,7 +898,49 @@ function salvarEvento(p) {
   else s.appendRow(linha);
   renomearEmPresencas(0, id, p.nome);
   if (p.membroIds !== undefined) ajustarParticipantes(id, p.nome, listaDe(p.membroIds));
+  // Nao responder a convocacao e falta igual a uma falta sem justificativa
+  // (decisao do clube) - so faz sentido continuar "Aguardando" enquanto o
+  // evento ainda esta aberto, ja que a pessoa ainda pode responder. Ao
+  // encerrar (aqui ou nascendo ja encerrado, via criarEventoDeTexto), quem
+  // sobrou em "Aguardando" vira "Infracional" de vez na planilha. Rodar de
+  // novo com o evento ja encerrado e inofensivo (nao sobra mais ninguem
+  // "Aguardando" pra converter).
+  if ((p.status || 'ativo') === 'encerrado') converterAguardandoParaInfracionalAoEncerrar(id);
   return { ok: true, id: id };
+}
+
+function converterAguardandoParaInfracionalAoEncerrar(eventoId) {
+  var s = aba(ABA_PRESENCAS, CAB_PRESENCAS);
+  var dados = linhas(s);
+  for (var i = 0; i < dados.length; i++) {
+    if (String(dados[i][0]) === String(eventoId) && String(dados[i][4]) === STATUS_ROTULO.aguardando) {
+      s.getRange(i + 2, 5).setValue(STATUS_ROTULO.infracional);
+      s.getRange(i + 2, 9).setValue(agora());
+    }
+  }
+}
+
+// Rodar UMA VEZ pelo editor do Apps Script, so se quiser corrigir na
+// planilha os eventos que ja estavam encerrados ANTES dessa regra existir
+// (o app ja trata isso na tela mesmo sem rodar isso - ver computeCounts/
+// getReportGroups no index.html - mas a planilha em si so muda se rodar
+// isto). Varre todo evento ja encerrado e converte quem ficou "Aguardando".
+function migrarAguardandoDeEventosJaEncerrados() {
+  var idsEncerrados = {};
+  linhas(aba(ABA_EVENTOS, CAB_EVENTOS)).forEach(function (l) {
+    if (l[0] && String(l[6]) === 'encerrado') idsEncerrados[String(l[0])] = true;
+  });
+  var s = aba(ABA_PRESENCAS, CAB_PRESENCAS);
+  var dados = linhas(s);
+  var convertidos = 0;
+  for (var i = 0; i < dados.length; i++) {
+    if (idsEncerrados[String(dados[i][0])] && String(dados[i][4]) === STATUS_ROTULO.aguardando) {
+      s.getRange(i + 2, 5).setValue(STATUS_ROTULO.infracional);
+      s.getRange(i + 2, 9).setValue(agora());
+      convertidos++;
+    }
+  }
+  return 'Convertidos ' + convertidos + ' registros de Aguardando para Infracional.';
 }
 
 function removerEvento(id) {
@@ -1018,6 +1060,13 @@ function criarEventoDeTexto(p) {
     textoOriginal: p.textoOriginal
   });
   ajustarParticipantesComStatus(eventoResp.id, p.nome, membros);
+  // salvarEvento ja tenta essa conversao, mas roda ANTES das linhas de
+  // presenca existirem (evento novo) - se o evento nasce ja encerrado
+  // (convocacao de algo que ja aconteceu) e o texto colado trouxe alguem
+  // como "Aguardando" (raro - o parser ja usa Infracional como padrao pra
+  // quem nao respondeu, ver statusDoResto), varre de novo agora que as
+  // linhas existem.
+  if ((p.status || 'ativo') === 'encerrado') converterAguardandoParaInfracionalAoEncerrar(eventoResp.id);
   return { ok: true, id: eventoResp.id };
 }
 
