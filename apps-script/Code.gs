@@ -21,13 +21,15 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-09-13-v-calendario-eventos-reais';
+var VERSAO = '2026-09-13-v-insight-ajustar-rodada';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
 var ABA_PRESENCAS = 'Presencas';
 var ABA_RELATORIO = 'Relatorio';
 var ABA_REGIONAL = 'Regional RJ4';
+var ABA_INSIGHT_RESUMO = 'Insight RJ4';
+var ABA_CALENDARIO = 'Calendário';
 var ABA_KV = 'KV';
 var ABA_INSIGHT_RODADAS = 'InsightRodadas';
 var ABA_INSIGHT_PRESENCAS = 'InsightPresencas';
@@ -136,6 +138,8 @@ function executar(action, p) {
     atualizarRelatorio();
     atualizarAbaRegional();
     atualizarAbasDivisoes();
+    atualizarAbaInsight();
+    atualizarAbaCalendario();
     organizarAbas();
     return { ok: true };
   });
@@ -143,10 +147,14 @@ function executar(action, p) {
   if (action === 'verificarPin') return verificarPin(String(p.escopo || ''), String(p.pin || ''));
   if (action === 'rankPresenca') return { ok: true, rank: calcularRankPresenca(String(p.janela || 'sempre')) };
   if (action === 'insightEstatisticas') return calcularEstatisticasInsights();
-  if (action === 'insightRodadas') return { ok: true, rodadas: listarInsightRodadas(5) };
+  // 30 (nao 5) desde a aba "Por rodada" do Rank de Insights publico - antes
+  // so precisava das ultimas 5 pro sparkline de tendencia, agora tambem
+  // alimenta uma lista navegavel de rodadas passadas.
+  if (action === 'insightRodadas') return { ok: true, rodadas: listarInsightRodadas(30) };
   // O app manda tudo por GET (ver api() no index.html) - marcacoes vira uma
   // unica string JSON num parametro so, em vez de um objeto de verdade.
   if (action === 'insightSalvar') return comTrava(function () { return salvarInsightRodada(parseOuVazio(p.marcacoes, {}), String(p.data || '')); });
+  if (action === 'insightRodadaAjustar') return comTrava(function () { return ajustarInsightRodada(String(p.id || ''), parseOuVazio(p.marcacoes, {})); });
   if (action === 'insightRodadaRemover') return comTrava(function () { return removerInsightRodada(p.id); });
   if (action === 'insightMembroRemover') return comTrava(function () { return removerMembroDoInsight(String(p.id || '')); });
   if (action === 'insightMembroReincluir') return comTrava(function () { return reincluirMembroNoInsight(String(p.id || '')); });
@@ -684,24 +692,39 @@ function atualizarAbaRegional() {
 // evento ja encerrou e em verde se ainda esta ativo.
 var CHAVES_DIVISOES_DETALHE = ['barra', 'oeste', 'recreio', 'curicica', 'taquara', 'gardenia'];
 
+// Emoji por status, so para a secao FICHAS (historico) - mesmo mapa do
+// STATUS no index.html (STATUS.chave.emoji), so que aqui.
+var STATUS_EMOJI = {
+  aguardando: '⚠️', confirmado: '✅', familia: '❌', trabalho: '❌',
+  justificada: '❌', infracional: '⭕'
+};
+
 function atualizarAbasDivisoes() {
   var estat = calcularEstatisticasPorEscopo(null);
 
   var todosEventos = lerEventos();
+  var eventoPorId = {};
   var eventosPorCategoria = {};
   todosEventos.forEach(function (ev) {
     var cat = ev.categoria || 'barra';
+    eventoPorId[ev.id] = ev;
     (eventosPorCategoria[cat] = eventosPorCategoria[cat] || []).push(ev);
   });
 
-  // Uma leitura so da aba Presencas, reaproveitada pelas 6 divisoes.
+  // Uma leitura so da aba Presencas, reaproveitada pelas 6 divisoes - tanto
+  // pro contador por evento (EVENTOS) quanto pro historico por pessoa
+  // (FICHAS, ver abaixo).
   var presencasPorEvento = {};
+  var presencasPorMembro = {};
   linhas(aba(ABA_PRESENCAS, CAB_PRESENCAS)).forEach(function (l) {
     if (!l[0] || !l[2]) return;
     var eid = String(l[0]);
+    var mid = String(l[2]);
     if (!presencasPorEvento[eid]) presencasPorEvento[eid] = { confirmados: 0, total: 0 };
     presencasPorEvento[eid].total++;
-    if (statusParaChave(l[4]) === 'confirmado') presencasPorEvento[eid].confirmados++;
+    var status = statusParaChave(l[4]);
+    if (status === 'confirmado') presencasPorEvento[eid].confirmados++;
+    (presencasPorMembro[mid] = presencasPorMembro[mid] || []).push({ eventoId: eid, status: status });
   });
 
   CHAVES_DIVISOES_DETALHE.forEach(function (chave) {
@@ -764,6 +787,45 @@ function atualizarAbasDivisoes() {
       });
     }
 
+    // Espelho da "Ficha do membro" do app: por integrante, o historico
+    // evento a evento (so os eventos desta divisao - um evento regional que
+    // o integrante tambem participou fica de fora daqui, ja que a % do topo
+    // desta aba tambem so conta os proprios eventos da divisao).
+    linhasSaida.push(['', '']);
+    coresSaida.push([null, null]);
+    formatos.push({ linha: linhasSaida.length + 1, tipo: 'secao' });
+    linhasSaida.push(['FICHAS (histórico por integrante)', '']);
+    coresSaida.push([null, null]);
+
+    if (!membrosDaDivisao.length) {
+      linhasSaida.push(['(nenhum membro cadastrado)', '']);
+      coresSaida.push([null, null]);
+    } else {
+      membrosDaDivisao.forEach(function (m) {
+        formatos.push({ linha: linhasSaida.length + 1, tipo: 'fichaNome' });
+        linhasSaida.push([m.nome, m.percentual === null ? '-' : m.percentual + '%']);
+        coresSaida.push([null, corSemaforo(m.percentual)]);
+
+        var historico = (presencasPorMembro[m.id] || [])
+          .filter(function (p) { var ev = eventoPorId[p.eventoId]; return ev && (ev.categoria || 'barra') === chave; })
+          .map(function (p) { return { ev: eventoPorId[p.eventoId], status: p.status }; })
+          .sort(function (a, b) { return (b.ev.data || '').localeCompare(a.ev.data || ''); });
+
+        if (!historico.length) {
+          linhasSaida.push(['   (sem eventos)', '']);
+          coresSaida.push([null, null]);
+        } else {
+          historico.forEach(function (h) {
+            var rotuloData = h.ev.data ? formatarDataBR(h.ev.data) + ' - ' : '';
+            formatos.push({ linha: linhasSaida.length + 1, tipo: 'fichaEvento' });
+            linhasSaida.push(['   ' + rotuloData + (h.ev.tipo || h.ev.nome),
+                              (STATUS_EMOJI[h.status] || '') + ' ' + (STATUS_ROTULO[h.status] || h.status)]);
+            coresSaida.push([null, null]);
+          });
+        }
+      });
+    }
+
     s.getRange(1, 1, linhasSaida.length, 2).setValues(linhasSaida);
     s.getRange(1, 1, coresSaida.length, 2).setBackgrounds(coresSaida);
     formatos.forEach(function (f) {
@@ -773,28 +835,152 @@ function atualizarAbasDivisoes() {
       // So o nome do evento fica colorido - a % ao lado continua na cor padrao.
       if (f.tipo === 'eventoEncerrado') s.getRange(f.linha, 1).setFontColor('#c0392b');
       if (f.tipo === 'eventoAtivo') s.getRange(f.linha, 1).setFontColor('#1a7a3c');
+      if (f.tipo === 'fichaNome') s.getRange(f.linha, 1, 1, 2).setFontWeight('bold');
+      if (f.tipo === 'fichaEvento') s.getRange(f.linha, 1, 1, 2).setFontColor('#555555').setFontSize(10);
     });
 
     s.setColumnWidth(1, 260);
-    s.setColumnWidth(2, 90);
+    s.setColumnWidth(2, 130);
   });
+}
+
+// ---------- CALENDARIO ----------
+// Espelho na planilha da tela "Calendario" do app: uma grade por mes, igual
+// a um calendario de parede, com o(s) evento(s) marcados em cada dia. So
+// existe em forma de lista antes disso (aba Eventos crua) - sem visao
+// nenhuma de "olhar o mes inteiro de uma vez" pra quem prefere a planilha
+// ao app.
+var DIAS_SEMANA_CALENDARIO = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+var NOMES_MESES_CALENDARIO = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+                               'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+var EMOJI_TIPO_EVENTO_CALENDARIO = { 'Pub': '🍻', 'Bate e Volta': '🏍️', 'Ação Social': '🏥', 'Reunião': '📊' };
+
+// Mistura uma cor com branco - fundo de celula do dia (a cor "crua" da
+// divisao, igual usada no grafico da aba Regional RJ4, e forte demais pra
+// ler texto preto em cima).
+function tomClaro(hex, fator) {
+  var h = hex.replace('#', '');
+  var r = parseInt(h.substring(0, 2), 16), g = parseInt(h.substring(2, 4), 16), b = parseInt(h.substring(4, 6), 16);
+  function misturar(c) { return Math.round(c + (255 - c) * fator); }
+  function paraHex(c) { var s = misturar(c).toString(16); return s.length === 1 ? '0' + s : s; }
+  return '#' + paraHex(r) + paraHex(g) + paraHex(b);
+}
+
+// O resto do arquivo evita sintaxe ES6 (Array.fill, arrow function, etc) de
+// proposito - mais seguro assumir o motor antigo do Apps Script (Rhino) em
+// vez do V8, entao mante-se ES5 aqui tambem.
+function arrayRepetido(n, valor) {
+  var a = [];
+  for (var i = 0; i < n; i++) a.push(valor);
+  return a;
+}
+
+function atualizarAbaCalendario() {
+  var s = planilha().getSheetByName(ABA_CALENDARIO);
+  if (!s) s = planilha().insertSheet(ABA_CALENDARIO);
+  s.clear();
+
+  var eventos = lerEventos().filter(function (ev) { return /^\d{4}-\d{2}-\d{2}$/.test(ev.data); });
+
+  var porMes = {}; // 'yyyy-MM' -> eventos daquele mes
+  eventos.forEach(function (ev) {
+    var chave = ev.data.substring(0, 7);
+    (porMes[chave] = porMes[chave] || []).push(ev);
+  });
+  // O mes atual sempre aparece, mesmo sem nenhum evento marcado ainda - pra
+  // quem abre a planilha ver "estamos aqui" no calendario.
+  var chaveHoje = Utilities.formatDate(new Date(), fuso(), 'yyyy-MM');
+  if (!porMes[chaveHoje]) porMes[chaveHoje] = [];
+  var mesesChaves = Object.keys(porMes).sort();
+
+  var linhaAtual = 1;
+  mesesChaves.forEach(function (chaveMes) {
+    var partes = chaveMes.split('-');
+    var ano = Number(partes[0]), mes = Number(partes[1]); // mes: 1-12
+
+    s.getRange(linhaAtual, 1, 1, 7).merge()
+      .setValue(NOMES_MESES_CALENDARIO[mes - 1].toUpperCase() + ' DE ' + ano)
+      .setFontWeight('bold').setFontSize(13).setHorizontalAlignment('center')
+      .setBackground(chaveMes === chaveHoje ? '#333333' : '#666666').setFontColor('#ffffff');
+    linhaAtual++;
+
+    s.getRange(linhaAtual, 1, 1, 7).setValues([DIAS_SEMANA_CALENDARIO])
+      .setFontWeight('bold').setHorizontalAlignment('center').setBackground('#eeeeee');
+    linhaAtual++;
+
+    var eventosPorDia = {};
+    porMes[chaveMes].forEach(function (ev) {
+      var dia = Number(ev.data.substring(8, 10));
+      (eventosPorDia[dia] = eventosPorDia[dia] || []).push(ev);
+    });
+
+    var primeiroDiaSemana = new Date(ano, mes - 1, 1).getDay(); // 0 = domingo
+    var totalDias = new Date(ano, mes, 0).getDate(); // dia 0 do proximo mes = ultimo dia deste
+
+    var linhasGrid = [];
+    var coresGrid = [];
+    var linhaSemana = arrayRepetido(7, '');
+    var corSemana = arrayRepetido(7, '#ffffff');
+    for (var i = 0; i < primeiroDiaSemana; i++) corSemana[i] = '#f5f5f5';
+
+    var pos = primeiroDiaSemana;
+    for (var dia = 1; dia <= totalDias; dia++) {
+      var evsDoDia = eventosPorDia[dia] || [];
+      var texto = String(dia);
+      if (evsDoDia.length) {
+        texto += '\n' + evsDoDia.map(function (ev) {
+          var corDiv = CORES_DIVISOES[ev.categoria];
+          return (EMOJI_TIPO_EVENTO_CALENDARIO[ev.tipo] || '📌') + ' ' + (ev.tipo || ev.nome) +
+                 (corDiv ? ' ' + corDiv.emoji : '');
+        }).join('\n');
+      }
+      linhaSemana[pos] = texto;
+      corSemana[pos] = evsDoDia.length
+        ? tomClaro((CORES_DIVISOES[evsDoDia[0].categoria] || { hex: '#999999' }).hex, 0.65)
+        : '#ffffff';
+      pos++;
+      if (pos === 7 || dia === totalDias) {
+        if (dia === totalDias) for (var f = pos; f < 7; f++) corSemana[f] = '#f5f5f5';
+        linhasGrid.push(linhaSemana);
+        coresGrid.push(corSemana);
+        linhaSemana = arrayRepetido(7, '');
+        corSemana = arrayRepetido(7, '#ffffff');
+        pos = 0;
+      }
+    }
+
+    s.getRange(linhaAtual, 1, linhasGrid.length, 7).setValues(linhasGrid)
+      .setVerticalAlignment('top').setWrap(true).setFontSize(9);
+    s.getRange(linhaAtual, 1, coresGrid.length, 7).setBackgrounds(coresGrid);
+    for (var w = 0; w < linhasGrid.length; w++) s.setRowHeight(linhaAtual + w, 58);
+    linhaAtual += linhasGrid.length + 1; // +1 = linha em branco antes do proximo mes
+  });
+
+  for (var c = 1; c <= 7; c++) s.setColumnWidth(c, 130);
 }
 
 var COR_ABA_REGIONAL = '#f1c232';
 var COR_ABA_DIVISAO = '#4a86e8';
+var COR_ABA_ESPELHO = '#cc0000';
 
-// Reordena as abas (Regional primeiro, depois divisoes em ordem alfabetica,
-// depois os dados brutos) e colore as abas de resumo, pra quem abre a
-// planilha direto achar as coisas sem precisar catar aba por aba.
+// Reordena as abas (Calendario e Regional primeiro, depois divisoes em
+// ordem alfabetica, depois os dados brutos) e colore as abas de resumo, pra
+// quem abre a planilha direto achar as coisas sem precisar catar aba por
+// aba.
 function organizarAbas() {
   var ss = planilha();
-  var ordem = ORDEM_EXIBICAO_ESCOPOS.map(function (chave) { return ESCOPOS_NOME[chave]; })
-    .concat(['Relatorio', 'Membros', 'Eventos', 'Presencas', 'KV']);
+  var ordem = [ABA_CALENDARIO].concat(ORDEM_EXIBICAO_ESCOPOS.map(function (chave) { return ESCOPOS_NOME[chave]; }))
+    .concat([ABA_INSIGHT_RESUMO, 'Relatorio', 'Membros', 'Eventos', 'Presencas',
+             ABA_INSIGHT_RODADAS, ABA_INSIGHT_PRESENCAS, ABA_INSIGHT_EXCLUIDOS, 'KV']);
   ordem.forEach(function (nome, i) {
     var s = ss.getSheetByName(nome);
     if (!s) return;
     ss.setActiveSheet(s);
     ss.moveActiveSheet(i + 1);
+  });
+  [ABA_CALENDARIO, ABA_INSIGHT_RESUMO].forEach(function (nome) {
+    var s = ss.getSheetByName(nome);
+    if (s) s.setTabColor(COR_ABA_ESPELHO);
   });
   CHAVES_DIVISOES_DETALHE.concat(['regional']).forEach(function (chave) {
     var s = ss.getSheetByName(ESCOPOS_NOME[chave]);
@@ -1125,11 +1311,20 @@ function novoId() {
 // Visao so de leitura, agrupada por evento e por situacao. E gerada do zero a
 // cada alteracao: editar aqui na mao nao tem efeito, os dados vivem na aba
 // Presencas.
+//
+// As 6 chaves de status batem 1 a 1 com as secoes - nenhuma cai no fallback
+// "aguardando" por engano (bug corrigido em 13/09/2026: antes so existiam 4
+// secoes aqui, entao "justificada" e "infracional" - que nem existiam
+// quando isso foi escrito pela primeira vez - eram empurradas pra dentro de
+// "MEMBROS NAO CONFIRMADOS", misturando quem so ainda nao respondeu com
+// quem ja tem falta registrada de verdade).
 var ORDEM_SECOES = [
   { chave: 'confirmado', titulo: 'MEMBROS CONFIRMADOS' },
   { chave: 'aguardando', titulo: 'MEMBROS NAO CONFIRMADOS' },
   { chave: 'familia', titulo: 'FALTA - FAMILIA' },
-  { chave: 'trabalho', titulo: 'FALTA - TRABALHO' }
+  { chave: 'trabalho', titulo: 'FALTA - TRABALHO' },
+  { chave: 'justificada', titulo: 'FALTA - JUSTIFICADA' },
+  { chave: 'infracional', titulo: 'FALTA - INFRACIONAL (inclui quem nao respondeu)' }
 ];
 
 function atualizarRelatorio() {
@@ -1190,7 +1385,7 @@ function atualizarRelatorio() {
       linhasSaida.push([detalhes.join('  -  '), '']);
     }
 
-    var porStatus = { confirmado: [], aguardando: [], familia: [], trabalho: [] };
+    var porStatus = { confirmado: [], aguardando: [], familia: [], trabalho: [], justificada: [], infracional: [] };
     (porEvento[ev.id] || []).forEach(function (p) {
       var selos = [];
       if (p.direto) selos.push('Direto');
@@ -1210,6 +1405,13 @@ function atualizarRelatorio() {
     var percentualEvento = totalConvidados ? Math.round((porStatus.confirmado.length / totalConvidados) * 100) : 0;
     formatos.push({ linha: linhasSaida.length + 1, tipo: 'percentual' });
     linhasSaida.push([percentualEvento + '% DE PRESENCA (' + porStatus.confirmado.length + ' de ' + totalConvidados + ')', '']);
+
+    // Mesmo resumo de 3 categorias que o app mostra ao salvar a convocacao
+    // (Confirmados / Faltas justificadas / Faltas infracionais) - familia,
+    // trabalho e justificada contam juntos como "justificada", igual la.
+    var totalJustificadas = porStatus.familia.length + porStatus.trabalho.length + porStatus.justificada.length;
+    formatos.push({ linha: linhasSaida.length + 1, tipo: 'resumo' });
+    linhasSaida.push(['❌ Faltas justificadas: ' + totalJustificadas + '   ⭕ Faltas infracionais: ' + porStatus.infracional.length, '']);
 
     ORDEM_SECOES.forEach(function (secao) {
       var lista = porStatus[secao.chave];
@@ -1232,6 +1434,7 @@ function atualizarRelatorio() {
     if (f.tipo === 'secao') linha.setFontWeight('bold').setFontColor('#666666');
     if (f.tipo === 'detalhe') linha.setFontColor('#888888').setFontStyle('italic');
     if (f.tipo === 'percentual') linha.setFontWeight('bold').setFontColor('#1a7a3c');
+    if (f.tipo === 'resumo') linha.setFontColor('#666666').setFontStyle('italic');
   });
 
   s.setColumnWidth(1, 320);
@@ -1245,10 +1448,21 @@ function formatarDataBR(iso) {
 }
 
 // Um menu na planilha, caso queira gerar sem passar pelo app.
+// Roda tudo que a acao 'relatorio' roda (ver executar()) - usado pelo menu
+// da planilha, pra quem preferir gerar por ali em vez do botao do app.
+function gerarTudoManual() {
+  atualizarRelatorio();
+  atualizarAbaRegional();
+  atualizarAbasDivisoes();
+  atualizarAbaInsight();
+  atualizarAbaCalendario();
+  organizarAbas();
+}
+
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('Confirmacao MC')
-    .addItem('Gerar relatorio agora', 'atualizarRelatorio')
+    .addItem('Gerar relatorio agora', 'gerarTudoManual')
     .addToUi();
 }
 
@@ -1356,6 +1570,29 @@ function salvarInsightRodada(marcacoes, dataEscolhida) {
 
   var percentual = Math.round((totalSim / elegiveis.length) * 100);
   return { ok: true, id: id, percentual: percentual, totalSim: totalSim, totalElegiveis: elegiveis.length };
+}
+
+// Corrige uma rodada que ja foi registrada - marcacao errada sem querer, ou
+// um integrante que respondeu depois. Diferente de salvarInsightRodada, nao
+// cria linha nenhuma: so regrava a coluna "Fez" de quem ja tem linha nessa
+// rodada. Os membros considerados sao os que a rodada ja tinha na hora que
+// foi registrada (nao a lista atual de elegiveis) - se alguem saiu do
+// insight depois, o historico dessa rodada continua intacto.
+function ajustarInsightRodada(id, marcacoes) {
+  if (!id) throw new Error('Faltou o ID da rodada');
+  var s = aba(ABA_INSIGHT_PRESENCAS, CAB_INSIGHT_PRESENCAS);
+  var dados = linhas(s);
+  var totalSim = 0, total = 0;
+  for (var i = 0; i < dados.length; i++) {
+    if (String(dados[i][0]) !== String(id)) continue;
+    total++;
+    var mid = String(dados[i][1]);
+    var fez = !!(marcacoes && marcacoes[mid]);
+    if (fez) totalSim++;
+    s.getRange(i + 2, 5).setValue(fez ? 'Sim' : 'Nao');
+  }
+  if (!total) throw new Error('Rodada nao encontrada');
+  return { ok: true, id: id, percentual: Math.round((totalSim / total) * 100), totalSim: totalSim, totalElegiveis: total };
 }
 
 // Ultimas N rodadas, mais recente primeiro, cada uma com o % calculado na
@@ -1482,6 +1719,135 @@ function calcularEstatisticasInsights() {
   return { ok: true, rodadas: numRodadas, membros: membros, divisoes: divisoes, excluidos: excluidosLista };
 }
 
+// Espelho na planilha do "Rank de Insights" publico do app - ate aqui os
+// dados de insight so existiam crus (InsightRodadas/InsightPresencas), sem
+// nenhuma visao formatada, diferente do que ja existe pra presenca normal
+// (aba Regional RJ4). Mesmo padrao visual: titulo, resumo, tabela colorida
+// por semaforo e um grafico de tendencia - aqui ao longo das rodadas, nao
+// dos meses (insight nao tem "janela de tempo", cada linha ja e uma rodada).
+function atualizarAbaInsight() {
+  var s = planilha().getSheetByName(ABA_INSIGHT_RESUMO);
+  if (!s) s = planilha().insertSheet(ABA_INSIGHT_RESUMO);
+  s.clear();
+  s.getCharts().forEach(function (c) { s.removeChart(c); });
+
+  var estat = calcularEstatisticasInsights();
+  // Ate 20 rodadas mais recentes, mais antiga primeiro (pro grafico de
+  // tendencia ler da esquerda pra direita em ordem cronologica).
+  var rodadas = listarInsightRodadas(20).slice().reverse();
+
+  var linhasSaida = [];
+  var coresSaida = [];
+  var formatos = [];
+
+  // Toda linha, mesmo as de titulo/secao com so 2 colunas de texto, grava 4
+  // cores (null = sem cor) - senao setBackgrounds() recusa o range inteiro
+  // por causa de uma unica linha com menos colunas que as outras.
+  function linha2(a, b) { linhasSaida.push([a, b]); coresSaida.push([null, null, null, null]); }
+
+  formatos.push({ linha: linhasSaida.length + 1, tipo: 'titulo' });
+  linha2('INSIGHT RJ4 — RESUMO DE PARTICIPAÇÃO', '');
+  formatos.push({ linha: linhasSaida.length + 1, tipo: 'detalhe' });
+  linha2('Gerado em ' + agora(), '');
+  linha2('Total de rodadas registradas: ' + estat.rodadas, '');
+  linha2('', '');
+
+  formatos.push({ linha: linhasSaida.length + 1, tipo: 'secao' });
+  linha2('MÉDIA POR DIVISÃO (participantes por rodada)', '');
+  formatos.push({ linha: linhasSaida.length + 1, tipo: 'cabecalho' });
+  linhasSaida.push(['Divisão', 'Média / rodada', 'Elegíveis', '%']);
+  coresSaida.push([null, null, null, null]);
+  var linhaCabecalhoDivisoes = linhasSaida.length;
+  estat.divisoes.forEach(function (d) {
+    linhasSaida.push([CORES_DIVISOES[d.chave].emoji + ' ' + d.nome, d.mediaPorRodada, d.totalMembros, d.percentual === null ? '' : d.percentual]);
+    coresSaida.push([null, null, null, corSemaforo(d.percentual)]);
+  });
+  var linhaFimDivisoes = linhasSaida.length;
+  linha2('', '');
+
+  formatos.push({ linha: linhasSaida.length + 1, tipo: 'secao' });
+  linha2('RANKING DE MEMBROS (% de participação)', '');
+  formatos.push({ linha: linhasSaida.length + 1, tipo: 'cabecalho' });
+  linhasSaida.push(['Nome', 'Divisão', 'Rodadas', '%']);
+  coresSaida.push([null, null, null, null]);
+  var ranking = estat.membros.slice().sort(function (a, b) {
+    if (a.percentual === null && b.percentual === null) return a.nome.localeCompare(b.nome);
+    if (a.percentual === null) return 1;
+    if (b.percentual === null) return -1;
+    return b.percentual - a.percentual || a.nome.localeCompare(b.nome);
+  });
+  if (!ranking.length) {
+    linha2('(nenhum membro elegível)', '');
+  } else {
+    ranking.forEach(function (m) {
+      linhasSaida.push([m.nome, m.divisao, m.rodadas, m.percentual === null ? '' : m.percentual]);
+      coresSaida.push([null, null, null, corSemaforo(m.percentual)]);
+    });
+  }
+  linha2('', '');
+
+  formatos.push({ linha: linhasSaida.length + 1, tipo: 'secao' });
+  linha2('ÚLTIMAS RODADAS (até 20, mais recente primeiro)', '');
+  formatos.push({ linha: linhasSaida.length + 1, tipo: 'cabecalho' });
+  linhasSaida.push(['Data', 'Fizeram', 'Elegíveis', '%']);
+  coresSaida.push([null, null, null, null]);
+  if (!rodadas.length) {
+    linha2('(nenhuma rodada registrada)', '');
+  } else {
+    rodadas.slice().reverse().forEach(function (r) {
+      linhasSaida.push([formatarDataBR(r.data), r.totalSim, r.totalElegiveis, r.percentual === null ? '' : r.percentual]);
+      coresSaida.push([null, null, null, corSemaforo(r.percentual)]);
+    });
+  }
+
+  s.getRange(1, 1, linhasSaida.length, 4).setValues(linhasSaida.map(function (l) {
+    return [l[0], l[1] === undefined ? '' : l[1], l[2] === undefined ? '' : l[2], l[3] === undefined ? '' : l[3]];
+  }));
+  s.getRange(1, 1, coresSaida.length, 4).setBackgrounds(coresSaida);
+
+  formatos.forEach(function (f) {
+    var r = s.getRange(f.linha, 1, 1, 4);
+    if (f.tipo === 'titulo') r.setFontWeight('bold').setFontSize(14);
+    if (f.tipo === 'detalhe') r.setFontColor('#888888').setFontStyle('italic');
+    if (f.tipo === 'secao') r.setFontWeight('bold').setFontColor('#666666');
+    if (f.tipo === 'cabecalho') r.setFontWeight('bold').setFontColor('#666666').setFontSize(10);
+  });
+  s.getRange(linhaCabecalhoDivisoes + 1, 4, Math.max(0, linhaFimDivisoes - linhaCabecalhoDivisoes), 1).setNumberFormat('0"%"');
+  s.getRange(1, 4, linhasSaida.length, 1).setNumberFormat('0"%"');
+
+  s.setColumnWidth(1, 240);
+  s.setColumnWidth(2, 110);
+  s.setColumnWidth(3, 90);
+  s.setColumnWidth(4, 70);
+
+  // Grafico de tendencia: % de participacao rodada a rodada, em ordem
+  // cronologica (rodadas[] ja esta nessa ordem - mais antiga primeiro; a
+  // tabela impressa acima e que mostra mais recente primeiro, por ser mais
+  // facil de ler numa lista, mas o grafico precisa do sentido oposto).
+  if (rodadas.length > 1) {
+    var linhasGrafico = [['Rodada', '%']].concat(rodadas.map(function (r) {
+      return [formatarDataBR(r.data), r.percentual === null ? 0 : r.percentual];
+    }));
+    var linhaInicioGrafico = linhasSaida.length + 2;
+    s.getRange(linhaInicioGrafico, 1, linhasGrafico.length, 2).setValues(linhasGrafico);
+    var rangeGrafico = s.getRange(linhaInicioGrafico, 1, linhasGrafico.length, 2);
+    var grafico = s.newChart()
+      .setChartType(Charts.ChartType.LINE)
+      .addRange(rangeGrafico)
+      .setPosition(linhaInicioGrafico, 4, 0, 0)
+      .setOption('title', 'Tendência de participação por rodada')
+      .setOption('legend', { position: 'none' })
+      .setOption('vAxis', { title: '%', minValue: 0, maxValue: 100 })
+      .setOption('colors', ['#4a86e8'])
+      .setOption('pointSize', 6)
+      .setOption('curveType', 'function')
+      .setOption('width', 700)
+      .setOption('height', 360)
+      .build();
+    s.insertChart(grafico);
+  }
+}
+
 // ---------- DADOS FAKE (so pra pre-visualizar a planilha) ----------
 // So pra rodar na mao pelo editor do Apps Script - de proposito NAO tem
 // acao web correspondente em executar(), pra ninguem conseguir sujar a
@@ -1579,6 +1945,8 @@ function gerarDadosFakeTeste() {
   atualizarRelatorio();
   atualizarAbaRegional();
   atualizarAbasDivisoes();
+  atualizarAbaInsight();
+  atualizarAbaCalendario();
   organizarAbas();
 
   Logger.log(novosMembros.length + ' membros, ' + novosEventos.length + ' eventos, ' + novasPresencas.length +
@@ -1598,6 +1966,8 @@ function removerDadosFakeTeste() {
   atualizarRelatorio();
   atualizarAbaRegional();
   atualizarAbasDivisoes();
+  atualizarAbaInsight();
+  atualizarAbaCalendario();
   organizarAbas();
 
   Logger.log('Dados fake removidos.');

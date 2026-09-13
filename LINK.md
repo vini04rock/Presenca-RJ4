@@ -52,10 +52,24 @@ Abas em uso:
   filtrando por uma coluna de divisão/categoria (não há aba separada por
   divisão para os dados — ver `PLANO-MULTI-DIVISAO.md`).
 - `Relatorio` — por evento, gerada sob demanda pelo botão "Gerar relatório
-  na planilha" (só aparece dentro do organizador Regional).
+  na planilha" (só aparece dentro do organizador Regional). Mostra as
+  mesmas 3 categorias do app (confirmado/justificada/infracional), com um
+  resumo por evento igual ao que aparece ao salvar uma convocação colada.
 - `Regional RJ4` — resumo comparativo entre divisões, em 4 janelas de
   tempo (1/3/6/12 meses), gerada pelo mesmo botão.
 - Uma aba por divisão (`Barra - RJ4`, `Oeste - RJ4`, etc.) — integrantes e
-  % de cada um no topo, eventos e % coloridos por status embaixo. Também
-  gerada pelo mesmo botão.
+  % de cada um no topo, eventos e % coloridos por status no meio, e uma
+  seção "FICHAS" embaixo com o histórico evento a evento de cada
+  integrante (espelho da Ficha do membro do app). Também gerada pelo mesmo
+  botão.
+- `Insight RJ4` — espelho do Rank de Insights público do app: média de
+  participação por divisão, ranking de membros e histórico das últimas 20
+  rodadas, com gráfico de tendência. Gerada pelo mesmo botão.
+- `Calendário` — grade visual, um mês por vez, com os eventos marcados em
+  cada dia (cor por divisão). Gerada pelo mesmo botão.
 - `KV` — formato antigo, mantido apenas como backup da migração inicial.
+
+Todas as abas de resumo (`Calendário`, `Insight RJ4`, `Regional RJ4` e as
+abas por divisão) são regeradas do zero a cada vez - editar direto nelas
+não tem efeito, os dados de verdade vivem em `Membros`/`Eventos`/
+`Presencas`/`InsightRodadas`/`InsightPresencas`.

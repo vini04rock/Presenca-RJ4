@@ -929,6 +929,14 @@ let state = {
   insightRankLoading: false,
   insightRankError: null,
   insightRankExpandedDivisoes: new Set(),
+  // Aba ativa ('total' | 'porRodada') e, na aba "Por rodada", qual rodada
+  // esta expandida mostrando o proprio grafico (null = nenhuma).
+  insightRankTab: 'total',
+  insightRankRodadaSelecionada: null,
+  // Dentro do detalhe de uma rodada (aba "Por rodada"), quais divisoes estao
+  // abertas mostrando os nomes - chave 'fez-<divisao>' ou 'naofez-<divisao>'.
+  // Zerado sempre que a rodada selecionada muda (ver select-insight-rank-rodada).
+  insightRankRodadaDivisoesExpandidas: new Set(),
 
   // Aba Insights, dentro do organizador Regional.
   insightStats: null,
@@ -936,6 +944,11 @@ let state = {
   insightStatsError: null,
   insightRodadasHistorico: null,
   insightMarcacoes: {},
+  // ID da rodada ja registrada que esta sendo corrigida (ver "Ajustar" na
+  // lista de ultimas rodadas) - null = modo normal (marcando uma rodada
+  // nova). Enquanto preenchido, insightMarcacoes guarda a marcacao dessa
+  // rodada especifica, nao a de uma rodada nova.
+  insightEditandoRodadaId: null,
   // Data opcional pra registrar uma rodada atrasada (ver "Registrar com
   // outra data" abaixo do "Confirmar rodada") - vazio usa o dia de hoje,
   // igual sempre foi.
@@ -1317,6 +1330,45 @@ async function confirmarInsightRodada() {
     state.insightResultado = { percentual: r.percentual, totalSim: r.totalSim, totalElegiveis: r.totalElegiveis };
     state.insightMostrarDataCustom = false;
     state.insightDataEscolhida = '';
+    await loadInsightStats();
+  } catch (e) {
+    state.insightErro = e.message;
+  }
+  state.insightSalvando = false;
+  render();
+}
+
+// Abre o modo de ajuste pra uma rodada ja registrada: reaproveita
+// insightMarcacoes (mesmo campo usado pra marcar uma rodada nova), so que
+// pre-preenchido com o "Fez"/"Nao" que a rodada ja tinha, em vez de comecar
+// tudo zerado.
+function iniciarAjusteInsightRodada(id) {
+  const r = (state.insightRodadasHistorico || []).find(x => x.id === id);
+  if (!r) return;
+  state.insightEditandoRodadaId = id;
+  state.insightMarcacoes = {};
+  (r.membros || []).forEach(m => { state.insightMarcacoes[m.id] = m.fez; });
+  state.insightResultado = null;
+  state.insightErro = null;
+  render();
+}
+
+function cancelarAjusteInsightRodada() {
+  state.insightEditandoRodadaId = null;
+  state.insightMarcacoes = {};
+  (state.insightStats ? state.insightStats.membros : []).forEach(m => { state.insightMarcacoes[m.id] = false; });
+  render();
+}
+
+async function salvarAjusteInsightRodada() {
+  const id = state.insightEditandoRodadaId;
+  state.insightSalvando = true;
+  state.insightErro = null;
+  render();
+  try {
+    const r = await api('insightRodadaAjustar', { id, marcacoes: JSON.stringify(state.insightMarcacoes) });
+    state.insightResultado = { ajuste: true, percentual: r.percentual, totalSim: r.totalSim, totalElegiveis: r.totalElegiveis };
+    state.insightEditandoRodadaId = null;
     await loadInsightStats();
   } catch (e) {
     state.insightErro = e.message;
@@ -1789,6 +1841,9 @@ function renderRankConteudo(d) {
 async function carregarRankInsights() {
   state.insightRankLoading = true;
   state.insightRankError = null;
+  state.insightRankTab = 'total';
+  state.insightRankRodadaSelecionada = null;
+  state.insightRankRodadaDivisoesExpandidas = new Set();
   render();
   try {
     const [stats, hist] = await Promise.all([
@@ -1822,7 +1877,88 @@ function renderRankInsights(app) {
       </div>
     ` : ''}
     ${state.insightRankLoading ? '<div class="alert info"><div class="alert-msg">Calculando…</div></div>' : ''}
-    ${!state.insightRankLoading && state.insightRankData ? renderRankInsightsConteudo(state.insightRankData) : ''}
+    ${!state.insightRankLoading && state.insightRankData ? `
+      <div class="chip-grid wide" style="margin-bottom:14px;">
+        <button class="chip-option ${state.insightRankTab === 'total' ? 'active' : ''}" data-action="set-insight-rank-tab" data-value="total">Rank total</button>
+        <button class="chip-option ${state.insightRankTab === 'porRodada' ? 'active' : ''}" data-action="set-insight-rank-tab" data-value="porRodada">Por rodada</button>
+      </div>
+      ${state.insightRankTab === 'porRodada' ? renderRankInsightsPorRodada() : renderRankInsightsConteudo(state.insightRankData)}
+    ` : ''}
+  `;
+}
+
+// Aba "Por rodada": lista todas as rodadas carregadas (ver carregarRankInsights,
+// ate 30) e, ao tocar numa, expande o grafico so daquela rodada logo abaixo
+// dela - mesmo donut fez/nao-fez do consolidado, so que recalculado so com
+// os membros daquela rodada (r.membros), em vez da soma de todas.
+function renderRankInsightsPorRodada() {
+  const rodadas = state.insightRodadasHistorico || [];
+  if (!rodadas.length) {
+    return `<div class="card"><div class="empty">Nenhuma rodada registrada ainda.</div></div>`;
+  }
+
+  return rodadas.map(r => {
+    const selecionada = state.insightRankRodadaSelecionada === r.id;
+    return `
+      <div class="card" style="padding: 4px 16px; margin-bottom:10px;">
+        <div class="division-subheader clicavel" data-action="select-insight-rank-rodada" data-id="${r.id}">
+          <span>${selecionada ? '▾' : '▸'} ${formatDataBR(r.data)}</span>
+          <span class="division-counts">${r.totalSim}/${r.totalElegiveis} · ${r.percentual === null ? '—' : r.percentual + '%'}</span>
+        </div>
+        ${selecionada ? renderRodadaDetalhe(r) : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+// Agrupa uma lista de membros da rodada por divisao, na mesma ordem de
+// exibicao do resto do app (Regional fica de fora, insight e coisa da
+// base) - so entram divisoes que tem pelo meno 1 membro na lista recebida.
+function agruparMembrosRodadaPorDivisao(membros) {
+  return divisoesSemRegional()
+    .map(e => ({ e, membros: membros.filter(m => m.divisao === e.nome) }))
+    .filter(g => g.membros.length > 0);
+}
+
+// grupoChave: 'fez' ou 'naofez' - so pra distinguir a chave de expandido de
+// uma mesma divisao entre os dois blocos (uma pessoa pode querer ver quem
+// fez na Barra sem abrir tambem quem nao fez na Barra).
+function renderGrupoRodadaPorDivisao(titulo, grupos, grupoChave) {
+  if (!grupos.length) return `<div class="info-line" style="color:var(--text-muted); margin-top:10px;">${escapeHtml(titulo)}: ninguém.</div>`;
+  return `
+    <div style="margin-top:10px;">
+      <div style="font-weight:600; margin-bottom:4px;">${escapeHtml(titulo)}</div>
+      ${grupos.map(g => {
+        const chaveExpandido = grupoChave + '-' + g.e.chave;
+        const aberto = state.insightRankRodadaDivisoesExpandidas.has(chaveExpandido);
+        return `
+          <div style="margin-bottom:4px;">
+            <div class="division-subheader clicavel" data-action="toggle-insight-rank-rodada-divisao" data-value="${chaveExpandido}">
+              <span>${aberto ? '▾' : '▸'} ${escapeHtml(g.e.nome)}</span>
+              <span class="division-counts">${g.membros.length}</span>
+            </div>
+            ${aberto ? `<div class="info-line" style="white-space:pre-wrap;">${g.membros.map(m => '- ' + escapeHtml(m.nome)).join('\n')}</div>` : ''}
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+function renderRodadaDetalhe(r) {
+  const membros = r.membros || [];
+  const fez = membros.filter(m => m.fez).length;
+  const naoFez = membros.length - fez;
+
+  return `
+    <div style="padding: 8px 0 14px;">
+      ${renderDonutChart([
+        { label: 'Fez', value: fez, cor: 'var(--status-confirmado)' },
+        { label: 'Não fez', value: naoFez, cor: 'var(--status-infracional)' },
+      ], r.percentual === null ? '—' : r.percentual + '%', 'fazem', 130)}
+      ${renderGrupoRodadaPorDivisao('✅ FIZERAM', agruparMembrosRodadaPorDivisao(membros.filter(m => m.fez)), 'fez')}
+      ${renderGrupoRodadaPorDivisao('⭕ NÃO FIZERAM', agruparMembrosRodadaPorDivisao(membros.filter(m => !m.fez)), 'naofez')}
+    </div>
   `;
 }
 
@@ -4211,6 +4347,44 @@ function renderAdminPresencas() {
   `;
 }
 
+// Painel de ajuste de uma rodada ja registrada (ver iniciarAjusteInsightRodada) -
+// troca de lugar com o bloco de "marcar rodada nova" enquanto uma rodada
+// esta sendo corrigida. Usa os proprios membros daquela rodada (r.membros),
+// nao a lista atual de elegiveis, e reaproveita agruparMembrosRodadaPorDivisao
+// (mesma funcao da aba publica "Por rodada") pra agrupar por divisao.
+function renderAjusteInsightRodada() {
+  const r = (state.insightRodadasHistorico || []).find(x => x.id === state.insightEditandoRodadaId);
+  if (!r) return '';
+  const grupos = agruparMembrosRodadaPorDivisao(r.membros || []);
+  return `
+    <div class="alert info" style="margin-bottom:16px;">
+      <div class="alert-msg">Ajustando a rodada de ${formatDataBR(r.data)}. Toque num integrante pra trocar entre Fez/Não fez.</div>
+    </div>
+    ${grupos.map(g => `
+      <div class="card" style="padding: 4px 16px; margin-bottom:12px;">
+        <div class="division-subheader"><span>${escapeHtml(g.e.nome.toUpperCase())}</span></div>
+        ${g.membros.map(m => {
+          const marcado = !!state.insightMarcacoes[m.id];
+          return `
+            <div class="member-row">
+              <div class="member-head" data-action="toggle-insight-marca" data-id="${m.id}">
+                <span class="member-name">${escapeHtml(m.nome)}</span>
+                <span class="status-badge ${marcado ? 'status-confirmado' : 'status-nao-fez'}">${marcado ? '✅ Fez' : '⬜ Não fez'}</span>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `).join('')}
+    <div class="row-gap" style="margin-bottom:16px;">
+      <button class="btn block" data-action="salvar-ajuste-insight-rodada" ${state.insightSalvando ? 'disabled' : ''}>
+        ${state.insightSalvando ? 'Salvando…' : '✅ Salvar ajuste'}
+      </button>
+      <button class="btn secondary block" data-action="cancelar-ajuste-insight-rodada" ${state.insightSalvando ? 'disabled' : ''}>Cancelar</button>
+    </div>
+  `;
+}
+
 // Aba Insights - so aparece dentro do Regional (ver renderAdmin). Lista de
 // marcacao agrupada por divisao, ordenada pelo % historico de cada um
 // (maior primeiro), com o cabecalho de cada divisao mostrando a media de
@@ -4235,7 +4409,7 @@ function renderAdminInsights() {
 
   const resultado = state.insightResultado ? `
     <div class="alert ok" style="margin-bottom:16px;">
-      <div class="alert-msg">✅ Rodada registrada: ${state.insightResultado.totalSim}/${state.insightResultado.totalElegiveis} fizeram o insight (${state.insightResultado.percentual}%)</div>
+      <div class="alert-msg">✅ Rodada ${state.insightResultado.ajuste ? 'ajustada' : 'registrada'}: ${state.insightResultado.totalSim}/${state.insightResultado.totalElegiveis} fizeram o insight (${state.insightResultado.percentual}%)</div>
     </div>
   ` : '';
 
@@ -4295,6 +4469,7 @@ function renderAdminInsights() {
             ` : `
               <span class="row-gap">
                 <button class="btn ghost" style="padding:6px 10px; font-size:12px;" data-action="copy-insight-report" data-id="${r.id}">${state.copiedInsightRodadaId === r.id ? 'Copiado ✓' : '📋 Copiar relatório'}</button>
+                <button class="btn ghost" style="padding:6px 10px; font-size:12px;" data-action="ajustar-insight-rodada" data-id="${r.id}">✏️ Ajustar</button>
                 <button class="btn ghost" style="padding:6px 10px; font-size:12px;" data-action="ask-delete-insight-rodada" data-id="${r.id}">Excluir</button>
               </span>
             `}
@@ -4325,28 +4500,32 @@ function renderAdminInsights() {
     </div>
   `;
 
+  const blocoNovaRodada = state.insightEditandoRodadaId ? renderAjusteInsightRodada() : `
+    <div class="alert info" style="margin-bottom:16px;">
+      <div class="alert-msg">Marque quem fez o insight nessa rodada e confirme no final. Quem não participa mais, use "Remover da lista".</div>
+    </div>
+    ${blocoMarcacao}
+    ${state.insightMostrarDataCustom ? `
+      <div class="card" style="margin-bottom:10px;">
+        <div class="field" style="margin-bottom:0;">
+          <label>Data da rodada</label>
+          <input type="date" id="insight-data-field" value="${escapeHtml(state.insightDataEscolhida)}">
+          <div class="date-hint">D · M · A</div>
+        </div>
+        <div class="btn ghost" data-action="toggle-insight-data-custom" style="margin-top:8px; padding:2px 0; font-size:12px;">Cancelar (usar data de hoje)</div>
+      </div>
+    ` : `
+      <div class="btn ghost" data-action="toggle-insight-data-custom" style="margin-bottom:10px; padding:2px 0; font-size:12px;">📅 Registrar com outra data (opcional)</div>
+    `}
+    <button class="btn block" data-action="confirmar-insight-rodada" style="margin-bottom:16px;" ${state.insightSalvando ? 'disabled' : ''}>
+      ${state.insightSalvando ? 'Confirmando…' : '✅ Confirmar rodada'}
+    </button>
+  `;
+
   return `
     <div class="no-print">
-      <div class="alert info" style="margin-bottom:16px;">
-        <div class="alert-msg">Marque quem fez o insight nessa rodada e confirme no final. Quem não participa mais, use "Remover da lista".</div>
-      </div>
       ${resultado}${erro}
-      ${blocoMarcacao}
-      ${state.insightMostrarDataCustom ? `
-        <div class="card" style="margin-bottom:10px;">
-          <div class="field" style="margin-bottom:0;">
-            <label>Data da rodada</label>
-            <input type="date" id="insight-data-field" value="${escapeHtml(state.insightDataEscolhida)}">
-            <div class="date-hint">D · M · A</div>
-          </div>
-          <div class="btn ghost" data-action="toggle-insight-data-custom" style="margin-top:8px; padding:2px 0; font-size:12px;">Cancelar (usar data de hoje)</div>
-        </div>
-      ` : `
-        <div class="btn ghost" data-action="toggle-insight-data-custom" style="margin-bottom:10px; padding:2px 0; font-size:12px;">📅 Registrar com outra data (opcional)</div>
-      `}
-      <button class="btn block" data-action="confirmar-insight-rodada" style="margin-bottom:16px;" ${state.insightSalvando ? 'disabled' : ''}>
-        ${state.insightSalvando ? 'Confirmando…' : '✅ Confirmar rodada'}
-      </button>
+      ${blocoNovaRodada}
       ${historico}
       ${blocoExcluidos}
     </div>
@@ -4974,6 +5153,25 @@ document.getElementById('app').addEventListener('click', async (e) => {
     else state.insightRankExpandedDivisoes.add(chave);
     return render();
   }
+  if (action === 'set-insight-rank-tab') {
+    state.insightRankTab = target.dataset.value;
+    return render();
+  }
+  if (action === 'select-insight-rank-rodada') {
+    const id = target.dataset.id;
+    state.insightRankRodadaSelecionada = state.insightRankRodadaSelecionada === id ? null : id;
+    // Toda vez que a rodada aberta muda, fecha as divisoes que estavam
+    // abertas na rodada anterior - senao "Barra" continuaria aberta ao
+    // trocar pra outra rodada, sem relacao com o que a pessoa pediu ali.
+    state.insightRankRodadaDivisoesExpandidas = new Set();
+    return render();
+  }
+  if (action === 'toggle-insight-rank-rodada-divisao') {
+    const chave = target.dataset.value;
+    if (state.insightRankRodadaDivisoesExpandidas.has(chave)) state.insightRankRodadaDivisoesExpandidas.delete(chave);
+    else state.insightRankRodadaDivisoesExpandidas.add(chave);
+    return render();
+  }
   if (action === 'go-divisoes') { state.view = 'admin-divisoes'; return render(); }
   if (action === 'select-divisao') {
     state.adminEscopo = target.dataset.value;
@@ -5272,6 +5470,9 @@ document.getElementById('app').addEventListener('click', async (e) => {
     return render();
   }
   if (action === 'confirmar-insight-rodada') return confirmarInsightRodada();
+  if (action === 'ajustar-insight-rodada') return iniciarAjusteInsightRodada(target.dataset.id);
+  if (action === 'salvar-ajuste-insight-rodada') return salvarAjusteInsightRodada();
+  if (action === 'cancelar-ajuste-insight-rodada') return cancelarAjusteInsightRodada();
   if (action === 'toggle-insight-data-custom') {
     state.insightMostrarDataCustom = !state.insightMostrarDataCustom;
     if (!state.insightMostrarDataCustom) state.insightDataEscolhida = '';

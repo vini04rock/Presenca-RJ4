@@ -34,8 +34,12 @@ Por isso o app roda fora da Claude (GitHub Pages) e conversa livremente com o Go
 ## Funcionalidades já prontas
 - Tela inicial: lista de eventos ativos + crest + acesso ao modo organizador (PIN: `0987`, constante `PIN` no código).
 - Tela de evento: dados do evento (data/horário/endereço/outros, se preenchidos) + lista de membros com status tocável (⚠️ Aguardando, ✅ Confirmado, ❌ Família, ❌ Trabalho) e badges extras (🚀 Direto, 🚧 Destacado, 🐯 Acompanhado).
-- Modo organizador: abas Eventos (criar/editar/encerrar/excluir, com campos de data/horário/endereço/outros), Membros (cadastro com grau e divisão pré-definidos como chips) e Relatório (resumo de eventos encerrados + botão "Copiar relatório" que gera texto pronto pra colar no WhatsApp).
+- Modo organizador: abas Eventos (criar/editar/encerrar/excluir, com campos de data/horário/endereço/outros), Membros (cadastro com grau e divisão pré-definidos como chips) e Relatório.
 - Graus disponíveis: I a X. Divisões disponíveis: Barra - RJ4, Recreio - RJ4, Gardênia - RJ4, Leste - RJ4 (fixos no código, em `GRAUS` e `DIVISOES`).
+- Categoria de evento (`divisao` ou `regional`), gravada de verdade na planilha — não é filtro por nome. O Modo organizador tem os botões "Barra - RJ4" e "Regional RJ4" (mesmo PIN por enquanto); a categoria do evento vem automaticamente de qual um o organizador escolheu. Evento regional aparecendo dentro de uma tela de divisão fica rotulado como tal, pra não confundir com um evento próprio.
+- **Calendário** (novo item no menu principal, `renderCalendarioDivisoes` → `renderCalendario`): mês em grade, eventos marcados persistem de verdade na planilha (deixou de ser só marcação visual). Dentro do Calendário, o Regional enxerga e pode editar/excluir evento de **qualquer** divisão (não só o que ele mesmo criou) — mesmo critério de chave-mestra que o PIN Regional já tem no resto do app; uma divisão comum só mexe no que ela mesma criou.
+- **Relatório** com 3 categorias de falta: confirmado / justificada (família, trabalho) / infracional (círculo explícito ou quem não respondeu). Tem também uma **ficha do membro** (histórico evento a evento) que mostra o status de cada rodada.
+- Relatório de rodada com gráfico de tendência (sparkline), data retroativa, painel de "mais faltas infracionais", exportação/impressão em PDF.
 
 ## Próximos passos possíveis (não pedidos ainda, só ideias soltas do dono do projeto)
-Nenhum definido no momento — o app está funcional e sendo testado.
+- Multi-divisão de verdade (abas separadas por divisão na planilha, PIN por divisão) — ver [PLANO-MULTI-DIVISAO.md](PLANO-MULTI-DIVISAO.md). Combinado que fica pra uma sessão dedicada, não é pra implementar ainda.
