@@ -2730,14 +2730,16 @@ function conteudoCalendarioOrganizarEditar() {
   if (state.calendarioMes === null) state.calendarioMes = hoje.getMonth();
 
   const celulas = construirGradeCalendario(state.calendarioAno, state.calendarioMes);
-  // So os eventos que a propria divisao/regional criou (categoria === o
-  // escopo atual) - editar/excluir so vale pra quem tem o PIN de quem
-  // criou, um evento do Regional nunca aparece editavel aqui de dentro de
-  // uma divisao, e vice-versa.
+  // O Regional enxerga e edita/exclui QUALQUER evento (o proprio + o de
+  // qualquer divisao) - o PIN Regional ja e chave-mestra no resto do app
+  // (verificarPin), entao faz sentido valer aqui tambem. Uma divisao so
+  // edita/exclui o que ela propria criou (categoria === o proprio escopo) -
+  // nunca um evento do Regional nem de outra divisao.
   const marcacoesProprias = {};
-  eventosCalendarioVisiveis(state.calendarioEscopo)
-    .filter(ev => ev.categoria === state.calendarioEscopo)
-    .forEach(ev => { marcacoesProprias[ev.data] = ev; });
+  (state.calendarioEscopo === 'regional'
+    ? eventosCalendarioVisiveis('regional')
+    : eventosCalendarioVisiveis(state.calendarioEscopo).filter(ev => ev.categoria === state.calendarioEscopo)
+  ).forEach(ev => { marcacoesProprias[ev.data] = ev; });
   const ehHoje = (dia) => dia === hoje.getDate() && state.calendarioMes === hoje.getMonth() && state.calendarioAno === hoje.getFullYear();
   const dataSelecionada = state.calendarioEditandoData;
   const eventoSelecionado = dataSelecionada ? marcacoesProprias[dataSelecionada] : null;
@@ -2761,10 +2763,16 @@ function conteudoCalendarioOrganizarEditar() {
           if (ehHoje(dia)) classes.push('calendario-dia-hoje');
           if (tipo) classes.push('calendario-dia-clicavel');
           if (dataIso === dataSelecionada) classes.push('calendario-dia-selecionado');
+          // So aparece no Regional (unico escopo que edita evento de outra
+          // origem) - pra saber de qual divisao e o evento antes de tocar.
+          const nomeOrigem = tipo && evento.categoria !== state.calendarioEscopo
+            ? (evento.categoria === 'regional' ? 'Regional' : escopoPorChave(evento.categoria).nome.split(' - ')[0])
+            : '';
           return `
-            <div class="${classes.join(' ')}" style="${estilo}" ${tipo ? `data-action="calendario-editar-selecionar-dia" data-value="${dataIso}"` : ''} title="${tipo ? escapeHtml(tipo) : ''}">
+            <div class="${classes.join(' ')}" style="${estilo}" ${tipo ? `data-action="calendario-editar-selecionar-dia" data-value="${dataIso}"` : ''} title="${tipo ? escapeHtml(tipo + (nomeOrigem ? ' - ' + nomeOrigem : '')) : ''}">
               <span class="calendario-dia-numero">${dia}</span>
               ${tipo ? `<span class="calendario-dia-emoji">${emojiTipoEvento(tipo)}</span>` : ''}
+              ${nomeOrigem ? `<span class="calendario-dia-origem">${escapeHtml(nomeOrigem)}</span>` : ''}
             </div>
           `;
         }).join('')}
@@ -2779,10 +2787,17 @@ function conteudoCalendarioOrganizarEditar() {
 function renderCalendarioEditorPainel(evento) {
   const [ano, mes, dia] = evento.data.split('-');
   const tipo = evento.tipo;
+  // So o Regional edita evento de outra origem - mostra de qual divisao e,
+  // pra nao confundir "excluir o evento errado" com um evento parecido da
+  // propria divisao.
+  const origemTexto = evento.categoria !== state.calendarioEscopo
+    ? ` (${evento.categoria === 'regional' ? 'Regional' : escopoPorChave(evento.categoria).nome.split(' - ')[0]})`
+    : '';
+  const titulo = `${emojiTipoEvento(tipo)} ${escapeHtml(tipo)} - ${dia}/${mes}/${ano}${escapeHtml(origemTexto)}`;
   if (state.calendarioAjustandoData) {
     return `
       <div class="card" style="margin-top:12px;">
-        <div style="font-weight:600; margin-bottom:8px;">${emojiTipoEvento(tipo)} ${escapeHtml(tipo)} - ${dia}/${mes}/${ano}</div>
+        <div style="font-weight:600; margin-bottom:8px;">${titulo}</div>
         <label>Nova data</label>
         <input type="date" id="calendario-editar-data-field" value="${evento.data}">
         <div class="row-gap" style="margin-top:10px;">
@@ -2795,7 +2810,7 @@ function renderCalendarioEditorPainel(evento) {
   if (state.calendarioConfirmandoExclusao) {
     return `
       <div class="alert" style="margin-top:12px;">
-        <div class="alert-title">Excluir ${escapeHtml(tipo)} de ${dia}/${mes}/${ano}?</div>
+        <div class="alert-title">Excluir ${escapeHtml(tipo)} de ${dia}/${mes}/${ano}${escapeHtml(origemTexto)}?</div>
         <div class="alert-msg">Apaga o evento e as confirmações de todos os membros. Não dá para desfazer.</div>
         <div class="row-gap" style="margin-top:10px;">
           <button class="btn danger" data-action="calendario-editar-excluir" data-id="${evento.id}">Sim, excluir</button>
@@ -2806,7 +2821,7 @@ function renderCalendarioEditorPainel(evento) {
   }
   return `
     <div class="card" style="margin-top:12px;">
-      <div style="font-weight:600; margin-bottom:8px;">${emojiTipoEvento(tipo)} ${escapeHtml(tipo)} - ${dia}/${mes}/${ano}</div>
+      <div style="font-weight:600; margin-bottom:8px;">${titulo}</div>
       <div class="row-gap">
         <button class="btn secondary" data-action="calendario-editar-abrir-ajuste">📅 Ajustar data</button>
         <button class="btn danger" data-action="calendario-editar-pedir-exclusao">🗑️ Excluir</button>
