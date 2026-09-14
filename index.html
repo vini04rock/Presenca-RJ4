@@ -1417,6 +1417,13 @@ function cancelarAjusteInsightRodada() {
 }
 
 async function salvarAjusteInsightRodada() {
+  // Mesma trava do Code.gs (ajustarInsightRodada) - checa aqui tambem pra
+  // nem gastar uma ida ao servidor com um ajuste que ia falhar de qualquer
+  // jeito.
+  if (!state.insightAjusteMembroIds.length) {
+    state.insightErro = 'A rodada precisa ficar com pelo menos 1 integrante.';
+    return render();
+  }
   const id = state.insightEditandoRodadaId;
   state.insightSalvando = true;
   state.insightErro = null;

@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-09-13-v-insight-ajustar-rodada-membros';
+var VERSAO = '2026-09-13-v-insight-ajustar-rodada-fix-vazio';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -1586,6 +1586,10 @@ function divisaoDoMembro(id) {
 // contado, nunca pra corrigir a propria lista de quem participou.
 function ajustarInsightRodada(id, marcacoes, membroIds) {
   if (!id) throw new Error('Faltou o ID da rodada');
+  // Confere ANTES de apagar linha nenhuma - senao uma tentativa de deixar a
+  // rodada vazia (ex: removeu todo mundo sem querer) apagava tudo e so
+  // depois avisava do erro, com o estrago ja feito.
+  if (!membroIds || !membroIds.length) throw new Error('A rodada precisa ficar com pelo menos 1 integrante');
   var s = aba(ABA_INSIGHT_PRESENCAS, CAB_INSIGHT_PRESENCAS);
 
   var desejados = {};
