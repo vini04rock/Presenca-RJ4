@@ -1020,6 +1020,10 @@ let state = {
   // exemplo. Ver eventosDoRelatorioEscopo().
   relatorioFiltroDataInicio: '',
   relatorioFiltroDataFim: '',
+  // "Exportar para PDF" de dentro do Modo organizador (aba Eventos) - so
+  // trava o botao enquanto pula pra tela de Relatorios e carrega os dados,
+  // ver exportarRelatorioPdfAdmin().
+  exportandoPdfAdmin: false,
   // Tipo escolhido na tela de colar (um de TIPOS_EVENTO) - quando marcado,
   // vence o palpite que o parser tenta tirar do titulo do texto colado.
   relatorioTipoEscolhido: null,
@@ -1299,6 +1303,27 @@ async function gravarPendentes() {
       }
     }, 2000);
   }
+}
+
+// "Exportar para PDF" da aba Eventos do Modo organizador - pula direto pro
+// Resumo Relatorio (a mesma tela/botao de imprimir que ja existe em
+// Relatorios), no escopo e periodo que o organizador ja escolheu aqui, sem
+// pedir o PIN de novo (o organizador ja provou quem e entrando no Modo
+// organizador - o PIN de Relatorios de uma divisao e sempre o mesmo PIN).
+async function exportarRelatorioPdfAdmin() {
+  state.exportandoPdfAdmin = true;
+  render();
+  state.relatorioEscopo = state.adminEscopo;
+  state.relatorioIsAdmin = true;
+  state.view = 'relatorio';
+  state.relatorioTab = 'resumo';
+  state.relatorioColarStep = 'texto';
+  state.relatorioTipoDetalhe = null;
+  state.relatorioFiltroDivisao = 'todas';
+  await loadReportData();
+  state.exportandoPdfAdmin = false;
+  render();
+  window.print();
 }
 
 // Regera a aba Relatorio da planilha. Fica fora do caminho da confirmacao de
@@ -4894,6 +4919,36 @@ function eventosDoEscopo() {
   return state.events.filter(ev => (ev.categoria || 'barra') === state.adminEscopo);
 }
 
+// Mesmos campos de data da tela "Relatorios" (relatorioFiltroDataInicio/Fim) -
+// escolher o periodo aqui e ali e a mesma coisa, entao reaproveita os
+// proprios inputs (mesmos IDs, o listener global de 'input' ja trata os
+// dois). Disponivel pra qualquer divisao, nao so Regional - diferente de
+// "Gerar relatorio na planilha" (que cobre a planilha inteira, so faz
+// sentido do Regional), o PDF e por divisao mesmo.
+function renderExportarPdfAdmin() {
+  const ativo = state.relatorioFiltroDataInicio || state.relatorioFiltroDataFim;
+  return `
+    <div class="card" style="margin-bottom:16px;">
+      <div style="font-weight:600; margin-bottom:8px;">Exportar relatório em PDF</div>
+      <div class="row-gap">
+        <div class="field" style="margin-bottom:0; flex:1;">
+          <label>Data inicial</label>
+          <input type="date" id="relatorio-filtro-data-inicio" value="${state.relatorioFiltroDataInicio}">
+        </div>
+        <div class="field" style="margin-bottom:0; flex:1;">
+          <label>Data final</label>
+          <input type="date" id="relatorio-filtro-data-fim" value="${state.relatorioFiltroDataFim}">
+        </div>
+      </div>
+      <div style="color:var(--text-muted); font-size:12px; margin:6px 0 10px;">Deixe em branco pra incluir desde sempre.</div>
+      ${ativo ? `<div class="btn ghost" data-action="limpar-relatorio-filtro-periodo" style="margin-bottom:10px; padding:2px 0; font-size:12px;">Limpar período</div>` : ''}
+      <button class="btn secondary block" data-action="exportar-relatorio-pdf-admin" ${state.exportandoPdfAdmin ? 'disabled' : ''}>
+        ${state.exportandoPdfAdmin ? 'Preparando PDF…' : '🖨️ Exportar para PDF'}
+      </button>
+    </div>
+  `;
+}
+
 function renderAdminEventos() {
   if (state.newEventSelected !== null) {
     return renderEventForm();
@@ -4913,8 +4968,8 @@ function renderAdminEventos() {
       </button>
       ${rel === 'ok' ? '<div class="alert ok" style="margin-bottom:16px;"><div class="alert-msg">✅ Relatório atualizado na aba <b>Relatorio</b> da planilha.</div></div>' : ''}
       ${rel === 'erro' ? `<div class="alert" style="margin-bottom:16px;"><div class="alert-title">Não consegui gerar</div><div class="alert-msg">${escapeHtml(state.relatorioErro || '')}.</div></div>` : ''}
-      ${rel !== 'ok' && rel !== 'erro' ? '<div style="margin-bottom:16px;"></div>' : ''}
-    ` : '<div style="margin-bottom:16px;"></div>'}
+    ` : ''}
+    ${renderExportarPdfAdmin()}
     ${eventos.length === 0 ? '<div class="empty">Nenhum evento criado ainda.</div>' : eventos.map(ev => {
       const memberCount = ev.memberIds.length;
       // Mesma arte/cor por tipo dos cards de evento dos Relatorios - aqui e
@@ -5159,6 +5214,7 @@ document.getElementById('app').addEventListener('click', async (e) => {
   if (action === 'retry-insight-stats') return loadInsightStats();
   if (action === 'retry-save') return gravarAgora();
   if (action === 'gerar-relatorio') return gerarRelatorio();
+  if (action === 'exportar-relatorio-pdf-admin') return exportarRelatorioPdfAdmin();
   if (action === 'ask-delete-event') { state.confirmDeleteId = id; return render(); }
   if (action === 'cancel-delete-event') { state.confirmDeleteId = null; return render(); }
   if (action === 'retry-status') return loadEventStatus(state.currentEventId);
