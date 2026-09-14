@@ -7,19 +7,22 @@ membros e gerar relatórios.
 
 ## Stack
 
-- HTML + CSS + JavaScript puro, tudo em [index.html](index.html).
+- HTML + CSS + JavaScript puro, em módulos ES nativos.
 - Sem framework, sem build step, sem dependências (só Google Fonts).
 - Hospedagem: GitHub Pages (estático).
 - Backend: planilha do Google Sheets via Apps Script publicado como Web App.
-  A URL fica na constante `API_URL`, no topo do `<script>`.
+  A URL fica na constante `API_URL`, em `js/nucleo/api.js`.
 
 ## Como rodar localmente
 
-Abra o `index.html` direto no navegador, ou sirva a pasta:
+Sirva a pasta e acesse `http://localhost:8000`:
 
     python -m http.server 8000
 
-Depois acesse `http://localhost:8000`.
+> Não dá para abrir o `index.html` com duplo clique. O app usa módulos ES
+> (`import`/`export`), e o navegador os bloqueia em `file://` por segurança.
+> Pelo servidor local funciona, e no GitHub Pages também — módulos ES são
+> nativos, não precisam de build.
 
 > O app lê e grava na planilha de produção. Não existe ambiente de teste
 > separado — cuidado ao mexer com eventos reais abertos.
@@ -27,11 +30,29 @@ Depois acesse `http://localhost:8000`.
 ## Estrutura
 
     .
-    ├── index.html            app inteiro (HTML + CSS + JS)
+    ├── index.html            só o esqueleto: <head>, #app e o <script>
+    ├── css/estilo.css        todo o visual
+    ├── img/                  as artes dos cards, a logo e o fundo
+    ├── js/
+    │   ├── app.js            roteador de telas + ouvintes de clique
+    │   ├── nucleo/           config, estado, api, util, imagens, render
+    │   ├── dados/            carrega da planilha para o estado
+    │   ├── dominio/          as regras: status, parser, estatísticas, texto
+    │   ├── fila/             gravação otimista de presença
+    │   ├── ui/               pedaços de tela reaproveitados e gráficos
+    │   ├── telas/            uma tela por arquivo
+    │   └── fluxos/           as ações (confirmar, ajustar, exportar…)
+    ├── apps-script/Code.gs   backend (cópia do que roda no Google)
     ├── CONTEXTO-PROJETO.md   contexto e decisões de arquitetura
     └── README.md
 
-O `Code.gs` do Apps Script vive na planilha do Google, não neste repositório.
+Os módulos seguem uma hierarquia: `nucleo` não depende de ninguém, e cada
+camada acima só usa as de baixo (`dados` → `dominio` → `fila` → `ui` →
+`telas`/`fluxos` → `app.js`). Nenhum import circular — mexer numa tela não
+alcança o núcleo.
+
+O `Code.gs` roda na planilha do Google; a cópia em `apps-script/` existe
+para versionar e revisar, e precisa ser colada lá a cada alteração.
 
 ## Documentação
 

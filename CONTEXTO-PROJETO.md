@@ -1,13 +1,20 @@
 # Confirmação de Presença — Insanos MC Barra RJ4
 
 ## O que é
-App de página única (`index.html`, sem build, sem dependências além de fontes do Google Fonts) para substituir a listagem de confirmação de presença via WhatsApp do motoclube. Membros abrem um link, tocam no próprio nome, marcam status de presença. Organizador tem um modo protegido por PIN pra criar/editar eventos, cadastrar membros e ver relatórios.
+App de página única (sem build, sem dependências além de fontes do Google Fonts) para substituir a listagem de confirmação de presença via WhatsApp do motoclube. Membros abrem um link, tocam no próprio nome, marcam status de presença. Organizador tem um modo protegido por PIN pra criar/editar eventos, cadastrar membros e ver relatórios.
 
 ## Stack
-- HTML + CSS + JavaScript puro (vanilla), tudo em um único arquivo `index.html`.
+- HTML + CSS + JavaScript puro (vanilla), em módulos ES nativos: `index.html`
+  é só o esqueleto, o visual vive em `css/estilo.css` e o código em `js/`.
 - Sem framework, sem build step. Fácil de editar diretamente.
+- Os módulos são hierárquicos: `nucleo` (config, estado, api, util) não
+  depende de ninguém, e cada camada acima só enxerga as de baixo —
+  `dados` → `dominio` → `fila` → `ui` → `telas`/`fluxos` → `app.js`.
+  Não há import circular, então mexer numa tela não alcança o núcleo.
+- Como usa `import`/`export`, precisa de um servidor para rodar local
+  (`python -m http.server 8000`) — abrir o arquivo por `file://` não funciona.
 - Hospedado no GitHub Pages (estático).
-- Fonte de dados: **não usa localStorage nem window.storage** — usa uma planilha do Google Sheets como backend, via um Apps Script publicado como Web App (URL fixa salva na constante `API_URL` no topo do `<script>`).
+- Fonte de dados: **não usa localStorage nem window.storage** — usa uma planilha do Google Sheets como backend, via um Apps Script publicado como Web App (URL fixa salva na constante `API_URL`, em `js/nucleo/api.js`).
 
 ## Por que Google Sheets em vez de storage nativo
 O app foi inicialmente feito pra rodar como Artifact publicado da Claude (claude.ai), usando `window.storage`. Migramos pra fora da Claude por 2 motivos:
