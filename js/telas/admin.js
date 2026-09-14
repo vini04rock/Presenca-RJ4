@@ -4,12 +4,17 @@ import { agruparMembrosRodadaPorDivisao } from '../dominio/divisoes.js';
 import { eventosDoEscopo, membrosDoEscopo, membrosElegiveisEvento } from '../dominio/estatisticas.js';
 import { computeCounts, getReportGroups } from '../dominio/status.js';
 import { FUNCOES, GRAUS, TIPOS_EVENTO, corTipoEvento, divisoesSemRegional, emojiTipoEvento, escopoPorChave } from '../nucleo/config.js';
-import { state } from '../nucleo/estado.js';
+import { genId, state } from '../nucleo/estado.js';
 import { TIPO_HOME_IMAGEM } from '../nucleo/imagens.js';
 import { escapeHtml, formatDataBR, hexParaRgba } from '../nucleo/util.js';
 import { renderRankInsightsConteudo } from './rank-insights.js';
 import { selosFuncoes } from '../ui/comuns.js';
 import { renderDonutChart, segmentosDonutStatus } from '../ui/graficos.js';
+import { loadEstatisticas, loadInsightStats, loadReportData, salvarOuAvisar } from '../dados/carregar.js';
+import { paramsDeEvento } from '../fila/presenca.js';
+import { cancelarAjusteInsightRodada, confirmarInsightRodada, excluirInsightRodada, iniciarAjusteInsightRodada, reincluirMembroInsight, removerMembroInsight, salvarAjusteInsightRodada } from '../fluxos/insights.js';
+import { copyInsightReportToClipboard, copyReportToClipboard, exportarRelatorioPdfAdmin, gerarRelatorio } from '../fluxos/relatorio.js';
+import { render } from '../nucleo/render.js';
 
 function renderAdminPresencas() {
   if (state.estatisticasError) {
@@ -616,3 +621,273 @@ function renderAdminMembros() {
     `).join('')}
   `;
 }
+
+// Acoes do Modo organizador (eventos, membros, insights, relatorio).
+// Cada entrada e o corpo do antigo "if (action === ...)" do app.js, tal
+// e qual. O app.js so olha o nome da acao neste mapa e chama.
+export const acoes = {
+  'retry-estatisticas': async (id, target, action, e) => {
+    return loadEstatisticas();
+  },
+  'retry-insight-stats': async (id, target, action, e) => {
+    return loadInsightStats();
+  },
+  'gerar-relatorio': async (id, target, action, e) => {
+    return gerarRelatorio();
+  },
+  'exportar-relatorio-pdf-admin': async (id, target, action, e) => {
+    return exportarRelatorioPdfAdmin();
+  },
+  'ask-delete-event': async (id, target, action, e) => {
+    state.confirmDeleteId = id; return render();
+  },
+  'cancel-delete-event': async (id, target, action, e) => {
+    state.confirmDeleteId = null; return render();
+  },
+  'admin-tab': async (id, target, action, e) => {
+    state.adminTab = target.dataset.tab;
+    state.newEventSelected = null;
+    state.editingEventId = null;
+    state.confirmDeleteId = null;
+    state.editingMemberId = null;
+    state.newMemberNome = '';
+    state.newMemberGrau = null;
+    state.newMemberFuncoes = new Set();
+    state.insightConfirmDeleteRodadaId = null;
+    state.insightResultado = null;
+    state.insightMostrarExcluidos = false;
+    render();
+    if (target.dataset.tab === 'relatorio') await loadReportData();
+    if (target.dataset.tab === 'presencas') await loadEstatisticas();
+    if (target.dataset.tab === 'insights') await loadInsightStats();
+    return;
+  },
+  'toggle-insight-marca': async (id, target, action, e) => {
+    state.insightMarcacoes[id] = !state.insightMarcacoes[id];
+    return render();
+  },
+  'toggle-insight-divisao-grupo': async (id, target, action, e) => {
+    const chave = target.dataset.value;
+    if (state.insightExpandedDivisoes.has(chave)) state.insightExpandedDivisoes.delete(chave);
+    else state.insightExpandedDivisoes.add(chave);
+    return render();
+  },
+  'confirmar-insight-rodada': async (id, target, action, e) => {
+    return confirmarInsightRodada();
+  },
+  'ajustar-insight-rodada': async (id, target, action, e) => {
+    return iniciarAjusteInsightRodada(target.dataset.id);
+  },
+  'salvar-ajuste-insight-rodada': async (id, target, action, e) => {
+    return salvarAjusteInsightRodada();
+  },
+  'cancelar-ajuste-insight-rodada': async (id, target, action, e) => {
+    return cancelarAjusteInsightRodada();
+  },
+  'ajuste-rodada-remover-membro': async (id, target, action, e) => {
+    const mid = target.dataset.id;
+    state.insightAjusteMembroIds = state.insightAjusteMembroIds.filter(x => x !== mid);
+    delete state.insightMarcacoes[mid];
+    return render();
+  },
+  'ajuste-rodada-adicionar-membro': async (id, target, action, e) => {
+    const mid = target.dataset.id;
+    if (!state.insightAjusteMembroIds.includes(mid)) {
+      state.insightAjusteMembroIds.push(mid);
+      const m = (state.insightStats ? state.insightStats.membros : []).find(x => x.id === mid);
+      if (m) state.insightAjusteInfo[mid] = { nome: m.nome, divisao: m.divisao };
+      // Comeca como "nao fez" - o organizador toca pra marcar se for o caso,
+      // igual a qualquer integrante que ja estivesse na rodada.
+      state.insightMarcacoes[mid] = false;
+    }
+    return render();
+  },
+  'toggle-ajuste-rodada-adicionar': async (id, target, action, e) => {
+    state.insightAjusteMostrarAdicionar = !state.insightAjusteMostrarAdicionar;
+    return render();
+  },
+  'toggle-ajuste-rodada-divisao': async (id, target, action, e) => {
+    const chave = target.dataset.value;
+    if (state.insightAjusteDivisoesExpandidas.has(chave)) state.insightAjusteDivisoesExpandidas.delete(chave);
+    else state.insightAjusteDivisoesExpandidas.add(chave);
+    return render();
+  },
+  'toggle-insight-data-custom': async (id, target, action, e) => {
+    state.insightMostrarDataCustom = !state.insightMostrarDataCustom;
+    if (!state.insightMostrarDataCustom) state.insightDataEscolhida = '';
+    return render();
+  },
+  'ask-delete-insight-rodada': async (id, target, action, e) => {
+    state.insightConfirmDeleteRodadaId = id; return render();
+  },
+  'cancel-delete-insight-rodada': async (id, target, action, e) => {
+    state.insightConfirmDeleteRodadaId = null; return render();
+  },
+  'delete-insight-rodada': async (id, target, action, e) => {
+    return excluirInsightRodada(id);
+  },
+  'insight-remover-membro': async (id, target, action, e) => {
+    return removerMembroInsight(id);
+  },
+  'insight-reincluir-membro': async (id, target, action, e) => {
+    return reincluirMembroInsight(id);
+  },
+  'toggle-insight-excluidos': async (id, target, action, e) => {
+    state.insightMostrarExcluidos = !state.insightMostrarExcluidos; return render();
+  },
+  'toggle-report-event': async (id, target, action, e) => {
+    state.expandedReportEventId = state.expandedReportEventId === id ? null : id;
+    return render();
+  },
+  'copy-report': async (id, target, action, e) => {
+    const ev = state.events.find(e => e.id === id);
+    if (ev) await copyReportToClipboard(ev);
+    return;
+  },
+  'copy-insight-report': async (id, target, action, e) => {
+    const r = (state.insightRodadasHistorico || []).find(x => x.id === id);
+    if (r) await copyInsightReportToClipboard(r);
+    return;
+  },
+  'pick-grau': async (id, target, action, e) => {
+    state.newMemberGrau = state.newMemberGrau === target.dataset.value ? null : target.dataset.value;
+    return render();
+  },
+  'toggle-funcao': async (id, target, action, e) => {
+    const chave = target.dataset.value;
+    if (state.newMemberFuncoes.has(chave)) state.newMemberFuncoes.delete(chave);
+    else state.newMemberFuncoes.add(chave);
+    return render();
+  },
+  'add-member': async (id, target, action, e) => {
+    const nome = (document.getElementById('new-member-nome').value || '').trim();
+    if (!nome) return;
+    // O membro herda a divisao de onde o organizador entrou - inclusive
+    // Regional, que tem os proprios membros (mesa regional).
+    const member = {
+      id: genId(), nome, grau: state.newMemberGrau || '', divisao: escopoPorChave(state.adminEscopo).nome,
+      funcoes: Array.from(state.newMemberFuncoes)
+    };
+    state.roster = [...state.roster, member];
+    state.newMemberGrau = null;
+    state.newMemberFuncoes = new Set();
+    state.newMemberNome = '';
+    render();
+    await salvarOuAvisar('membroSalvar', { ...member, funcoes: member.funcoes.join(',') });
+  },
+  'edit-member': async (id, target, action, e) => {
+    const m = state.roster.find(x => x.id === id);
+    if (!m) return;
+    state.editingMemberId = id;
+    state.newMemberNome = m.nome;
+    state.newMemberGrau = m.grau || null;
+    state.newMemberFuncoes = new Set(m.funcoes || []);
+    return render();
+  },
+  'cancel-member-edit': async (id, target, action, e) => {
+    state.editingMemberId = null;
+    state.newMemberNome = '';
+    state.newMemberGrau = null;
+    state.newMemberFuncoes = new Set();
+    return render();
+  },
+  'save-member-edit': async (id, target, action, e) => {
+    const nome = (document.getElementById('new-member-nome').value || '').trim();
+    if (!nome) return;
+    const original = state.roster.find(x => x.id === state.editingMemberId);
+    if (!original) return;
+    // Divisao nao muda por aqui - so nome, grau e funcoes.
+    const member = {
+      ...original, nome, grau: state.newMemberGrau || '',
+      funcoes: Array.from(state.newMemberFuncoes)
+    };
+    state.roster = state.roster.map(x => x.id === member.id ? member : x);
+    state.editingMemberId = null;
+    state.newMemberGrau = null;
+    state.newMemberFuncoes = new Set();
+    state.newMemberNome = '';
+    render();
+    await salvarOuAvisar('membroSalvar', { ...member, funcoes: member.funcoes.join(',') });
+  },
+  'remove-member': async (id, target, action, e) => {
+    state.roster = state.roster.filter(m => m.id !== id);
+    render();
+    await salvarOuAvisar('membroRemover', { id });
+  },
+  'start-new-event': async (id, target, action, e) => {
+    state.newEventSelected = new Set(membrosElegiveisEvento().map(m => m.id));
+    state.editingEventId = null;
+    state.newEventTipo = null;
+    return render();
+  },
+  'start-edit-event': async (id, target, action, e) => {
+    const ev = state.events.find(e => e.id === id);
+    if (!ev) return;
+    state.editingEventId = id;
+    state.newEventSelected = new Set(ev.memberIds);
+    state.newEventTipo = ev.tipo || null;
+    return render();
+  },
+  'cancel-new-event': async (id, target, action, e) => {
+    state.newEventSelected = null;
+    state.editingEventId = null;
+    state.newEventTipo = null;
+    return render();
+  },
+  'marcar-todos-membros': async (id, target, action, e) => {
+    // Mexe direto nos checkboxes, sem re-renderizar - o estado deles so e
+    // lido de verdade na hora de salvar (ver save-new-event).
+    const ligar = action === 'marcar-todos-membros';
+    document.querySelectorAll('.new-event-checkbox').forEach(c => { c.checked = ligar; });
+    return;
+  },
+  'pick-tipo-evento': async (id, target, action, e) => {
+    state.newEventTipo = state.newEventTipo === target.dataset.value ? null : target.dataset.value;
+    return render();
+  },
+  'save-new-event': async (id, target, action, e) => {
+    const nome = document.getElementById('new-event-name').value.trim();
+    const data = document.getElementById('new-event-data').value;
+    const horario = document.getElementById('new-event-horario').value;
+    const endereco = document.getElementById('new-event-endereco').value.trim();
+    const outros = document.getElementById('new-event-outros').value.trim();
+    const checked = Array.from(document.querySelectorAll('.new-event-checkbox:checked')).map(c => c.dataset.id);
+    if (!nome || checked.length === 0) return;
+    const evento = {
+      id: state.editingEventId || genId(),
+      nome, memberIds: checked, data, horario, endereco, outros,
+      tipo: state.newEventTipo || '',
+      // A categoria vem de qual botao o organizador entrou (Barra ou
+      // Regional), nao de uma escolha manual no formulario.
+      categoria: state.adminEscopo,
+      status: state.editingEventId
+        ? (state.events.find(e => e.id === state.editingEventId) || {}).status || 'ativo'
+        : 'ativo'
+    };
+    state.events = state.editingEventId
+      ? state.events.map(ev => ev.id === evento.id ? { ...ev, ...evento } : ev)
+      : [...state.events, evento];
+    state.newEventSelected = null;
+    state.editingEventId = null;
+    state.newEventTipo = null;
+    render();
+    await salvarOuAvisar('eventoSalvar', paramsDeEvento(evento));
+  },
+  'toggle-event-status': async (id, target, action, e) => {
+    const ev = state.events.find(e => e.id === id);
+    if (!ev) return;
+    const novoStatus = ev.status === 'encerrado' ? 'ativo' : 'encerrado';
+    state.events = state.events.map(e => e.id === id ? { ...e, status: novoStatus } : e);
+    render();
+    await salvarOuAvisar('eventoSalvar', paramsDeEvento({ ...ev, status: novoStatus }));
+  },
+  'delete-event': async (id, target, action, e) => {
+    state.events = state.events.filter(ev => ev.id !== id);
+    state.confirmDeleteId = null;
+    delete state.reportData[id];
+    if (state.expandedReportEventId === id) state.expandedReportEventId = null;
+    render();
+    await salvarOuAvisar('eventoRemover', { id });
+  },
+};
+acoes['desmarcar-todos-membros'] = acoes['marcar-todos-membros'];

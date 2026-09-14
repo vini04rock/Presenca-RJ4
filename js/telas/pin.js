@@ -134,3 +134,55 @@ export async function checkRelatorioPin() {
   state.relatorioPinVerificando = false;
   render();
 }
+
+// Acoes da escolha de divisao e do PIN.
+// Cada entrada e o corpo do antigo "if (action === ...)" do app.js, tal
+// e qual. O app.js so olha o nome da acao neste mapa e chama.
+export const acoes = {
+  'go-divisoes': async (id, target, action, e) => {
+    state.view = 'admin-divisoes'; return render();
+  },
+  'select-divisao': async (id, target, action, e) => {
+    state.adminEscopo = target.dataset.value;
+    state.view = 'admin-pin';
+    state.pinErro = null;
+    return render();
+  },
+  'check-pin': async (id, target, action, e) => {
+    return checkPin();
+  },
+  'go-relatorio-divisoes': async (id, target, action, e) => {
+    state.view = 'relatorio-divisoes';
+    state.relatorioTextoBruto = '';
+    state.relatorioParsed = null;
+    state.relatorioSalvarErro = null;
+    state.relatorioDuplicidadeAviso = null;
+    state.relatorioDuplicidadeConfirmada = false;
+    state.relatorioEditandoEventoId = null;
+    state.relatorioTab = 'resumo';
+    state.relatorioColarStep = 'texto';
+    state.relatorioCategoriaAlvo = null;
+    state.relatorioTipoEscolhido = null;
+    state.relatorioTipoDetalhe = null;
+    state.relatorioFiltroDivisao = 'todas';
+    state.relatorioFiltroDataInicio = '';
+    state.relatorioFiltroDataFim = '';
+    state.relatorioEstatisticasExpandidas = new Set();
+    state.relatorioEventosExpandidos = new Set();
+    state.relatorioMembroFichaId = null;
+    return render();
+  },
+  'select-relatorio-divisao': async (id, target, action, e) => {
+    state.relatorioEscopo = target.dataset.value;
+    // Padrao: a categoria alvo comeca igual ao escopo escolhido (Regional ->
+    // "Regional", Barra -> "Barra") - so muda se a pessoa clicar num botao
+    // de divisao especifica na tela de colar, ver "set-relatorio-categoria".
+    state.relatorioCategoriaAlvo = target.dataset.value;
+    state.view = 'relatorio-pin';
+    state.relatorioPinErro = null;
+    return render();
+  },
+  'check-relatorio-pin': async (id, target, action, e) => {
+    return checkRelatorioPin();
+  },
+};

@@ -7,6 +7,9 @@ import { getMemberStatus, state } from '../nucleo/estado.js';
 import { IMG_DIVISAO, IMG_REGIONAL } from '../nucleo/imagens.js';
 import { escapeHtml, formatDataBR, ordenarPorHierarquia } from '../nucleo/util.js';
 import { renderDonutChart, renderSparklineTendencia, segmentosDonutStatus } from './graficos.js';
+import { loadEventStatus } from '../dados/carregar.js';
+import { gravarAgora, setMemberStatus } from '../fila/presenca.js';
+import { render } from '../nucleo/render.js';
 
 // Card de divisao reaproveitado nas 3 telas que listam divisoes - Regional
 // ganha a arte tematica (nome ja desenhado nela, entao o texto do card fica
@@ -274,3 +277,49 @@ export function linhaFuncoes(funcoes) {
 }
 
 // ---------- ACTIONS ----------
+
+// Acoes dos pedacos de tela reaproveitados (status, ficha, expandir).
+// Cada entrada e o corpo do antigo "if (action === ...)" do app.js, tal
+// e qual. O app.js so olha o nome da acao neste mapa e chama.
+export const acoes = {
+  'toggle-relatorio-estatisticas-divisao': async (id, target, action, e) => {
+    const chave = target.dataset.value;
+    if (state.relatorioEstatisticasExpandidas.has(chave)) state.relatorioEstatisticasExpandidas.delete(chave);
+    else state.relatorioEstatisticasExpandidas.add(chave);
+    return render();
+  },
+  'abrir-ficha-membro': async (id, target, action, e) => {
+    state.relatorioMembroFichaId = id; return render();
+  },
+  'retry-save': async (id, target, action, e) => {
+    return gravarAgora();
+  },
+  'retry-status': async (id, target, action, e) => {
+    return loadEventStatus(state.currentEventId);
+  },
+  'toggle-member': async (id, target, action, e) => {
+    state.expandedMemberId = state.expandedMemberId === id ? null : id;
+    return render();
+  },
+  'toggle-divisao-grupo': async (id, target, action, e) => {
+    const nome = target.dataset.value;
+    if (state.expandedDivisoes.has(nome)) state.expandedDivisoes.delete(nome);
+    else state.expandedDivisoes.add(nome);
+    return render();
+  },
+  'set-status': async (id, target, action, e) => {
+    return setMemberStatus(id, { status: target.dataset.status });
+  },
+  'toggle-direto': async (id, target, action, e) => {
+    const cur = getMemberStatus(id);
+    return setMemberStatus(id, { direto: !cur.direto });
+  },
+  'toggle-destacado': async (id, target, action, e) => {
+    const cur = getMemberStatus(id);
+    return setMemberStatus(id, { destacado: !cur.destacado });
+  },
+  'toggle-acompanhado': async (id, target, action, e) => {
+    const cur = getMemberStatus(id);
+    return setMemberStatus(id, { acompanhado: !cur.acompanhado });
+  },
+};

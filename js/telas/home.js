@@ -5,6 +5,8 @@ import { state } from '../nucleo/estado.js';
 import { IMG_CALENDARIO_HOME, IMG_HOME_EVENTOS, IMG_MODO_ORGANIZADOR, IMG_RANK_INSIGHTS, IMG_RANK_PRESENCA, IMG_RELATORIOS_HOME, LOGO_SRC, TIPO_HOME_IMAGEM } from '../nucleo/imagens.js';
 import { escapeHtml, formatDataCurta, hexParaRgba } from '../nucleo/util.js';
 import { renderCardEscopo } from '../ui/comuns.js';
+import { openEvent } from '../fluxos/evento.js';
+import { render } from '../nucleo/render.js';
 
 export function renderHome(app) {
   if (!state.homeEventosAberto) return renderHomeInicio(app);
@@ -162,3 +164,37 @@ function renderHomeEventos(app) {
     }).join('')}
   `;
 }
+
+// Acoes da tela inicial e da navegacao ate a lista de eventos.
+// Cada entrada e o corpo do antigo "if (action === ...)" do app.js, tal
+// e qual. O app.js so olha o nome da acao neste mapa e chama.
+export const acoes = {
+  'open-event': async (id, target, action, e) => {
+    // Guarda de onde a pessoa veio (Relatorios/Modo organizador/tela
+    // inicial) pra "‹ Todos os eventos" voltar pro mesmo lugar, em vez de
+    // sempre cair na tela inicial - ver "voltar-do-evento".
+    state.eventoVoltarPara = { view: state.view, relatorioTab: state.relatorioTab, adminTab: state.adminTab };
+    return openEvent(id);
+  },
+  'go-home': async (id, target, action, e) => {
+    state.view = 'home'; state.isAdmin = false; state.adminEscopo = null; return render();
+  },
+  'abrir-home-eventos': async (id, target, action, e) => {
+    state.homeEventosAberto = true; return render();
+  },
+  'fechar-home-eventos': async (id, target, action, e) => {
+    state.homeEventosAberto = false; state.homeEscopo = null; state.homeTipo = null; return render();
+  },
+  'select-home-escopo': async (id, target, action, e) => {
+    state.homeEscopo = target.dataset.value; state.homeTipo = null; return render();
+  },
+  'go-home-escolha': async (id, target, action, e) => {
+    state.homeEscopo = null; state.homeTipo = null; state.view = 'home'; return render();
+  },
+  'select-home-tipo': async (id, target, action, e) => {
+    state.homeTipo = target.dataset.value; return render();
+  },
+  'go-home-tipos': async (id, target, action, e) => {
+    state.homeTipo = null; return render();
+  },
+};

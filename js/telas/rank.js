@@ -3,6 +3,8 @@
 import { escoposEmOrdemDeExibicao } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { escapeHtml } from '../nucleo/util.js';
+import { carregarRank } from '../dados/carregar.js';
+import { render } from '../nucleo/render.js';
 
 export function renderRank(app) {
   const d = state.rankData;
@@ -92,3 +94,27 @@ function renderRankConteudo(d) {
 
   return cardTotal + blocoDivisoes + blocoMembros;
 }
+
+// Acoes do Rank de Presenca.
+// Cada entrada e o corpo do antigo "if (action === ...)" do app.js, tal
+// e qual. O app.js so olha o nome da acao neste mapa e chama.
+export const acoes = {
+  'go-rank': async (id, target, action, e) => {
+    state.view = 'rank'; return render();
+  },
+  'calcular-rank': async (id, target, action, e) => {
+    return carregarRank();
+  },
+  'set-rank-janela': async (id, target, action, e) => {
+    state.rankJanela = target.dataset.value;
+    // Se ja tinha calculado antes, recalcula na hora pra nova janela -
+    // senao so troca a selecao, esperando o toque em "Calcular rank".
+    return state.rankData ? carregarRank() : render();
+  },
+  'toggle-rank-divisao': async (id, target, action, e) => {
+    const chave = target.dataset.value;
+    if (state.rankExpandedDivisoes.has(chave)) state.rankExpandedDivisoes.delete(chave);
+    else state.rankExpandedDivisoes.add(chave);
+    return render();
+  },
+};

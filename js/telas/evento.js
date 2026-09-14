@@ -5,6 +5,7 @@ import { getMemberStatus, state } from '../nucleo/estado.js';
 import { escapeHtml, formatDataBR, linkify, ordenarPorHierarquia } from '../nucleo/util.js';
 import { renderHome } from './home.js';
 import { renderConfirmadoRow, renderListaMembros, renderStatusBanner } from '../ui/comuns.js';
+import { render } from '../nucleo/render.js';
 
 // Tela cheia (nao um painel dentro do evento) com quem ja confirmou -
 // mesmo visual da lista de membros (numero, nome, grau, selos de
@@ -72,3 +73,30 @@ export function renderEvent(app) {
     </div>
   `;
 }
+
+// Acoes da tela de evento e da lista de confirmados.
+// Cada entrada e o corpo do antigo "if (action === ...)" do app.js, tal
+// e qual. O app.js so olha o nome da acao neste mapa e chama.
+export const acoes = {
+  'voltar-do-evento': async (id, target, action, e) => {
+    const origem = state.eventoVoltarPara;
+    if (origem && origem.view === 'relatorio' && state.relatorioIsAdmin) {
+      state.view = 'relatorio';
+      state.relatorioTab = origem.relatorioTab || 'eventos';
+    } else if (origem && origem.view === 'admin' && state.isAdmin) {
+      state.view = 'admin';
+      state.adminTab = origem.adminTab || 'eventos';
+    } else {
+      state.view = 'home';
+      state.isAdmin = false;
+      state.adminEscopo = null;
+    }
+    return render();
+  },
+  'toggle-confirmados': async (id, target, action, e) => {
+    state.view = 'confirmados'; return render();
+  },
+  'close-confirmados': async (id, target, action, e) => {
+    state.view = 'event'; return render();
+  },
+};

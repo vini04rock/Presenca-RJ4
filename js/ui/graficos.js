@@ -4,6 +4,7 @@ import { rankingFaltasInfracionais, resumoDonutPeriodo } from '../dominio/estati
 import { RELATORIO_PERIODOS, emojiTipoEvento } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { escapeHtml, formatDataBR } from '../nucleo/util.js';
+import { render } from '../nucleo/render.js';
 
 // Donut de status em SVG puro (sem biblioteca) - um anel por segmento,
 // usando stroke-dasharray/dashoffset; numero central + legenda com
@@ -153,3 +154,17 @@ export function renderDonutCard(titulo, chave, encerrados, destaque) {
     </div>
   `;
 }
+
+// Acoes dos graficos (trocar periodo, abrir detalhe do tipo).
+// Cada entrada e o corpo do antigo "if (action === ...)" do app.js, tal
+// e qual. O app.js so olha o nome da acao neste mapa e chama.
+export const acoes = {
+  'set-relatorio-periodo-tipo': async (id, target, action, e) => {
+    state.relatorioPeriodoPorGrafico[target.dataset.chave] = Number(target.dataset.value);
+    return render();
+  },
+  'abrir-relatorio-tipo-detalhe': async (id, target, action, e) => {
+    state.relatorioTipoDetalhe = target.dataset.value;
+    return render();
+  },
+};

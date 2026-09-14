@@ -42,6 +42,7 @@ Sirva a pasta e acesse `http://localhost:8000`:
     │   ├── ui/               pedaços de tela reaproveitados e gráficos
     │   ├── telas/            uma tela por arquivo
     │   └── fluxos/           as ações (confirmar, ajustar, exportar…)
+    ├── ferramentas/          testes offline (ver ferramentas/README.md)
     ├── apps-script/Code.gs   backend (cópia do que roda no Google)
     ├── CONTEXTO-PROJETO.md   contexto e decisões de arquitetura
     └── README.md
@@ -53,6 +54,15 @@ alcança o núcleo.
 
 O `Code.gs` roda na planilha do Google; a cópia em `apps-script/` existe
 para versionar e revisar, e precisa ser colada lá a cada alteração.
+
+## Antes de dar push
+
+Dois testes que rodam offline, sem tocar na planilha:
+
+    py ferramentas/estrutura.py     # imports, camadas, sintaxe, ações
+    node ferramentas/telas.mjs      # desenha as 40 telas e abas
+
+Detalhes e o que eles não cobrem: [ferramentas/README.md](ferramentas/README.md).
 
 ## Documentação
 

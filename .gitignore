@@ -32,3 +32,6 @@ desktop.ini
 # OneDrive
 *.tmp
 ~$*
+
+# Resultado do ultimo teste de telas (ferramentas/)
+ferramentas/ultimo-teste.txt

@@ -1,12 +1,14 @@
 // Calendario do mes e a tela Organizar (marcar/editar eventos).
 
-import { construirGradeCalendario, eventosCalendarioVisiveis, marcacoesVisiveisCalendario } from '../dominio/estatisticas.js';
-import { api } from '../nucleo/api.js';
+import { construirGradeCalendario, eventosCalendarioVisiveis, marcacoesVisiveisCalendario, membrosElegiveisCalendario, parseTextoOrganizarCalendario } from '../dominio/estatisticas.js';
+import { api, apiPost } from '../nucleo/api.js';
 import { DIAS_SEMANA_LETRA, NOMES_MESES, TIPOS_EVENTO, corTipoEvento, emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
 import { escapeHtml, hexParaRgba } from '../nucleo/util.js';
 import { renderCardEscopo } from '../ui/comuns.js';
+import { loadInitial, salvarOuAvisar } from '../dados/carregar.js';
+import { paramsDeEvento } from '../fila/presenca.js';
 
 // Tela "Calendario" - escolhe a divisao/regional (sem PIN, igual Eventos),
 // depois mostra a grade do mes daquele escopo. Por enquanto so mostra os
@@ -289,3 +291,168 @@ export async function checkCalendarioPin() {
   state.calendarioPinVerificando = false;
   render();
 }
+
+// Acoes do Calendario e da tela Organizar.
+// Cada entrada e o corpo do antigo "if (action === ...)" do app.js, tal
+// e qual. O app.js so olha o nome da acao neste mapa e chama.
+export const acoes = {
+  'go-calendario-divisoes': async (id, target, action, e) => {
+    state.view = 'calendario-divisoes';
+    state.calendarioEscopo = null;
+    state.calendarioOrganizarEtapa = null;
+    state.calendarioPinErro = null;
+    state.calendarioMarcarAviso = null;
+    return render();
+  },
+  'select-calendario-escopo': async (id, target, action, e) => {
+    state.calendarioEscopo = target.dataset.value;
+    state.view = 'calendario';
+    return render();
+  },
+  'calendario-mes-anterior': async (id, target, action, e) => {
+    state.calendarioMes--;
+    if (state.calendarioMes < 0) { state.calendarioMes = 11; state.calendarioAno--; }
+    return render();
+  },
+  'calendario-mes-seguinte': async (id, target, action, e) => {
+    state.calendarioMes++;
+    if (state.calendarioMes > 11) { state.calendarioMes = 0; state.calendarioAno++; }
+    return render();
+  },
+  'abrir-calendario-organizar': async (id, target, action, e) => {
+    state.calendarioOrganizarEtapa = 'pin';
+    state.calendarioPinErro = null;
+    state.calendarioOrganizarTextoValor = '';
+    state.calendarioOrganizarTextoErro = null;
+    state.calendarioOrganizarErroSalvar = null;
+    state.calendarioOrganizarSubTab = 'adicionar';
+    state.calendarioEditandoData = null;
+    state.calendarioAjustandoData = false;
+    state.calendarioConfirmandoExclusao = false;
+    return render();
+  },
+  'fechar-calendario-organizar': async (id, target, action, e) => {
+    state.calendarioOrganizarEtapa = null;
+    state.calendarioOrganizarTextoValor = '';
+    state.calendarioOrganizarTextoErro = null;
+    state.calendarioOrganizarErroSalvar = null;
+    state.calendarioEditandoData = null;
+    state.calendarioAjustandoData = false;
+    state.calendarioConfirmandoExclusao = false;
+    return render();
+  },
+  'check-calendario-pin': async (id, target, action, e) => {
+    return checkCalendarioPin();
+  },
+  'marcar-calendario-texto': async (id, target, action, e) => {
+    if (state.calendarioSalvando) return;
+    const texto = document.getElementById('calendario-organizar-texto').value;
+    if (!texto.trim()) return;
+    const { marcacoes, naoReconhecidas } = parseTextoOrganizarCalendario(texto, state.calendarioAno);
+    // Tudo ou nada: uma linha so que nao seja reconhecida ja trava a marcacao
+    // inteira - sem isso, um typo numa linha fazia o resto entrar quieto e a
+    // linha ruim sumir sem ninguem perceber que faltou marcar aquele dia.
+    if (naoReconhecidas.length) {
+      state.calendarioOrganizarTextoValor = texto;
+      state.calendarioOrganizarTextoErro = naoReconhecidas;
+      return render();
+    }
+    // Nao duplica se a mesma data ja tiver um evento criado por esse mesmo
+    // escopo (ex: colar o mesmo texto duas vezes sem querer).
+    const existentes = new Set(
+      eventosCalendarioVisiveis(state.calendarioEscopo)
+        .filter(ev => ev.categoria === state.calendarioEscopo)
+        .map(ev => ev.data)
+    );
+    const novos = Object.entries(marcacoes).filter(([data]) => !existentes.has(data));
+    const duplicados = Object.keys(marcacoes).length - novos.length;
+    if (!novos.length) {
+      state.calendarioMarcarAviso = `⚠️ ${duplicados === 1 ? 'Essa data já tinha' : 'Essas datas já tinham'} evento marcado - nada novo foi criado.`;
+      state.calendarioOrganizarEtapa = null;
+      state.calendarioOrganizarTextoValor = '';
+      state.calendarioOrganizarTextoErro = null;
+      return render();
+    }
+
+    state.calendarioSalvando = true;
+    state.calendarioOrganizarErroSalvar = null;
+    render();
+    try {
+      const membroIds = membrosElegiveisCalendario(state.calendarioEscopo).map(m => m.id);
+      await apiPost('criarEventosDeCalendario', {
+        categoria: state.calendarioEscopo,
+        membroIds,
+        eventos: novos.map(([data, tipo]) => ({ data, tipo }))
+      });
+      await loadInitial();
+      state.calendarioMarcarAviso = `✅ ${novos.length} ${novos.length === 1 ? 'evento criado' : 'eventos criados'} no calendário.` +
+        (duplicados ? ` (${duplicados} ${duplicados === 1 ? 'já existia e foi mantido' : 'já existiam e foram mantidos'} sem duplicar)` : '');
+      state.calendarioOrganizarEtapa = null;
+      state.calendarioOrganizarTextoValor = '';
+      state.calendarioOrganizarTextoErro = null;
+    } catch (e) {
+      // Mantem o texto colado (senao a pessoa perde tudo e tem que colar de
+      // novo) e mostra o erro na propria tela do Adicionar, nao so no aviso
+      // do calendario - que so aparece depois de sair desta tela, e sem
+      // sucesso a gente nunca sai dela.
+      state.calendarioOrganizarTextoValor = texto;
+      state.calendarioOrganizarErroSalvar = e.message;
+    }
+    state.calendarioSalvando = false;
+    return render();
+  },
+  'calendario-organizar-subtab': async (id, target, action, e) => {
+    state.calendarioOrganizarSubTab = target.dataset.tab;
+    state.calendarioEditandoData = null;
+    state.calendarioAjustandoData = false;
+    state.calendarioConfirmandoExclusao = false;
+    return render();
+  },
+  'calendario-editar-selecionar-dia': async (id, target, action, e) => {
+    state.calendarioEditandoData = state.calendarioEditandoData === target.dataset.value ? null : target.dataset.value;
+    state.calendarioAjustandoData = false;
+    state.calendarioConfirmandoExclusao = false;
+    return render();
+  },
+  'calendario-editar-abrir-ajuste': async (id, target, action, e) => {
+    state.calendarioAjustandoData = true;
+    return render();
+  },
+  'calendario-editar-cancelar-ajuste': async (id, target, action, e) => {
+    state.calendarioAjustandoData = false;
+    return render();
+  },
+  'calendario-editar-pedir-exclusao': async (id, target, action, e) => {
+    state.calendarioConfirmandoExclusao = true;
+    return render();
+  },
+  'calendario-editar-cancelar-exclusao': async (id, target, action, e) => {
+    state.calendarioConfirmandoExclusao = false;
+    return render();
+  },
+  'calendario-editar-excluir': async (id, target, action, e) => {
+    state.events = state.events.filter(ev => ev.id !== id);
+    state.calendarioEditandoData = null;
+    state.calendarioConfirmandoExclusao = false;
+    render();
+    await salvarOuAvisar('eventoRemover', { id });
+    return;
+  },
+  'calendario-editar-confirmar-data': async (id, target, action, e) => {
+    const novaData = document.getElementById('calendario-editar-data-field').value;
+    if (!novaData) return;
+    const ev = state.events.find(e => e.id === id);
+    if (!ev) return;
+    state.events = state.events.map(e => e.id === id ? { ...e, data: novaData } : e);
+    // Pula direto pro mes/ano da nova data, pra ja mostrar o quadrado certo
+    // sem precisar navegar manualmente ate lá.
+    const [ano, mes] = novaData.split('-').map(Number);
+    state.calendarioAno = ano;
+    state.calendarioMes = mes - 1;
+    state.calendarioEditandoData = novaData;
+    state.calendarioAjustandoData = false;
+    render();
+    await salvarOuAvisar('eventoSalvar', paramsDeEvento({ ...ev, data: novaData }));
+    return;
+  },
+};

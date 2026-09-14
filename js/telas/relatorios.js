@@ -8,6 +8,9 @@ import { TIPO_HOME_IMAGEM } from '../nucleo/imagens.js';
 import { dataCorteMeses, escapeHtml, formatDataBR } from '../nucleo/util.js';
 import { renderFichaMembro, renderListaEstatisticasPorDivisao } from '../ui/comuns.js';
 import { renderDonutCard, renderRankingFaltasInfracionais } from '../ui/graficos.js';
+import { loadReportData } from '../dados/carregar.js';
+import { analisarConvocacao, confirmarEventoParseado, iniciarCorrecaoConvocacao } from '../fluxos/convocacao.js';
+import { render } from '../nucleo/render.js';
 
 function renderRelatorioFiltroDivisao() {
   if (state.relatorioEscopo !== 'regional' || !ABAS_COM_FILTRO_DIVISAO.includes(state.relatorioTab)) return '';
@@ -537,3 +540,125 @@ function conteudoRelatorioPresenca() {
     </div>
   `;
 }
+
+// Acoes do painel de Relatorios (abas, filtros e colar convocacao).
+// Cada entrada e o corpo do antigo "if (action === ...)" do app.js, tal
+// e qual. O app.js so olha o nome da acao neste mapa e chama.
+export const acoes = {
+  'retry-report': async (id, target, action, e) => {
+    return loadReportData();
+  },
+  'fechar-ficha-membro': async (id, target, action, e) => {
+    state.relatorioMembroFichaId = null; return render();
+  },
+  'toggle-relatorio-eventos-divisao': async (id, target, action, e) => {
+    const chave = target.dataset.value;
+    if (state.relatorioEventosExpandidos.has(chave)) state.relatorioEventosExpandidos.delete(chave);
+    else state.relatorioEventosExpandidos.add(chave);
+    return render();
+  },
+  'set-relatorio-filtro-divisao': async (id, target, action, e) => {
+    state.relatorioFiltroDivisao = target.dataset.value;
+    state.relatorioTipoDetalhe = null;
+    return render();
+  },
+  'limpar-relatorio-filtro-periodo': async (id, target, action, e) => {
+    state.relatorioFiltroDataInicio = '';
+    state.relatorioFiltroDataFim = '';
+    return render();
+  },
+  'fechar-relatorio-tipo-detalhe': async (id, target, action, e) => {
+    state.relatorioTipoDetalhe = null;
+    return render();
+  },
+  'retry-relatorio-eventos': async (id, target, action, e) => {
+    return loadReportData();
+  },
+  'imprimir-relatorio': async (id, target, action, e) => {
+    window.print(); return;
+  },
+  'set-relatorio-categoria': async (id, target, action, e) => {
+    state.relatorioCategoriaAlvo = target.dataset.value;
+    return render();
+  },
+  'set-revisao-tipo': async (id, target, action, e) => {
+    state.relatorioParsed.evento.tipo = state.relatorioParsed.evento.tipo === target.dataset.value ? '' : target.dataset.value;
+    return render();
+  },
+  'set-relatorio-tipo': async (id, target, action, e) => {
+    state.relatorioTipoEscolhido = state.relatorioTipoEscolhido === target.dataset.value ? null : target.dataset.value;
+    return render();
+  },
+  'relatorio-tab': async (id, target, action, e) => {
+    state.relatorioTab = target.dataset.tab;
+    render();
+    // Eventos, Resumo e as 4 abas de tipo dependem dos dados por evento -
+    // sem isso quem for direto numa dessas abas (sem passar por outra que
+    // ja carregou) fica com "Carregando…" pra sempre, ja que nada mais
+    // dispara essa busca.
+    const precisaReportData = ['eventos', 'resumo', ...TIPOS_EVENTO_TABS_ORDEM].includes(target.dataset.tab);
+    if (precisaReportData) await loadReportData();
+    return;
+  },
+  'go-relatorio-texto': async (id, target, action, e) => {
+    state.relatorioColarStep = 'texto';
+    state.relatorioDuplicidadeAviso = null;
+    state.relatorioDuplicidadeConfirmada = false;
+    return render();
+  },
+  'analisar-convocacao': async (id, target, action, e) => {
+    return analisarConvocacao();
+  },
+  'aceitar-sugestao': async (id, target, action, e) => {
+    const row = state.relatorioParsed.membrosParsed[Number(target.dataset.index)];
+    row.membroId = target.dataset.id;
+    row.sugestoes = [];
+    return render();
+  },
+  'ignorar-membro-parseado': async (id, target, action, e) => {
+    state.relatorioParsed.membrosParsed[Number(target.dataset.index)].ignorado = true;
+    return render();
+  },
+  'reincluir-membro-parseado': async (id, target, action, e) => {
+    state.relatorioParsed.membrosParsed[Number(target.dataset.index)].ignorado = false;
+    return render();
+  },
+  'confirmar-evento-parseado': async (id, target, action, e) => {
+    return confirmarEventoParseado();
+  },
+  'cancelar-duplicidade-relatorio': async (id, target, action, e) => {
+    state.relatorioDuplicidadeAviso = null; return render();
+  },
+  'confirmar-duplicidade-relatorio': async (id, target, action, e) => {
+    state.relatorioDuplicidadeConfirmada = true;
+    return confirmarEventoParseado();
+  },
+  'nova-convocacao': async (id, target, action, e) => {
+    state.relatorioTextoBruto = '';
+    state.relatorioParsed = null;
+    state.relatorioSalvarErro = null;
+    state.relatorioDuplicidadeAviso = null;
+    state.relatorioDuplicidadeConfirmada = false;
+    state.relatorioEditandoEventoId = null;
+    state.relatorioColarStep = 'texto';
+    return render();
+  },
+  'corrigir-convocacao': async (id, target, action, e) => {
+    return iniciarCorrecaoConvocacao(id);
+  },
+  'toggle-texto-original': async (id, target, action, e) => {
+    if (state.relatorioTextoOriginalExpandido.has(id)) state.relatorioTextoOriginalExpandido.delete(id);
+    else state.relatorioTextoOriginalExpandido.add(id);
+    return render();
+  },
+  'ignore-click': async (id, target, action, e) => {
+    return;
+  },
+  'cancelar-correcao-convocacao': async (id, target, action, e) => {
+    state.relatorioEditandoEventoId = null;
+    state.relatorioCategoriaAlvo = null;
+    state.relatorioTipoEscolhido = null;
+    state.relatorioTextoBruto = '';
+    return render();
+  },
+};

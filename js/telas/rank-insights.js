@@ -6,6 +6,8 @@ import { state } from '../nucleo/estado.js';
 import { escapeHtml, formatDataBR } from '../nucleo/util.js';
 import { linhaFuncoes } from '../ui/comuns.js';
 import { renderDonutChart, renderSparklineTendencia } from '../ui/graficos.js';
+import { carregarRankInsights } from '../dados/carregar.js';
+import { render } from '../nucleo/render.js';
 
 export function renderRankInsights(app) {
   app.innerHTML = `
@@ -175,3 +177,39 @@ export function renderRankInsightsConteudo(d) {
 
   return cardTotal + blocoDivisoes + blocoMembros;
 }
+
+// Acoes do Rank de Insights.
+// Cada entrada e o corpo do antigo "if (action === ...)" do app.js, tal
+// e qual. O app.js so olha o nome da acao neste mapa e chama.
+export const acoes = {
+  'go-rank-insights': async (id, target, action, e) => {
+    state.view = 'rank-insights';
+    return carregarRankInsights();
+  },
+  'toggle-insight-rank-divisao': async (id, target, action, e) => {
+    const chave = target.dataset.value;
+    if (state.insightRankExpandedDivisoes.has(chave)) state.insightRankExpandedDivisoes.delete(chave);
+    else state.insightRankExpandedDivisoes.add(chave);
+    return render();
+  },
+  'set-insight-rank-tab': async (id, target, action, e) => {
+    state.insightRankTab = target.dataset.value;
+    return render();
+  },
+  'select-insight-rank-rodada': async (id, target, action, e) => {
+    // (o "const id = target.dataset.id" que existia aqui saiu: o id ja chega
+    //  como parametro, com exatamente esse mesmo valor)
+    state.insightRankRodadaSelecionada = state.insightRankRodadaSelecionada === id ? null : id;
+    // Toda vez que a rodada aberta muda, fecha as divisoes que estavam
+    // abertas na rodada anterior - senao "Barra" continuaria aberta ao
+    // trocar pra outra rodada, sem relacao com o que a pessoa pediu ali.
+    state.insightRankRodadaDivisoesExpandidas = new Set();
+    return render();
+  },
+  'toggle-insight-rank-rodada-divisao': async (id, target, action, e) => {
+    const chave = target.dataset.value;
+    if (state.insightRankRodadaDivisoesExpandidas.has(chave)) state.insightRankRodadaDivisoesExpandidas.delete(chave);
+    else state.insightRankRodadaDivisoesExpandidas.add(chave);
+    return render();
+  },
+};
