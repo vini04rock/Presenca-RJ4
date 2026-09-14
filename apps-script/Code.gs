@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-09-13-v-insight-ajustar-rodada';
+var VERSAO = '2026-09-13-v-insight-ajustar-rodada-membros';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -154,7 +154,7 @@ function executar(action, p) {
   // O app manda tudo por GET (ver api() no index.html) - marcacoes vira uma
   // unica string JSON num parametro so, em vez de um objeto de verdade.
   if (action === 'insightSalvar') return comTrava(function () { return salvarInsightRodada(parseOuVazio(p.marcacoes, {}), String(p.data || '')); });
-  if (action === 'insightRodadaAjustar') return comTrava(function () { return ajustarInsightRodada(String(p.id || ''), parseOuVazio(p.marcacoes, {})); });
+  if (action === 'insightRodadaAjustar') return comTrava(function () { return ajustarInsightRodada(String(p.id || ''), parseOuVazio(p.marcacoes, {}), listaDe(p.membroIds)); });
   if (action === 'insightRodadaRemover') return comTrava(function () { return removerInsightRodada(p.id); });
   if (action === 'insightMembroRemover') return comTrava(function () { return removerMembroDoInsight(String(p.id || '')); });
   if (action === 'insightMembroReincluir') return comTrava(function () { return reincluirMembroNoInsight(String(p.id || '')); });
@@ -1572,15 +1572,48 @@ function salvarInsightRodada(marcacoes, dataEscolhida) {
   return { ok: true, id: id, percentual: percentual, totalSim: totalSim, totalElegiveis: elegiveis.length };
 }
 
-// Corrige uma rodada que ja foi registrada - marcacao errada sem querer, ou
-// um integrante que respondeu depois. Diferente de salvarInsightRodada, nao
-// cria linha nenhuma: so regrava a coluna "Fez" de quem ja tem linha nessa
-// rodada. Os membros considerados sao os que a rodada ja tinha na hora que
-// foi registrada (nao a lista atual de elegiveis) - se alguem saiu do
-// insight depois, o historico dessa rodada continua intacto.
-function ajustarInsightRodada(id, marcacoes) {
+function divisaoDoMembro(id) {
+  var achado = acharLinha(aba(ABA_MEMBROS, CAB_MEMBROS), function (l) { return String(l[0]) === String(id); });
+  return achado ? String(achado.valores[3] || '') : '';
+}
+
+// Corrige uma rodada que ja foi registrada - marcacao errada sem querer, um
+// integrante que respondeu depois, ou alguem que foi contado por engano
+// (ou faltou contar). membroIds e a lista final de quem deve continuar
+// nessa rodada - comparada com quem ja tem linha ali, decide quem entra
+// (linha nova), quem sai (linha apagada) e quem so tem o "Fez" atualizado.
+// Sem isso, "ajustar" so servia pra corrigir Sim/Nao de quem ja estava
+// contado, nunca pra corrigir a propria lista de quem participou.
+function ajustarInsightRodada(id, marcacoes, membroIds) {
   if (!id) throw new Error('Faltou o ID da rodada');
   var s = aba(ABA_INSIGHT_PRESENCAS, CAB_INSIGHT_PRESENCAS);
+
+  var desejados = {};
+  (membroIds || []).forEach(function (mid) { desejados[String(mid)] = true; });
+
+  // Sai da rodada quem nao esta mais na lista desejada - continua contado
+  // normalmente em qualquer outra rodada, so sai desta.
+  apagarLinhas(s, function (l) {
+    return String(l[0]) === String(id) && !desejados[String(l[1])];
+  });
+
+  var existentes = {};
+  linhas(s).forEach(function (l) {
+    if (String(l[0]) === String(id)) existentes[String(l[1])] = true;
+  });
+
+  // Entra na rodada quem esta na lista desejada mas ainda nao tinha linha.
+  var linhasNovas = [];
+  (membroIds || []).forEach(function (mid) {
+    if (existentes[String(mid)]) return;
+    var fez = !!(marcacoes && marcacoes[mid]);
+    linhasNovas.push([id, mid, nomeDe(ABA_MEMBROS, CAB_MEMBROS, mid), divisaoDoMembro(mid), fez ? 'Sim' : 'Nao']);
+  });
+  if (linhasNovas.length) {
+    s.getRange(s.getLastRow() + 1, 1, linhasNovas.length, CAB_INSIGHT_PRESENCAS.length).setValues(linhasNovas);
+  }
+
+  // Regrava o "Fez" de quem ja estava e continua - so quem de fato mudou.
   var dados = linhas(s);
   var totalSim = 0, total = 0;
   for (var i = 0; i < dados.length; i++) {
@@ -1589,9 +1622,9 @@ function ajustarInsightRodada(id, marcacoes) {
     var mid = String(dados[i][1]);
     var fez = !!(marcacoes && marcacoes[mid]);
     if (fez) totalSim++;
-    s.getRange(i + 2, 5).setValue(fez ? 'Sim' : 'Nao');
+    if (ehSim(dados[i][4]) !== fez) s.getRange(i + 2, 5).setValue(fez ? 'Sim' : 'Nao');
   }
-  if (!total) throw new Error('Rodada nao encontrada');
+  if (!total) throw new Error('A rodada ficaria sem nenhum integrante');
   return { ok: true, id: id, percentual: Math.round((totalSim / total) * 100), totalSim: totalSim, totalElegiveis: total };
 }
 

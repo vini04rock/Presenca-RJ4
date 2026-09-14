@@ -949,6 +949,18 @@ let state = {
   // nova). Enquanto preenchido, insightMarcacoes guarda a marcacao dessa
   // rodada especifica, nao a de uma rodada nova.
   insightEditandoRodadaId: null,
+  // Lista de trabalho de quem esta na rodada em ajuste (comeca igual a
+  // r.membros, mas o organizador pode tirar/adicionar gente antes de
+  // salvar) + nome/divisao de cada um pra exibir sem precisar consultar o
+  // roster atual (um removido do clube ainda pode aparecer numa rodada
+  // antiga). Ver iniciarAjusteInsightRodada.
+  insightAjusteMembroIds: [],
+  insightAjusteInfo: {},
+  insightAjusteMostrarAdicionar: false,
+  // Cada divisao comeca fechada dentro do ajuste - so mostra os integrantes
+  // depois de tocar no nome dela, pra nao poluir a tela com todo mundo de
+  // uma vez so.
+  insightAjusteDivisoesExpandidas: new Set(),
   // Data opcional pra registrar uma rodada atrasada (ver "Registrar com
   // outra data" abaixo do "Confirmar rodada") - vazio usa o dia de hoje,
   // igual sempre foi.
@@ -1380,7 +1392,14 @@ function iniciarAjusteInsightRodada(id) {
   if (!r) return;
   state.insightEditandoRodadaId = id;
   state.insightMarcacoes = {};
-  (r.membros || []).forEach(m => { state.insightMarcacoes[m.id] = m.fez; });
+  state.insightAjusteInfo = {};
+  (r.membros || []).forEach(m => {
+    state.insightMarcacoes[m.id] = m.fez;
+    state.insightAjusteInfo[m.id] = { nome: m.nome, divisao: m.divisao };
+  });
+  state.insightAjusteMembroIds = (r.membros || []).map(m => m.id);
+  state.insightAjusteMostrarAdicionar = false;
+  state.insightAjusteDivisoesExpandidas = new Set();
   state.insightResultado = null;
   state.insightErro = null;
   render();
@@ -1388,6 +1407,10 @@ function iniciarAjusteInsightRodada(id) {
 
 function cancelarAjusteInsightRodada() {
   state.insightEditandoRodadaId = null;
+  state.insightAjusteMembroIds = [];
+  state.insightAjusteInfo = {};
+  state.insightAjusteMostrarAdicionar = false;
+  state.insightAjusteDivisoesExpandidas = new Set();
   state.insightMarcacoes = {};
   (state.insightStats ? state.insightStats.membros : []).forEach(m => { state.insightMarcacoes[m.id] = false; });
   render();
@@ -1399,9 +1422,17 @@ async function salvarAjusteInsightRodada() {
   state.insightErro = null;
   render();
   try {
-    const r = await api('insightRodadaAjustar', { id, marcacoes: JSON.stringify(state.insightMarcacoes) });
+    const r = await api('insightRodadaAjustar', {
+      id,
+      marcacoes: JSON.stringify(state.insightMarcacoes),
+      membroIds: state.insightAjusteMembroIds.join(',')
+    });
     state.insightResultado = { ajuste: true, percentual: r.percentual, totalSim: r.totalSim, totalElegiveis: r.totalElegiveis };
     state.insightEditandoRodadaId = null;
+    state.insightAjusteMembroIds = [];
+    state.insightAjusteInfo = {};
+    state.insightAjusteMostrarAdicionar = false;
+    state.insightAjusteDivisoesExpandidas = new Set();
     await loadInsightStats();
   } catch (e) {
     state.insightErro = e.message;
@@ -4426,18 +4457,38 @@ function renderAdminPresencas() {
 // esta sendo corrigida. Usa os proprios membros daquela rodada (r.membros),
 // nao a lista atual de elegiveis, e reaproveita agruparMembrosRodadaPorDivisao
 // (mesma funcao da aba publica "Por rodada") pra agrupar por divisao.
+// membros atuais da edicao vem de insightAjusteMembroIds/insightAjusteInfo
+// (a "lista de trabalho"), nao mais direto de r.membros - ela muda conforme
+// o organizador remove/adiciona gente antes de salvar (ver
+// iniciarAjusteInsightRodada/ajuste-rodada-remover-membro/-adicionar-membro).
 function renderAjusteInsightRodada() {
   const r = (state.insightRodadasHistorico || []).find(x => x.id === state.insightEditandoRodadaId);
   if (!r) return '';
-  const grupos = agruparMembrosRodadaPorDivisao(r.membros || []);
+  const membrosAtuais = state.insightAjusteMembroIds.map(id => ({
+    id,
+    nome: (state.insightAjusteInfo[id] || {}).nome || '(sem nome)',
+    divisao: (state.insightAjusteInfo[id] || {}).divisao || ''
+  }));
+  const grupos = agruparMembrosRodadaPorDivisao(membrosAtuais);
+  // So quem esta elegivel pro insight hoje pode ser adicionado - nao da pra
+  // oferecer alguem que ja saiu do clube, por exemplo.
+  const candidatos = (state.insightStats ? state.insightStats.membros : [])
+    .filter(m => !state.insightAjusteMembroIds.includes(m.id));
+  const gruposCandidatos = agruparMembrosRodadaPorDivisao(candidatos);
+
   return `
     <div class="alert info" style="margin-bottom:16px;">
-      <div class="alert-msg">Ajustando a rodada de ${formatDataBR(r.data)}. Toque num integrante pra trocar entre Fez/Não fez.</div>
+      <div class="alert-msg">Ajustando a rodada de ${formatDataBR(r.data)}. Toque num integrante pra trocar entre Fez/Não fez, ou remova/adicione quem participou.</div>
     </div>
-    ${grupos.map(g => `
+    ${grupos.map(g => {
+      const aberto = state.insightAjusteDivisoesExpandidas.has(g.e.chave);
+      return `
       <div class="card" style="padding: 4px 16px; margin-bottom:12px;">
-        <div class="division-subheader"><span>${escapeHtml(g.e.nome.toUpperCase())}</span></div>
-        ${g.membros.map(m => {
+        <div class="division-subheader clicavel" data-action="toggle-ajuste-rodada-divisao" data-value="${g.e.chave}">
+          <span>${aberto ? '▾' : '▸'} ${escapeHtml(g.e.nome.toUpperCase())}</span>
+          <span class="division-counts">${g.membros.length}</span>
+        </div>
+        ${aberto ? g.membros.map(m => {
           const marcado = !!state.insightMarcacoes[m.id];
           return `
             <div class="member-row">
@@ -4445,11 +4496,37 @@ function renderAjusteInsightRodada() {
                 <span class="member-name">${escapeHtml(m.nome)}</span>
                 <span class="status-badge ${marcado ? 'status-confirmado' : 'status-nao-fez'}">${marcado ? '✅ Fez' : '⬜ Não fez'}</span>
               </div>
+              <button class="btn ghost" data-action="ajuste-rodada-remover-membro" data-id="${m.id}" style="margin-top:6px; padding:4px 10px; font-size:11px;">Remover desta rodada</button>
             </div>
           `;
-        }).join('')}
+        }).join('') : ''}
       </div>
-    `).join('')}
+    `;
+    }).join('')}
+
+    <div class="card" style="padding: 4px 16px; margin-bottom:12px;">
+      <div class="division-subheader clicavel" data-action="toggle-ajuste-rodada-adicionar">
+        <span>${state.insightAjusteMostrarAdicionar ? '▾' : '▸'} Adicionar integrante que faltou nesta rodada</span>
+      </div>
+      ${state.insightAjusteMostrarAdicionar ? (
+        gruposCandidatos.length === 0
+          ? '<div class="empty">Todo mundo elegível já está nesta rodada.</div>'
+          : gruposCandidatos.map(g => `
+              <div style="margin-bottom:8px;">
+                <div style="font-weight:600; font-size:12.5px; color:var(--text-muted); margin:8px 0 4px;">${escapeHtml(g.e.nome)}</div>
+                ${g.membros.map(m => `
+                  <div class="member-row">
+                    <div class="member-head" style="cursor:default;">
+                      <span class="member-name">${escapeHtml(m.nome)}</span>
+                      <button class="btn ghost" data-action="ajuste-rodada-adicionar-membro" data-id="${m.id}" style="padding:4px 10px; font-size:11px;">+ Adicionar</button>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            `).join('')
+      ) : ''}
+    </div>
+
     <div class="row-gap" style="margin-bottom:16px;">
       <button class="btn block" data-action="salvar-ajuste-insight-rodada" ${state.insightSalvando ? 'disabled' : ''}>
         ${state.insightSalvando ? 'Salvando…' : '✅ Salvar ajuste'}
@@ -5593,6 +5670,34 @@ document.getElementById('app').addEventListener('click', async (e) => {
   if (action === 'ajustar-insight-rodada') return iniciarAjusteInsightRodada(target.dataset.id);
   if (action === 'salvar-ajuste-insight-rodada') return salvarAjusteInsightRodada();
   if (action === 'cancelar-ajuste-insight-rodada') return cancelarAjusteInsightRodada();
+  if (action === 'ajuste-rodada-remover-membro') {
+    const mid = target.dataset.id;
+    state.insightAjusteMembroIds = state.insightAjusteMembroIds.filter(x => x !== mid);
+    delete state.insightMarcacoes[mid];
+    return render();
+  }
+  if (action === 'ajuste-rodada-adicionar-membro') {
+    const mid = target.dataset.id;
+    if (!state.insightAjusteMembroIds.includes(mid)) {
+      state.insightAjusteMembroIds.push(mid);
+      const m = (state.insightStats ? state.insightStats.membros : []).find(x => x.id === mid);
+      if (m) state.insightAjusteInfo[mid] = { nome: m.nome, divisao: m.divisao };
+      // Comeca como "nao fez" - o organizador toca pra marcar se for o caso,
+      // igual a qualquer integrante que ja estivesse na rodada.
+      state.insightMarcacoes[mid] = false;
+    }
+    return render();
+  }
+  if (action === 'toggle-ajuste-rodada-adicionar') {
+    state.insightAjusteMostrarAdicionar = !state.insightAjusteMostrarAdicionar;
+    return render();
+  }
+  if (action === 'toggle-ajuste-rodada-divisao') {
+    const chave = target.dataset.value;
+    if (state.insightAjusteDivisoesExpandidas.has(chave)) state.insightAjusteDivisoesExpandidas.delete(chave);
+    else state.insightAjusteDivisoesExpandidas.add(chave);
+    return render();
+  }
   if (action === 'toggle-insight-data-custom') {
     state.insightMostrarDataCustom = !state.insightMostrarDataCustom;
     if (!state.insightMostrarDataCustom) state.insightDataEscolhida = '';
