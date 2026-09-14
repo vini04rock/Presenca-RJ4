@@ -57,7 +57,7 @@ def nomes_do_import(itens):
     return fora
 
 # ---------- 1 e 2: grafo de dependencia ---------------------------------
-print('1/6  imports circulares e hierarquia de camadas')
+print('1/7  imports circulares e hierarquia de camadas')
 g = dict((rel, set(destino(rel, a) for _, a in IMP.findall(txt))) for rel, txt in fontes.items())
 
 cor, ciclos = {}, []
@@ -86,7 +86,7 @@ for o in sorted(g):
             erro('dependencia subindo de camada: %s -> %s' % (o, d))
 
 # ---------- 3: balanceamento --------------------------------------------
-print('2/6  chaves, aspas, crases e regex fechando')
+print('2/7  chaves, aspas, crases e regex fechando')
 def varrer(txt):
     erros, pilha = [], []
     i, n, linha, anterior = 0, len(txt), 1, ''
@@ -176,7 +176,7 @@ for rel, txt in sorted(fontes.items()):
         erro('%s: %s' % (rel, e))
 
 # ---------- 4 e 5: nomes e imports --------------------------------------
-print('3/6  nomes soltos (usados sem declarar nem importar)')
+print('3/7  nomes soltos (usados sem declarar nem importar)')
 dono = {}
 for rel, txt in fontes.items():
     for n in EXP.findall(txt):
@@ -204,7 +204,7 @@ for rel, txt in sorted(fontes.items()):
            and n not in GLOBAIS and n not in KW:
             erro('%s usa "%s" sem importar' % (rel, n))
 
-print('4/6  imports apontando pra arquivo e nome que existem')
+print('4/7  imports apontando pra arquivo e nome que existem')
 exportados = dict((rel, set(EXP.findall(txt))) for rel, txt in fontes.items())
 for rel, txt in sorted(fontes.items()):
     for itens, alvo in IMP.findall(txt):
@@ -217,7 +217,7 @@ for rel, txt in sorted(fontes.items()):
                 erro('%s importa "%s" de %s, que nao exporta esse nome' % (rel, origem, d))
 
 # ---------- 6: acoes ----------------------------------------------------
-print('5/6  acoes: toda data-action emitida tem tratador')
+print('5/7  acoes: toda data-action emitida tem tratador')
 CHAVE = re.compile(r"^  '([a-z0-9-]+)': async \(id, target, action, e\)", re.M)
 tratadas = collections.Counter()
 for rel, txt in fontes.items():
@@ -236,10 +236,21 @@ emitidas = set(re.findall(r'data-action="([a-z0-9-]+)"', todo))
 for a in sorted(emitidas - set(tratadas)):
     erro('acao "%s" e emitida no HTML mas ninguem trata' % a)
 
-print('6/6  acoes registradas em mais de um modulo')
+print('6/7  acoes registradas em mais de um modulo')
 for a, n in sorted(tratadas.items()):
     if n > 1:
         erro('acao "%s" esta registrada %d vezes' % (a, n))
+
+# ---------- 7: imports sem uso ------------------------------------------
+print('7/7  imports sobrando (sem uso no arquivo)')
+for rel, txt in sorted(fontes.items()):
+    corpo = re.sub(r"^import \{[^}]+\} from '[^']+';", '', txt, flags=re.M)
+    corpo = re.sub(r'//[^\n]*', '', corpo)
+    usados = set(IDENT.findall(corpo))
+    for itens, _ in IMP.findall(txt):
+        for _origem, local in nomes_do_import(itens):
+            if local not in usados:
+                erro('%s importa "%s" e nao usa' % (rel, local))
 
 # ---------- resumo -------------------------------------------------------
 print()

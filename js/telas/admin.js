@@ -7,7 +7,7 @@ import { FUNCOES, GRAUS, TIPOS_EVENTO, corTipoEvento, divisoesSemRegional, emoji
 import { genId, state } from '../nucleo/estado.js';
 import { TIPO_HOME_IMAGEM } from '../nucleo/imagens.js';
 import { escapeHtml, formatDataBR, hexParaRgba } from '../nucleo/util.js';
-import { renderRankInsightsConteudo } from './rank-insights.js';
+import { renderRankInsightsConteudo } from '../ui/insights.js';
 import { selosFuncoes } from '../ui/comuns.js';
 import { renderDonutChart, segmentosDonutStatus } from '../ui/graficos.js';
 import { loadEstatisticas, loadInsightStats, loadReportData, salvarOuAvisar } from '../dados/carregar.js';

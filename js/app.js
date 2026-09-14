@@ -1,24 +1,16 @@
 // Ponto de entrada: monta o roteador de telas, liga os ouvintes de
 // clique/digitacao e faz a primeira carga.
 
-import { carregarRank, carregarRankInsights, loadEstatisticas, loadEventStatus, loadInitial, loadInsightStats, loadReportData, salvarOuAvisar } from './dados/carregar.js';
-import { eventosCalendarioVisiveis, membrosElegiveisCalendario, membrosElegiveisEvento, parseTextoOrganizarCalendario } from './dominio/estatisticas.js';
-import { gravarAgora, paramsDeEvento, setMemberStatus } from './fila/presenca.js';
-import { analisarConvocacao, confirmarEventoParseado, iniciarCorrecaoConvocacao } from './fluxos/convocacao.js';
-import { openEvent } from './fluxos/evento.js';
-import { cancelarAjusteInsightRodada, confirmarInsightRodada, excluirInsightRodada, iniciarAjusteInsightRodada, reincluirMembroInsight, removerMembroInsight, salvarAjusteInsightRodada } from './fluxos/insights.js';
-import { copyInsightReportToClipboard, copyReportToClipboard, exportarRelatorioPdfAdmin, gerarRelatorio } from './fluxos/relatorio.js';
-import { apiPost } from './nucleo/api.js';
-import { TIPOS_EVENTO_TABS_ORDEM, escopoPorChave } from './nucleo/config.js';
-import { genId, getMemberStatus, state } from './nucleo/estado.js';
+import { loadInitial } from './dados/carregar.js';
+import { state } from './nucleo/estado.js';
 import { LOGO_SRC } from './nucleo/imagens.js';
 import { definirRender } from './nucleo/render.js';
 import { escapeHtml } from './nucleo/util.js';
 import { renderAdmin } from './telas/admin.js';
-import { checkCalendarioPin, renderCalendario, renderCalendarioDivisoes } from './telas/calendario.js';
+import { renderCalendario, renderCalendarioDivisoes } from './telas/calendario.js';
 import { renderConfirmados, renderEvent } from './telas/evento.js';
 import { renderHome } from './telas/home.js';
-import { checkPin, checkRelatorioPin, renderDivisoes, renderPin, renderRelatorioDivisoes, renderRelatorioPin } from './telas/pin.js';
+import { renderDivisoes, renderPin, renderRelatorioDivisoes, renderRelatorioPin } from './telas/pin.js';
 import { renderRankInsights } from './telas/rank-insights.js';
 import { renderRank } from './telas/rank.js';
 import { renderRelatorioShell } from './telas/relatorios.js';

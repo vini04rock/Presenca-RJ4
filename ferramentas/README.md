@@ -19,6 +19,8 @@ Lê os arquivos de `js/` e confere:
 5. Todo `import` aponta para arquivo que existe e para nome que é exportado.
 6. Toda ação emitida no HTML (`data-action`) **tem tratador**, e nenhuma ação
    está registrada em dois módulos ao mesmo tempo.
+7. Nenhum `import` **sobrando**, sem uso no arquivo — lixo que sobra quando
+   se move código de um lugar para outro.
 
 Termina em `TUDO OK` ou lista os problemas.
 
@@ -28,10 +30,18 @@ Termina em `TUDO OK` ou lista os problemas.
 
 Monta um navegador de mentira, enche o app com dados falsos (6 membros em 4
 divisões, 4 eventos cobrindo os 4 tipos, presenças com os 6 status, 5 rodadas
-de insight) e **desenha as 40 telas e abas**, uma por uma. Avisa se alguma
+de insight) e **desenha as 45 telas e abas**, uma por uma. Avisa se alguma
 estoura ou sai vazia.
 
 O resultado também fica em `ferramentas/ultimo-teste.txt`.
+
+Com `--html arquivo` ele grava o HTML de todas as telas. Serve para comparar
+antes e depois de uma mexida: captura, mexe, captura de novo e roda um diff.
+Diferença que aparecer ali é mudança de verdade na tela.
+
+    node ferramentas/telas.mjs --html antes.txt
+    # ... mexe no código ...
+    node ferramentas/telas.mjs --html depois.txt
 
 ### Se não tiver Node instalado
 

@@ -323,3 +323,42 @@ export const acoes = {
     return setMemberStatus(id, { acompanhado: !cur.acompanhado });
   },
 };
+
+// Tela "Escolha a divisão" - a mesma em tres lugares (Modo organizador,
+// Relatorios e Calendario). So mudam o titulo, quais divisoes aparecem e
+// qual acao cada card dispara.
+export function renderEscolhaDivisao(app, { titulo, escopos, acao }) {
+  app.innerHTML = `
+    <div class="back-link on-photo" data-action="go-home">‹ Voltar</div>
+    <div class="crest-wrap" style="margin-bottom: 8px;">
+      <h1 style="font-size: 19px;">${escapeHtml(titulo)}</h1>
+      <div class="sub">Escolha a divisão</div>
+    </div>
+    ${escopos.map(e => renderCardEscopo(e, acao, null)).join('')}
+  `;
+}
+
+// Tela de PIN - tambem a mesma em tres lugares. Cada uma guarda o proprio
+// "verificando"/"erro" no state e tem o proprio id de campo, entao esses
+// valores chegam prontos aqui em vez de serem lidos do state la dentro.
+// O PIN nunca e comparado no navegador (ver conferirPin em dados/pin.js).
+export function renderTelaPin(app, { titulo, subtitulo, voltar, campo, acao, verificando, erro, aoEnter }) {
+  const sub = subtitulo ? `\n      <div class="sub">${escapeHtml(subtitulo)}</div>` : '';
+  app.innerHTML = `
+    <div class="back-link on-photo" data-action="${voltar}">‹ Voltar</div>
+    <div class="crest-wrap" style="margin-bottom: 8px;">
+      <h1 style="font-size: 19px;">${escapeHtml(titulo)}</h1>${sub}
+    </div>
+    <div class="card">
+      <label>PIN de acesso</label>
+      <input type="tel" inputmode="numeric" maxlength="4" class="pin-input" id="${campo}" placeholder="••••" autofocus ${verificando ? 'disabled' : ''}>
+      ${erro ? `<div style="color: #C9A29C; font-size: 13px; margin-bottom: 10px;">${escapeHtml(erro)}</div>` : ''}
+      <button class="btn block" data-action="${acao}" ${verificando ? 'disabled' : ''}>${verificando ? 'Verificando…' : 'Entrar'}</button>
+    </div>
+  `;
+  const field = document.getElementById(campo);
+  if (field) {
+    field.focus();
+    field.addEventListener('keydown', (e) => { if (e.key === 'Enter') aoEnter(); });
+  }
+}

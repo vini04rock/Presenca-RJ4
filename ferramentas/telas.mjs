@@ -13,7 +13,13 @@ import { fileURLToPath, pathToFileURL } from 'url';
 
 const AQUI = path.dirname(fileURLToPath(import.meta.url));
 const JS = path.join(AQUI, '..', 'js');
-const SAIDA = process.argv[2] || path.join(AQUI, 'ultimo-teste.txt');
+// "--html arquivo" grava o HTML de todas as telas nesse arquivo. Serve pra
+// comparar antes/depois de uma mexida: captura, mexe, captura de novo e
+// roda um diff. Diferenca que aparecer ali e mudanca de verdade na tela.
+const iHtml = process.argv.indexOf('--html');
+const HTML = iHtml > -1 ? process.argv[iHtml + 1] : null;
+const args = process.argv.slice(2).filter((a, i, l) => a !== '--html' && l[i - 1] !== '--html');
+const SAIDA = args[0] || path.join(AQUI, 'ultimo-teste.txt');
 const linhas = [];
 const log = (s) => { linhas.push(s); try { console.log(s); } catch (e) {} };
 const url = (rel) => pathToFileURL(path.join(JS, rel)).href;
@@ -167,12 +173,17 @@ add('rank insights (por rodada)',     { insightRankTab:'porRodada' }, T.renderRa
 add('rank insights (rodada aberta)',  { insightRankTab:'porRodada', insightRankRodadaSelecionada:'r1' }, T.renderRankInsights);
 add('escolha divisao (organizador)',  {}, T.renderDivisoes);
 add('pin (organizador)',              {}, T.renderPin);
+add('pin (com erro)',                 { pinErro:'PIN incorreto.' }, T.renderPin);
+add('pin (verificando)',              { pinVerificando:true }, T.renderPin);
 add('escolha divisao (relatorios)',   {}, T.renderRelatorioDivisoes);
 add('pin (relatorios)',               {}, T.renderRelatorioPin);
+add('pin relatorios (com erro)',      { relatorioPinErro:'PIN incorreto.' }, T.renderRelatorioPin);
+add('pin relatorios (verificando)',   { relatorioPinVerificando:true }, T.renderRelatorioPin);
 add('calendario (escolha)',           {}, T.renderCalendarioDivisoes);
 const cal = { calendarioEscopo:'barra', calendarioAno:2026, calendarioMes:8 };
 add('calendario (grade)',             { ...cal }, T.renderCalendario);
 add('calendario (organizar: pin)',    { ...cal, calendarioOrganizarEtapa:'pin' }, T.renderCalendario);
+add('calendario (pin com erro)',      { ...cal, calendarioOrganizarEtapa:'pin', calendarioPinErro:'PIN incorreto.' }, T.renderCalendario);
 add('calendario (org: adicionar)',    { ...cal, calendarioOrganizarEtapa:'texto', calendarioOrganizarSubTab:'adicionar' }, T.renderCalendario);
 add('calendario (org: editar)',       { ...cal, calendarioOrganizarEtapa:'texto', calendarioOrganizarSubTab:'editar' }, T.renderCalendario);
 for (const aba of ['eventos','membros','relatorio','presencas','insights']) {
@@ -196,6 +207,8 @@ add('relatorios / detalhe por tipo',  { relatorioIsAdmin:true, relatorioEscopo:'
   relatorioTab:'resumo', relatorioTipoDetalhe:'Pub' }, T.renderRelatorioShell);
 
 const LIMPO = {
+  pinErro:null, pinVerificando:false, relatorioPinErro:null, relatorioPinVerificando:false,
+  calendarioPinErro:null, calendarioPinVerificando:false,
   homeEventosAberto:false, homeEscopo:null, homeTipo:null, relatorioMembroFichaId:null,
   relatorioTipoDetalhe:null, insightEditandoRodadaId:null, calendarioOrganizarEtapa:null,
   newEventSelected:null, insightRankRodadaSelecionada:null,
@@ -203,6 +216,7 @@ const LIMPO = {
 log('');
 log('=== 2. desenhar cada tela e aba ===');
 let falhas = 0, vazias = 0;
+const paginas = [];
 for (const c of casos) {
   Object.assign(state, LIMPO, c.patch);
   const app = novoEl('app');
@@ -212,6 +226,12 @@ for (const c of casos) {
     c.fn(app);
     let total = 0;
     for (const el of elementos.values()) total += (el.innerHTML || '').length;
+    if (HTML) {
+      const partes = [...elementos.entries()]
+        .filter(([, el]) => el.innerHTML)
+        .map(([id, el]) => `--- #${id} ---\n${el.innerHTML}`);
+      paginas.push(`===== ${c.nome} =====\n${partes.join('\n')}`);
+    }
     if (total < 50) { vazias++; log(`   VAZIA  ${c.nome} (${total} chars)`); }
     else log(`   ok     ${c.nome}  (${total} chars)`);
   } catch (e) {
@@ -226,4 +246,5 @@ log('');
 log(falhasCarga + falhas + vazias === 0 ? 'TUDO OK' : 'HA PROBLEMAS - veja acima');
 
 fs.writeFileSync(SAIDA, linhas.join('\n'), 'utf8');
+if (HTML) fs.writeFileSync(HTML, paginas.join('\n\n'), 'utf8');
 process.exit(falhasCarga + falhas + vazias === 0 ? 0 : 1);

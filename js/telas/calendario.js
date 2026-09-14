@@ -1,27 +1,25 @@
 // Calendario do mes e a tela Organizar (marcar/editar eventos).
 
 import { construirGradeCalendario, eventosCalendarioVisiveis, marcacoesVisiveisCalendario, membrosElegiveisCalendario, parseTextoOrganizarCalendario } from '../dominio/estatisticas.js';
-import { api, apiPost } from '../nucleo/api.js';
+import { apiPost } from '../nucleo/api.js';
 import { DIAS_SEMANA_LETRA, NOMES_MESES, TIPOS_EVENTO, corTipoEvento, emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
 import { escapeHtml, hexParaRgba } from '../nucleo/util.js';
-import { renderCardEscopo } from '../ui/comuns.js';
+import { renderEscolhaDivisao, renderTelaPin } from '../ui/comuns.js';
 import { loadInitial, salvarOuAvisar } from '../dados/carregar.js';
+import { conferirPin } from '../dados/pin.js';
 import { paramsDeEvento } from '../fila/presenca.js';
 
 // Tela "Calendario" - escolhe a divisao/regional (sem PIN, igual Eventos),
 // depois mostra a grade do mes daquele escopo. Por enquanto so mostra os
 // dias - o que cada dia vai destacar (eventos, etc.) fica pra depois.
 export function renderCalendarioDivisoes(app) {
-  app.innerHTML = `
-    <div class="back-link on-photo" data-action="go-home">‹ Voltar</div>
-    <div class="crest-wrap" style="margin-bottom: 8px;">
-      <h1 style="font-size: 19px;">Calendário</h1>
-      <div class="sub">Escolha a divisão</div>
-    </div>
-    ${escoposEmOrdemDeExibicao().map(e => renderCardEscopo(e, 'select-calendario-escopo', null)).join('')}
-  `;
+  renderEscolhaDivisao(app, {
+    titulo: 'Calendário',
+    escopos: escoposEmOrdemDeExibicao(),
+    acao: 'select-calendario-escopo',
+  });
 }
 
 export function renderCalendario(app) {
@@ -93,25 +91,16 @@ export function renderCalendario(app) {
 }
 
 function renderCalendarioOrganizarPin(app) {
-  const escopo = escopoPorChave(state.calendarioEscopo);
-  app.innerHTML = `
-    <div class="back-link on-photo" data-action="fechar-calendario-organizar">‹ Voltar</div>
-    <div class="crest-wrap" style="margin-bottom: 8px;">
-      <h1 style="font-size: 19px;">Organizar</h1>
-      <div class="sub">${escapeHtml(escopo.nome)}</div>
-    </div>
-    <div class="card">
-      <label>PIN de acesso</label>
-      <input type="tel" inputmode="numeric" maxlength="4" class="pin-input" id="calendario-pin-field" placeholder="••••" autofocus ${state.calendarioPinVerificando ? 'disabled' : ''}>
-      ${state.calendarioPinErro ? `<div style="color: #C9A29C; font-size: 13px; margin-bottom: 10px;">${escapeHtml(state.calendarioPinErro)}</div>` : ''}
-      <button class="btn block" data-action="check-calendario-pin" ${state.calendarioPinVerificando ? 'disabled' : ''}>${state.calendarioPinVerificando ? 'Verificando…' : 'Entrar'}</button>
-    </div>
-  `;
-  const field = document.getElementById('calendario-pin-field');
-  if (field) {
-    field.focus();
-    field.addEventListener('keydown', (e) => { if (e.key === 'Enter') checkCalendarioPin(); });
-  }
+  renderTelaPin(app, {
+    titulo: 'Organizar',
+    subtitulo: escopoPorChave(state.calendarioEscopo).nome,
+    voltar: 'fechar-calendario-organizar',
+    campo: 'calendario-pin-field',
+    acao: 'check-calendario-pin',
+    verificando: state.calendarioPinVerificando,
+    erro: state.calendarioPinErro,
+    aoEnter: checkCalendarioPin,
+  });
 }
 
 // Cola uma lista de "DD/MM - Tipo" (um evento por linha) e marca cada data
@@ -272,24 +261,13 @@ function renderCalendarioEditorPainel(evento) {
 }
 
 export async function checkCalendarioPin() {
-  if (state.calendarioPinVerificando) return;
-  const val = document.getElementById('calendario-pin-field').value.trim();
-  if (!val) return;
-  state.calendarioPinVerificando = true;
-  state.calendarioPinErro = null;
-  render();
-  try {
-    const r = await api('verificarPin', { escopo: state.calendarioEscopo, pin: val });
-    if (r.valido) {
-      state.calendarioOrganizarEtapa = 'texto';
-    } else {
-      state.calendarioPinErro = 'PIN incorreto.';
-    }
-  } catch (e) {
-    state.calendarioPinErro = 'Não consegui verificar (' + e.message + '). Tente de novo.';
-  }
-  state.calendarioPinVerificando = false;
-  render();
+  return conferirPin({
+    campo: 'calendario-pin-field',
+    escopo: state.calendarioEscopo,
+    chaveVerificando: 'calendarioPinVerificando',
+    chaveErro: 'calendarioPinErro',
+    aoEntrar: () => { state.calendarioOrganizarEtapa = 'texto'; },
+  });
 }
 
 // Acoes do Calendario e da tela Organizar.
