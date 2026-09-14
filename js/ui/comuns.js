@@ -351,11 +351,16 @@ export function renderTelaPin(app, { titulo, subtitulo, voltar, campo, acao, ver
     </div>
     <div class="card">
       <label>PIN de acesso</label>
-      <input type="tel" inputmode="numeric" maxlength="4" class="pin-input" id="${campo}" placeholder="••••" autofocus ${verificando ? 'disabled' : ''}>
+      <input type="tel" inputmode="numeric" maxlength="4" class="pin-input" id="${campo}" placeholder="••••" ${verificando ? 'disabled' : ''}>
       ${erro ? `<div style="color: #C9A29C; font-size: 13px; margin-bottom: 10px;">${escapeHtml(erro)}</div>` : ''}
       <button class="btn block" data-action="${acao}" ${verificando ? 'disabled' : ''}>${verificando ? 'Verificando…' : 'Entrar'}</button>
     </div>
   `;
+  // Quem coloca o cursor no campo e o field.focus() logo abaixo, nao um
+  // atributo "autofocus" no input. O atributo existia aqui junto com a
+  // chamada, mas o navegador o ignora quando a pagina ja tem algo focado -
+  // que e sempre o caso, ja que se chega nesta tela clicando num botao. Ele
+  // nunca teve efeito, so enchia o console de aviso.
   const field = document.getElementById(campo);
   if (field) {
     field.focus();
