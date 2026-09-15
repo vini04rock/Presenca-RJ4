@@ -107,25 +107,35 @@ export function camposIniciais(ev, roster) {
   };
 }
 
+// Quem assina o rodapé, por decisão do clube: na divisão é o Subdiretor;
+// no Regional, o Operacional. Não é o cargo mais alto - é quem de fato
+// responde pela convocação.
+const CARGO_QUE_ASSINA = { divisao: 'Subdiretor', regional: 'Operacional' };
+
 // O rodapé de contato. O app sabe quem é a diretoria (nome, grau e cargo),
 // mas NÃO guarda telefone - por isso ele entra como um espaço pra preencher.
 // O Regional usa outra forma, em itálico do WhatsApp, que é como já sai
 // hoje no grupo.
+//
+// Se ninguém estiver cadastrado naquele cargo, os campos saem como
+// "(nome)" / "(cargo)" para o organizador preencher. É de propósito: uma
+// mensagem que vai pro clube inteiro assinada pela pessoa errada é pior do
+// que uma com um espaço em branco visível.
 export function blocoInformacoes(categoria, roster) {
   const e = escopoPorChave(categoria);
-  const daDivisao = (roster || []).filter(m => m.divisao === e.nome && m.cargo);
-  const ordenados = ordenarPorHierarquia(daDivisao);
-  const chefe = ordenados[0];
+  const ehRegional = e.chave === 'regional';
+  const cargoAlvo = ehRegional ? CARGO_QUE_ASSINA.regional : CARGO_QUE_ASSINA.divisao;
+  const quem = (roster || []).find(m => m.divisao === e.nome && m.cargo === cargoAlvo);
 
-  if (e.chave === 'regional') {
-    const quem = chefe ? `${chefe.nome} - ${chefe.cargo} RJ4` : '(nome - cargo)';
-    return ['_Informações:_', `_${quem}_`, '_Contato: (telefone)_'].join('\n');
+  if (ehRegional) {
+    const linha = quem ? `${quem.nome} - ${quem.cargo} RJ4` : '(nome) - (cargo) RJ4';
+    return ['_Informações:_', `_${linha}_`, '_Contato: (telefone)_'].join('\n');
   }
   return [
     'ℹ️ INFORMAÇÕES ℹ️',
     '',
-    chefe ? `${chefe.nome.toUpperCase()}${chefe.grau ? ` (${chefe.grau})` : ''}` : '(nome)',
-    chefe && chefe.cargo ? chefe.cargo.toUpperCase() : '(cargo)',
+    quem ? `${quem.nome.toUpperCase()}${quem.grau ? ` (${quem.grau})` : ''}` : '(nome)',
+    quem ? quem.cargo.toUpperCase() : '(cargo)',
     rotuloDivisao(categoria),
     '(telefone)',
   ].join('\n');

@@ -20,7 +20,7 @@ globalThis.window = { addEventListener() {} };
 
 const { ordenarPorHierarquia } = await import(url('nucleo/util.js'));
 const { CARGOS, cargosDoGrau } = await import(url('nucleo/config.js'));
-const { montarConvocacao, camposIniciais, dataDaConvocacao } = await import(url('dominio/convocacao.js'));
+const { montarConvocacao, camposIniciais, dataDaConvocacao, blocoInformacoes } = await import(url('dominio/convocacao.js'));
 const { parseConvocacaoTexto } = await import(url('dominio/parser.js'));
 
 let falhas = 0;
@@ -111,6 +111,25 @@ confere('09/09/2026 é quarta', dataDaConvocacao('2026-09-09'), 'Quarta: 09SET26
 confere('06/09/2026 é domingo', dataDaConvocacao('2026-09-06'), 'Domingo: 06SET26');
 confere('data vazia não quebra', dataDaConvocacao(''), '');
 confere('data inválida não quebra', dataDaConvocacao('não é data'), '');
+
+log('');
+log('=== convocação: quem assina o rodapé ===');
+// Decisão do clube: na divisão assina o Subdiretor; no Regional, o
+// Operacional. Não é o cargo mais alto.
+const diretoriaBarra = [
+  { nome:'Costa',  grau:'VI', divisao:'Barra - RJ4', cargo:'Diretor' },
+  { nome:'Tedboy', grau:'VI', divisao:'Barra - RJ4', cargo:'Subdiretor' },
+  { nome:'Bull',   grau:'V',  divisao:'Regional RJ4', cargo:'Operacional' },
+  { nome:'Chefe',  grau:'V',  divisao:'Regional RJ4', cargo:'Diretor Regional' },
+];
+confere('divisão: assina o Subdiretor, não o Diretor',
+  blocoInformacoes('barra', diretoriaBarra).split('\n')[2], 'TEDBOY (VI)');
+confere('divisão: o cargo sai em caixa alta',
+  blocoInformacoes('barra', diretoriaBarra).split('\n')[3], 'SUBDIRETOR');
+confere('regional: assina o Operacional, em itálico',
+  blocoInformacoes('regional', diretoriaBarra).split('\n')[1], '_Bull - Operacional RJ4_');
+confere('sem ninguém no cargo, sai espaço pra preencher (e não o nome errado)',
+  blocoInformacoes('barra', []).split('\n').slice(2, 4), ['(nome)', '(cargo)']);
 
 log('');
 log('=== convocação: o parser do app relê o que ele mesmo gerou ===');
