@@ -733,3 +733,22 @@ label {
   .status-confirmado { background: #ffffff !important; border-color: #0A0A0A !important; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+/* Prévia do texto da convocação (tela "Criar chamada"). Monoespaçada e com
+   quebra preservada, pra mostrar exatamente como vai chegar no WhatsApp -
+   incluindo as linhas em branco, que fazem parte do formato. */
+.convocacao-previa {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, 'Cascadia Mono', 'Consolas', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--surface-alt);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 12px;
+  max-height: 340px;
+  overflow-y: auto;
+}

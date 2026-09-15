@@ -7,6 +7,7 @@ import { LOGO_SRC } from './nucleo/imagens.js';
 import { definirRender } from './nucleo/render.js';
 import { escapeHtml } from './nucleo/util.js';
 import { renderAdmin } from './telas/admin.js';
+import { acoes as acoesConvocacao, renderConvocacao } from './telas/convocacao.js';
 import { renderCalendario, renderCalendarioDivisoes } from './telas/calendario.js';
 import { renderConfirmados, renderEvent } from './telas/evento.js';
 import { renderHome } from './telas/home.js';
@@ -52,6 +53,7 @@ function render() {
   if (state.view === 'admin-divisoes') return renderDivisoes(app);
   if (state.view === 'admin-pin') return renderPin(app);
   if (state.view === 'admin') return renderAdmin(app);
+  if (state.view === 'convocacao') return renderConvocacao(app);
   if (state.view === 'relatorio-divisoes') return renderRelatorioDivisoes(app);
   if (state.view === 'relatorio-pin') return renderRelatorioPin(app);
   if (state.view === 'relatorio') return renderRelatorioShell(app);
@@ -98,6 +100,7 @@ for (const [area, mapa] of Object.entries({
   acoesRankinsights,
   acoesPin,
   acoesCalendario,
+  acoesConvocacao,
 })) {
   for (const nome of Object.keys(mapa)) {
     if (ACOES[nome]) throw new Error('Acao repetida em ' + area + ': ' + nome);

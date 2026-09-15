@@ -53,6 +53,12 @@ export let state = {
   expandedReportEventId: null,
   copiedEventId: null,
   copiedInsightRodadaId: null,
+  // Tela "Criar chamada" (o texto da convocacao pro WhatsApp). Os campos
+  // comecam sugeridos pelo evento e viram o que o organizador digitar.
+  convocacaoEventoId: null,
+  convocacaoCampos: {},
+  convocacaoCopiado: false,
+
   newMemberGrau: null,
   // So aparece quando o grau escolhido tem cargo (VI ou V) - ver CARGOS.
   newMemberCargo: null,

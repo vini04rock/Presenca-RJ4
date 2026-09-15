@@ -61,7 +61,7 @@ Dois testes que rodam offline, sem tocar na planilha:
 
     py ferramentas/estrutura.py     # imports, camadas, sintaxe, ações
     node ferramentas/regras.mjs     # ordem hierárquica (grau, cargo, nome)
-    node ferramentas/telas.mjs      # desenha as 46 telas e abas
+    node ferramentas/telas.mjs      # desenha as 48 telas e abas
 
 Detalhes e o que eles não cobrem: [ferramentas/README.md](ferramentas/README.md).
 

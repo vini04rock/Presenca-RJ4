@@ -152,7 +152,7 @@ Object.assign(state, {
 
 // ---------- 3. desenha tudo ----------------------------------------------
 const T = {};
-for (const m of ['home','evento','rank','rank-insights','calendario','pin','relatorios','admin']) {
+for (const m of ['home','evento','rank','rank-insights','calendario','pin','relatorios','admin','convocacao']) {
   Object.assign(T, await import(url('telas/' + m + '.js')));
 }
 const casos = [];
@@ -192,6 +192,13 @@ for (const aba of ['eventos','membros','relatorio','presencas','insights']) {
 add('organizador / membros (grau VI)', { isAdmin:true, adminEscopo:'barra', adminTab:'membros',
   newMemberGrau:'VI' }, T.renderAdmin);
 add('organizador / eventos (barra)',  { isAdmin:true, adminEscopo:'barra', adminTab:'eventos' }, T.renderAdmin);
+add('criar chamada (convocação)',     { convocacaoEventoId:'e1',
+  convocacaoCampos:{ subtitulo:'Aniversariantes do mês',
+    destino:['Bar do Zé', 'Barra da Tijuca'].join('\n'),
+    linkMapa:'https://maps.app.goo.gl/x', destacamento:'18h30', briefing:'19h15', inicio:'19h30',
+    informacoes:['ℹ️ INFORMAÇÕES ℹ️', '', 'COSTA (X)', 'DIRETOR', 'DIVISÃO BARRA - RJ4', '(21) 90000-0000'].join('\n') } },
+  T.renderConvocacao);
+add('criar chamada (campos vazios)',  { convocacaoEventoId:'e2', convocacaoCampos:{} }, T.renderConvocacao);
 add('organizador / novo evento',      { isAdmin:true, adminEscopo:'barra', adminTab:'eventos',
   newEventSelected:new Set(['m1']), newEventTipo:'Pub' }, T.renderAdmin);
 add('organizador / ajustar rodada',   { isAdmin:true, adminEscopo:'regional', adminTab:'insights',
@@ -209,6 +216,7 @@ add('relatorios / detalhe por tipo',  { relatorioIsAdmin:true, relatorioEscopo:'
   relatorioTab:'resumo', relatorioTipoDetalhe:'Pub' }, T.renderRelatorioShell);
 
 const LIMPO = {
+  convocacaoEventoId:null, convocacaoCampos:{}, convocacaoCopiado:false,
   newMemberGrau:null, newMemberCargo:null,
   pinErro:null, pinVerificando:false, relatorioPinErro:null, relatorioPinVerificando:false,
   calendarioPinErro:null, calendarioPinVerificando:false,
