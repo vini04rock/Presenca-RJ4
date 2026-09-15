@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-09-13-v-insight-ajustar-rodada-fix-vazio';
+var VERSAO = '2026-09-15-v-cargo-no-cadastro';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -35,7 +35,11 @@ var ABA_INSIGHT_RODADAS = 'InsightRodadas';
 var ABA_INSIGHT_PRESENCAS = 'InsightPresencas';
 var ABA_INSIGHT_EXCLUIDOS = 'InsightExcluidos';
 
-var CAB_MEMBROS = ['ID', 'Nome', 'Grau', 'Divisao', 'Funcoes'];
+// "Cargo" so faz sentido nos graus VI e V (ver CARGOS no js/nucleo/config.js):
+// sao os graus em que varios integrantes dividem o mesmo grau ocupando
+// funcoes diferentes, e a ordem entre eles e a ordem do cargo. Nos demais
+// graus a coluna fica vazia.
+var CAB_MEMBROS = ['ID', 'Nome', 'Grau', 'Divisao', 'Funcoes', 'Cargo'];
 // "Texto Original" (ultima coluna) so existe pra eventos criados via colar
 // convocacao (ver criarEventoDeTexto) - eventos criados pelo Modo
 // organizador manual ficam com essa coluna vazia, e lerEventos() ja trata
@@ -241,6 +245,16 @@ function aba(nome, cabecalho) {
     s = ss.insertSheet(nome);
     s.getRange(1, 1, 1, cabecalho.length).setValues([cabecalho]).setFontWeight('bold');
     s.setFrozenRows(1);
+    return s;
+  }
+  // A aba ja existe. Se o codigo ganhou coluna nova depois que ela foi
+  // criada (foi o caso de "Cargo" em Membros), escreve so os cabecalhos que
+  // faltam, no fim. Nunca mexe nos que ja estao la, entao rodar de novo nao
+  // faz nada - e nao precisa de migracao na mao.
+  var colunas = s.getLastColumn();
+  if (colunas < cabecalho.length) {
+    var faltam = cabecalho.slice(colunas);
+    s.getRange(1, colunas + 1, 1, faltam.length).setValues([faltam]).setFontWeight('bold');
   }
   return s;
 }
@@ -271,7 +285,8 @@ function lerMembros() {
         // Guardado como texto separado por virgula, igual a lista de
         // participantes de um evento - cresce sem precisar de coluna nova
         // a cada funcao que o app ganhar no futuro.
-        funcoes: String(l[4] || '').split(',').map(function (f) { return f.trim(); }).filter(Boolean)
+        funcoes: String(l[4] || '').split(',').map(function (f) { return f.trim(); }).filter(Boolean),
+        cargo: String(l[5] || '')
       };
     });
 }
@@ -1052,7 +1067,7 @@ function salvarMembro(p) {
   if (!p.nome) throw new Error('Faltou o nome');
   var s = aba(ABA_MEMBROS, CAB_MEMBROS);
   var id = p.id || novoId();
-  var linha = [id, p.nome, p.grau || '', p.divisao || '', p.funcoes || ''];
+  var linha = [id, p.nome, p.grau || '', p.divisao || '', p.funcoes || '', p.cargo || ''];
   var achado = acharLinha(s, function (l) { return String(l[0]) === String(id); });
   if (achado) s.getRange(achado.indice, 1, 1, linha.length).setValues([linha]);
   else s.appendRow(linha);

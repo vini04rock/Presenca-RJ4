@@ -24,13 +24,24 @@ Lê os arquivos de `js/` e confere:
 
 Termina em `TUDO OK` ou lista os problemas.
 
-## 2. Todas as telas desenham
+## 2. As regras do clube
+
+    node ferramentas/regras.mjs
+
+Confere as regras que, se quebrarem, saem erradas numa convocação ou num
+relatório sem ninguém perceber. Hoje cobre a **ordem hierárquica**: grau
+primeiro, depois cargo (nos graus VI e V), depois nome. Usa a diretoria da
+Barra como caso real.
+
+O resultado também fica em `ferramentas/ultimo-regras.txt`.
+
+## 3. Todas as telas desenham
 
     node ferramentas/telas.mjs
 
 Monta um navegador de mentira, enche o app com dados falsos (6 membros em 4
 divisões, 4 eventos cobrindo os 4 tipos, presenças com os 6 status, 5 rodadas
-de insight) e **desenha as 45 telas e abas**, uma por uma. Avisa se alguma
+de insight) e **desenha as 46 telas e abas**, uma por uma. Avisa se alguma
 estoura ou sai vazia.
 
 O resultado também fica em `ferramentas/ultimo-teste.txt`.

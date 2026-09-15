@@ -1,6 +1,6 @@
 // Utilidades sem dono: escapar HTML, formatar data, copiar texto, lotes.
 
-import { GRAUS, MESES_ABREV } from './config.js';
+import { GRAUS, MESES_ABREV, cargosDoGrau } from './config.js';
 
 export function escapeHtml(str) {
   const d = document.createElement('div');
@@ -54,7 +54,17 @@ export function formatDataCurta(iso) {
 // Quem nao tem grau cadastrado fica no fim, em ordem alfabetica.
 export function ordenarPorHierarquia(membros) {
   const indice = (m) => { const i = GRAUS.indexOf(m.grau); return i === -1 ? GRAUS.length : i; };
-  return [...membros].sort((a, b) => indice(a) - indice(b) || a.nome.localeCompare(b.nome));
+  // Dentro do mesmo grau: nos graus de cargo (VI e V) vale a ordem do cargo;
+  // nos demais, alfabetica. Quem esta num grau de cargo mas sem cargo
+  // marcado vai pro fim do bloco dele, nao some nem se mistura.
+  const ordemCargo = (m) => {
+    const lista = cargosDoGrau(m.grau);
+    if (!lista.length) return 0;
+    const i = lista.indexOf(m.cargo);
+    return i === -1 ? lista.length : i;
+  };
+  return [...membros].sort((a, b) =>
+    indice(a) - indice(b) || ordemCargo(a) - ordemCargo(b) || a.nome.localeCompare(b.nome));
 }
 
 // ========================================================================

@@ -3,7 +3,7 @@
 import { agruparMembrosRodadaPorDivisao } from '../dominio/divisoes.js';
 import { eventosDoEscopo, membrosDoEscopo, membrosElegiveisEvento } from '../dominio/estatisticas.js';
 import { computeCounts, getReportGroups } from '../dominio/status.js';
-import { FUNCOES, GRAUS, TIPOS_EVENTO, corTipoEvento, divisoesSemRegional, emojiTipoEvento, escopoPorChave } from '../nucleo/config.js';
+import { FUNCOES, GRAUS, cargosDoGrau, TIPOS_EVENTO, corTipoEvento, divisoesSemRegional, emojiTipoEvento, escopoPorChave } from '../nucleo/config.js';
 import { genId, state } from '../nucleo/estado.js';
 import { TIPO_HOME_IMAGEM } from '../nucleo/imagens.js';
 import { escapeHtml, formatDataBR, hexParaRgba } from '../nucleo/util.js';
@@ -582,6 +582,20 @@ function renderEventForm() {
   `;
 }
 
+// Os chips de cargo so existem nos graus que tem cargo (VI e V). Devolve
+// string vazia nos outros - sem deixar linha em branco no meio do
+// formulario, por isso a montagem aqui fora em vez de um ternario solto no
+// meio do template.
+function blocoCargo() {
+  const lista = cargosDoGrau(state.newMemberGrau);
+  if (!lista.length) return '';
+  return `<label>Cargo (grau ${escapeHtml(state.newMemberGrau)})</label>
+      <div class="chip-grid wide">
+        ${lista.map(c => `<button class="chip-option ${state.newMemberCargo === c ? 'active' : ''}" data-action="pick-cargo" data-value="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('')}
+      </div>
+      `;
+}
+
 function renderAdminMembros() {
   const membros = membrosDoEscopo();
   const editando = !!state.editingMemberId;
@@ -596,7 +610,7 @@ function renderAdminMembros() {
       <div class="chip-grid">
         ${GRAUS.map(g => `<button class="chip-option ${state.newMemberGrau === g ? 'active' : ''}" data-action="pick-grau" data-value="${g}">${g}</button>`).join('')}
       </div>
-      <label>Função (opcional, pode marcar mais de uma)</label>
+      ${blocoCargo()}<label>Função (opcional, pode marcar mais de uma)</label>
       <div class="row-gap" style="margin-bottom: 14px;">
         ${FUNCOES.map(f => `<button class="toggle-chip ${state.newMemberFuncoes.has(f.chave) ? 'active' : ''}" data-action="toggle-funcao" data-value="${f.chave}" style="flex: none; padding: 8px 12px;">${f.selo} ${escapeHtml(f.label)}</button>`).join('')}
       </div>
@@ -611,7 +625,7 @@ function renderAdminMembros() {
       <div class="card" style="display:flex; justify-content:space-between; align-items:center; padding: 12px 16px;">
         <div>
           <div style="font-weight:500; font-size:15px;">${escapeHtml(m.nome)} ${selosFuncoes(m.funcoes)}</div>
-          <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">${[m.grau, m.divisao].filter(Boolean).map(escapeHtml).join(' · ') || '—'}</div>
+          <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">${[m.grau, m.cargo, m.divisao].filter(Boolean).map(escapeHtml).join(' · ') || '—'}</div>
         </div>
         <div class="row-gap" style="margin-bottom:0;">
           <button class="btn ghost" data-action="edit-member" data-id="${m.id}">Editar</button>
@@ -652,6 +666,7 @@ export const acoes = {
     state.editingMemberId = null;
     state.newMemberNome = '';
     state.newMemberGrau = null;
+    state.newMemberCargo = null;
     state.newMemberFuncoes = new Set();
     state.insightConfirmDeleteRodadaId = null;
     state.insightResultado = null;
@@ -751,6 +766,13 @@ export const acoes = {
   },
   'pick-grau': async (id, target, action, e) => {
     state.newMemberGrau = state.newMemberGrau === target.dataset.value ? null : target.dataset.value;
+    // Cargo pertence a um grau - trocar de grau derruba o que estava marcado,
+    // senao sobraria um "Diretor" (grau VI) preso num membro grau X.
+    state.newMemberCargo = null;
+    return render();
+  },
+  'pick-cargo': async (id, target, action, e) => {
+    state.newMemberCargo = state.newMemberCargo === target.dataset.value ? null : target.dataset.value;
     return render();
   },
   'toggle-funcao': async (id, target, action, e) => {
@@ -766,10 +788,11 @@ export const acoes = {
     // Regional, que tem os proprios membros (mesa regional).
     const member = {
       id: genId(), nome, grau: state.newMemberGrau || '', divisao: escopoPorChave(state.adminEscopo).nome,
-      funcoes: Array.from(state.newMemberFuncoes)
+      funcoes: Array.from(state.newMemberFuncoes), cargo: state.newMemberCargo || ''
     };
     state.roster = [...state.roster, member];
     state.newMemberGrau = null;
+    state.newMemberCargo = null;
     state.newMemberFuncoes = new Set();
     state.newMemberNome = '';
     render();
@@ -781,6 +804,7 @@ export const acoes = {
     state.editingMemberId = id;
     state.newMemberNome = m.nome;
     state.newMemberGrau = m.grau || null;
+    state.newMemberCargo = m.cargo || null;
     state.newMemberFuncoes = new Set(m.funcoes || []);
     return render();
   },
@@ -788,6 +812,7 @@ export const acoes = {
     state.editingMemberId = null;
     state.newMemberNome = '';
     state.newMemberGrau = null;
+    state.newMemberCargo = null;
     state.newMemberFuncoes = new Set();
     return render();
   },
@@ -799,11 +824,12 @@ export const acoes = {
     // Divisao nao muda por aqui - so nome, grau e funcoes.
     const member = {
       ...original, nome, grau: state.newMemberGrau || '',
-      funcoes: Array.from(state.newMemberFuncoes)
+      funcoes: Array.from(state.newMemberFuncoes), cargo: state.newMemberCargo || ''
     };
     state.roster = state.roster.map(x => x.id === member.id ? member : x);
     state.editingMemberId = null;
     state.newMemberGrau = null;
+    state.newMemberCargo = null;
     state.newMemberFuncoes = new Set();
     state.newMemberNome = '';
     render();

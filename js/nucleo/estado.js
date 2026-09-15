@@ -54,6 +54,8 @@ export let state = {
   copiedEventId: null,
   copiedInsightRodadaId: null,
   newMemberGrau: null,
+  // So aparece quando o grau escolhido tem cargo (VI ou V) - ver CARGOS.
+  newMemberCargo: null,
   newMemberFuncoes: new Set(),
   editingMemberId: null,
   rankData: null,

@@ -61,6 +61,24 @@ export const STATUS = {
 export const STATUS_PICKER_KEYS = ['aguardando', 'confirmado', 'familia', 'trabalho'];
 export const GRAUS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
 
+// Cargos dos graus VI e V, JA NA ORDEM HIERARQUICA - a posicao na lista e a
+// ordem, entao mexer aqui muda a ordem em que os integrantes aparecem.
+//
+// So esses dois graus tem cargo: sao os "graus de cargo", em que varios
+// integrantes dividem o mesmo grau ocupando funcoes diferentes. Nos outros
+// (VIII, IX, X) a ordem de verdade e a antiguidade, que o app nao guarda -
+// ali fica alfabetica mesmo. Ver ordenarPorHierarquia em util.js.
+//
+// Nao confundir com FUNCOES (mais abaixo): funcao e atribuicao operacional,
+// acumulavel e sem hierarquia; cargo e um so por pessoa e tem ordem.
+export const CARGOS = {
+  'VI': ['Diretor', 'Subdiretor', 'Social', 'ADM', 'Sgt de Armas de Divisão'],
+  'V': ['Diretor Regional', 'Operacional', 'Social Regional', 'ADM Regional', 'Comunicação'],
+};
+
+// Lista de cargos de um grau, ou vazia se aquele grau nao tem cargo.
+export function cargosDoGrau(grau) { return CARGOS[grau] || []; }
+
 // Tipos de evento do clube. Escolha unica por evento. Para acrescentar um
 // tipo novo, e so um item a mais em cada uma destas duas listas.
 export const TIPOS_EVENTO = ['Bate e Volta', 'Pub', 'Ação Social', 'Reunião'];

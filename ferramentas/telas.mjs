@@ -189,6 +189,8 @@ add('calendario (org: editar)',       { ...cal, calendarioOrganizarEtapa:'texto'
 for (const aba of ['eventos','membros','relatorio','presencas','insights']) {
   add(`organizador / ${aba}`, { isAdmin:true, adminEscopo:'regional', adminTab:aba }, T.renderAdmin);
 }
+add('organizador / membros (grau VI)', { isAdmin:true, adminEscopo:'barra', adminTab:'membros',
+  newMemberGrau:'VI' }, T.renderAdmin);
 add('organizador / eventos (barra)',  { isAdmin:true, adminEscopo:'barra', adminTab:'eventos' }, T.renderAdmin);
 add('organizador / novo evento',      { isAdmin:true, adminEscopo:'barra', adminTab:'eventos',
   newEventSelected:new Set(['m1']), newEventTipo:'Pub' }, T.renderAdmin);
@@ -207,6 +209,7 @@ add('relatorios / detalhe por tipo',  { relatorioIsAdmin:true, relatorioEscopo:'
   relatorioTab:'resumo', relatorioTipoDetalhe:'Pub' }, T.renderRelatorioShell);
 
 const LIMPO = {
+  newMemberGrau:null, newMemberCargo:null,
   pinErro:null, pinVerificando:false, relatorioPinErro:null, relatorioPinVerificando:false,
   calendarioPinErro:null, calendarioPinVerificando:false,
   homeEventosAberto:false, homeEscopo:null, homeTipo:null, relatorioMembroFichaId:null,
