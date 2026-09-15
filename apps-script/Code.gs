@@ -1926,7 +1926,9 @@ function gerarDadosFakeTeste() {
     for (var i = 0; i < qtd; i++) {
       var id = novoId();
       var nome = PREFIXO_TESTE + nomeDivisao.split(' ')[0] + ' ' + sorteia(nomesFake) + ' ' + (i + 1);
-      novosMembros.push([id, nome, '', nomeDivisao, '']);
+      // Colunas na ordem de CAB_MEMBROS - inclusive as vazias (Funcoes,
+      // Cargo). setValues() recusa linha mais estreita que o range.
+      novosMembros.push([id, nome, '', nomeDivisao, '', '']);
       membrosPorChave[chave].push({ id: id, nome: nome, divisao: nomeDivisao });
     }
   });
@@ -1944,7 +1946,9 @@ function gerarDadosFakeTeste() {
     data.setDate(data.getDate() - diasAtras);
     var dataIso = Utilities.formatDate(data, fuso(), 'yyyy-MM-dd');
     var status = diasAtras > 2 ? 'encerrado' : 'ativo';
-    novosEventos.push([id, nome, dataIso, '', '', '', status, agora(), categoria, sorteia(tipos)]);
+    // Idem CAB_EVENTOS - a ultima ('Texto Original') fica vazia, que e o
+    // normal pra evento que nao veio de convocacao colada.
+    novosEventos.push([id, nome, dataIso, '', '', '', status, agora(), categoria, sorteia(tipos), '']);
     membros.forEach(function (m) {
       novasPresencas.push([id, nome, m.id, m.nome, sorteia(statusPossiveis),
         simNao(Math.random() < 0.5), simNao(Math.random() < 0.2), simNao(Math.random() < 0.3), agora()]);
