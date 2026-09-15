@@ -199,6 +199,15 @@ add('criar chamada (convocação)',     { convocacaoEventoId:'e1',
     informacoes:['ℹ️ INFORMAÇÕES ℹ️', '', 'COSTA (X)', 'DIRETOR', 'DIVISÃO BARRA - RJ4', '(21) 90000-0000'].join('\n') } },
   T.renderConvocacao);
 add('criar chamada (campos vazios)',  { convocacaoEventoId:'e2', convocacaoCampos:{} }, T.renderConvocacao);
+add('criar chamada (bate e volta)',   { convocacaoEventoId:'e2', convocacaoModelo:'bate-volta',
+  convocacaoCampos:{ subtitulo:'Bonde da Independência',
+    horarios:['Concentração: 05h00','Briefing: 05h15','Saída: 05h30'].join('\n'),
+    concentracao:['Posto Ipiranga Cebolão','Barra da Tijuca'].join('\n'),
+    linkMapa:'https://maps.app.goo.gl/x',
+    roteiro:['PE 1 → PE 2 → Três Rios','BR-040 sentido Petrópolis'].join('\n'),
+    informacoes:'ℹ️ INFORMAÇÕES ℹ️' } }, T.renderConvocacao);
+add('criar chamada (regional)',       { convocacaoEventoId:'e3', convocacaoModelo:'simples',
+  convocacaoCampos:{} }, T.renderConvocacao);
 add('organizador / novo evento',      { isAdmin:true, adminEscopo:'barra', adminTab:'eventos',
   newEventSelected:new Set(['m1']), newEventTipo:'Pub' }, T.renderAdmin);
 add('organizador / ajustar rodada',   { isAdmin:true, adminEscopo:'regional', adminTab:'insights',
@@ -216,7 +225,7 @@ add('relatorios / detalhe por tipo',  { relatorioIsAdmin:true, relatorioEscopo:'
   relatorioTab:'resumo', relatorioTipoDetalhe:'Pub' }, T.renderRelatorioShell);
 
 const LIMPO = {
-  convocacaoEventoId:null, convocacaoCampos:{}, convocacaoCopiado:false,
+  convocacaoEventoId:null, convocacaoModelo:null, convocacaoCampos:{}, convocacaoCopiado:false,
   newMemberGrau:null, newMemberCargo:null,
   pinErro:null, pinVerificando:false, relatorioPinErro:null, relatorioPinVerificando:false,
   calendarioPinErro:null, calendarioPinVerificando:false,

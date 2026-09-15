@@ -56,6 +56,9 @@ export let state = {
   // Tela "Criar chamada" (o texto da convocacao pro WhatsApp). Os campos
   // comecam sugeridos pelo evento e viram o que o organizador digitar.
   convocacaoEventoId: null,
+  // 'simples' ou 'bate-volta' (ver MODELOS). Comeca escolhido pelo tipo do
+  // evento; o organizador pode trocar.
+  convocacaoModelo: null,
   convocacaoCampos: {},
   convocacaoCopiado: false,
 

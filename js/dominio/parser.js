@@ -191,7 +191,15 @@ export function parseConvocacaoTexto(texto) {
     const memberRe = /^(?:(\d{1,3})\.\s*)?([A-Za-zÀ-ÖØ-öø-ÿ0-9][A-Za-zÀ-ÖØ-öø-ÿ0-9 .'\-]*?)\s*\(([^)]+)\)\s*(.*)$/;
     for (let i = idxMembros + 1; i < linhas.length; i++) {
       const l = linhas[i];
-      if (/^participa[çc][ãa]o/i.test(l)) break; // legenda - fim da lista
+      // Fim da lista. Precisa cobrir as duas convenções: Pub e Reunião
+      // fecham com "Participação", Bate e Volta fecha com "Legenda". Sem o
+      // "Legenda" aqui, a varredura seguia até o fim do texto e lia o
+      // contato do rodapé (que tem o formato "NOME (GRAU)") como se fosse
+      // mais um integrante - uma lista de 15 voltava com 16.
+      // A linha de pontos entra como rede de segurança: toda seção termina
+      // numa, então qualquer convenção de legenda futura já para aqui.
+      if (/^(participa[çc][ãa]o|legenda|prazo para)/i.test(l)) break;
+      if (/^\.{4,}$/.test(l)) break;
       if (/^divis[ãa]o\s+/i.test(l)) { divisaoAtual = l.replace(/^divis[ãa]o\s+/i, 'Divisão ').trim(); continue; }
       const m = l.match(memberRe);
       if (!m) continue;

@@ -163,6 +163,26 @@ confere('com o grau de cada um', lido.membrosParsed.map(m => m.grauTexto),
 confere('sem nenhum aviso do parser', lido.avisos, []);
 
 log('');
+log('=== convocação: o modelo Bate e Volta também volta inteiro ===');
+// Bate e Volta fecha a lista com "Legenda", nao com "Participação". O
+// parser so parava no segundo - entao a varredura seguia ate o fim e lia o
+// contato do rodape ("NOME (GRAU)") como mais um integrante.
+const evBV = Object.assign({}, evTeste, { tipo:'Bate e Volta', nome:'Bate e Volta Serra' });
+const camposBV = camposIniciais(evBV, rosterTeste, 'bate-volta');
+camposBV.roteiro = 'Destino: Serra';
+const textoBV = montarConvocacao(evBV, rosterTeste, camposBV, 'bate-volta');
+const lidoBV = parseConvocacaoTexto(textoBV);
+confere('nao inventa integrante a mais (o do rodape)', lidoBV.membrosParsed.length, rosterTeste.length);
+confere('a lista para antes da legenda',
+  lidoBV.membrosParsed.map(m => m.nomeTexto),
+  ordenarPorHierarquia(rosterTeste).map(m => m.nome.toUpperCase()));
+confere('o tipo volta igual', lidoBV.evento.tipo, 'Bate e Volta');
+confere('tem o bloco de ATENÇÃO', textoBV.includes('⚠️ ATENÇÃO ⚠️'), true);
+confere('tem o bloco de BRIEFING', textoBV.includes('⚫ BRIEFING ⚫'), true);
+confere('usa Legenda, e não Participação',
+  [textoBV.includes('Legenda'), textoBV.includes('Participação')], [true, false]);
+
+log('');
 log(falhas === 0 ? 'TUDO OK' : `${falhas} FALHA(S) — veja acima`);
 fs.writeFileSync(SAIDA, linhas.join('\n'), 'utf8');
 process.exit(falhas === 0 ? 0 : 1);

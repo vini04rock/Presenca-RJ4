@@ -1,21 +1,19 @@
-// Tela "Criar chamada": formulário + prévia do texto + copiar.
+// Tela "Criar chamada": escolha do modelo, formulário, prévia e copiar.
 //
-// O app preenche o que sabe (título, data, divisão, lista de integrantes) e
-// o organizador completa o que só ele sabe na hora - roteiro, horários,
-// telefone. A prévia atualiza enquanto digita.
+// Os campos vêm da definição do modelo (MODELOS, em dominio/convocacao.js),
+// não escritos aqui um a um - acrescentar um campo é mexer só lá.
 
-import { montarConvocacao, camposIniciais } from '../dominio/convocacao.js';
+import { MODELOS, camposIniciais, modeloPadrao, montarConvocacao } from '../dominio/convocacao.js';
 import { state } from '../nucleo/estado.js';
-import { escapeHtml } from '../nucleo/util.js';
-import { copiarTexto } from '../nucleo/util.js';
+import { copiarTexto, escapeHtml } from '../nucleo/util.js';
 import { render } from '../nucleo/render.js';
 
 function eventoAtual() {
   return state.events.find(e => e.id === state.convocacaoEventoId);
 }
 
-// Os convocados, resolvidos do cadastro. A ordem hierárquica é aplicada lá
-// dentro, por montarConvocacao.
+// Os convocados, resolvidos do cadastro. A ordem hierárquica é aplicada
+// dentro de montarConvocacao.
 function convocados(ev) {
   return (ev.memberIds || []).map(id => state.roster.find(m => m.id === id)).filter(Boolean);
 }
@@ -24,25 +22,45 @@ function convocados(ev) {
 export function textoDaConvocacao() {
   const ev = eventoAtual();
   if (!ev) return '';
-  return montarConvocacao(ev, convocados(ev), state.convocacaoCampos);
+  return montarConvocacao(ev, convocados(ev), state.convocacaoCampos, state.convocacaoModelo);
 }
 
-function campoTexto(chave, rotulo, dica) {
+function campo(def) {
+  const valor = escapeHtml(state.convocacaoCampos[def.chave] || '');
+  const dica = escapeHtml(def.dica || '');
+  if (def.linhas > 1) {
+    return `
+      <div class="field">
+        <label>${escapeHtml(def.rotulo)}</label>
+        <textarea data-campo="${def.chave}" rows="${def.linhas}" placeholder="${dica}">${valor}</textarea>
+      </div>
+    `;
+  }
   return `
     <div class="field">
-      <label>${escapeHtml(rotulo)}</label>
-      <input type="text" data-campo="${chave}" placeholder="${escapeHtml(dica || '')}" value="${escapeHtml(state.convocacaoCampos[chave] || '')}">
+      <label>${escapeHtml(def.rotulo)}</label>
+      <input type="text" data-campo="${def.chave}" placeholder="${dica}" value="${valor}">
     </div>
   `;
 }
 
-function campoLinhas(chave, rotulo, linhas, dica) {
-  return `
-    <div class="field">
-      <label>${escapeHtml(rotulo)}</label>
-      <textarea data-campo="${chave}" rows="${linhas}" placeholder="${escapeHtml(dica || '')}">${escapeHtml(state.convocacaoCampos[chave] || '')}</textarea>
-    </div>
-  `;
+// Os campos marcados como "curto" (só horário) ficam lado a lado, pra não
+// ocupar três linhas inteiras com três palavras.
+function formulario(modelo) {
+  const defs = MODELOS[modelo].campos;
+  const fora = [];
+  for (let i = 0; i < defs.length; i++) {
+    if (!defs[i].curto) { fora.push(campo(defs[i])); continue; }
+    const grupo = [];
+    while (i < defs.length && defs[i].curto) grupo.push(defs[i++]);
+    i--;
+    fora.push(`<div class="row-gap">${grupo.map(d => `
+      <div class="field" style="flex:1; margin-bottom:0;">
+        <label>${escapeHtml(d.rotulo)}</label>
+        <input type="text" data-campo="${d.chave}" placeholder="${escapeHtml(d.dica || '')}" value="${escapeHtml(state.convocacaoCampos[d.chave] || '')}">
+      </div>`).join('')}</div><div style="height:14px;"></div>`);
+  }
+  return fora.join('');
 }
 
 export function renderConvocacao(app) {
@@ -54,6 +72,7 @@ export function renderConvocacao(app) {
     state.adminTab = 'eventos';
     return render();
   }
+  const modelo = state.convocacaoModelo || modeloPadrao(ev);
 
   app.innerHTML = `
     <div class="back-link on-photo no-print" data-action="fechar-convocacao">‹ Voltar</div>
@@ -62,30 +81,22 @@ export function renderConvocacao(app) {
       <div class="sub">${escapeHtml(ev.nome)}</div>
     </div>
 
+    <div class="card">
+      <div style="font-weight:600; margin-bottom:8px;">Modelo</div>
+      <div class="chip-grid wide">
+        ${Object.keys(MODELOS).map(k => `
+          <button class="chip-option ${modelo === k ? 'active' : ''}" data-action="set-convocacao-modelo" data-value="${k}">${escapeHtml(MODELOS[k].nome)}</button>
+        `).join('')}
+      </div>
+      <div class="info-line" style="color:var(--text-muted); margin-top:6px;">${escapeHtml(MODELOS[modelo].para)}</div>
+    </div>
+
     <div class="alert info" style="margin-bottom:16px;">
       <div class="alert-msg">O título, a data, a divisão e a lista de integrantes o app já preencheu. Complete o resto e toque em Copiar.</div>
     </div>
 
     <div class="card">
-      ${campoTexto('subtitulo', 'Subtítulo (opcional)', 'Ex: Aniversariantes do mês')}
-      ${campoLinhas('destino', 'Destino', 4, 'Uma linha por parte do endereço')}
-      ${campoTexto('linkMapa', 'Link do mapa', 'https://maps.app.goo.gl/…')}
-      <div class="row-gap">
-        <div class="field" style="flex:1; margin-bottom:0;">
-          <label>Destacamento</label>
-          <input type="text" data-campo="destacamento" placeholder="18h30" value="${escapeHtml(state.convocacaoCampos.destacamento || '')}">
-        </div>
-        <div class="field" style="flex:1; margin-bottom:0;">
-          <label>Briefing</label>
-          <input type="text" data-campo="briefing" placeholder="19h15" value="${escapeHtml(state.convocacaoCampos.briefing || '')}">
-        </div>
-        <div class="field" style="flex:1; margin-bottom:0;">
-          <label>Início</label>
-          <input type="text" data-campo="inicio" placeholder="19h30" value="${escapeHtml(state.convocacaoCampos.inicio || '')}">
-        </div>
-      </div>
-      <div style="height:14px;"></div>
-      ${campoLinhas('informacoes', 'Informações (rodapé)', 6, '')}
+      ${formulario(modelo)}
     </div>
 
     <div class="card">
@@ -100,9 +111,9 @@ export function renderConvocacao(app) {
 
   // A prévia é atualizada na mão, sem redesenhar a tela: um render() a cada
   // tecla faria o cursor pular pro fim do campo e perder o foco.
-  app.querySelectorAll('[data-campo]').forEach(campo => {
-    campo.addEventListener('input', () => {
-      state.convocacaoCampos[campo.dataset.campo] = campo.value;
+  app.querySelectorAll('[data-campo]').forEach(el => {
+    el.addEventListener('input', () => {
+      state.convocacaoCampos[el.dataset.campo] = el.value;
       const previa = document.getElementById('convocacao-previa');
       if (previa) previa.textContent = textoDaConvocacao();
     });
@@ -115,9 +126,20 @@ export const acoes = {
     const ev = state.events.find(x => x.id === id);
     if (!ev) return;
     state.convocacaoEventoId = id;
-    state.convocacaoCampos = camposIniciais(ev, state.roster);
+    state.convocacaoModelo = modeloPadrao(ev);
+    state.convocacaoCampos = camposIniciais(ev, state.roster, state.convocacaoModelo);
     state.convocacaoCopiado = false;
     state.view = 'convocacao';
+    return render();
+  },
+  'set-convocacao-modelo': async (id, target, action, e) => {
+    const ev = eventoAtual();
+    if (!ev) return;
+    state.convocacaoModelo = target.dataset.value;
+    // Os campos mudam de um modelo pro outro, então recomeçam sugeridos.
+    // O que a pessoa tinha digitado no modelo anterior se perde - por isso
+    // a escolha fica no topo, antes de qualquer campo.
+    state.convocacaoCampos = camposIniciais(ev, state.roster, state.convocacaoModelo);
     return render();
   },
   'fechar-convocacao': async (id, target, action, e) => {
