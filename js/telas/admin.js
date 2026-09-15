@@ -588,10 +588,19 @@ function renderEventForm() {
 // meio do template.
 function blocoCargo() {
   const lista = cargosDoGrau(state.newMemberGrau);
-  if (!lista.length) return '';
-  return `<label>Cargo (grau ${escapeHtml(state.newMemberGrau)})</label>
+  if (lista.length) {
+    return `<label>Cargo (grau ${escapeHtml(state.newMemberGrau)})</label>
       <div class="chip-grid wide">
         ${lista.map(c => `<button class="chip-option ${state.newMemberCargo === c ? 'active' : ''}" data-action="pick-cargo" data-value="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('')}
+      </div>
+      `;
+  }
+  // Grau sem cargo (ou nenhum grau escolhido ainda): mostra o rotulo assim
+  // mesmo, explicando. Antes essa parte simplesmente sumia, e nao havia como
+  // descobrir que existe cargo sem antes acertar o grau por acaso.
+  return `<label>Cargo</label>
+      <div class="info-line" style="color:var(--text-muted); margin-bottom:14px;">
+        Só os graus <strong>VI</strong> e <strong>V</strong> têm cargo. Escolha um deles acima para marcar.
       </div>
       `;
 }
