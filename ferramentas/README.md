@@ -4,6 +4,25 @@ Dois testes que rodam **offline**, sem tocar na planilha de produção. Servem
 para conferir, depois de mexer no código, que nada quebrou — antes de dar
 `git push` e o site subir para o clube.
 
+## 0. Rodar o app para testar
+
+    py ferramentas/servidor.py 8765
+
+Abre em `http://localhost:8765` **com o cache desligado**.
+
+Use este, e não o `python -m http.server` direto. Aquele não manda nenhum
+cabeçalho de cache, e aí o navegador guarda os arquivos sem nem perguntar se
+mudaram. Com módulos ES o sintoma engana: parte vem nova, parte vem velha —
+a tela mostra um botão novo, mas o `app.js` em memória é o antigo e não
+conhece a ação. O clique não faz nada e **não aparece erro nenhum**.
+
+Ele também registra cada arquivo pedido, o que ajuda quando algo "não
+acontece": dá para ver se o navegador está mesmo falando com este servidor
+e se algum arquivo deu 404.
+
+> Se uma mudança não aparecer: confira o endereço na barra (aba antiga
+> apontando para outra porta é o erro mais comum) e teste numa aba anônima.
+
 ## 1. Estrutura dos módulos
 
     py ferramentas/estrutura.py

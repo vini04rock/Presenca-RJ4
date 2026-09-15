@@ -15,9 +15,14 @@ membros e gerar relatórios.
 
 ## Como rodar localmente
 
-Sirva a pasta e acesse `http://localhost:8000`:
+Sirva a pasta e acesse `http://localhost:8765`:
 
-    python -m http.server 8000
+    py ferramentas/servidor.py 8765
+
+> Use este servidor, não o `python -m http.server` direto: ele desliga o
+> cache. Sem isso o navegador mistura arquivos novos com antigos, e uma
+> mudança pode simplesmente não aparecer — sem erro nenhum. Detalhes em
+> [ferramentas/README.md](ferramentas/README.md).
 
 > Não dá para abrir o `index.html` com duplo clique. O app usa módulos ES
 > (`import`/`export`), e o navegador os bloqueia em `file://` por segurança.
