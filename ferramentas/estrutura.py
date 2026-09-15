@@ -44,6 +44,79 @@ DECL = re.compile(r'^(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)'
 def destino(de, alvo):
     return os.path.normpath(os.path.join(os.path.dirname(de), alvo)).replace(os.sep, '/')
 
+def sem_textos(codigo):
+    """
+    Apaga o CONTEUDO das aspas, deixando o codigo em volta intacto.
+
+    Sem isso, uma palavra que so aparece dentro de um texto - por exemplo
+    '*TODOS OS GRAUS*', que e uma linha da convocacao - seria confundida com
+    a constante GRAUS e viraria alarme falso de "usa sem importar".
+
+    Dentro de crase, o que esta em ${...} e codigo de verdade e continua
+    valendo; so o texto ao redor some.
+    """
+    fora = []
+    i, n = 0, len(codigo)
+    anterior = ''
+    while i < n:
+        c = codigo[i]
+        # Regex literal: precisa vir antes das aspas, porque uma regex pode
+        # ter aspa dentro (ex.: [A-Za-z .'-] no parser). Sem isto, a aspa da
+        # regex era lida como inicio de texto e engolia o codigo seguinte.
+        if c == '/' and (anterior == '' or anterior in '(,=:[!&|?{};+-*%~^<>'):
+            j, classe, ok = i + 1, False, False
+            while j < n:
+                if codigo[j] == '\\':
+                    j += 2
+                    continue
+                if codigo[j] == '\n':
+                    break
+                if codigo[j] == '[': classe = True
+                elif codigo[j] == ']': classe = False
+                elif codigo[j] == '/' and not classe:
+                    ok = True
+                    break
+                j += 1
+            if ok:
+                i = j + 1
+                while i < n and codigo[i] in 'gimsuyvd':
+                    i += 1
+                fora.append(' ')
+                anterior = 'x'
+                continue
+        if c in '"\'':
+            j = i + 1
+            while j < n and codigo[j] != c:
+                j += 2 if codigo[j] == '\\' else 1
+            fora.append('""')
+            i = j + 1
+            anterior = 'x'
+            continue
+        if c == '`':
+            j = i + 1
+            while j < n and codigo[j] != '`':
+                if codigo[j] == '\\':
+                    j += 2
+                    continue
+                if codigo[j] == '$' and j + 1 < n and codigo[j+1] == '{':
+                    prof, k = 1, j + 2
+                    while k < n and prof:
+                        if codigo[k] == '{': prof += 1
+                        elif codigo[k] == '}': prof -= 1
+                        k += 1
+                    fora.append(' ' + sem_textos(codigo[j+2:k-1]) + ' ')
+                    j = k
+                    continue
+                j += 1
+            i = j + 1
+            anterior = 'x'
+            continue
+        fora.append(c)
+        if not c.isspace():
+            anterior = c
+        i += 1
+    return ''.join(fora)
+
 def nomes_do_import(itens):
     """['a', 'b as c'] -> [('a','a'), ('b','c')] (nome na origem, nome local)."""
     fora = []
@@ -195,6 +268,7 @@ for rel, txt in sorted(fontes.items()):
     corpo = re.sub(r"^import \{[^}]+\} from '[^']+';", '', txt, flags=re.M)
     corpo = re.sub(r'//[^\n]*', '', corpo)
     corpo = re.sub(r'/\*.*?\*/', '', corpo, flags=re.S)
+    corpo = sem_textos(corpo)
     locais = set(m.group(1) or m.group(2) for m in DECL.finditer(txt))
     importados = set()
     for itens, _ in IMP.findall(txt):
@@ -245,6 +319,7 @@ for a, n in sorted(tratadas.items()):
 print('7/7  imports sobrando (sem uso no arquivo)')
 for rel, txt in sorted(fontes.items()):
     corpo = re.sub(r"^import \{[^}]+\} from '[^']+';", '', txt, flags=re.M)
+    corpo = sem_textos(corpo)
     corpo = re.sub(r'//[^\n]*', '', corpo)
     usados = set(IDENT.findall(corpo))
     for itens, _ in IMP.findall(txt):

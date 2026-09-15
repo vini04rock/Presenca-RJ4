@@ -20,6 +20,8 @@ globalThis.window = { addEventListener() {} };
 
 const { ordenarPorHierarquia } = await import(url('nucleo/util.js'));
 const { CARGOS, cargosDoGrau } = await import(url('nucleo/config.js'));
+const { montarConvocacao, camposIniciais, dataDaConvocacao } = await import(url('dominio/convocacao.js'));
+const { parseConvocacaoTexto } = await import(url('dominio/parser.js'));
 
 let falhas = 0;
 function confere(nome, obtido, esperado) {
@@ -101,6 +103,45 @@ for (const grau of Object.keys(CARGOS)) {
   log(`  grau ${grau}: ${CARGOS[grau].join(' > ')}`);
 }
 confere('grau sem cargo devolve lista vazia', cargosDoGrau('X'), []);
+
+log('');
+log('=== convocação: data no formato do clube ===');
+// Conferido contra duas convocações reais.
+confere('09/09/2026 é quarta', dataDaConvocacao('2026-09-09'), 'Quarta: 09SET26');
+confere('06/09/2026 é domingo', dataDaConvocacao('2026-09-06'), 'Domingo: 06SET26');
+confere('data vazia não quebra', dataDaConvocacao(''), '');
+confere('data inválida não quebra', dataDaConvocacao('não é data'), '');
+
+log('');
+log('=== convocação: o parser do app relê o que ele mesmo gerou ===');
+// Esta é a prova de que o formato continua fiel: gera a convocação e passa
+// pelo mesmo parser que lê as convocações coladas do grupo. Se alguém mexer
+// no molde e quebrar o formato, esta conferência acusa.
+const rosterTeste = [
+  { id:'1', nome:'Costa',     grau:'VI',   divisao:'Barra - RJ4', cargo:'Diretor' },
+  { id:'2', nome:'Tedboy',    grau:'VI',   divisao:'Barra - RJ4', cargo:'Subdiretor' },
+  { id:'3', nome:'Bravo',     grau:'VI',   divisao:'Barra - RJ4', cargo:'Sgt de Armas de Divisão' },
+  { id:'4', nome:'Fabio Big', grau:'VIII', divisao:'Barra - RJ4' },
+  { id:'5', nome:'Mórbius',   grau:'IX',   divisao:'Barra - RJ4' },
+  { id:'6', nome:'China',     grau:'X',    divisao:'Barra - RJ4' },
+];
+const evTeste = {
+  id:'e1', nome:'Pub Mensal', tipo:'Pub', categoria:'barra',
+  data:'2026-09-09', horario:'19:30',
+  endereco:"Lucky Murphy's Irish Pub, Barra da Tijuca",
+  outros:'https://maps.app.goo.gl/exemplo\nDestacamento: 18:30 · Briefing: 19:15',
+};
+const textoTeste = montarConvocacao(evTeste, rosterTeste, camposIniciais(evTeste, rosterTeste));
+const lido = parseConvocacaoTexto(textoTeste);
+confere('a data volta igual', lido.evento.data, evTeste.data);
+confere('o tipo volta igual', lido.evento.tipo, 'Pub');
+confere('o horário de início volta igual', lido.evento.horario, '19:30');
+confere('todos os integrantes voltam', lido.membrosParsed.length, rosterTeste.length);
+confere('na ordem hierárquica', lido.membrosParsed.map(m => m.nomeTexto),
+  ordenarPorHierarquia(rosterTeste).map(m => m.nome.toUpperCase()));
+confere('com o grau de cada um', lido.membrosParsed.map(m => m.grauTexto),
+  ordenarPorHierarquia(rosterTeste).map(m => m.grau));
+confere('sem nenhum aviso do parser', lido.avisos, []);
 
 log('');
 log(falhas === 0 ? 'TUDO OK' : `${falhas} FALHA(S) — veja acima`);
