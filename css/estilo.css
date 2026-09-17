@@ -767,3 +767,19 @@ label {
   color: var(--text-muted);
   margin: 0 2px 6px;
 }
+
+/* Variante baixa do card de evento, usada no "Próximo evento" da tela
+   inicial. Ali ele é lembrete, não destino: precisa ser reconhecível, mas
+   não pode competir com os cards de navegação logo abaixo.
+   Tudo encolhe junto - recheio, nome, detalhe, seta e a pastilha de data -
+   senão o card fica baixo com o texto do mesmo tamanho e some o equilíbrio. */
+.event-card-compacto { padding: 10px 14px; }
+.event-card-compacto .name { font-size: 14px; padding-right: 62px; line-height: 1.25; }
+.event-card-compacto .meta { font-size: 11px; margin-top: 3px; }
+.event-card-compacto .arrow { font-size: 16px; }
+.event-card-compacto .event-date-badge {
+  top: 8px;
+  right: 10px;
+  font-size: 9.5px;
+  padding: 1px 6px;
+}
