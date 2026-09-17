@@ -16,7 +16,8 @@ Três modos de entrada, todos no mesmo link:
 - **Público, sem PIN** — confirmar presença, ver o Calendário, o Rank de
   Presença e o Rank de Insights.
 - **Modo organizador (PIN)** — criar eventos, cadastrar membros, registrar
-  rodadas de Insight, ver percentuais.
+  rodadas de Insight, ver percentuais e **gerar o texto da convocação** para
+  colar no grupo.
 - **Relatórios (PIN)** — os painéis de análise e o fluxo de colar uma
   convocação do WhatsApp para virar evento.
 
@@ -25,12 +26,15 @@ Três modos de entrada, todos no mesmo link:
 - HTML + CSS + JavaScript puro, em **módulos ES nativos**. Sem framework,
   sem build step, sem dependências além das fontes do Google.
 - `index.html` é só o esqueleto; o visual em `css/estilo.css`; o código em
-  `js/`, repartido em 30 módulos.
+  `js/`, repartido em 32 módulos.
 - Hospedado no GitHub Pages (estático). Todo `git push` atualiza o site.
 - Backend: planilha do Google Sheets via Apps Script publicado como Web App.
   A URL fica em `API_URL`, em `js/nucleo/api.js`.
-- Como usa `import`/`export`, **precisa de um servidor para rodar local**
-  (`python -m http.server 8000`) — abrir por `file://` não funciona.
+- Como usa `import`/`export`, **precisa de um servidor para rodar local**:
+  `py ferramentas/servidor.py 8765`. Abrir por `file://` não funciona.
+  Use esse servidor, e não o `python -m http.server` direto — ele desliga o
+  cache. Sem isso o navegador mistura arquivos novos com antigos e uma
+  mudança pode simplesmente não aparecer, sem erro nenhum.
 
 ### A hierarquia dos módulos
 
@@ -105,7 +109,7 @@ sem controlar o servidor.
 
 | Aba | O que guarda |
 |---|---|
-| `Membros` | id, nome, grau, divisão, funções |
+| `Membros` | id, nome, grau, divisão, funções, **cargo** |
 | `Eventos` | id, nome, data, horário, endereço, outros, status, categoria, tipo, texto original |
 | `Presencas` | uma linha por evento × membro, com status e as flags Direto/Destacado/Acompanhado |
 | `InsightRodadas` | uma linha por rodada |
@@ -166,11 +170,95 @@ Cada um com cor e arte próprias.
 **Funções** — Sargento de Armas ⚔️, Caveira 💀, Combate Insanos 🥋,
 Batedor 🛡️. Acumuláveis, aparecem como selos ao lado do nome.
 
-**Graus** — I a X.
+**Graus** — I a X. Atenção: o **mais alto na hierarquia é o de número
+menor** — VI vem antes de VIII, que vem antes de X.
+
+**Cargos** — só existem nos graus **VI** e **V**, os "graus de cargo", em que
+vários integrantes dividem o mesmo grau ocupando funções diferentes. A lista
+fica em `CARGOS`, em `js/nucleo/config.js`, **já na ordem hierárquica**:
+
+| Grau | Cargos, do mais alto para o mais baixo |
+|---|---|
+| VI | Diretor › Subdiretor › Social › ADM › Sgt de Armas de Divisão |
+| V | Diretor Regional › Operacional › Social Regional › ADM Regional › Comunicação |
+
+Não confundir com as **funções** acima: função é atribuição operacional,
+acumulável e sem hierarquia; cargo é um só por pessoa e tem ordem.
+
+> **A ordem das listas** (`ordenarPorHierarquia`, em `js/nucleo/util.js`) é:
+> grau, depois cargo, depois nome. Nos graus VIII, IX e X a ordem de verdade
+> no clube é a **antiguidade**, que o app não guarda — ficou combinado usar
+> ordem alfabética ali. Se um dia isso incomodar, a saída é guardar a
+> antiguidade no cadastro.
 
 **Insight** — rodadas registradas algumas vezes por semana, só com membros
 de divisão (o Regional fica de fora: quem faz insight é a base). Por padrão
 todo membro participa; quem for removido entra em `InsightExcluidos`.
+
+## A convocação: o app lê e escreve
+
+Este é um ciclo fechado que vale entender junto, porque as duas pontas usam
+o mesmo formato.
+
+**Ler** (existe há mais tempo): a tela Relatórios aceita uma convocação
+colada do WhatsApp e transforma em evento — `parseConvocacaoTexto`, em
+`js/dominio/parser.js`. Ele casa os nomes com o cadastro por semelhança
+(distância de Levenshtein), então "Fabio Big" bate com "FÁBIO BIG".
+
+**Escrever** (novo): o botão **📋 Criar chamada**, no card de cada evento da
+aba Eventos, monta o texto da convocação para colar no grupo —
+`js/dominio/convocacao.js` e a tela `js/telas/convocacao.js`. Ele não grava
+nada; só lê o evento e devolve texto.
+
+O texto tem três origens, e a separação é proposital:
+
+| Origem | O quê |
+|---|---|
+| **Fixo** | faixa, seções, legendas, prazo, Respaldo RDI, ATENÇÃO/BRIEFING |
+| **Do app** | título, data no formato do clube (`09SET26`) com o dia da semana, divisão, lista numerada na ordem hierárquica |
+| **Do formulário** | roteiro, pontos de encontro, horários, telefone — o que só o organizador sabe na hora |
+
+**O app não tenta adivinhar o que não sabe.** Roteiro e pontos de encontro
+mudam a cada evento e não cabem no modelo de dados (um evento tem um lugar e
+um horário); então são campo livre, e a prévia atualiza enquanto se digita.
+
+Dois modelos, escolhidos pelo tipo do evento: **Simples** (Pub, Reunião,
+Ação Social) e **Bate e Volta**, que troca `🎯 DESTINO 🎯` por
+`🫂 CONCENTRAÇÃO 🫂` + `🧭 ROTEIRO 🧭`, usa "Legenda" no lugar de
+"Participação" e ganha os blocos de ATENÇÃO e BRIEFING — é estrada, então
+entra o checklist da moto e as regras do comboio.
+
+**Quem assina o rodapé** é o **Subdiretor** da divisão, ou o **Operacional**
+no Regional. Não é o cargo mais alto — é quem responde pela convocação. Sem
+ninguém cadastrado no cargo, sai `(nome)` / `(cargo)` para preencher: uma
+mensagem que vai para o clube inteiro assinada pela pessoa errada é pior que
+um espaço em branco visível. O **telefone o app não guarda**, então entra à
+mão toda vez.
+
+> **O teste que protege o formato:** `ferramentas/regras.mjs` gera a
+> convocação e passa de volta pelo parser. Se o texto continua sendo
+> reconhecido — mesma data, mesmo tipo, mesmos integrantes na mesma ordem —
+> o formato está fiel. Foi esse teste que descobriu que o parser só parava a
+> lista em "Participação" e, numa convocação de Bate e Volta (que fecha com
+> "Legenda"), lia o contato do rodapé como se fosse mais um integrante.
+
+## As ferramentas de conferência
+
+Em `ferramentas/`, rodam offline e não tocam a planilha. Existem porque o
+app não tem teste automatizado de verdade e a alternativa era clicar em tudo
+a cada mudança:
+
+| | O que faz |
+|---|---|
+| `servidor.py` | serve o app local com o cache desligado |
+| `estrutura.py` | 7 verificações: imports circulares, hierarquia de camadas, sintaxe, nome sem import, import sobrando, ações sem tratador |
+| `regras.mjs` | as regras do clube que, se quebrarem, saem erradas numa convocação sem ninguém perceber |
+| `telas.mjs` | desenha as 50 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
+
+O `--html` do `telas.mjs` é a rede de proteção mais útil: captura o HTML de
+todas as telas, você mexe, captura de novo e compara. Diferença que aparecer
+ali é mudança de verdade. Foi assim que a reorganização em módulos foi feita
+sem quebrar nada. Detalhes em [ferramentas/README.md](ferramentas/README.md).
 
 ## Identidade visual
 
@@ -186,14 +274,19 @@ todo membro participa; quem for removido entra em `InsightExcluidos`.
 
 ## Antes de subir
 
-Dois testes offline, que não tocam a planilha:
+Os três testes, que rodam offline e não tocam a planilha (ver a seção das
+ferramentas, acima):
 
     py ferramentas/estrutura.py     # imports, camadas, sintaxe, ações
-    node ferramentas/telas.mjs      # desenha as 45 telas e abas
+    node ferramentas/regras.mjs     # ordem hierárquica e formato da convocação
+    node ferramentas/telas.mjs      # desenha as 50 telas e abas
 
 Eles dizem que o app **não quebrou**, não que está bonito: não cobrem
-aparência, impressão/PDF, o caminho de rede real nem o `Code.gs`. Detalhes
-em [ferramentas/README.md](ferramentas/README.md).
+aparência, impressão/PDF, o caminho de rede real nem o `Code.gs`.
+
+Se a mudança mexeu no `Code.gs`, ele precisa ser **republicado à parte** no
+Apps Script — não vai junto no `git push`. Confira depois chamando a URL do
+Web App com `?action=versao`; o passo a passo está no [LINK.md](LINK.md).
 
 > O app lê e grava na **planilha de produção**. Não existe ambiente de teste
 > separado — cuidado ao mexer com eventos reais abertos.
