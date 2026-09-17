@@ -158,16 +158,19 @@ export let state = {
   calendarioAjustandoData: false,     // true = mostra o campo de nova data
   calendarioConfirmandoExclusao: false,
 
-  // Tela "Relatorios" (colar convocacao). Fica em campos separados dos
-  // equivalentes do Modo organizador (adminEscopo, isAdmin) para nao mexer
-  // no estado de uma sessao de organizador que porventura esteja aberta.
-  relatorioEscopo: null,
+  // Tela "Relatorios" (colar convocacao). A divisao e o "ja passou pelo
+  // PIN" sao os mesmos do Modo organizador (adminEscopo, isAdmin) - os
+  // Relatorios sao uma secao dentro dele, nao ha como estar numa divisao
+  // aqui e noutra la. Os campos adminEscopo/isAdmin, que
+  // duplicavam esses dois de quando os Relatorios eram um card separado na
+  // tela inicial com PIN proprio, deixaram de existir.
+  //
   // Qual divisao vai levar o relatorio colado (a categoria do evento
-  // criado). So diferente de relatorioEscopo quando o acesso foi pelo PIN
+  // criado). So diferente de adminEscopo quando o acesso foi pelo PIN
   // Regional - ai a pessoa escolhe entre "Regional" (convocacao com varias
   // divisoes juntas) ou uma divisao especifica (convocacao so daquela
   // divisao, mesmo entrando pelo PIN Regional). Fora do Regional, e sempre
-  // igual a relatorioEscopo (nao ha escolha).
+  // igual a adminEscopo (nao ha escolha).
   relatorioCategoriaAlvo: null,
   // Filtro de divisao do painel de Relatorios, so relevante quando o acesso
   // e pelo PIN Regional - 'todas' agrega tudo, uma chave especifica ('regional'
@@ -185,13 +188,15 @@ export let state = {
   // "Exportar para PDF" de dentro do Modo organizador (aba Eventos) - so
   // trava o botao enquanto pula pra tela de Relatorios e carrega os dados,
   // ver exportarRelatorioPdfAdmin().
-  exportandoPdfAdmin: false,
+exportandoPdfAdmin: false,
+  // Filtro de periodo da aba "Relatorio completo" do Insight. Separado do
+  // relatorioFiltroData* (que e dos eventos) de proposito: sao dois
+  // relatorios diferentes, e mexer num nao pode mudar o outro.
+  insightFiltroDataInicio: '',
+  insightFiltroDataFim: '',
   // Tipo escolhido na tela de colar (um de TIPOS_EVENTO) - quando marcado,
   // vence o palpite que o parser tenta tirar do titulo do texto colado.
   relatorioTipoEscolhido: null,
-  relatorioIsAdmin: false,
-  relatorioPinErro: null,
-  relatorioPinVerificando: false,
   // Qual aba do painel de Relatorios esta ativa: 'colar' | 'eventos' | 'presenca'.
   relatorioTab: 'resumo',
   // Dentro da aba "Colar", em qual passo do fluxo colar->revisar->resultado

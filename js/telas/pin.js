@@ -1,8 +1,11 @@
-// Escolha de divisao e pedido de PIN do Modo organizador e dos Relatorios.
+// Escolha de divisao e pedido de PIN do Modo organizador.
+//
+// Os Relatorios tinham um fluxo identico a este, com os proprios campos
+// no state, porque eram um card separado na tela inicial. Agora sao uma
+// secao dentro do organizador e entram pelo PIN daqui.
 
-import { loadReportData } from '../dados/carregar.js';
 import { conferirPin } from '../dados/pin.js';
-import { escoposAtivos, escoposEmOrdemDeExibicao } from '../nucleo/config.js';
+import { escoposEmOrdemDeExibicao } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
 import { renderEscolhaDivisao, renderTelaPin } from '../ui/comuns.js';
@@ -41,55 +44,10 @@ export async function checkPin() {
     chaveErro: 'pinErro',
     aoEntrar: () => {
       state.isAdmin = true;
-      state.view = 'admin';
+      // Depois do PIN a pessoa escolhe a secao no menu, em vez de cair
+      // direto em Eventos - ver telas/menu-organizador.js.
+      state.view = 'admin-menu';
       state.adminTab = 'eventos';
-    },
-  });
-}
-
-// Tela "Relatorios" (colar convocacao) - copia de renderDivisoes/renderPin,
-// mas escreve em relatorioEscopo/relatorioIsAdmin em vez de
-// adminEscopo/isAdmin, para nao interferir numa sessao do Modo organizador
-// que porventura esteja aberta ao mesmo tempo.
-export function renderRelatorioDivisoes(app) {
-  renderEscolhaDivisao(app, {
-    titulo: 'Relatórios',
-    escopos: escoposAtivos(),
-    acao: 'select-relatorio-divisao',
-  });
-}
-
-export function renderRelatorioPin(app) {
-  renderTelaPin(app, {
-    titulo: 'Relatórios',
-    voltar: 'go-relatorio-divisoes',
-    campo: 'relatorio-pin-field',
-    acao: 'check-relatorio-pin',
-    verificando: state.relatorioPinVerificando,
-    erro: state.relatorioPinErro,
-    aoEnter: checkRelatorioPin,
-  });
-}
-
-export async function checkRelatorioPin() {
-  return conferirPin({
-    campo: 'relatorio-pin-field',
-    escopo: state.relatorioEscopo,
-    chaveVerificando: 'relatorioPinVerificando',
-    chaveErro: 'relatorioPinErro',
-    aoEntrar: async () => {
-      state.relatorioIsAdmin = true;
-      state.view = 'relatorio';
-      // A pagina principal depois do PIN e o "Resumo Relatorio" (os 5
-      // donuts) - as outras 6 abas ficam a um clique de distancia.
-      state.relatorioTab = 'resumo';
-      state.relatorioColarStep = 'texto';
-      state.relatorioTipoDetalhe = null;
-      state.relatorioFiltroDivisao = 'todas';
-      state.relatorioFiltroDataInicio = '';
-      state.relatorioFiltroDataFim = '';
-      render();
-      await loadReportData();
     },
   });
 }
@@ -109,39 +67,5 @@ export const acoes = {
   },
   'check-pin': async (id, target, action, e) => {
     return checkPin();
-  },
-  'go-relatorio-divisoes': async (id, target, action, e) => {
-    state.view = 'relatorio-divisoes';
-    state.relatorioTextoBruto = '';
-    state.relatorioParsed = null;
-    state.relatorioSalvarErro = null;
-    state.relatorioDuplicidadeAviso = null;
-    state.relatorioDuplicidadeConfirmada = false;
-    state.relatorioEditandoEventoId = null;
-    state.relatorioTab = 'resumo';
-    state.relatorioColarStep = 'texto';
-    state.relatorioCategoriaAlvo = null;
-    state.relatorioTipoEscolhido = null;
-    state.relatorioTipoDetalhe = null;
-    state.relatorioFiltroDivisao = 'todas';
-    state.relatorioFiltroDataInicio = '';
-    state.relatorioFiltroDataFim = '';
-    state.relatorioEstatisticasExpandidas = new Set();
-    state.relatorioEventosExpandidos = new Set();
-    state.relatorioMembroFichaId = null;
-    return render();
-  },
-  'select-relatorio-divisao': async (id, target, action, e) => {
-    state.relatorioEscopo = target.dataset.value;
-    // Padrao: a categoria alvo comeca igual ao escopo escolhido (Regional ->
-    // "Regional", Barra -> "Barra") - so muda se a pessoa clicar num botao
-    // de divisao especifica na tela de colar, ver "set-relatorio-categoria".
-    state.relatorioCategoriaAlvo = target.dataset.value;
-    state.view = 'relatorio-pin';
-    state.relatorioPinErro = null;
-    return render();
-  },
-  'check-relatorio-pin': async (id, target, action, e) => {
-    return checkRelatorioPin();
   },
 };

@@ -32,7 +32,6 @@ export const IMG_HOME_EVENTOS = 'img/home-eventos.webp';
 // Arte de fundo do card "Modo organizador" da tela inicial (texto ja
 // desenhado - por isso o card nao repete esse texto em HTML, so a seta).
 export const IMG_MODO_ORGANIZADOR = 'img/modo-organizador.jpg';
-export const IMG_RELATORIOS_HOME = 'img/relatorios-home.jpg';
 export const IMG_CALENDARIO_HOME = 'img/calendario-home.jpg';
 // Arte de fundo de cada tipo (base64, comprimida pra WebP bem pequeno - ver
 // processo no historico do projeto) - alimentado aos poucos conforme cada

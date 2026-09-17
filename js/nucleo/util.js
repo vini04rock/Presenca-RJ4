@@ -34,6 +34,64 @@ export function linkify(str) {
 
 // ---------- RENDER ----------
 
+// Valor de um campo do formulario, pelo id. Usado por quem so le o campo
+// na hora de aplicar (os filtros de periodo, a data do evento), em vez de
+// acompanhar cada tecla.
+export function valorDoCampo(id) {
+  const el = document.getElementById(id);
+  return el ? el.value : '';
+}
+
+// ---- campos de data ------------------------------------------------------
+//
+// O app nao usa mais <input type="date">. O navegador desenha esse campo na
+// ordem do IDIOMA DELE, nao no da pagina: num Chrome em ingles ele vira
+// mm/dd/yyyy, e o lang="pt-BR" do index.html nao muda isso. Quem digitava
+// "21" pro dia 21 caia no campo do mes, que pula sozinho no primeiro digito
+// (nao existe mes 20 a 29) - e a data saia com dia e mes trocados, sem aviso.
+//
+// No lugar dele vai um campo de texto comum, com mascara dd/mm/aaaa. Fica
+// igual em todo navegador e em todo aparelho, e na ordem que o clube usa.
+
+// Vai pondo as barras enquanto a pessoa digita: "2109" -> "21/09".
+export function mascaraData(valor) {
+  const d = String(valor || '').replace(/\D/g, '').slice(0, 8);
+  if (d.length <= 2) return d;
+  if (d.length <= 4) return d.slice(0, 2) + '/' + d.slice(2);
+  return d.slice(0, 2) + '/' + d.slice(2, 4) + '/' + d.slice(4);
+}
+
+// '21/09/2026' -> '2026-09-21', que e como a data viaja e e guardada.
+// Devolve '' pro que nao for data de verdade - inclusive 31/02, que passa
+// na conferencia de faixa mas nao existe no calendario.
+export function dataISOdeBR(texto) {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(texto || '').trim());
+  if (!m) return '';
+  const [, dia, mes, ano] = m;
+  const d = new Date(Number(ano), Number(mes) - 1, Number(dia));
+  if (d.getFullYear() !== Number(ano) || d.getMonth() !== Number(mes) - 1 || d.getDate() !== Number(dia)) return '';
+  return `${ano}-${mes}-${dia}`;
+}
+
+// Le um campo de data e devolve a data em ISO, ou '' se estiver em branco
+// (que vale como "sem data" em todo lugar que usa isto).
+//
+// Se a pessoa escreveu algo que NAO e data - 31/02, mes 13, a data pela
+// metade - avisa e devolve null, e quem chamou desiste de salvar. Sem isso
+// o texto errado viraria '' e o evento seria salvo sem data nenhuma, calado.
+// O campo nativo nao deixava isso acontecer; o campo de texto deixa, entao
+// a conferencia que o navegador fazia passa a ser nossa.
+export function dataDoCampoOuAvisar(id, rotulo) {
+  const bruto = valorDoCampo(id).trim();
+  if (!bruto) return '';
+  const iso = dataISOdeBR(bruto);
+  if (iso) return iso;
+  alert(`${rotulo} não é uma data válida: "${bruto}".
+
+Escreva no formato dia/mês/ano, como 21/09/2026.`);
+  return null;
+}
+
 export function formatDataBR(iso) {
   if (!iso) return '';
   const [y, m, d] = iso.split('-');

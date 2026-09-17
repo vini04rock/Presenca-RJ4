@@ -5,13 +5,13 @@ import { loadInitial } from './dados/carregar.js';
 import { state } from './nucleo/estado.js';
 import { LOGO_SRC } from './nucleo/imagens.js';
 import { definirRender } from './nucleo/render.js';
-import { escapeHtml } from './nucleo/util.js';
+import { escapeHtml, mascaraData } from './nucleo/util.js';
 import { renderAdmin } from './telas/admin.js';
 import { acoes as acoesConvocacao, renderConvocacao } from './telas/convocacao.js';
 import { renderCalendario, renderCalendarioDivisoes } from './telas/calendario.js';
 import { renderConfirmados, renderEvent } from './telas/evento.js';
 import { renderHome } from './telas/home.js';
-import { renderDivisoes, renderPin, renderRelatorioDivisoes, renderRelatorioPin } from './telas/pin.js';
+import { renderDivisoes, renderPin } from './telas/pin.js';
 import { renderRankInsights } from './telas/rank-insights.js';
 import { renderRank } from './telas/rank.js';
 import { renderRelatorioShell } from './telas/relatorios.js';
@@ -25,6 +25,7 @@ import { acoes as acoesRank } from './telas/rank.js';
 import { acoes as acoesRankinsights } from './telas/rank-insights.js';
 import { acoes as acoesPin } from './telas/pin.js';
 import { acoes as acoesCalendario } from './telas/calendario.js';
+import { acoes as acoesMenuOrganizador, renderMenuOrganizador } from './telas/menu-organizador.js';
 
 function render() {
   const app = document.getElementById('app');
@@ -52,29 +53,47 @@ function render() {
   if (state.view === 'rank-insights') return renderRankInsights(app);
   if (state.view === 'admin-divisoes') return renderDivisoes(app);
   if (state.view === 'admin-pin') return renderPin(app);
+  if (state.view === 'admin-menu') return renderMenuOrganizador(app);
   if (state.view === 'admin') return renderAdmin(app);
   if (state.view === 'convocacao') return renderConvocacao(app);
-  if (state.view === 'relatorio-divisoes') return renderRelatorioDivisoes(app);
-  if (state.view === 'relatorio-pin') return renderRelatorioPin(app);
   if (state.view === 'relatorio') return renderRelatorioShell(app);
   if (state.view === 'calendario-divisoes') return renderCalendarioDivisoes(app);
   if (state.view === 'calendario') return renderCalendario(app);
 }
 
+// Os campos de data NAO tem tratador aqui de proposito - o valor deles so e
+// lido quando se toca em "Atualizar" (ver aplicar-relatorio-filtro-periodo
+// e aplicar-insight-filtro-periodo). Duas tentativas de reagir enquanto a
+// pessoa digita falharam, e por motivos diferentes:
+//
+// 1. Redesenhar a cada tecla ("input"): um <input type="date"> so entrega
+//    valor com os tres pedacos completos, entao o campo voltava pro zero a
+//    cada tecla.
+// 2. Redesenhar quando a data fica completa ("change"): no ano isso acontece
+//    no PRIMEIRO digito - "25/09/2" ja vale como 25/09/0002, uma data
+//    valida. O redesenho levava embora o resto do ano.
+//
+// Por isso o botao. Ninguem adivinha quando a pessoa terminou de digitar -
+// ela avisa, tocando em "Atualizar", "Salvar" ou "Confirmar".
+//
+// (Depois disso o campo nativo saiu de cena de vez, por outro motivo: ele
+//  seguia o idioma do navegador e virava mm/dd/yyyy num Chrome em ingles.
+//  Ver nucleo/util.js. O unico tratador de digitacao que sobrou e a mascara
+//  abaixo, que so poe as barras e nao redesenha a tela.)
 document.getElementById('app').addEventListener('input', (e) => {
+  if (e.target.classList && e.target.classList.contains('campo-data')) {
+    const cursorNoFim = e.target.selectionStart === e.target.value.length;
+    e.target.value = mascaraData(e.target.value);
+    // Digitando no fim (o caso normal), mantem o cursor no fim - senao a
+    // barra recem-inserida jogaria o cursor pra tras.
+    if (cursorNoFim) e.target.setSelectionRange(e.target.value.length, e.target.value.length);
+    return;
+  }
   if (e.target.id === 'new-member-nome') {
     state.newMemberNome = e.target.value;
   }
   if (e.target.id === 'relatorio-texto-field') {
     state.relatorioTextoBruto = e.target.value;
-  }
-  if (e.target.id === 'relatorio-filtro-data-inicio') {
-    state.relatorioFiltroDataInicio = e.target.value;
-    return render();
-  }
-  if (e.target.id === 'relatorio-filtro-data-fim') {
-    state.relatorioFiltroDataFim = e.target.value;
-    return render();
   }
   if (e.target.dataset && e.target.dataset.action === 'resolver-membro') {
     const i = Number(e.target.dataset.index);
@@ -100,6 +119,7 @@ for (const [area, mapa] of Object.entries({
   acoesRankinsights,
   acoesPin,
   acoesCalendario,
+  acoesMenuOrganizador,
   acoesConvocacao,
 })) {
   for (const nome of Object.keys(mapa)) {

@@ -109,8 +109,8 @@ export function eventosPossivelmenteDuplicados(data, categoria, excluirId) {
 export function eventosDoRelatorioEscopo() {
   return state.events
     .filter(e => {
-      const bateDivisao = state.relatorioEscopo !== 'regional'
-        ? e.categoria === state.relatorioEscopo
+      const bateDivisao = state.adminEscopo !== 'regional'
+        ? e.categoria === state.adminEscopo
         : (state.relatorioFiltroDivisao === 'todas' || e.categoria === state.relatorioFiltroDivisao);
       if (!bateDivisao) return false;
       // Comparacao de texto funciona porque a data e sempre ISO (yyyy-mm-dd) -
@@ -129,8 +129,8 @@ export function eventosDoRelatorioEscopo() {
 // ("% de cada integrante em X"), onde faz sentido restringir a lista de
 // nomes tambem, nao so os eventos.
 function membrosVisiveisRelatorio() {
-  if (state.relatorioEscopo !== 'regional') {
-    const nomeEscopo = escopoPorChave(state.relatorioEscopo).nome;
+  if (state.adminEscopo !== 'regional') {
+    const nomeEscopo = escopoPorChave(state.adminEscopo).nome;
     return state.roster.filter(m => m.divisao === nomeEscopo);
   }
   if (state.relatorioFiltroDivisao === 'todas') return state.roster;
@@ -296,4 +296,61 @@ export function membrosElegiveisEvento() {
 export function membrosDoEscopo() {
   const nome = escopoPorChave(state.adminEscopo).nome;
   return state.roster.filter(m => m.divisao === nome);
+}
+
+// Recalcula o relatorio de Insights usando so as rodadas de um periodo.
+//
+// O servidor devolve as estatisticas ja somadas de TODAS as rodadas
+// (insightEstatisticas), entao nao da pra recortar um periodo a partir
+// delas. O que da e refazer a conta a partir do historico (insightRodadas),
+// que vem com a lista de quem fez e quem nao fez em cada rodada - as mesmas
+// linhas que o servidor somou, so que abertas. As formulas aqui sao as
+// mesmas de calcularEstatisticasInsights no Code.gs, com o numero de
+// rodadas do periodo no lugar do total.
+//
+// ATENCAO: o historico vem limitado as ultimas 30 rodadas (ver
+// listarInsightRodadas). Um periodo que comece antes disso so enxerga o que
+// coube nessas 30 - por isso a tela avisa quantas rodadas entraram na conta.
+//
+// Identidade do membro (grau, funcoes) continua vindo de stats.membros: o
+// historico so traz id/nome/divisao, e stats.membros ja e a lista de quem
+// esta elegivel (sem o Regional e sem quem foi removido do insight).
+export function estatisticasInsightsPorPeriodo(stats, historico, inicio, fim) {
+  const rodadas = (historico || []).filter(r =>
+    (!inicio || r.data >= inicio) && (!fim || r.data <= fim));
+  const num = rodadas.length;
+
+  const porMembro = {};
+  const porDivisao = {};
+  rodadas.forEach(r => (r.membros || []).forEach(m => {
+    if (!porMembro[m.id]) porMembro[m.id] = { convites: 0, confirmacoes: 0 };
+    porMembro[m.id].convites++;
+    if (m.fez) porMembro[m.id].confirmacoes++;
+    if (!porDivisao[m.divisao]) porDivisao[m.divisao] = { total: 0, sim: 0 };
+    porDivisao[m.divisao].total++;
+    if (m.fez) porDivisao[m.divisao].sim++;
+  }));
+
+  const membros = stats.membros.map(m => {
+    const c = porMembro[m.id] || { convites: 0, confirmacoes: 0 };
+    return {
+      ...m,
+      rodadas: c.convites,
+      confirmacoes: c.confirmacoes,
+      percentual: c.convites ? Math.round((c.confirmacoes / c.convites) * 100) : null,
+    };
+  });
+
+  const divisoes = stats.divisoes.map(dv => {
+    const c = porDivisao[dv.nome] || { total: 0, sim: 0 };
+    const cadastrados = membros.filter(m => m.divisao === dv.nome).length;
+    return {
+      ...dv,
+      mediaPorRodada: num ? Math.round(c.sim / num) : 0,
+      mediaTotalPorRodada: num ? Math.round(c.total / num) : cadastrados,
+      percentual: c.total ? Math.round((c.sim / c.total) * 100) : null,
+    };
+  });
+
+  return { stats: { ...stats, rodadas: num, membros, divisoes }, rodadas };
 }

@@ -2,7 +2,7 @@
 
 import { COR_TODOS_EVENTOS, TIPOS_EVENTO, TIPO_HOME_TAGLINE, classeTipoEvento, corTipoEvento, emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
-import { IMG_CALENDARIO_HOME, IMG_HOME_EVENTOS, IMG_MODO_ORGANIZADOR, IMG_RANK_INSIGHTS, IMG_RANK_PRESENCA, IMG_RELATORIOS_HOME, LOGO_SRC, TIPO_HOME_IMAGEM } from '../nucleo/imagens.js';
+import { IMG_CALENDARIO_HOME, IMG_HOME_EVENTOS, IMG_MODO_ORGANIZADOR, IMG_RANK_INSIGHTS, IMG_RANK_PRESENCA, LOGO_SRC, TIPO_HOME_IMAGEM } from '../nucleo/imagens.js';
 import { diaDaSemana, escapeHtml, formatDataCurta, hexParaRgba } from '../nucleo/util.js';
 import { renderCardEscopo } from '../ui/comuns.js';
 import { openEvent } from '../fluxos/evento.js';
@@ -88,15 +88,9 @@ function renderHomeInicio(app) {
       <div></div>
       <div class="arrow">›</div>
     </div>
-    <div class="row-gap" style="margin-bottom:12px;">
-      <div class="card event-card card-admin-home card-organizador-home" style="background-image:url('${IMG_MODO_ORGANIZADOR}');" data-action="go-divisoes">
-        <div></div>
-        <div class="arrow">›</div>
-      </div>
-      <div class="card event-card card-admin-home card-relatorios-home" style="background-image:url('${IMG_RELATORIOS_HOME}');" data-action="go-relatorio-divisoes">
-        <div></div>
-        <div class="arrow">›</div>
-      </div>
+    <div class="card event-card card-admin-home card-organizador-home" style="background-image:url('${IMG_MODO_ORGANIZADOR}');" data-action="go-divisoes">
+      <div></div>
+      <div class="arrow">›</div>
     </div>
     <div class="footer-admin">
       <div class="brand-tag">Desenvolvido por: Almeida - Adm. Barra - RJ4</div>
@@ -197,8 +191,11 @@ function renderHomeEventos(app) {
       return `
         <div class="card event-card ${imagemFundo ? '' : classeTipoEvento(ev.tipo)}" style="${estiloFundo}" data-action="open-event" data-id="${ev.id}">
           ${dataCurta ? `<div class="event-date-badge">${dataCurta}</div>` : ''}
-          <div>
-            <div class="name">${escapeHtml(ev.nome)}${ev.tipo ? ' ' + emojiTipoEvento(ev.tipo) : ''}</div>
+          <div style="min-width:0;">
+            <div class="name nome-com-selo">
+              <span class="nome-cortado">${escapeHtml(ev.nome)}</span>
+              ${ev.tipo ? `<span class="nome-selo">${emojiTipoEvento(ev.tipo)}</span>` : ''}
+            </div>
             <div class="meta">${memberCount} ${memberCount === 1 ? 'membro' : 'membros'}</div>
           </div>
           <div class="arrow">›</div>

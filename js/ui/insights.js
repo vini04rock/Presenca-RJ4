@@ -10,7 +10,11 @@ import { escapeHtml, formatDataBR } from '../nucleo/util.js';
 import { linhaFuncoes } from './comuns.js';
 import { renderDonutChart, renderSparklineTendencia } from './graficos.js';
 
-export function renderRankInsightsConteudo(d) {
+// "historico" e a lista de rodadas do grafico de tendencia. O Rank publico
+// nao filtra nada e nem passa o parametro (usa o state, como sempre); a aba
+// "Relatorio completo" do organizador passa so as rodadas do periodo
+// escolhido, pra linha do tempo bater com os numeros ao lado dela.
+export function renderRankInsightsConteudo(d, historico) {
   const porChave = chave => d.divisoes.find(x => x.chave === chave);
   const linhaPct = v => v === null || v === undefined ? '—' : v + '%';
 
@@ -29,7 +33,7 @@ export function renderRankInsightsConteudo(d) {
         { label: 'Não fez', value: Math.max(0, totalRodadas - totalConfirmacoes), cor: 'var(--status-infracional)' },
       ], totalPct === null ? '—' : totalPct + '%', 'fazem', 150)}
       <div class="info-line" style="padding:8px 0 0; color:var(--text-muted); font-size:12.5px;">${d.rodadas} ${d.rodadas === 1 ? 'rodada registrada' : 'rodadas registradas'}</div>
-      ${renderSparklineTendencia((state.insightRodadasHistorico || []).map(r => ({
+      ${renderSparklineTendencia((historico || state.insightRodadasHistorico || []).map(r => ({
         ev: { data: r.data, nome: 'Rodada de ' + formatDataBR(r.data) },
         pct: r.percentual
       })))}
