@@ -80,7 +80,7 @@ export function renderEvent(app) {
 export const acoes = {
   'voltar-do-evento': async (id, target, action, e) => {
     const origem = state.eventoVoltarPara;
-    if (origem && origem.view === 'relatorio' && state.relatorioIsAdmin) {
+    if (origem && origem.view === 'relatorio' && state.isAdmin) {
       state.view = 'relatorio';
       state.relatorioTab = origem.relatorioTab || 'eventos';
     } else if (origem && origem.view === 'admin' && state.isAdmin) {

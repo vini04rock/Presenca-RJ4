@@ -4,13 +4,18 @@ import { loadInsightStats } from '../dados/carregar.js';
 import { api } from '../nucleo/api.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
+import { dataISOdeBR, valorDoCampo } from '../nucleo/util.js';
 
 export async function confirmarInsightRodada() {
   // Le o campo antes de travar o botao - so existe no DOM se "Registrar com
   // outra data" estiver aberto (ver blocoMarcacao); vazio = usa hoje, igual
   // sempre foi (nao muda nada pra quem nunca mexe nesse campo).
-  const campoData = document.getElementById('insight-data-field');
-  const dataEscolhida = campoData ? campoData.value : '';
+  const bruto = valorDoCampo('insight-data-field').trim();
+  const dataEscolhida = bruto ? dataISOdeBR(bruto) : '';
+  if (bruto && !dataEscolhida) {
+    state.insightErro = `"${bruto}" não é uma data válida - escreva como 21/09/2026`;
+    return render();
+  }
   state.insightSalvando = true;
   state.insightErro = null;
   render();

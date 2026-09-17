@@ -5,7 +5,7 @@ import { apiPost } from '../nucleo/api.js';
 import { DIAS_SEMANA_LETRA, NOMES_MESES, TIPOS_EVENTO, corTipoEvento, emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
-import { escapeHtml, hexParaRgba } from '../nucleo/util.js';
+import { dataDoCampoOuAvisar, escapeHtml, formatDataBR, hexParaRgba } from '../nucleo/util.js';
 import { renderEscolhaDivisao, renderTelaPin } from '../ui/comuns.js';
 import { loadInitial, salvarOuAvisar } from '../dados/carregar.js';
 import { conferirPin } from '../dados/pin.js';
@@ -229,7 +229,7 @@ function renderCalendarioEditorPainel(evento) {
       <div class="card" style="margin-top:12px;">
         <div style="font-weight:600; margin-bottom:8px;">${titulo}</div>
         <label>Nova data</label>
-        <input type="date" id="calendario-editar-data-field" value="${evento.data}">
+        <input type="text" inputmode="numeric" maxlength="10" class="campo-data" id="calendario-editar-data-field" placeholder="dd/mm/aaaa" autocomplete="off" value="${formatDataBR(evento.data) || ''}">
         <div class="row-gap" style="margin-top:10px;">
           <button class="btn block" data-action="calendario-editar-confirmar-data" data-id="${evento.id}">Confirmar</button>
           <button class="btn secondary" data-action="calendario-editar-cancelar-ajuste">Cancelar</button>
@@ -417,7 +417,7 @@ export const acoes = {
     return;
   },
   'calendario-editar-confirmar-data': async (id, target, action, e) => {
-    const novaData = document.getElementById('calendario-editar-data-field').value;
+    const novaData = dataDoCampoOuAvisar('calendario-editar-data-field', 'A nova data');
     if (!novaData) return;
     const ev = state.events.find(e => e.id === id);
     if (!ev) return;

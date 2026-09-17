@@ -367,3 +367,24 @@ export function renderTelaPin(app, { titulo, subtitulo, voltar, campo, acao, ver
     field.addEventListener('keydown', (e) => { if (e.key === 'Enter') aoEnter(); });
   }
 }
+
+// Campo de data do app: texto com mascara dd/mm/aaaa, nao o <input
+// type="date"> do navegador - ver o comentario em nucleo/util.js sobre por
+// que o nativo nao serve. O valor que entra e sai daqui e sempre ISO
+// ('2026-09-21'); a conversao pra tela e formatDataBR, e a volta e
+// dataISOdeBR, na hora em que o campo e lido.
+//
+// Quem le o campo NUNCA le state enquanto a pessoa digita: le o campo na
+// hora de aplicar (um botao "Atualizar", "Salvar", "Confirmar"). O unico
+// tratador ligado a digitacao e a mascara, no app.js, e ela nao redesenha
+// a tela.
+export function campoData({ id, rotulo, valor, estilo }) {
+  return `
+    <div class="field"${estilo ? ` style="${estilo}"` : ''}>
+      ${rotulo ? `<label>${escapeHtml(rotulo)}</label>` : ''}
+      <input type="text" inputmode="numeric" maxlength="10" class="campo-data"
+             id="${id}" value="${escapeHtml(formatDataBR(valor) || '')}"
+             placeholder="dd/mm/aaaa" autocomplete="off">
+    </div>
+  `;
+}

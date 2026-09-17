@@ -152,7 +152,7 @@ Object.assign(state, {
 
 // ---------- 3. desenha tudo ----------------------------------------------
 const T = {};
-for (const m of ['home','evento','rank','rank-insights','calendario','pin','relatorios','admin','convocacao']) {
+for (const m of ['home','evento','rank','rank-insights','calendario','pin','relatorios','admin','convocacao','menu-organizador']) {
   Object.assign(T, await import(url('telas/' + m + '.js')));
 }
 const casos = [];
@@ -184,10 +184,6 @@ add('escolha divisao (organizador)',  {}, T.renderDivisoes);
 add('pin (organizador)',              {}, T.renderPin);
 add('pin (com erro)',                 { pinErro:'PIN incorreto.' }, T.renderPin);
 add('pin (verificando)',              { pinVerificando:true }, T.renderPin);
-add('escolha divisao (relatorios)',   {}, T.renderRelatorioDivisoes);
-add('pin (relatorios)',               {}, T.renderRelatorioPin);
-add('pin relatorios (com erro)',      { relatorioPinErro:'PIN incorreto.' }, T.renderRelatorioPin);
-add('pin relatorios (verificando)',   { relatorioPinVerificando:true }, T.renderRelatorioPin);
 add('calendario (escolha)',           {}, T.renderCalendarioDivisoes);
 // Julho/2026 de proposito, nao o mes atual: o calendario marca o dia de
 // hoje, entao usar o mes corrente faria o HTML mudar todo dia e sujar a
@@ -199,9 +195,30 @@ add('calendario (organizar: pin)',    { ...cal, calendarioOrganizarEtapa:'pin' }
 add('calendario (pin com erro)',      { ...cal, calendarioOrganizarEtapa:'pin', calendarioPinErro:'PIN incorreto.' }, T.renderCalendario);
 add('calendario (org: adicionar)',    { ...cal, calendarioOrganizarEtapa:'texto', calendarioOrganizarSubTab:'adicionar' }, T.renderCalendario);
 add('calendario (org: editar)',       { ...cal, calendarioOrganizarEtapa:'texto', calendarioOrganizarSubTab:'editar' }, T.renderCalendario);
-for (const aba of ['eventos','membros','relatorio','presencas','insights']) {
+// A Acao Social dos dados falsos e 10/07/2026 - com ela selecionada, o campo
+// de data da edicao aparece preenchido, que e o que prova a ida e volta
+// (ISO no state -> dd/mm/aaaa na tela).
+add('calendario (org: editar, com data)', { ...cal, calendarioOrganizarEtapa:'texto',
+  calendarioOrganizarSubTab:'editar', calendarioEditandoData:'2026-07-10',
+  calendarioAjustandoData:true }, T.renderCalendario);
+add('organizador / menu (regional)', { isAdmin:true, adminEscopo:'regional' }, T.renderMenuOrganizador);
+add('organizador / menu (barra)',    { isAdmin:true, adminEscopo:'barra' }, T.renderMenuOrganizador);
+add('organizador / menu (oeste)',    { isAdmin:true, adminEscopo:'oeste' }, T.renderMenuOrganizador);
+for (const aba of ['eventos','membros','encerrados','presencas','insights','insights-rodadas','insights-relatorio']) {
   add(`organizador / ${aba}`, { isAdmin:true, adminEscopo:'regional', adminTab:aba }, T.renderAdmin);
 }
+// As rodadas de mentira sao 01 a 05/09/2026 (ver "rodadas" la em cima).
+add('organizador / insights-relatorio (periodo)', { isAdmin:true, adminEscopo:'regional',
+  adminTab:'insights-relatorio', insightFiltroDataInicio:'2026-09-02', insightFiltroDataFim:'2026-09-04' }, T.renderAdmin);
+add('organizador / insights-relatorio (periodo vazio)', { isAdmin:true, adminEscopo:'regional',
+  adminTab:'insights-relatorio', insightFiltroDataInicio:'2026-01-01', insightFiltroDataFim:'2026-01-31' }, T.renderAdmin);
+// Campo de data da rodada de Insight - so existe com "Registrar com outra
+// data" aberto, por isso nao aparecia em teste nenhum.
+add('organizador / insights (outra data)', { isAdmin:true, adminEscopo:'regional',
+  adminTab:'insights', insightMostrarDataCustom:true, insightDataEscolhida:'2026-09-21' }, T.renderAdmin);
+// Evento sendo editado: o campo de data nasce preenchido com a data dele.
+add('organizador / editar evento',    { isAdmin:true, adminEscopo:'barra', adminTab:'eventos',
+  editingEventId:'e1', newEventSelected:new Set(['m1']) }, T.renderAdmin);
 add('organizador / membros (grau VI)', { isAdmin:true, adminEscopo:'barra', adminTab:'membros',
   newMemberGrau:'VI' }, T.renderAdmin);
 add('organizador / eventos (barra)',  { isAdmin:true, adminEscopo:'barra', adminTab:'eventos' }, T.renderAdmin);
@@ -227,14 +244,25 @@ add('organizador / ajustar rodada',   { isAdmin:true, adminEscopo:'regional', ad
   insightEditandoRodadaId:'r1', insightAjusteMembroIds:['m1','m2'],
   insightAjusteInfo:{ m1:{nome:'Costa',divisao:'Barra - RJ4'}, m2:{nome:'Bull',divisao:'Barra - RJ4'} } }, T.renderAdmin);
 for (const aba of ['resumo','enviar','eventos','Pub','Bate e Volta','Reunião','Ação Social']) {
-  add(`relatorios / ${aba}`, { relatorioIsAdmin:true, relatorioEscopo:'regional',
+  add(`relatorios / ${aba}`, { isAdmin:true, adminEscopo:'regional',
     relatorioCategoriaAlvo:'regional', relatorioTab:aba, relatorioFiltroDivisao:'todas' }, T.renderRelatorioShell);
 }
-add('relatorios / resumo (so barra)', { relatorioIsAdmin:true, relatorioEscopo:'barra',
+add('relatorios / resumo (so barra)', { isAdmin:true, adminEscopo:'barra',
   relatorioCategoriaAlvo:'barra', relatorioTab:'resumo' }, T.renderRelatorioShell);
-add('relatorios / ficha do membro',   { relatorioIsAdmin:true, relatorioEscopo:'regional',
+// Com "Todas as divisoes" a lista vem agrupada e fechada, entao os cards de
+// evento nem chegam a ser desenhados - filtrando numa divisao eles aparecem,
+// que e o que esta tela precisa checar.
+add('relatorios / eventos (uma divisao)', { isAdmin:true, adminEscopo:'regional',
+  relatorioTab:'eventos', relatorioFiltroDivisao:'barra' }, T.renderRelatorioShell);
+// Revisao da convocacao colada - tem o campo de data do evento.
+add('relatorios / revisão do colado', { isAdmin:true, adminEscopo:'barra',
+  relatorioTab:'enviar', relatorioColarStep:'revisao', relatorioCategoriaAlvo:'barra',
+  relatorioParsed:{ avisos:[], evento:{ nome:'Pub de teste', data:'2026-09-21', tipo:'Pub' },
+    membrosParsed:[{ nome:'Costa', membroId:'m1', status:'confirmado', sugestoes:[], ignorado:false }] } },
+  T.renderRelatorioShell);
+add('relatorios / ficha do membro',   { isAdmin:true, adminEscopo:'regional',
   relatorioTab:'resumo', relatorioMembroFichaId:'m1' }, T.renderRelatorioShell);
-add('relatorios / detalhe por tipo',  { relatorioIsAdmin:true, relatorioEscopo:'regional',
+add('relatorios / detalhe por tipo',  { isAdmin:true, adminEscopo:'regional',
   relatorioTab:'resumo', relatorioTipoDetalhe:'Pub' }, T.renderRelatorioShell);
 
 const LIMPO = {
@@ -244,10 +272,15 @@ const LIMPO = {
   events: eventos,
   convocacaoEventoId:null, convocacaoModelo:null, convocacaoCampos:{}, convocacaoCopiado:false,
   newMemberGrau:null, newMemberCargo:null,
-  pinErro:null, pinVerificando:false, relatorioPinErro:null, relatorioPinVerificando:false,
+  pinErro:null, pinVerificando:false,
   calendarioPinErro:null, calendarioPinVerificando:false,
   homeEventosAberto:false, homeEscopo:null, homeTipo:null, relatorioMembroFichaId:null,
   relatorioTipoDetalhe:null, insightEditandoRodadaId:null, calendarioOrganizarEtapa:null,
+  relatorioFiltroDivisao:'todas',
+  insightFiltroDataInicio:'', insightFiltroDataFim:'',
+  calendarioEditandoData:null, insightMostrarDataCustom:false, insightDataEscolhida:'',
+  calendarioAjustandoData:false, calendarioConfirmandoExclusao:false,
+  relatorioParsed:null, relatorioColarStep:'texto', editingEventId:null,
   newEventSelected:null, insightRankRodadaSelecionada:null,
 };
 log('');

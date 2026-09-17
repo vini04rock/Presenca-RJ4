@@ -109,6 +109,22 @@ h1, h2, h3, .display {
    usam filter:brightness no toque em vez de trocar o background (que so
    funciona pra cor solida) - assim o feedback de toque funciona igual
    tenha imagem ou nao. */
+/* Menu do Modo organizador (renderMenuOrganizador) - a tela logo depois do
+   PIN, com um card por secao. Icone em anel colorido a esquerda, nome e
+   uma linha explicando o que tem la dentro. O .name herdaria um
+   padding-right de 56px do .event-card (que existe pra o texto nao passar
+   por baixo da seta em card com arte de fundo); aqui o icone e o texto ja
+   estao num flex proprio, entao o padding sai. */
+.menu-org-card { min-height: 62px; }
+.menu-org-card:active { filter: brightness(0.82); }
+.menu-org-card .name { font-size: 16px; padding-right: 0; }
+.menu-org-card .meta { margin-top: 2px; }
+.menu-org-linha { display: flex; align-items: center; gap: 12px; }
+.menu-org-icone {
+  width: 38px; height: 38px; border-radius: 50%; border: 2px solid;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; flex-shrink: 0;
+}
 .tipo-home-card { min-height: 84px; }
 .tipo-home-card:active { filter: brightness(0.82); }
 .tipo-home-icone {
@@ -131,25 +147,32 @@ h1, h2, h3, .display {
   border-left: 3px solid #D4A24C;
 }
 .card-eventos-home:active { filter: brightness(0.82); }
-/* Cards "Modo organizador"/"Relatórios" da tela inicial - lado a lado,
-   mesma receita do card-rank-home (aspect-ratio em vez de altura fixa),
-   so que 20% mais baixos (5.15/0.8 = 6.44) - por pedido, pra ficarem
-   nitidamente menores que o card Eventos, mais discretos por serem
-   acesso de organizador/relatorio, nao o fluxo principal. Antes eram so
-   um botao-texto no rodape (Modo organizador) + o botao "Relatórios". */
+/* Card "Modo organizador" da tela inicial - a unica porta com PIN agora
+   (os Relatorios tinham um card irmao aqui do lado, que virou uma secao
+   dentro do menu do organizador). Ficando sozinho, ocupa a largura toda;
+   o aspect-ratio 6.44/1 e a proporcao em que a arte foi desenhada, entao
+   ela aparece inteira, sem corte, so que maior do que quando o card era
+   metade da largura. Continua mais baixo que o card Eventos - o acesso de
+   organizador nao e o fluxo principal. */
 .card-admin-home {
-  flex: 1 1 0;
-  min-width: 130px;
+  /* Menor que os cards Eventos/Calendario (min-height 82px), por pedido: o
+     acesso de organizador nao e o fluxo principal. A arte e um banner justo
+     (900x140, com a engrenagem e a prancheta quase encostando em cima e
+     embaixo), entao baixar a altura com background-size:cover cortaria os
+     desenhos. Como a proporcao e fixa, "menor" aqui e "mais estreito": o
+     card ocupa 78% da largura, centralizado, e a altura cai junto - da uns
+     54px contra os 82px dos vizinhos, com a arte inteira e sem corte. */
+  width: 78%;
+  margin-left: auto;
+  margin-right: auto;
   padding: 6px 10px;
-  aspect-ratio: 6.44 / 1;
+  aspect-ratio: 6.43 / 1;
   background-size: cover;
   background-position: center;
-  margin-bottom: 0;
 }
 .card-admin-home:active { filter: brightness(0.82); }
 .card-admin-home .arrow { font-size: 16px; }
 .card-organizador-home { border-left: 3px solid #D4A24C; }
-.card-relatorios-home { border-left: 3px solid #4C86D9; }
 /* Rank de Presença/Insights - lado a lado, menores que o card Eventos
    (que fica sozinho, largura cheia, logo abaixo). flex:1 1 0 divide a
    largura igual entre os dois; min-width evita ficar espremido demais
@@ -293,12 +316,14 @@ label {
   letter-spacing: 0.02em;
 }
 .field { margin-bottom: 14px; }
-.date-hint {
-  margin-top: 4px;
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  color: var(--text-muted);
-}
+/* Campo de data do app - texto com mascara dd/mm/aaaa, no lugar do
+   <input type="date"> nativo (ver nucleo/util.js). Tabular-nums deixa os
+   digitos com a mesma largura, entao a data nao "dança" enquanto e
+   digitada. Aqui ficava a .date-hint, o "D · M · A" embaixo do campo: ela
+   existia pra desfazer a ambiguidade do campo nativo e mentia justamente
+   em quem tinha o navegador em ingles. O placeholder dd/mm/aaaa diz a
+   mesma coisa, no lugar certo e sempre certo. */
+.campo-data { font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
 .event-header {
   margin-bottom: 18px;
 }
@@ -372,6 +397,37 @@ label {
   justify-content: space-between;
   cursor: pointer;
   gap: 10px;
+}
+/* Nome do evento nos cards de lista (Relatorios/Eventos, organizador
+   /Eventos e /Encerrados). Uma linha so, cortada com reticencias: um nome
+   longo ("Entrega de Alimentos para Fundacao Angelica Goulart") quebrava em
+   tres linhas e deixava o card com o dobro da altura dos vizinhos, o que
+   polui a lista. Perder o fim do nome e aceitavel - a data, o status e a %
+   logo abaixo ja identificam o evento, e um toque abre ele por inteiro.
+   O min-width:0 e no pai flex, e o que faz o text-overflow disparar (um
+   item flex nao encolhe abaixo do proprio conteudo sem ele); todos os tres
+   lugares ja tinham esse pai preparado. Mesma receita do
+   .event-card-compacto da tela inicial, onde este mesmo nome causou este
+   mesmo problema. */
+.nome-cortado { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Nome + selo do tipo na lista publica de eventos. O selo fica num <span>
+   proprio, fora do trecho que corta: se ele fosse parte do texto, um nome
+   longo comeria junto o emoji, que e justamente o que diz num relance se o
+   evento e Pub, Bate e Volta ou Acao Social. O min-width:0 no <span> do
+   nome e o que permite ele encolher e as reticencias aparecerem. */
+.nome-com-selo { display: flex; align-items: baseline; gap: 6px; }
+.nome-com-selo .nome-cortado { min-width: 0; }
+.nome-selo { flex-shrink: 0; }
+/* Onde o nome nao herda fonte de card nenhum (os cards do organizador nao
+   usam .event-card .name), a classe abaixo traz fonte, tamanho e cor junto
+   com o corte - era isso que estava repetido em estilo inline nos dois. */
+.nome-evento-card {
+  font-family: 'Rye', serif;
+  font-size: 17px;
+  color: var(--white-strong);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .member-info-wrap { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .member-info { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }

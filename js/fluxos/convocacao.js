@@ -6,7 +6,7 @@ import { parseConvocacaoTexto, resolverParsedComRoster } from '../dominio/parser
 import { apiPost } from '../nucleo/api.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
-import { scrollParaElemento } from '../nucleo/util.js';
+import { dataISOdeBR, scrollParaElemento, valorDoCampo } from '../nucleo/util.js';
 
 // Reabre o fluxo de colar convocacao apontado pra um evento ja existente
 // (ver o botao "Corrigir" em renderCardEvento) - ao confirmar, salva por
@@ -56,10 +56,10 @@ export function analisarConvocacao() {
   // confiavel que depender do texto ter uma palavra reconhecivel.
   if (state.relatorioTipoEscolhido) parsed.evento.tipo = state.relatorioTipoEscolhido;
   // Casa os nomes contra a divisao escolhida (relatorioCategoriaAlvo), nao
-  // contra o escopo de acesso (relatorioEscopo) - um organizador Regional
+  // contra o escopo de acesso (adminEscopo) - um organizador Regional
   // colando so a convocacao da Curicica precisa que os nomes batam com o
   // elenco da Curicica, nao com a planilha toda.
-  parsed.membrosParsed = resolverParsedComRoster(parsed.membrosParsed, state.relatorioCategoriaAlvo || state.relatorioEscopo);
+  parsed.membrosParsed = resolverParsedComRoster(parsed.membrosParsed, state.relatorioCategoriaAlvo || state.adminEscopo);
   // Foto do momento em que o parser terminou de rodar, antes de qualquer
   // correção manual - é o que mede "quão bem o parser se saiu", diferente
   // de naoResolvidos (que muda a cada correção feita na tela de revisão).
@@ -74,9 +74,12 @@ export function analisarConvocacao() {
 export async function confirmarEventoParseado() {
   if (state.relatorioSalvando) return;
   const parsed = state.relatorioParsed;
+  // Fora do objeto "ev" de proposito: ele e copiado inteiro pro evento que
+  // vai pra planilha, e o texto cru do campo nao tem nada que fazer la.
+  const dataBruta = valorDoCampo('rev-evento-data').trim();
   const ev = {
     nome: document.getElementById('rev-evento-nome').value.trim(),
-    data: document.getElementById('rev-evento-data').value,
+    data: dataBruta ? dataISOdeBR(dataBruta) : '',
     horario: document.getElementById('rev-evento-horario').value,
     endereco: document.getElementById('rev-evento-endereco').value.trim(),
     outros: document.getElementById('rev-evento-outros').value.trim()
@@ -95,6 +98,14 @@ export async function confirmarEventoParseado() {
     state.relatorioSalvarErro = 'Preencha o nome do evento.';
     render();
     scrollParaElemento('rev-evento-nome');
+    return;
+  }
+  // Escreveu algo no campo de data, mas nao e data (31/02, mes 13, pela
+  // metade). Sem esta checagem viraria '' e o evento seria salvo sem data.
+  if (dataBruta && !ev.data) {
+    state.relatorioSalvarErro = `"${dataBruta}" não é uma data válida - escreva como 21/09/2026.`;
+    render();
+    scrollParaElemento('rev-evento-data');
     return;
   }
   // Data/tipo/integrantes sao os pontos que o evento sempre precisa gravar -
@@ -126,7 +137,7 @@ export async function confirmarEventoParseado() {
     return;
   }
 
-  const categoria = state.relatorioCategoriaAlvo || state.relatorioEscopo;
+  const categoria = state.relatorioCategoriaAlvo || state.adminEscopo;
   if (!state.relatorioDuplicidadeConfirmada) {
     const duplicatas = eventosPossivelmenteDuplicados(ev.data, categoria, state.relatorioEditandoEventoId);
     if (duplicatas.length) { state.relatorioDuplicidadeAviso = duplicatas; return render(); }
@@ -151,7 +162,7 @@ export async function confirmarEventoParseado() {
       id: state.relatorioEditandoEventoId || undefined,
       nome: ev.nome, data: ev.data, horario: ev.horario, endereco: ev.endereco, outros: ev.outros,
       // A categoria do evento e a divisao escolhida na tela de colar
-      // (relatorioCategoriaAlvo), nao o escopo de acesso (relatorioEscopo) -
+      // (relatorioCategoriaAlvo), nao o escopo de acesso (adminEscopo) -
       // um organizador Regional pode estar colando a convocacao so da
       // Curicica, e o evento tem que nascer como categoria "curicica".
       categoria: categoria, tipo: parsed.evento.tipo || '',

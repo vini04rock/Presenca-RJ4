@@ -5,15 +5,15 @@ import { computeCounts, statusEfetivo } from '../dominio/status.js';
 import { ABAS_COM_FILTRO_DIVISAO, RELATORIO_TABS, STATUS, STATUS_TOTAIS_LABEL, TIPOS_EVENTO, TIPOS_EVENTO_TABS_ORDEM, classeTipoEvento, corTipoEvento, emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { TIPO_HOME_IMAGEM } from '../nucleo/imagens.js';
-import { dataCorteMeses, escapeHtml, formatDataBR } from '../nucleo/util.js';
-import { renderFichaMembro, renderListaEstatisticasPorDivisao } from '../ui/comuns.js';
+import { dataCorteMeses, dataDoCampoOuAvisar, escapeHtml, formatDataBR } from '../nucleo/util.js';
+import { campoData, renderFichaMembro, renderListaEstatisticasPorDivisao } from '../ui/comuns.js';
 import { renderDonutCard, renderRankingFaltasInfracionais } from '../ui/graficos.js';
 import { loadReportData } from '../dados/carregar.js';
 import { analisarConvocacao, confirmarEventoParseado, iniciarCorrecaoConvocacao } from '../fluxos/convocacao.js';
 import { render } from '../nucleo/render.js';
 
 function renderRelatorioFiltroDivisao() {
-  if (state.relatorioEscopo !== 'regional' || !ABAS_COM_FILTRO_DIVISAO.includes(state.relatorioTab)) return '';
+  if (state.adminEscopo !== 'regional' || !ABAS_COM_FILTRO_DIVISAO.includes(state.relatorioTab)) return '';
   const opcoes = [{ chave: 'todas', nome: 'Todas as divisões' }].concat(escoposEmOrdemDeExibicao());
   const nomeFiltroAtivo = opcoes.find(o => o.chave === state.relatorioFiltroDivisao).nome;
   return `
@@ -43,19 +43,48 @@ function renderRelatorioFiltroPeriodo() {
     <div class="card no-print" style="margin-bottom:14px;">
       <div style="font-weight:600; margin-bottom:8px;">Filtrar por período</div>
       <div class="row-gap">
-        <div class="field" style="margin-bottom:0; flex:1;">
-          <label>Data inicial</label>
-          <input type="date" id="relatorio-filtro-data-inicio" value="${state.relatorioFiltroDataInicio}">
-        </div>
-        <div class="field" style="margin-bottom:0; flex:1;">
-          <label>Data final</label>
-          <input type="date" id="relatorio-filtro-data-fim" value="${state.relatorioFiltroDataFim}">
-        </div>
+        ${campoData({ id: 'relatorio-filtro-data-inicio', rotulo: 'Data inicial', valor: state.relatorioFiltroDataInicio, estilo: 'margin-bottom:0; flex:1;' })}
+        ${campoData({ id: 'relatorio-filtro-data-fim', rotulo: 'Data final', valor: state.relatorioFiltroDataFim, estilo: 'margin-bottom:0; flex:1;' })}
       </div>
+      <button class="btn secondary block" data-action="aplicar-relatorio-filtro-periodo" style="margin-top:10px;">Atualizar</button>
       ${ativo ? `<div class="btn ghost" data-action="limpar-relatorio-filtro-periodo" style="margin-top:8px; padding:2px 0; font-size:12px;">Limpar (voltar a mostrar tudo)</div>` : ''}
     </div>
     <div class="print-only" style="margin-bottom:10px; font-size:13px; color:var(--text-muted);">Período: ${escapeHtml(textoAtivo)}</div>
   `;
+}
+
+// Entra nos Relatorios com tudo zerado, na divisao que o organizador ja
+// escolheu (state.adminEscopo) e com o PIN que ele ja digitou. Antes isto
+// era um fluxo proprio - card na tela inicial, escolhe divisao, PIN - e os
+// dois blocos de reset viviam separados nas acoes "go-relatorio-divisoes"
+// e "check-relatorio-pin".
+export async function entrarNosRelatorios() {
+  // Padrao: a categoria alvo comeca igual a divisao em que se entrou
+  // (Regional -> "Regional", Barra -> "Barra") - so muda se a pessoa clicar
+  // num botao de divisao especifica na tela de colar, ver
+  // "set-relatorio-categoria".
+  state.relatorioCategoriaAlvo = state.adminEscopo;
+  state.relatorioTextoBruto = '';
+  state.relatorioParsed = null;
+  state.relatorioSalvarErro = null;
+  state.relatorioDuplicidadeAviso = null;
+  state.relatorioDuplicidadeConfirmada = false;
+  state.relatorioEditandoEventoId = null;
+  state.relatorioTipoEscolhido = null;
+  state.relatorioEstatisticasExpandidas = new Set();
+  state.relatorioEventosExpandidos = new Set();
+  state.relatorioMembroFichaId = null;
+  // A pagina principal depois do PIN e o "Resumo Relatorio" (os 5 donuts) -
+  // as outras 6 abas ficam a um clique de distancia.
+  state.relatorioTab = 'resumo';
+  state.relatorioColarStep = 'texto';
+  state.relatorioTipoDetalhe = null;
+  state.relatorioFiltroDivisao = 'todas';
+  state.relatorioFiltroDataInicio = '';
+  state.relatorioFiltroDataFim = '';
+  state.view = 'relatorio';
+  render();
+  await loadReportData();
 }
 
 export function renderRelatorioShell(app) {
@@ -77,10 +106,10 @@ export function renderRelatorioShell(app) {
     : conteudoRelatorioColar();
 
   app.innerHTML = `
-    <div class="back-link on-photo no-print" data-action="go-relatorio-divisoes">‹ Trocar divisão</div>
+    <div class="back-link on-photo no-print" data-action="go-menu-organizador">‹ Menu</div>
     <div class="crest-wrap" style="margin-bottom: 8px;">
       <h1 style="font-size: 19px;">Relatórios</h1>
-      <div class="sub">${escapeHtml(escopoPorChave(state.relatorioEscopo).nome)}</div>
+      <div class="sub">${escapeHtml(escopoPorChave(state.adminEscopo).nome)}</div>
     </div>
     <div class="tabs tabs-wrap no-print">
       ${RELATORIO_TABS.map(t => `<div class="tab ${state.relatorioTab === t.chave ? 'active' : ''}" data-action="relatorio-tab" data-tab="${t.chave}">${t.label}</div>`).join('')}
@@ -99,7 +128,7 @@ function conteudoRelatorioColar() {
   // convocacao regional inteira (varias divisoes juntas) quanto a
   // convocacao de uma divisao especifica sem precisar do PIN dela. Fora do
   // Regional so existe uma opcao (a propria divisao), entao nao mostra nada.
-  const seletorDivisao = state.relatorioEscopo === 'regional' && !state.relatorioEditandoEventoId ? `
+  const seletorDivisao = state.adminEscopo === 'regional' && !state.relatorioEditandoEventoId ? `
     <div class="card" style="margin-bottom:14px;">
       <div style="font-weight:600; margin-bottom:8px;">Essa convocação é de qual divisão?</div>
       <div class="chip-grid wide">
@@ -146,7 +175,7 @@ function conteudoRelatorioRevisao() {
   const naoResolvidos = membros.filter(r => !r.membroId && !r.ignorado);
   const totais = {};
   membros.forEach(r => { if (!r.ignorado) totais[r.status] = (totais[r.status] || 0) + 1; });
-  const categoriaAlvo = state.relatorioCategoriaAlvo || state.relatorioEscopo;
+  const categoriaAlvo = state.relatorioCategoriaAlvo || state.adminEscopo;
   const escopoNome = escopoPorChave(categoriaAlvo).nome;
   const candidatosDropdown = categoriaAlvo === 'regional'
     ? state.roster
@@ -180,8 +209,7 @@ function conteudoRelatorioRevisao() {
       <div class="row-gap" style="margin-bottom: 0;">
         <div class="field" style="flex: 1; min-width: 130px;">
           <label>Data</label>
-          <input type="date" id="rev-evento-data" value="${escapeHtml(ev.data)}">
-          <div class="date-hint">D · M · A</div>
+          <input type="text" inputmode="numeric" maxlength="10" class="campo-data" id="rev-evento-data" placeholder="dd/mm/aaaa" autocomplete="off" value="${escapeHtml(formatDataBR(ev.data) || '')}">
         </div>
         <div class="field" style="flex: 1; min-width: 100px;">
           <label>Horário</label>
@@ -335,7 +363,7 @@ function renderCardEvento(ev) {
         <div style="display:flex; align-items:center; gap:14px;">
           ${ev.tipo ? `<div class="tipo-home-icone" style="border-color:${cor}; flex-shrink:0;">${emojiTipoEvento(ev.tipo)}</div>` : ''}
           <div style="min-width:0;">
-            <div class="name">${escapeHtml(ev.nome)}</div>
+            <div class="name nome-cortado">${escapeHtml(ev.nome)}</div>
             <div class="meta">${ev.data ? formatDataBR(ev.data) + ' · ' : ''}${ev.status === 'encerrado' ? 'Encerrado' : 'Ativo'}${pct !== null ? ' · ' + pct + '% presença' : ''}</div>
           </div>
         </div>
@@ -398,7 +426,7 @@ function renderEventosAgrupados(eventos) {
 function conteudoRelatorioEventos() {
   const eventos = eventosDoRelatorioEscopo();
   if (!eventos.length) return '<div class="empty">Nenhum evento ainda nessa divisão.</div>';
-  const agrupar = state.relatorioEscopo === 'regional' && state.relatorioFiltroDivisao === 'todas';
+  const agrupar = state.adminEscopo === 'regional' && state.relatorioFiltroDivisao === 'todas';
   return `
     ${state.reportError ? `
       <div class="alert" style="margin-bottom:14px;">
@@ -560,6 +588,17 @@ export const acoes = {
   'set-relatorio-filtro-divisao': async (id, target, action, e) => {
     state.relatorioFiltroDivisao = target.dataset.value;
     state.relatorioTipoDetalhe = null;
+    return render();
+  },
+  // As datas so sao lidas aqui, no toque do botao - ver o comentario no
+  // app.js sobre por que nao da pra acompanhar a digitacao.
+  'aplicar-relatorio-filtro-periodo': async (id, target, action, e) => {
+    const inicio = dataDoCampoOuAvisar('relatorio-filtro-data-inicio', 'A data inicial');
+    if (inicio === null) return;
+    const fim = dataDoCampoOuAvisar('relatorio-filtro-data-fim', 'A data final');
+    if (fim === null) return;
+    state.relatorioFiltroDataInicio = inicio;
+    state.relatorioFiltroDataFim = fim;
     return render();
   },
   'limpar-relatorio-filtro-periodo': async (id, target, action, e) => {

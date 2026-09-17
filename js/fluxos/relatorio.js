@@ -15,8 +15,9 @@ import { copiarTexto } from '../nucleo/util.js';
 export async function exportarRelatorioPdfAdmin() {
   state.exportandoPdfAdmin = true;
   render();
-  state.relatorioEscopo = state.adminEscopo;
-  state.relatorioIsAdmin = true;
+  // A divisao e o "ja passou pelo PIN" ja sao os do organizador - este
+  // botao so existe la dentro. Nao ha nada a copiar, e por isso que este
+  // atalho nunca pede PIN.
   state.view = 'relatorio';
   state.relatorioTab = 'resumo';
   state.relatorioColarStep = 'texto';

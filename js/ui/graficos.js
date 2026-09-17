@@ -72,7 +72,7 @@ export function segmentosDonutStatus(statusPeriodo) {
 // vazio disputando espaco com o resto do resumo.
 export function renderRankingFaltasInfracionais(encerrados) {
   const meses = state.relatorioPeriodoPorGrafico.total || 3;
-  const mostrarDivisao = state.relatorioEscopo === 'regional' && state.relatorioFiltroDivisao === 'todas';
+  const mostrarDivisao = state.adminEscopo === 'regional' && state.relatorioFiltroDivisao === 'todas';
   const ranking = rankingFaltasInfracionais(encerrados, meses).filter(r => r.total > 0).slice(0, 8);
   if (!ranking.length) return '';
   return `

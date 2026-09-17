@@ -1,14 +1,14 @@
 // Modo organizador: abas Eventos, Membros, Presencas, Insights e Relatorio.
 
 import { agruparMembrosRodadaPorDivisao } from '../dominio/divisoes.js';
-import { eventosDoEscopo, membrosDoEscopo, membrosElegiveisEvento } from '../dominio/estatisticas.js';
+import { estatisticasInsightsPorPeriodo, eventosDoEscopo, membrosDoEscopo, membrosElegiveisEvento } from '../dominio/estatisticas.js';
 import { computeCounts, getReportGroups } from '../dominio/status.js';
 import { FUNCOES, GRAUS, cargosDoGrau, TIPOS_EVENTO, corTipoEvento, divisoesSemRegional, emojiTipoEvento, escopoPorChave } from '../nucleo/config.js';
 import { genId, state } from '../nucleo/estado.js';
 import { TIPO_HOME_IMAGEM } from '../nucleo/imagens.js';
-import { escapeHtml, formatDataBR, formatDataCurta, hexParaRgba } from '../nucleo/util.js';
+import { dataDoCampoOuAvisar, escapeHtml, formatDataBR, formatDataCurta, hexParaRgba } from '../nucleo/util.js';
 import { renderRankInsightsConteudo } from '../ui/insights.js';
-import { selosFuncoes } from '../ui/comuns.js';
+import { campoData, selosFuncoes } from '../ui/comuns.js';
 import { renderDonutChart, segmentosDonutStatus } from '../ui/graficos.js';
 import { loadEstatisticas, loadInsightStats, loadReportData, salvarOuAvisar } from '../dados/carregar.js';
 import { paramsDeEvento } from '../fila/presenca.js';
@@ -172,6 +172,40 @@ function renderAjusteInsightRodada() {
 // (maior primeiro), com o cabecalho de cada divisao mostrando a media de
 // participantes por rodada. Confirmar grava tudo em lote no servidor e
 // zera as marcacoes pra proxima rodada.
+// Filtro de periodo da aba "Relatorio completo" do Insight - mesmos dois
+// campos de data do relatorio de eventos. A diferenca importante esta no
+// aviso: o historico so traz as ultimas 30 rodadas (listarInsightRodadas no
+// Code.gs), entao um periodo antigo pode enxergar menos do que existe de
+// verdade na planilha. Por isso a tela diz quantas rodadas entraram na
+// conta, em vez de mostrar um numero que parece completo e nao e.
+function renderFiltroPeriodoInsight(filtrado) {
+  const inicio = state.insightFiltroDataInicio;
+  const fim = state.insightFiltroDataFim;
+  const ativo = inicio || fim;
+  const texto = ativo
+    ? `${inicio ? formatDataBR(inicio) : 'início'} até ${fim ? formatDataBR(fim) : 'hoje'}`
+    : 'Desde sempre';
+  const n = filtrado ? filtrado.rodadas.length : 0;
+  return `
+    <div class="card no-print" style="margin-bottom:14px;">
+      <div style="font-weight:600; margin-bottom:8px;">Filtrar por período</div>
+      <div class="row-gap">
+        ${campoData({ id: 'insight-filtro-data-inicio', rotulo: 'Data inicial', valor: inicio, estilo: 'margin-bottom:0; flex:1;' })}
+        ${campoData({ id: 'insight-filtro-data-fim', rotulo: 'Data final', valor: fim, estilo: 'margin-bottom:0; flex:1;' })}
+      </div>
+      <button class="btn secondary block" data-action="aplicar-insight-filtro-periodo" style="margin-top:10px;">Atualizar</button>
+      ${ativo ? `
+        <div class="info-line" style="padding:8px 0 0; color:var(--text-muted); font-size:12px;">
+          ${n === 0 ? 'Nenhuma rodada nesse período.' : `${n} ${n === 1 ? 'rodada entrou' : 'rodadas entraram'} na conta.`}
+          O histórico guarda as 30 rodadas mais recentes.
+        </div>
+        <div class="btn ghost" data-action="limpar-insight-filtro-periodo" style="margin-top:8px; padding:2px 0; font-size:12px;">Limpar (voltar a mostrar tudo)</div>
+      ` : ''}
+    </div>
+    <div class="print-only" style="margin-bottom:10px; font-size:13px; color:var(--text-muted);">Período: ${escapeHtml(texto)}</div>
+  `;
+}
+
 function renderAdminInsights() {
   if (state.insightStatsError) {
     return `
@@ -289,11 +323,7 @@ function renderAdminInsights() {
     ${blocoMarcacao}
     ${state.insightMostrarDataCustom ? `
       <div class="card" style="margin-bottom:10px;">
-        <div class="field" style="margin-bottom:0;">
-          <label>Data da rodada</label>
-          <input type="date" id="insight-data-field" value="${escapeHtml(state.insightDataEscolhida)}">
-          <div class="date-hint">D · M · A</div>
-        </div>
+        ${campoData({ id: 'insight-data-field', rotulo: 'Data da rodada', valor: state.insightDataEscolhida, estilo: 'margin-bottom:0;' })}
         <div class="btn ghost" data-action="toggle-insight-data-custom" style="margin-top:8px; padding:2px 0; font-size:12px;">Cancelar (usar data de hoje)</div>
       </div>
     ` : `
@@ -304,17 +334,37 @@ function renderAdminInsights() {
     </button>
   `;
 
+  // As quatro zonas vinham empilhadas numa rolagem so - marcar a rodada, o
+  // historico, quem esta fora e o relatorio completo. Agora sao tres abas
+  // (ver SECOES_ORGANIZADOR): "quem esta fora do insight" fica junto da
+  // marcacao porque e a mesma tarefa, decidir quem entra na conta.
+  if (state.adminTab === 'insights-rodadas') {
+    return historico || '<div class="empty">Nenhuma rodada registrada ainda.</div>';
+  }
+  if (state.adminTab === 'insights-relatorio') {
+    // Sem periodo escolhido, usa o que o servidor ja somou (todas as
+    // rodadas que existem). Com periodo, refaz a conta a partir do
+    // historico - ver estatisticasInsightsPorPeriodo.
+    const inicio = state.insightFiltroDataInicio;
+    const fim = state.insightFiltroDataFim;
+    const filtrado = inicio || fim
+      ? estatisticasInsightsPorPeriodo(d, state.insightRodadasHistorico, inicio, fim)
+      : null;
+    const dados = filtrado ? filtrado.stats : d;
+    const historico = filtrado ? filtrado.rodadas : null;
+    return `
+      ${renderFiltroPeriodoInsight(filtrado)}
+      <div class="print-only" style="margin:10px 0; font-size:12px; color:var(--text-muted);">Gerado em ${escapeHtml(new Date().toLocaleString('pt-BR'))}</div>
+      <button class="btn secondary block no-print" style="margin:0 0 14px;" data-action="imprimir-relatorio">🖨️ Imprimir / Exportar PDF</button>
+      ${renderRankInsightsConteudo(dados, historico)}
+    `;
+  }
   return `
     <div class="no-print">
       ${resultado}${erro}
       ${blocoNovaRodada}
-      ${historico}
       ${blocoExcluidos}
     </div>
-    <div class="division-subheader" style="margin-top:8px;"><span>📊 RELATÓRIO COMPLETO</span></div>
-    <div class="print-only" style="margin:10px 0; font-size:12px; color:var(--text-muted);">Gerado em ${escapeHtml(new Date().toLocaleString('pt-BR'))}</div>
-    <button class="btn secondary block no-print" style="margin:10px 0 14px;" data-action="imprimir-relatorio">🖨️ Imprimir / Exportar PDF</button>
-    ${renderRankInsightsConteudo(d)}
   `;
 }
 
@@ -341,8 +391,8 @@ function renderAdminRelatorio() {
     return `
       <div class="card">
         <div class="member-head" ${carregado ? `data-action="toggle-report-event" data-id="${ev.id}"` : ''}>
-          <div>
-            <div style="font-family:'Rye',serif; font-size:17px; color:var(--white-strong);">${escapeHtml(ev.nome)}</div>
+          <div style="min-width:0;">
+            <div class="nome-evento-card">${escapeHtml(ev.nome)}</div>
             <div style="color:var(--text-muted); font-size:12px; margin-top:5px;">${total} membros aptos${percentual !== null ? ` · <b style="color:var(--white-strong);">${percentual}% de presença</b>` : ''}</div>
           </div>
           ${dataDoCard(ev, true)}
@@ -421,32 +471,71 @@ function renderReportDetail(ev) {
   `;
 }
 
+// As secoes do organizador. Cada card do menu abre uma secao, e a barra de
+// abas mostra so as abas daquela secao - antes era uma barra unica com as
+// cinco abas, e os quatro cards do menu levavam todos a mesma tela, so
+// mudando qual aba vinha marcada. Agora sao telas separadas, o que da espaco
+// pra cada uma crescer sem espremer a barra.
+//
+// A ordem aqui e a ordem das abas na tela. Secao de uma aba so (Insights)
+// nao desenha barra nenhuma - uma aba sozinha marcada nao informa nada.
+export const SECOES_ORGANIZADOR = {
+  eventos: {
+    titulo: 'Eventos',
+    abas: [
+      { chave: 'eventos', label: 'Ativos' },
+      { chave: 'encerrados', label: 'Encerrados' },
+    ],
+  },
+  membros: {
+    titulo: 'Membros',
+    abas: [
+      { chave: 'membros', label: 'Cadastro' },
+      { chave: 'presencas', label: 'Presenças' },
+    ],
+  },
+  insights: {
+    titulo: 'Insights',
+    abas: [
+      { chave: 'insights', label: 'Nova rodada' },
+      { chave: 'insights-rodadas', label: 'Últimas rodadas' },
+      { chave: 'insights-relatorio', label: 'Relatório completo' },
+    ],
+  },
+};
+
+// De qual secao e uma aba. Evita guardar "em que secao estou" no state:
+// cada aba pertence a exatamente uma, entao da pra descobrir a partir de
+// state.adminTab, que ja existe.
+export function secaoDaAba(aba) {
+  const chave = Object.keys(SECOES_ORGANIZADOR)
+    .find(k => SECOES_ORGANIZADOR[k].abas.some(a => a.chave === aba));
+  return SECOES_ORGANIZADOR[chave] || SECOES_ORGANIZADOR.eventos;
+}
+
 export function renderAdmin(app) {
+  const secao = secaoDaAba(state.adminTab);
   app.innerHTML = `
-    <div class="back-link on-photo no-print" data-action="go-divisoes">‹ Trocar divisão</div>
+    <div class="back-link on-photo no-print" data-action="go-menu-organizador">‹ Menu</div>
     <div class="event-header">
-      <h1 style="font-size: 20px;">Organizador</h1>
+      <h1 style="font-size: 20px;">${escapeHtml(secao.titulo)}</h1>
       <div class="count-box">${escapeHtml(escopoPorChave(state.adminEscopo).nome.toUpperCase())}</div>
     </div>
-    <div class="tabs no-print">
-      <div class="tab ${state.adminTab === 'eventos' ? 'active' : ''}" data-action="admin-tab" data-tab="eventos">Eventos</div>
-      <div class="tab ${state.adminTab === 'membros' ? 'active' : ''}" data-action="admin-tab" data-tab="membros">Membros</div>
-      <div class="tab ${state.adminTab === 'relatorio' ? 'active' : ''}" data-action="admin-tab" data-tab="relatorio">Relatório</div>
-      <div class="tab ${state.adminTab === 'presencas' ? 'active' : ''}" data-action="admin-tab" data-tab="presencas">Presenças</div>
-      ${state.adminEscopo === 'regional' ? `
-        <div class="tab ${state.adminTab === 'insights' ? 'active' : ''}" data-action="admin-tab" data-tab="insights">Insights</div>
-      ` : ''}
-    </div>
+    ${secao.abas.length > 1 ? `
+      <div class="tabs no-print">
+        ${secao.abas.map(a => `<div class="tab ${state.adminTab === a.chave ? 'active' : ''}" data-action="admin-tab" data-tab="${a.chave}">${escapeHtml(a.label)}</div>`).join('')}
+      </div>
+    ` : ''}
     <div id="admin-content"></div>
   `;
   const content = document.getElementById('admin-content');
   if (state.adminTab === 'eventos') {
     content.innerHTML = renderAdminEventos();
-  } else if (state.adminTab === 'relatorio') {
+  } else if (state.adminTab === 'encerrados') {
     content.innerHTML = renderAdminRelatorio();
   } else if (state.adminTab === 'presencas') {
     content.innerHTML = renderAdminPresencas();
-  } else if (state.adminTab === 'insights' && state.adminEscopo === 'regional') {
+  } else if (state.adminTab.startsWith('insights') && state.adminEscopo === 'regional') {
     content.innerHTML = renderAdminInsights();
   } else {
     content.innerHTML = renderAdminMembros();
@@ -455,8 +544,8 @@ export function renderAdmin(app) {
 
 // Mesmos campos de data da tela "Relatorios" (relatorioFiltroDataInicio/Fim) -
 // escolher o periodo aqui e ali e a mesma coisa, entao reaproveita os
-// proprios inputs (mesmos IDs, o listener global de 'input' ja trata os
-// dois). Disponivel pra qualquer divisao, nao so Regional - diferente de
+// proprios inputs (mesmos IDs). O botao "Exportar para PDF" faz as vezes
+// do "Atualizar" das outras telas: le as duas datas na hora do toque. Disponivel pra qualquer divisao, nao so Regional - diferente de
 // "Gerar relatorio na planilha" (que cobre a planilha inteira, so faz
 // sentido do Regional), o PDF e por divisao mesmo.
 function renderExportarPdfAdmin() {
@@ -465,14 +554,8 @@ function renderExportarPdfAdmin() {
     <div class="card" style="margin-bottom:16px;">
       <div style="font-weight:600; margin-bottom:8px;">Exportar relatório em PDF</div>
       <div class="row-gap">
-        <div class="field" style="margin-bottom:0; flex:1;">
-          <label>Data inicial</label>
-          <input type="date" id="relatorio-filtro-data-inicio" value="${state.relatorioFiltroDataInicio}">
-        </div>
-        <div class="field" style="margin-bottom:0; flex:1;">
-          <label>Data final</label>
-          <input type="date" id="relatorio-filtro-data-fim" value="${state.relatorioFiltroDataFim}">
-        </div>
+        ${campoData({ id: 'relatorio-filtro-data-inicio', rotulo: 'Data inicial', valor: state.relatorioFiltroDataInicio, estilo: 'margin-bottom:0; flex:1;' })}
+        ${campoData({ id: 'relatorio-filtro-data-fim', rotulo: 'Data final', valor: state.relatorioFiltroDataFim, estilo: 'margin-bottom:0; flex:1;' })}
       </div>
       <div style="color:var(--text-muted); font-size:12px; margin:6px 0 10px;">Deixe em branco pra incluir desde sempre.</div>
       ${ativo ? `<div class="btn ghost" data-action="limpar-relatorio-filtro-periodo" style="margin-bottom:10px; padding:2px 0; font-size:12px;">Limpar período</div>` : ''}
@@ -522,7 +605,7 @@ function renderAdminEventos() {
           <div style="display:flex; align-items:center; gap:14px;">
             ${ev.tipo ? `<div class="tipo-home-icone" style="border-color:${cor}; flex-shrink:0;">${emojiTipoEvento(ev.tipo)}</div>` : ''}
             <div style="min-width:0;">
-              <div style="font-family:'Rye',serif; font-size:17px; color: var(--white-strong);">${escapeHtml(ev.nome)}</div>
+              <div class="nome-evento-card">${escapeHtml(ev.nome)}</div>
               <div style="color:var(--text-muted); font-size:12px; margin-top:5px;">${memberCount} membros · ${ev.status === 'encerrado' ? 'Encerrado' : 'Ativo'}</div>
             </div>
           </div>
@@ -555,8 +638,7 @@ function renderEventForm() {
       <div class="row-gap" style="margin-bottom: 0;">
         <div class="field" style="flex: 1; min-width: 130px;">
           <label>Data</label>
-          <input type="date" id="new-event-data" value="${existing && existing.data ? existing.data : ''}">
-          <div class="date-hint">D · M · A</div>
+          <input type="text" inputmode="numeric" maxlength="10" class="campo-data" id="new-event-data" placeholder="dd/mm/aaaa" autocomplete="off" value="${existing && existing.data ? formatDataBR(existing.data) : ''}">
         </div>
         <div class="field" style="flex: 1; min-width: 100px;">
           <label>Horário</label>
@@ -660,7 +742,31 @@ function renderAdminMembros() {
   `;
 }
 
-// Acoes do Modo organizador (eventos, membros, insights, relatorio).
+// Entra numa aba do organizador, zerando o que estava pela metade na aba
+// anterior (um evento sendo editado, um membro pela metade, uma confirmacao
+// de exclusao aberta). Usada pela barra de abas e tambem pelo menu do
+// organizador, que e por onde se entra em cada secao agora.
+export async function abrirAbaOrganizador(aba) {
+  state.adminTab = aba;
+  state.view = 'admin';
+  state.newEventSelected = null;
+  state.editingEventId = null;
+  state.confirmDeleteId = null;
+  state.editingMemberId = null;
+  state.newMemberNome = '';
+  state.newMemberGrau = null;
+  state.newMemberCargo = null;
+  state.newMemberFuncoes = new Set();
+  state.insightConfirmDeleteRodadaId = null;
+  state.insightResultado = null;
+  state.insightMostrarExcluidos = false;
+  render();
+  if (aba === 'encerrados') await loadReportData();
+  if (aba === 'presencas') await loadEstatisticas();
+  if (aba.startsWith('insights')) await loadInsightStats();
+}
+
+// Acoes do Modo organizador (eventos, membros, presencas, insights).
 // Cada entrada e o corpo do antigo "if (action === ...)" do app.js, tal
 // e qual. O app.js so olha o nome da acao neste mapa e chama.
 export const acoes = {
@@ -674,6 +780,12 @@ export const acoes = {
     return gerarRelatorio();
   },
   'exportar-relatorio-pdf-admin': async (id, target, action, e) => {
+    const inicioPdf = dataDoCampoOuAvisar('relatorio-filtro-data-inicio', 'A data inicial');
+    if (inicioPdf === null) return;
+    const fimPdf = dataDoCampoOuAvisar('relatorio-filtro-data-fim', 'A data final');
+    if (fimPdf === null) return;
+    state.relatorioFiltroDataInicio = inicioPdf;
+    state.relatorioFiltroDataFim = fimPdf;
     return exportarRelatorioPdfAdmin();
   },
   'ask-delete-event': async (id, target, action, e) => {
@@ -682,24 +794,22 @@ export const acoes = {
   'cancel-delete-event': async (id, target, action, e) => {
     state.confirmDeleteId = null; return render();
   },
+  'aplicar-insight-filtro-periodo': async (id, target, action, e) => {
+    const inicio = dataDoCampoOuAvisar('insight-filtro-data-inicio', 'A data inicial');
+    if (inicio === null) return;
+    const fim = dataDoCampoOuAvisar('insight-filtro-data-fim', 'A data final');
+    if (fim === null) return;
+    state.insightFiltroDataInicio = inicio;
+    state.insightFiltroDataFim = fim;
+    return render();
+  },
+  'limpar-insight-filtro-periodo': async (id, target, action, e) => {
+    state.insightFiltroDataInicio = '';
+    state.insightFiltroDataFim = '';
+    return render();
+  },
   'admin-tab': async (id, target, action, e) => {
-    state.adminTab = target.dataset.tab;
-    state.newEventSelected = null;
-    state.editingEventId = null;
-    state.confirmDeleteId = null;
-    state.editingMemberId = null;
-    state.newMemberNome = '';
-    state.newMemberGrau = null;
-    state.newMemberCargo = null;
-    state.newMemberFuncoes = new Set();
-    state.insightConfirmDeleteRodadaId = null;
-    state.insightResultado = null;
-    state.insightMostrarExcluidos = false;
-    render();
-    if (target.dataset.tab === 'relatorio') await loadReportData();
-    if (target.dataset.tab === 'presencas') await loadEstatisticas();
-    if (target.dataset.tab === 'insights') await loadInsightStats();
-    return;
+    return abrirAbaOrganizador(target.dataset.tab);
   },
   'toggle-insight-marca': async (id, target, action, e) => {
     state.insightMarcacoes[id] = !state.insightMarcacoes[id];
@@ -897,7 +1007,8 @@ export const acoes = {
   },
   'save-new-event': async (id, target, action, e) => {
     const nome = document.getElementById('new-event-name').value.trim();
-    const data = document.getElementById('new-event-data').value;
+    const data = dataDoCampoOuAvisar('new-event-data', 'A data do evento');
+    if (data === null) return;
     const horario = document.getElementById('new-event-horario').value;
     const endereco = document.getElementById('new-event-endereco').value.trim();
     const outros = document.getElementById('new-event-outros').value.trim();

@@ -19,7 +19,6 @@ Isto é só para desenvolvimento; no GitHub Pages o cache é normal e
 desejável.
 """
 import http.server
-import socketserver
 import sys
 import os
 
@@ -53,9 +52,17 @@ class SemCache(http.server.SimpleHTTPRequestHandler):
         super().log_message(formato + marca, *args)
 
 
+# Uma thread por conexao. Com TCPServer (uma requisicao por vez) o servidor
+# travava: o app tem mais de 30 modulos ES, o navegador abre varias conexoes
+# em paralelo pra buscar tudo, e basta uma ficar pendurada pra fila inteira
+# parar - a pagina fica carregando pra sempre sem erro nenhum aparecer.
+class Servidor(http.server.ThreadingHTTPServer):
+    allow_reuse_address = True
+    daemon_threads = True
+
+
 if __name__ == '__main__':
-    socketserver.TCPServer.allow_reuse_address = True
-    with socketserver.TCPServer(('127.0.0.1', PORTA), SemCache) as s:
+    with Servidor(('127.0.0.1', PORTA), SemCache) as s:
         print('App em http://localhost:%d  (cache desligado)' % PORTA)
         print('Servindo %s' % RAIZ)
         print('Ctrl+C para parar.')
