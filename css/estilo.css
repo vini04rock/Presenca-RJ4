@@ -773,13 +773,29 @@ label {
    não pode competir com os cards de navegação logo abaixo.
    Tudo encolhe junto - recheio, nome, detalhe, seta e a pastilha de data -
    senão o card fica baixo com o texto do mesmo tamanho e some o equilíbrio. */
-.event-card-compacto { padding: 10px 14px; }
-.event-card-compacto .name { font-size: 14px; padding-right: 62px; line-height: 1.25; }
-.event-card-compacto .meta { font-size: 11px; margin-top: 3px; }
-.event-card-compacto .arrow { font-size: 16px; }
-.event-card-compacto .event-date-badge {
-  top: 8px;
-  right: 10px;
-  font-size: 9.5px;
-  padding: 1px 6px;
+.event-card-compacto { padding: 8px 12px; }
+/* Nome em UMA linha, cortado com reticencias. E o que mais engorda o card:
+   um nome longo ("Entrega de Alimentos para Fundacao Angelica Goulart")
+   quebrava em duas linhas e dobrava a altura. Perder o fim do nome e
+   aceitavel aqui - a data, o horario e a divisao ao lado ja identificam o
+   evento, e um toque abre ele por inteiro. */
+.event-card-compacto .name {
+  font-size: 13px;
+  padding-right: 58px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+.event-card-compacto .meta { font-size: 10.5px; margin-top: 2px; }
+.event-card-compacto .arrow { font-size: 15px; }
+.event-card-compacto .event-date-badge {
+  top: 6px;
+  right: 9px;
+  font-size: 9px;
+  padding: 1px 5px;
+}
+/* O <div> entre o card e o nome precisa poder encolher, senao o
+   text-overflow acima nunca dispara - um item flex nao encolhe abaixo do
+   proprio conteudo sem isto. */
+.event-card-compacto > div:not(.arrow):not(.event-date-badge) { min-width: 0; }
