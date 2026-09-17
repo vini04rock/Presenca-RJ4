@@ -515,7 +515,7 @@ function renderAdminEventos() {
           <div class="row-gap" style="margin-top:12px;">
             <button class="btn secondary" data-action="start-edit-event" data-id="${ev.id}">Editar</button>
             <button class="btn secondary" data-action="toggle-event-status" data-id="${ev.id}">${ev.status === 'encerrado' ? 'Reabrir' : 'Encerrar'}</button>
-            <button class="btn secondary" data-action="abrir-convocacao" data-id="${ev.id}">📋 Criar chamada</button>
+            <button class="btn secondary" data-action="abrir-convocacao" data-id="${ev.id}">📋 Criar chamada <span style="opacity:.6; font-size:11px;">(testes)</span></button>
           </div>
         </div>
       `;

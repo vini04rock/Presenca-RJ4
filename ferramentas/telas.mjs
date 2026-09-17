@@ -180,7 +180,11 @@ add('pin (relatorios)',               {}, T.renderRelatorioPin);
 add('pin relatorios (com erro)',      { relatorioPinErro:'PIN incorreto.' }, T.renderRelatorioPin);
 add('pin relatorios (verificando)',   { relatorioPinVerificando:true }, T.renderRelatorioPin);
 add('calendario (escolha)',           {}, T.renderCalendarioDivisoes);
-const cal = { calendarioEscopo:'barra', calendarioAno:2026, calendarioMes:8 };
+// Julho/2026 de proposito, nao o mes atual: o calendario marca o dia de
+// hoje, entao usar o mes corrente faria o HTML mudar todo dia e sujar a
+// comparacao antes/depois. Julho tem um evento nos dados falsos (a Acao
+// Social do dia 10), entao a grade sai com conteudo mesmo assim.
+const cal = { calendarioEscopo:'barra', calendarioAno:2026, calendarioMes:6 };
 add('calendario (grade)',             { ...cal }, T.renderCalendario);
 add('calendario (organizar: pin)',    { ...cal, calendarioOrganizarEtapa:'pin' }, T.renderCalendario);
 add('calendario (pin com erro)',      { ...cal, calendarioOrganizarEtapa:'pin', calendarioPinErro:'PIN incorreto.' }, T.renderCalendario);

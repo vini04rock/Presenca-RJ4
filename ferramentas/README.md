@@ -73,6 +73,11 @@ Diferença que aparecer ali é mudança de verdade na tela.
     # ... mexe no código ...
     node ferramentas/telas.mjs --html depois.txt
 
+A saída é estável: rodar duas vezes seguidas dá exatamente o mesmo HTML.
+Por isso o calendário do teste aponta para um mês fixo do passado — no mês
+atual ele marcaria o dia de hoje, e a comparação acusaria diferença toda vez
+que o dia virasse.
+
 ### Se não tiver Node instalado
 
 O VS Code traz um Node embutido. No PowerShell, dentro da pasta do projeto:
