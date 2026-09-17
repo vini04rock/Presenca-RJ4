@@ -16,6 +16,14 @@ import { cancelarAjusteInsightRodada, confirmarInsightRodada, excluirInsightRoda
 import { copyInsightReportToClipboard, copyReportToClipboard, exportarRelatorioPdfAdmin, gerarRelatorio } from '../fluxos/relatorio.js';
 import { render } from '../nucleo/render.js';
 
+// A data do evento, ao lado do nome no card - serve pra bater o olho e
+// saber de quando e o evento sem precisar abrir. Evento sem data preenchida
+// nao mostra nada (em vez de um traco solto).
+function dataDoCard(ev) {
+  if (!ev.data) return '';
+  return `<span class="card-titulo-data">${formatDataBR(ev.data)}</span>`;
+}
+
 function renderAdminPresencas() {
   if (state.estatisticasError) {
     return `
@@ -330,7 +338,10 @@ function renderAdminRelatorio() {
       <div class="card">
         <div class="member-head" ${carregado ? `data-action="toggle-report-event" data-id="${ev.id}"` : ''}>
           <div>
-            <div style="font-family:'Rye',serif; font-size:17px; color:var(--white-strong);">${escapeHtml(ev.nome)}</div>
+            <div class="card-titulo-linha">
+              <span style="font-family:'Rye',serif; font-size:17px; color:var(--white-strong);">${escapeHtml(ev.nome)}</span>
+              ${dataDoCard(ev)}
+            </div>
             <div style="color:var(--text-muted); font-size:12px; margin-top:5px;">${total} membros aptos${percentual !== null ? ` · <b style="color:var(--white-strong);">${percentual}% de presença</b>` : ''}</div>
           </div>
           <span style="color:var(--text-muted); font-size:19px;">${carregado ? (isOpen ? '−' : '+') : ''}</span>
@@ -508,7 +519,10 @@ function renderAdminEventos() {
           <div style="display:flex; align-items:center; gap:14px;">
             ${ev.tipo ? `<div class="tipo-home-icone" style="border-color:${cor}; flex-shrink:0;">${emojiTipoEvento(ev.tipo)}</div>` : ''}
             <div style="min-width:0;">
-              <div style="font-family:'Rye',serif; font-size:17px; color: var(--white-strong);">${escapeHtml(ev.nome)}</div>
+              <div class="card-titulo-linha">
+                <span style="font-family:'Rye',serif; font-size:17px; color: var(--white-strong);">${escapeHtml(ev.nome)}</span>
+                ${dataDoCard(ev)}
+              </div>
               <div style="color:var(--text-muted); font-size:12px; margin-top:5px;">${memberCount} membros · ${ev.status === 'encerrado' ? 'Encerrado' : 'Ativo'}</div>
             </div>
           </div>

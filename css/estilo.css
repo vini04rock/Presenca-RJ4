@@ -752,3 +752,18 @@ label {
   max-height: 340px;
   overflow-y: auto;
 }
+
+/* Nome do evento + a data, lado a lado no card (abas Eventos e Relatório do
+   organizador). O nome pode ocupar duas linhas; a data acompanha a primeira
+   e nunca quebra no meio. */
+.card-titulo-linha {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.card-titulo-data {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
