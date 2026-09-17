@@ -72,6 +72,8 @@ h1, h2, h3, .display {
   margin: 20px 0;
 }
 .card {
+  /* referencia pra .event-date-badge, que fica no canto superior direito */
+  position: relative;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -187,6 +189,9 @@ h1, h2, h3, .display {
   background-position: center;
 }
 .card-divisao-home:active { filter: brightness(0.82); }
+/* A mesma pastilha, mas no fluxo do texto - pra quando o canto superior
+   direito ja esta ocupado (o +/- da aba Relatorio, por exemplo). */
+.event-date-badge.no-fluxo { position: static; }
 .event-date-badge {
   position: absolute;
   top: 12px;
@@ -753,17 +758,3 @@ label {
   overflow-y: auto;
 }
 
-/* Nome do evento + a data, lado a lado no card (abas Eventos e Relatório do
-   organizador). O nome pode ocupar duas linhas; a data acompanha a primeira
-   e nunca quebra no meio. */
-.card-titulo-linha {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.card-titulo-data {
-  font-size: 12px;
-  color: var(--text-muted);
-  white-space: nowrap;
-}

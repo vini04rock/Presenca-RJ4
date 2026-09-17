@@ -6,7 +6,7 @@ import { computeCounts, getReportGroups } from '../dominio/status.js';
 import { FUNCOES, GRAUS, cargosDoGrau, TIPOS_EVENTO, corTipoEvento, divisoesSemRegional, emojiTipoEvento, escopoPorChave } from '../nucleo/config.js';
 import { genId, state } from '../nucleo/estado.js';
 import { TIPO_HOME_IMAGEM } from '../nucleo/imagens.js';
-import { escapeHtml, formatDataBR, hexParaRgba } from '../nucleo/util.js';
+import { escapeHtml, formatDataBR, formatDataCurta, hexParaRgba } from '../nucleo/util.js';
 import { renderRankInsightsConteudo } from '../ui/insights.js';
 import { selosFuncoes } from '../ui/comuns.js';
 import { renderDonutChart, segmentosDonutStatus } from '../ui/graficos.js';
@@ -16,12 +16,16 @@ import { cancelarAjusteInsightRodada, confirmarInsightRodada, excluirInsightRoda
 import { copyInsightReportToClipboard, copyReportToClipboard, exportarRelatorioPdfAdmin, gerarRelatorio } from '../fluxos/relatorio.js';
 import { render } from '../nucleo/render.js';
 
-// A data do evento, ao lado do nome no card - serve pra bater o olho e
-// saber de quando e o evento sem precisar abrir. Evento sem data preenchida
-// nao mostra nada (em vez de um traco solto).
-function dataDoCard(ev) {
+// A data do evento como pastilha no canto superior direito do card - a
+// mesma .event-date-badge que a lista de eventos da tela inicial ja usa, pra
+// nao inventar um segundo jeito de mostrar data. Fundo solido, entao ela se
+// le por cima da arte do card.
+//
+// "no-fluxo" e pra quando o canto ja esta ocupado (o +/- da aba Relatorio):
+// ali a pastilha entra na propria linha, ao lado do sinal.
+function dataDoCard(ev, noFluxo) {
   if (!ev.data) return '';
-  return `<span class="card-titulo-data">${formatDataBR(ev.data)}</span>`;
+  return `<div class="event-date-badge${noFluxo ? ' no-fluxo' : ''}">${formatDataCurta(ev.data)}</div>`;
 }
 
 function renderAdminPresencas() {
@@ -338,12 +342,10 @@ function renderAdminRelatorio() {
       <div class="card">
         <div class="member-head" ${carregado ? `data-action="toggle-report-event" data-id="${ev.id}"` : ''}>
           <div>
-            <div class="card-titulo-linha">
-              <span style="font-family:'Rye',serif; font-size:17px; color:var(--white-strong);">${escapeHtml(ev.nome)}</span>
-              ${dataDoCard(ev)}
-            </div>
+            <div style="font-family:'Rye',serif; font-size:17px; color:var(--white-strong);">${escapeHtml(ev.nome)}</div>
             <div style="color:var(--text-muted); font-size:12px; margin-top:5px;">${total} membros aptos${percentual !== null ? ` · <b style="color:var(--white-strong);">${percentual}% de presença</b>` : ''}</div>
           </div>
+          ${dataDoCard(ev, true)}
           <span style="color:var(--text-muted); font-size:19px;">${carregado ? (isOpen ? '−' : '+') : ''}</span>
         </div>
         <div class="count-grid">
@@ -516,13 +518,11 @@ function renderAdminEventos() {
         : `background:${hexParaRgba(cor, 0.14)}; border-left:3px solid ${cor};`;
       return `
         <div class="card" style="${estiloFundo}">
+          ${dataDoCard(ev)}
           <div style="display:flex; align-items:center; gap:14px;">
             ${ev.tipo ? `<div class="tipo-home-icone" style="border-color:${cor}; flex-shrink:0;">${emojiTipoEvento(ev.tipo)}</div>` : ''}
             <div style="min-width:0;">
-              <div class="card-titulo-linha">
-                <span style="font-family:'Rye',serif; font-size:17px; color: var(--white-strong);">${escapeHtml(ev.nome)}</span>
-                ${dataDoCard(ev)}
-              </div>
+              <div style="font-family:'Rye',serif; font-size:17px; color: var(--white-strong);">${escapeHtml(ev.nome)}</div>
               <div style="color:var(--text-muted); font-size:12px; margin-top:5px;">${memberCount} membros · ${ev.status === 'encerrado' ? 'Encerrado' : 'Ativo'}</div>
             </div>
           </div>
