@@ -60,7 +60,7 @@ O resultado também fica em `ferramentas/ultimo-regras.txt`.
 
 Monta um navegador de mentira, enche o app com dados falsos (6 membros em 4
 divisões, 4 eventos cobrindo os 4 tipos, presenças com os 6 status, 5 rodadas
-de insight) e **desenha as 50 telas e abas**, uma por uma. Avisa se alguma
+de insight) e **desenha as 51 telas e abas**, uma por uma. Avisa se alguma
 estoura ou sai vazia.
 
 O resultado também fica em `ferramentas/ultimo-teste.txt`.

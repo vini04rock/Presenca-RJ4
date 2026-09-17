@@ -3,7 +3,7 @@
 import { COR_TODOS_EVENTOS, TIPOS_EVENTO, TIPO_HOME_TAGLINE, classeTipoEvento, corTipoEvento, emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { IMG_CALENDARIO_HOME, IMG_HOME_EVENTOS, IMG_MODO_ORGANIZADOR, IMG_RANK_INSIGHTS, IMG_RANK_PRESENCA, IMG_RELATORIOS_HOME, LOGO_SRC, TIPO_HOME_IMAGEM } from '../nucleo/imagens.js';
-import { escapeHtml, formatDataCurta, hexParaRgba } from '../nucleo/util.js';
+import { diaDaSemana, escapeHtml, formatDataCurta, hexParaRgba } from '../nucleo/util.js';
 import { renderCardEscopo } from '../ui/comuns.js';
 import { openEvent } from '../fluxos/evento.js';
 import { render } from '../nucleo/render.js';
@@ -19,6 +19,48 @@ export function renderHome(app) {
 // nao poluir a primeira tela com as 7 divisoes de cara. Quem quiser ver
 // eventos entra no card "Eventos", que abre a lista de divisoes de sempre
 // (renderHomeEscolha).
+// O evento ativo mais proximo, de qualquer divisao. So entra evento com
+// data marcada e que ainda nao passou - mostrar um evento de ontem como
+// "proximo" seria pior que nao mostrar nada.
+//
+// Hoje olha as 7 divisoes juntas: o app nao sabe de qual divisao e quem
+// esta olhando. Quando souber, da pra filtrar - ver a nota guardada sobre
+// a versao completa deste card.
+function proximoEvento() {
+  const hoje = new Date();
+  const hojeIso = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
+  return state.events
+    .filter(ev => ev.status !== 'encerrado' && /^\d{4}-\d{2}-\d{2}$/.test(ev.data || '') && ev.data >= hojeIso)
+    .sort((a, b) => a.data.localeCompare(b.data) || (a.horario || '').localeCompare(b.horario || ''))[0];
+}
+
+// Card no topo da tela inicial, com atalho direto pro evento. Sem ele, quem
+// abre o app pra confirmar presenca passa por 4 toques (Eventos -> divisao
+// -> tipo -> evento) antes de chegar la.
+function renderProximoEvento() {
+  const ev = proximoEvento();
+  if (!ev) return '';
+  const cor = corTipoEvento(ev.tipo);
+  const imagemFundo = TIPO_HOME_IMAGEM[ev.tipo];
+  const estiloFundo = imagemFundo
+    ? `background-image:url('${imagemFundo}'); background-size:cover; background-position:center; border-left:3px solid ${cor};`
+    : '';
+  const dataCurta = formatDataCurta(ev.data);
+  const detalhe = [diaDaSemana(ev.data), ev.horario, escopoPorChave(ev.categoria).nome]
+    .filter(Boolean).map(escapeHtml).join(' · ');
+  return `
+    <div class="rotulo-secao">Próximo evento</div>
+    <div class="card event-card ${imagemFundo ? '' : classeTipoEvento(ev.tipo)}" style="${estiloFundo}" data-action="open-event" data-id="${ev.id}">
+      ${dataCurta ? `<div class="event-date-badge">${dataCurta}</div>` : ''}
+      <div>
+        <div class="name">${escapeHtml(ev.nome)}${ev.tipo ? ' ' + emojiTipoEvento(ev.tipo) : ''}</div>
+        <div class="meta">${detalhe}</div>
+      </div>
+      <div class="arrow">›</div>
+    </div>
+  `;
+}
+
 function renderHomeInicio(app) {
   app.innerHTML = `
     <div class="crest-wrap">
@@ -27,6 +69,7 @@ function renderHomeInicio(app) {
       <div class="sub">RJ4</div>
     </div>
     <div class="ring-divider"></div>
+    ${renderProximoEvento()}
     <div class="row-gap" style="margin-bottom:12px;">
       <div class="card event-card card-rank-home card-rank-presenca-home" style="background-image:url('${IMG_RANK_PRESENCA}');" data-action="go-rank">
         <div></div>

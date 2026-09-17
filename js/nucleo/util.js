@@ -42,6 +42,19 @@ export function formatDataBR(iso) {
 
 // Formato compacto para o selo do card na tela inicial - "09 SET" em vez de
 // "09/09/2026", que não cabe bem num canto de card.
+const DIAS_SEMANA = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
+
+// '2026-09-19' -> 'Sábado'. Vazio se a data nao for valida.
+//
+// A data e montada por partes de proposito: new Date('2026-09-19') e lido
+// como UTC e, no fuso do Brasil, voltaria o dia anterior.
+export function diaDaSemana(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
+  if (!m) return '';
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return DIAS_SEMANA[(d.getDay() + 6) % 7];   // getDay: 0 = domingo
+}
+
 export function formatDataCurta(iso) {
   if (!iso) return '';
   const [, m, d] = iso.split('-');

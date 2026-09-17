@@ -253,7 +253,7 @@ a cada mudança:
 | `servidor.py` | serve o app local com o cache desligado |
 | `estrutura.py` | 7 verificações: imports circulares, hierarquia de camadas, sintaxe, nome sem import, import sobrando, ações sem tratador |
 | `regras.mjs` | as regras do clube que, se quebrarem, saem erradas numa convocação sem ninguém perceber |
-| `telas.mjs` | desenha as 50 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
+| `telas.mjs` | desenha as 51 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
 
 O `--html` do `telas.mjs` é a rede de proteção mais útil: captura o HTML de
 todas as telas, você mexe, captura de novo e compara. Diferença que aparecer
@@ -279,7 +279,7 @@ ferramentas, acima):
 
     py ferramentas/estrutura.py     # imports, camadas, sintaxe, ações
     node ferramentas/regras.mjs     # ordem hierárquica e formato da convocação
-    node ferramentas/telas.mjs      # desenha as 50 telas e abas
+    node ferramentas/telas.mjs      # desenha as 51 telas e abas
 
 Eles dizem que o app **não quebrou**, não que está bonito: não cobrem
 aparência, impressão/PDF, o caminho de rede real nem o `Code.gs`.

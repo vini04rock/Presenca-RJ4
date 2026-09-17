@@ -158,7 +158,16 @@ for (const m of ['home','evento','rank','rank-insights','calendario','pin','rela
 const casos = [];
 const add = (nome, patch, fn) => casos.push({ nome, patch, fn });
 
-add('home (raiz)',                    { homeEventosAberto:false }, T.renderHome);
+// O card de "proximo evento" olha a data de hoje, entao estes dois casos
+// fixam a lista de eventos - senao o teste mudaria de resultado conforme os
+// dias passassem, e a comparacao antes/depois acusaria diferenca que nao e
+// mudanca de codigo.
+add('home (raiz, sem evento futuro)', { homeEventosAberto:false, events:[] }, T.renderHome);
+add('home (raiz, com proximo evento)', { homeEventosAberto:false, events:[
+  { id:'f1', nome:'Bate e Volta Serra', data:'2099-12-31', horario:'07:00', endereco:'Posto Y',
+    outros:'', status:'ativo', criadoEm:'01/01/2099', categoria:'barra', tipo:'Bate e Volta',
+    textoOriginal:'', memberIds:['m1','m2'] },
+] }, T.renderHome);
 add('home (escolha divisao)',         { homeEventosAberto:true }, T.renderHome);
 add('home (escolha tipo)',            { homeEventosAberto:true, homeEscopo:'barra' }, T.renderHome);
 add('home (lista de eventos)',        { homeEventosAberto:true, homeEscopo:'barra', homeTipo:'todos' }, T.renderHome);
@@ -229,6 +238,10 @@ add('relatorios / detalhe por tipo',  { relatorioIsAdmin:true, relatorioEscopo:'
   relatorioTab:'resumo', relatorioTipoDetalhe:'Pub' }, T.renderRelatorioShell);
 
 const LIMPO = {
+  // A lista de eventos volta ao padrao entre um caso e outro: o card de
+  // "proximo evento" depende dela, e um caso que a troca nao pode vazar
+  // pro seguinte.
+  events: eventos,
   convocacaoEventoId:null, convocacaoModelo:null, convocacaoCampos:{}, convocacaoCopiado:false,
   newMemberGrau:null, newMemberCargo:null,
   pinErro:null, pinVerificando:false, relatorioPinErro:null, relatorioPinVerificando:false,

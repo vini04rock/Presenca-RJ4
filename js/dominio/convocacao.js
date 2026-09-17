@@ -9,15 +9,13 @@
 // Este módulo só LÊ e devolve texto - não grava nada em lugar nenhum.
 
 import { MESES_ABREV, emojiTipoEvento, escopoPorChave } from '../nucleo/config.js';
-import { ordenarPorHierarquia } from '../nucleo/util.js';
+import { diaDaSemana, ordenarPorHierarquia } from '../nucleo/util.js';
 import { agruparPorDivisao } from './divisoes.js';
 
 // Medidas conferidas contra as convocações reais: a faixa tem 5 pares
 // preto/branco e o separador, 44 pontos. Mudar aqui muda em toda convocação.
 const FAIXA = '⚫⚪'.repeat(5);
 const SEPARADOR = '.'.repeat(44);
-
-const DIAS_SEMANA = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
 
 // Blocos que saem iguais em toda convocação. Ficam aqui, e não espalhados
 // pelo montador, pra dar pra corrigir um texto sem caçar onde ele entra.
@@ -121,15 +119,11 @@ export function rotuloDivisao(categoria) {
 }
 
 // '2026-09-09' -> 'Quarta: 09SET26', o formato que o clube usa.
-// A data é montada por partes de propósito: new Date('2026-09-09') é lido
-// como UTC e, no fuso do Brasil, voltaria o dia anterior.
 export function dataDaConvocacao(iso) {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
   if (!m) return '';
   const [, ano, mes, dia] = m;
-  const d = new Date(Number(ano), Number(mes) - 1, Number(dia));
-  const diaSemana = DIAS_SEMANA[(d.getDay() + 6) % 7];   // getDay: 0 = domingo
-  return `${diaSemana}: ${dia}${MESES_ABREV[Number(mes) - 1]}${ano.slice(2)}`;
+  return `${diaDaSemana(iso)}: ${dia}${MESES_ABREV[Number(mes) - 1]}${ano.slice(2)}`;
 }
 
 // '19:30' -> '19h30'. Devolve o que veio se não reconhecer.

@@ -758,3 +758,12 @@ label {
   overflow-y: auto;
 }
 
+
+/* Rótulo pequeno acima de um bloco na tela inicial ("Próximo evento"). */
+.rotulo-secao {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0 2px 6px;
+}
