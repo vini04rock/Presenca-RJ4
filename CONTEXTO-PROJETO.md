@@ -184,8 +184,34 @@ Três decisões que valem lembrar antes de mexer nele:
 
 > **A armadilha da data vazia:** evento sem data fica de fora do mural de
 > propósito. Na comparação de texto `''` é anterior a qualquer data, então
-> sem essa guarda ele apareceria sempre. A mesma armadilha espera o
-> encerramento automático.
+> sem essa guarda ele apareceria sempre. O encerramento automático, abaixo,
+> tem a mesma guarda pelo mesmo motivo.
+
+**Encerramento automático** — o outro lado da regra. Todo evento cuja data
+já passou é encerrado sozinho, e encerrar converte quem ficou "Aguardando"
+em "Infracional". É o que torna a regra justa: o prazo passa a valer sempre,
+não só quando alguém lembra de apertar "Encerrar".
+
+Quem faz isso é o **`Code.gs`**, por um gatilho de tempo, de madrugada
+(`encerrarEventosVencidos`) — **não o app**. Duas razões: a tela inicial é
+pública, sem PIN, então "encerrar quando alguém abre o app" seria o
+navegador de qualquer visitante gravando na planilha; e o evento só
+encerraria quando alguém aparecesse, o que num fim de semana parado deixaria
+todo mundo "Aguardando" sem virar falta.
+
+- **A virada é no dia seguinte ao do evento.** Um evento de hoje fica aberto
+  o dia inteiro, porque quem está lá ainda confirma pelo celular.
+- **Evento sem data nunca é encerrado** — a mesma armadilha acima, só que
+  aqui o estrago seria pior: encerrar infraciona quem não respondeu.
+- Ele reusa `converterAguardandoParaInfracionalAoEncerrar`, a mesma função do
+  botão "Encerrar" do app. Regra escrita duas vezes vira duas regras
+  diferentes no dia em que uma delas mudar.
+- Ligar o gatilho é rodar `instalarGatilhoDeEncerramento` **uma vez** — está
+  no menu "Confirmacao MC" da planilha, junto com um "encerrar agora" para
+  forçar uma passada sem esperar a madrugada.
+
+> Como é a única parte do projeto que roda sozinha e escreve na planilha de
+> produção, é a única do `Code.gs` com teste: `ferramentas/planilha.mjs`.
 
 **Percentual de presença** — só conta evento **encerrado** (um evento aberto
 ainda pode mudar), e só conta membro que estava convidado, isto é, que tem
@@ -291,6 +317,7 @@ a cada mudança:
 | `estrutura.py` | 7 verificações: imports circulares, hierarquia de camadas, sintaxe, nome sem import, import sobrando, ações sem tratador |
 | `regras.mjs` | as regras do clube que, se quebrarem, saem erradas numa convocação sem ninguém perceber |
 | `telas.mjs` | desenha as 68 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
+| `planilha.mjs` | roda o `Code.gs` de verdade contra uma planilha de mentira; hoje cobre o encerramento automático |
 
 O `--html` do `telas.mjs` é a rede de proteção mais útil: captura o HTML de
 todas as telas, você mexe, captura de novo e compara. Diferença que aparecer
@@ -317,9 +344,11 @@ ferramentas, acima):
     py ferramentas/estrutura.py     # imports, camadas, sintaxe, ações
     node ferramentas/regras.mjs     # ordem hierárquica e formato da convocação
     node ferramentas/telas.mjs      # desenha as 68 telas e abas
+    node ferramentas/planilha.mjs   # o encerramento automático, no Code.gs
 
 Eles dizem que o app **não quebrou**, não que está bonito: não cobrem
-aparência, impressão/PDF, o caminho de rede real nem o `Code.gs`.
+aparência, impressão/PDF, o caminho de rede real nem o resto do `Code.gs` —
+o `planilha.mjs` só alcança o encerramento automático.
 
 Se a mudança mexeu no `Code.gs`, ele precisa ser **republicado à parte** no
 Apps Script — não vai junto no `git push`. Confira depois chamando a URL do
@@ -332,13 +361,6 @@ Web App com `?action=versao`; o passo a passo está no [LINK.md](LINK.md).
 
 Ideias registradas, nada pedido ainda:
 
-- **Encerramento automático do evento** na virada do dia dele. Hoje
-  encerrar é manual, e não há nenhum gatilho de tempo no `Code.gs`. É o
-  passo que fecha a história do mural de avisos: enquanto ele não existe, o
-  mural cobra um prazo que nada faz cumprir. A decisão que define o tamanho
-  é **onde roda** — no app (só encerra quando alguém abre) ou num gatilho de
-  tempo do Apps Script (correto, mas é código mexendo sozinho na planilha de
-  produção). Cuidado com a armadilha da data vazia, acima.
 - **Multi-divisão de verdade** (um jogo de abas por divisão na planilha) —
   ver [PLANO-MULTI-DIVISAO.md](PLANO-MULTI-DIVISAO.md). Combinado que fica
   para uma sessão dedicada.

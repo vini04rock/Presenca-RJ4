@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-09-15-v-cargo-no-cadastro';
+var VERSAO = '2026-09-18-v-encerramento-automatico';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -1143,6 +1143,98 @@ function migrarAguardandoDeEventosJaEncerrados() {
     }
   }
   return 'Convertidos ' + convertidos + ' registros de Aguardando para Infracional.';
+}
+
+// ---------- ENCERRAMENTO AUTOMATICO ----------
+
+// Encerra sozinho todo evento cuja data ja passou. Quem chama e um gatilho
+// de tempo, de madrugada (ver instalarGatilhoDeEncerramento) - nao o app.
+//
+// Por que aqui, e nao no navegador: a tela inicial e publica, sem PIN, entao
+// "encerrar quando alguem abre o app" seria o navegador de qualquer visitante
+// gravando na planilha. E o evento so encerraria quando alguem aparecesse -
+// passando um fim de semana sem ninguem abrir, ele ficava aberto e quem nao
+// respondeu seguia "Aguardando" sem virar falta.
+//
+// Encerrar aqui e a mesma coisa que apertar "Encerrar" no app: muda o status
+// e converte quem sobrou em "Aguardando" para "Infracional" (a regra do
+// clube - nao responder a convocacao e falta igual a falta sem
+// justificativa). Reusa converterAguardandoParaInfracionalAoEncerrar de
+// proposito, em vez de repetir a regra: regra escrita duas vezes vira duas
+// regras diferentes no dia em que uma delas mudar.
+//
+// A virada e no dia SEGUINTE ao do evento: um evento de hoje fica aberto o
+// dia inteiro, porque quem esta la ainda pode confirmar pelo celular. E
+// exatamente quando o "e hoje" do mural de avisos deixa de ser verdade.
+function encerrarEventosVencidos() {
+  return comTrava(function () {
+    var s = aba(ABA_EVENTOS, CAB_EVENTOS);
+    var dados = linhas(s);
+    var hoje = Utilities.formatDate(new Date(), fuso(), 'yyyy-MM-dd');
+    var encerrados = [];
+    for (var i = 0; i < dados.length; i++) {
+      var l = dados[i];
+      if (!l[0]) continue;
+      // Tudo que nao esta escrito "encerrado" conta como aberto - inclusive
+      // linha antiga com a coluna Status em branco.
+      if (String(l[6]) === 'encerrado') continue;
+      // Data vazia fica de fora DE PROPOSITO. Na comparacao de texto '' e
+      // anterior a qualquer data, entao sem esta guarda todo evento sem data
+      // marcada seria encerrado ja na primeira madrugada - e encerrar
+      // converte quem nao respondeu em falta infracional, que e o tipo de
+      // estrago que so aparece quando alguem reclama do proprio percentual.
+      // A coluna as vezes volta como Date e as vezes como texto, dependendo
+      // de quem escreveu; formatarData resolve os dois casos.
+      var data = formatarData(l[2]);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) continue;
+      if (data >= hoje) continue;
+
+      s.getRange(i + 2, 7).setValue('encerrado');
+      converterAguardandoParaInfracionalAoEncerrar(String(l[0]));
+      encerrados.push(data + '  ' + String(l[1]) + '  (' + String(l[0]) + ')');
+    }
+    // Vai pro log de "Execucoes", no painel do Apps Script. E o unico jeito
+    // de saber depois o que a madrugada fez, ja que ninguem estava olhando.
+    Logger.log(encerrados.length
+      ? 'Encerrados ' + encerrados.length + ' evento(s):\n' + encerrados.join('\n')
+      : 'Nenhum evento vencido para encerrar (hoje = ' + hoje + ').');
+    return { ok: true, encerrados: encerrados.length, eventos: encerrados };
+  });
+}
+
+// Liga o gatilho. Roda UMA VEZ - pelo menu da planilha ou pelo editor do
+// Apps Script. Apaga os gatilhos anteriores da mesma funcao antes de criar,
+// entao rodar de novo TROCA o gatilho em vez de acumular um segundo (dois
+// gatilhos fariam o trabalho em duplicata e baguncariam o log).
+//
+// 1h da manha, no fuso da planilha: o dia do evento ja virou, e e a faixa
+// mais vazia - nao concorre com ninguem confirmando presenca.
+function instalarGatilhoDeEncerramento() {
+  var apagados = 0;
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'encerrarEventosVencidos') {
+      ScriptApp.deleteTrigger(t);
+      apagados++;
+    }
+  });
+  ScriptApp.newTrigger('encerrarEventosVencidos').timeBased().atHour(1).everyDays(1).create();
+  return { ok: true, gatilhosApagados: apagados };
+}
+
+// As duas acima pelo menu da planilha, pra nao precisar abrir o editor do
+// Apps Script so pra ligar o gatilho ou forcar uma passada.
+function encerrarEventosVencidosManual() {
+  var r = encerrarEventosVencidos();
+  SpreadsheetApp.getUi().alert(r.encerrados
+    ? 'Encerrados ' + r.encerrados + ' evento(s):\n\n' + r.eventos.join('\n')
+    : 'Nenhum evento vencido para encerrar.');
+}
+
+function instalarGatilhoDeEncerramentoManual() {
+  var r = instalarGatilhoDeEncerramento();
+  SpreadsheetApp.getUi().alert('Encerramento automatico ligado.\n\n'
+    + 'Roda todo dia, por volta de 1h da manha, e encerra os eventos cuja data ja passou.'
+    + (r.gatilhosApagados ? '\n\n(O gatilho anterior foi substituido.)' : ''));
 }
 
 function removerEvento(id) {

@@ -44,6 +44,31 @@ colado no editor do Apps Script a cada alteração:
 Usar "Gerenciar implantações", nunca "Nova implantação" — esta última cria
 uma URL diferente e quebra o app.
 
+### Encerramento automático (ligar uma vez só)
+
+O `Code.gs` encerra sozinho, de madrugada, todo evento cuja data já passou —
+e encerrar converte quem ficou "Aguardando" em "Infracional". Isso depende de
+um **gatilho de tempo**, que **não vai junto no código colado**: publicar o
+`Code.gs` não liga o gatilho.
+
+Depois de publicar a versão que trouxe isso, ligar uma vez:
+
+    Planilha > menu "Confirmacao MC" > "Ligar o encerramento automatico"
+
+Rodar de novo é inofensivo — ele substitui o gatilho anterior em vez de criar
+um segundo. Para conferir que ficou de pé: `Extensões > Apps Script >
+Acionadores` (o relógio, na barra da esquerda) deve listar
+`encerrarEventosVencidos`, diário.
+
+No mesmo menu há **"Encerrar eventos vencidos agora"**, que força uma passada
+sem esperar a madrugada — útil para conferir na hora, e para o dia em que o
+gatilho falhar. O que cada passada fez fica registrado em
+`Extensões > Apps Script > Execuções`.
+
+> O gatilho roda por volta de **1h da manhã**, no fuso da planilha. Um evento
+> de hoje fica aberto o dia inteiro de propósito: quem está lá ainda confirma
+> presença pelo celular.
+
 ## Planilha
 
 Abas em uso:

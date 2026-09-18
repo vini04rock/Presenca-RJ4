@@ -1,6 +1,6 @@
 # Ferramentas de conferência
 
-Dois testes que rodam **offline**, sem tocar na planilha de produção. Servem
+Testes que rodam **offline**, sem tocar na planilha de produção. Servem
 para conferir, depois de mexer no código, que nada quebrou — antes de dar
 `git push` e o site subir para o clube.
 
@@ -60,7 +60,7 @@ O resultado também fica em `ferramentas/ultimo-regras.txt`.
 
 Monta um navegador de mentira, enche o app com dados falsos (6 membros em 4
 divisões, 4 eventos cobrindo os 4 tipos, presenças com os 6 status, 5 rodadas
-de insight) e **desenha as 51 telas e abas**, uma por uma. Avisa se alguma
+de insight) e **desenha as 68 telas e abas**, uma por uma. Avisa se alguma
 estoura ou sai vazia.
 
 O resultado também fica em `ferramentas/ultimo-teste.txt`.
@@ -88,14 +88,41 @@ O VS Code traz um Node embutido. No PowerShell, dentro da pasta do projeto:
 Nesse modo o texto não aparece no terminal (o `Code.exe` é um programa de
 janela, não de console) — abra `ferramentas/ultimo-teste.txt` para ler.
 
+## 4. As regras que moram no Code.gs
+
+    node ferramentas/planilha.mjs
+
+Monta uma **planilha de mentira em memória**, carrega o `apps-script/Code.gs`
+de verdade por cima dela e confere o que ficou gravado. Não fala com o Google
+em momento nenhum.
+
+Existe por causa do **encerramento automático**: é a única parte do projeto
+que roda sozinha, de madrugada, sem ninguém olhando, e que escreve direto na
+planilha de produção. Um erro ali converte gente em falta infracional
+calada — o tipo de estrago que só aparece quando alguém reclama do próprio
+percentual.
+
+Cobre quem encerra e quem fica (ontem sim, hoje não, **sem data nunca**), a
+conversão de "Aguardando" em "Infracional" ao encerrar, a data chegando como
+texto ou como `Date`, rodar duas vezes seguidas sem estragar nada, e o
+gatilho ser trocado em vez de duplicado.
+
+O resultado também fica em `ferramentas/ultimo-planilha.txt`.
+
+> Vale lembrar o limite: ele prova que a **lógica** está certa, não que a
+> publicação deu certo. O `Code.gs` só vale na planilha depois de
+> republicado à mão no Apps Script — ver o `LINK.md`.
+
 ## O que estes testes NÃO cobrem
 
 - Aparência. Se um card ficar torto ou uma cor sair errada, só olhando.
-- O backend (`apps-script/Code.gs`) e a planilha.
+- A planilha de verdade, a publicação do `Code.gs` e o resto dele: o
+  `planilha.mjs` cobre só o encerramento automático, que é a parte que roda
+  sozinha.
 - O caminho de rede de verdade — as chamadas são substituídas por promessas
   que nunca respondem, de propósito, para nada escrever na planilha.
 
 Ou seja: eles dizem que o app **não quebrou**, não que está bonito. Depois de
-passar nos dois, ainda vale abrir no navegador e dar uma olhada:
+passar em todos, ainda vale abrir no navegador e dar uma olhada:
 
     py -m http.server 8000
