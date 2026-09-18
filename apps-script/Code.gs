@@ -1570,6 +1570,8 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('Confirmacao MC')
     .addItem('Gerar relatorio agora', 'gerarTudoManual')
+    .addItem('Encerrar eventos vencidos agora', 'encerrarEventosVencidosManual')
+    .addItem('Ligar o encerramento automatico', 'instalarGatilhoDeEncerramentoManual')
     .addToUi();
 }
 

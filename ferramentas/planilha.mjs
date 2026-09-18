@@ -99,11 +99,22 @@ function montaPlanilha(eventos, presencas) {
 function carregaCodeGs(planilhaFalsa) {
   const gatilhos = [];
   const logados = [];
+  // Cada addItem do onOpen vira um par [rótulo, nome da função] aqui.
+  const itensDeMenu = [];
   const dois = (n) => String(n).padStart(2, '0');
   const contexto = {
     SpreadsheetApp: {
       getActiveSpreadsheet: () => planilhaFalsa,
-      getUi: () => ({ alert() {}, createMenu: () => ({ addItem() { return this; }, addToUi() {} }) }),
+      getUi: () => ({
+        alert() {},
+        createMenu() {
+          const menu = {
+            addItem(rotulo, fn) { itensDeMenu.push([rotulo, fn]); return menu; },
+            addToUi() {},
+          };
+          return menu;
+        },
+      }),
     },
     // Só os dois formatos que o Code.gs pede.
     Utilities: {
@@ -136,7 +147,7 @@ function carregaCodeGs(planilhaFalsa) {
   };
   vm.createContext(contexto);
   vm.runInContext(fs.readFileSync(CODE_GS, 'utf8'), contexto, { filename: 'Code.gs' });
-  return { contexto, gatilhos, logados };
+  return { contexto, gatilhos, logados, itensDeMenu };
 }
 
 // Datas relativas a hoje, pro teste não depender do dia em que roda.
@@ -247,6 +258,26 @@ log('=== o gatilho ===');
   const segunda = contexto.instalarGatilhoDeEncerramento();
   confere('rodar de novo continua com um só', gatilhos.length, 1);
   confere('e diz que substituiu o anterior', segunda.gatilhosApagados, 1);
+}
+
+log('');
+log('=== o menu da planilha ===');
+{
+  // O gatilho e o "encerrar agora" só existem, para quem usa, como item de
+  // menu: ligar o encerramento sem abrir o editor do Apps Script depende
+  // deles estarem aqui. Escrever a função e esquecer de registrar no onOpen
+  // não quebra nada — o menu só aparece menor, e o passo fica impossível de
+  // achar. Foi o que aconteceu na primeira versão disto.
+  const p = montaPlanilha([], []);
+  const { contexto, itensDeMenu } = carregaCodeGs(p);
+  contexto.onOpen();
+  const funcoes = itensDeMenu.map(([, fn]) => fn);
+  confere('tem "encerrar agora"', funcoes.includes('encerrarEventosVencidosManual'), true);
+  confere('tem "ligar o automático"', funcoes.includes('instalarGatilhoDeEncerramentoManual'), true);
+  // Item apontando pra função que não existe não dá erro na hora de montar o
+  // menu: só falha quando alguém clica.
+  const orfaos = funcoes.filter(fn => typeof contexto[fn] !== 'function');
+  confere('todo item aponta pra uma função que existe', orfaos, []);
 }
 
 log('');
