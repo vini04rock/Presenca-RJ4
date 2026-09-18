@@ -9,6 +9,7 @@ import { escoposEmOrdemDeExibicao } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
 import { renderEscolhaDivisao, renderTelaPin } from '../ui/comuns.js';
+import { entrarNoMenuOrganizador } from './menu-organizador.js';
 
 // As 7 divisoes, cada uma com o proprio PIN (o do Regional tambem abre
 // qualquer uma das outras, ver verificarPin no Code.gs). Eventos criados
@@ -44,10 +45,11 @@ export async function checkPin() {
     chaveErro: 'pinErro',
     aoEntrar: () => {
       state.isAdmin = true;
-      // Depois do PIN a pessoa escolhe a secao no menu, em vez de cair
-      // direto em Eventos - ver telas/menu-organizador.js.
-      state.view = 'admin-menu';
       state.adminTab = 'eventos';
+      // Depois do PIN a pessoa escolhe a secao no menu, em vez de cair
+      // direto em Eventos - ver telas/menu-organizador.js. A entrada busca
+      // as presencas dos eventos proximos, pro aviso do topo.
+      entrarNoMenuOrganizador();
     },
   });
 }

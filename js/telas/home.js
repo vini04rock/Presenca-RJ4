@@ -3,7 +3,7 @@
 import { COR_TODOS_EVENTOS, TIPOS_EVENTO, TIPO_HOME_TAGLINE, classeTipoEvento, corTipoEvento, emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { IMG_CALENDARIO_HOME, IMG_HOME_EVENTOS, IMG_MODO_ORGANIZADOR, IMG_RANK_INSIGHTS, IMG_RANK_PRESENCA, LOGO_SRC, TIPO_HOME_IMAGEM } from '../nucleo/imagens.js';
-import { diaDaSemana, escapeHtml, formatDataCurta, hexParaRgba } from '../nucleo/util.js';
+import { diaDaSemana, escapeHtml, formatDataCurta, hexParaRgba, hojeISO } from '../nucleo/util.js';
 import { renderCardEscopo } from '../ui/comuns.js';
 import { openEvent } from '../fluxos/evento.js';
 import { render } from '../nucleo/render.js';
@@ -27,8 +27,7 @@ export function renderHome(app) {
 // esta olhando. Quando souber, da pra filtrar - ver a nota guardada sobre
 // a versao completa deste card.
 function proximoEvento() {
-  const hoje = new Date();
-  const hojeIso = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
+  const hojeIso = hojeISO();
   return state.events
     .filter(ev => ev.status !== 'encerrado' && /^\d{4}-\d{2}-\d{2}$/.test(ev.data || '') && ev.data >= hojeIso)
     .sort((a, b) => a.data.localeCompare(b.data) || (a.horario || '').localeCompare(b.horario || ''))[0];

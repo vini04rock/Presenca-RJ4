@@ -201,6 +201,25 @@ add('calendario (org: editar)',       { ...cal, calendarioOrganizarEtapa:'texto'
 add('calendario (org: editar, com data)', { ...cal, calendarioOrganizarEtapa:'texto',
   calendarioOrganizarSubTab:'editar', calendarioEditandoData:'2026-07-10',
   calendarioAjustandoData:true }, T.renderCalendario);
+// Aviso de evento proximo. Ao contrario do resto do arquivo, estes casos
+// NAO podem ter data fixa: o aviso so existe pra evento entre hoje e 2 dias
+// a frente, entao a data tem que andar junto com o relogio. Isso faz o HTML
+// deles mudar de um dia pro outro (a data e o "e amanha" aparecem no texto)
+// - e esperado, e nao atrapalha a comparacao antes/depois, que sempre roda
+// nas duas pontas no mesmo dia.
+const daquiA = (n) => { const d = new Date(); d.setDate(d.getDate() + n);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+const evProximo = { id:'ep1', nome:'Bate e Volta Serra', data:daquiA(1), horario:'07:00',
+  endereco:'Posto Y', outros:'', status:'ativo', criadoEm:'01/09/2026',
+  categoria:'barra', tipo:'Bate e Volta', textoOriginal:'', memberIds:['m1','m2','m3'] };
+
+add('organizador / menu (evento amanhã, 2 faltando)', { isAdmin:true, adminEscopo:'barra',
+  events:[evProximo], reportData:{ ep1:{ m1:{ status:'confirmado' } } } }, T.renderMenuOrganizador);
+add('organizador / menu (evento amanhã, todos responderam)', { isAdmin:true, adminEscopo:'barra',
+  events:[evProximo], reportData:{ ep1:{ m1:{ status:'confirmado' }, m2:{ status:'familia' },
+  m3:{ status:'trabalho' } } } }, T.renderMenuOrganizador);
+add('organizador / menu (presenças ainda carregando)', { isAdmin:true, adminEscopo:'barra',
+  events:[evProximo], reportData:{} }, T.renderMenuOrganizador);
 add('organizador / menu (regional)', { isAdmin:true, adminEscopo:'regional' }, T.renderMenuOrganizador);
 add('organizador / menu (barra)',    { isAdmin:true, adminEscopo:'barra' }, T.renderMenuOrganizador);
 add('organizador / menu (oeste)',    { isAdmin:true, adminEscopo:'oeste' }, T.renderMenuOrganizador);
@@ -290,6 +309,7 @@ const LIMPO = {
   calendarioAjustandoData:false, calendarioConfirmandoExclusao:false,
   relatorioParsed:null, relatorioColarStep:'texto', editingEventId:null,
   relatorioTextoOriginalExpandido:new Set(),
+  reportData:presencas,
   newEventSelected:null, insightRankRodadaSelecionada:null,
 };
 log('');

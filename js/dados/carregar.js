@@ -95,6 +95,23 @@ export async function carregarRankInsights() {
   render();
 }
 
+// Presencas de eventos que ainda VAO acontecer, pro aviso do menu do
+// organizador. Diferente de loadReportData, que so busca o que falta e
+// guarda pra sempre: aqui busca sempre de novo, porque o numero muda a cada
+// integrante que responde e mostrar um numero velho seria pior que nao
+// mostrar nada. Sao um ou dois eventos na janela, entao e barato.
+//
+// Falha de um evento nao apaga o que ja havia: sem presencas, quem desenha
+// mostra "carregando", nao um numero errado.
+export async function loadPresencasProximas(eventos) {
+  if (!eventos.length) return;
+  const results = await emLotes(eventos, 5, e => api('presencas', { eventoId: e.id }));
+  eventos.forEach((e, i) => {
+    if (results[i].status === 'fulfilled') state.reportData[e.id] = results[i].value.presencas || {};
+  });
+  render();
+}
+
 export async function loadReportData() {
   const encerrados = state.events.filter(e => e.status === 'encerrado');
   const missing = encerrados.filter(e => !(e.id in state.reportData));

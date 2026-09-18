@@ -24,6 +24,9 @@ const { montarConvocacao, camposIniciais, dataDaConvocacao, blocoInformacoes } =
 const { parseConvocacaoTexto } = await import(url('dominio/parser.js'));
 const { estatisticasInsightsPorPeriodo } = await import(url('dominio/estatisticas.js'));
 const { mascaraData, dataISOdeBR, formatDataBR } = await import(url('nucleo/util.js'));
+const { eventosProximos, semResposta } = await import(url('dominio/pendencias.js'));
+const { state: st } = await import(url('nucleo/estado.js'));
+const { hojeISO } = await import(url('nucleo/util.js'));
 
 let falhas = 0;
 function confere(nome, obtido, esperado) {
@@ -36,6 +39,51 @@ function confere(nome, obtido, esperado) {
   }
 }
 const nomes = (l) => l.map(m => m.nome);
+
+log('=== aviso de evento próximo ===');
+
+// Datas relativas a hoje, pro teste não depender do dia em que roda.
+const emDias = (n) => { const d = new Date(); d.setDate(d.getDate() + n);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+const evt = (id, dias, extra) => ({ id, nome: id, data: emDias(dias), horario: '20:00',
+  status: 'ativo', categoria: 'barra', tipo: 'Pub', memberIds: ['a','b','c'], ...extra });
+
+st.events = [
+  evt('hoje', 0), evt('amanha', 1), evt('em2', 2), evt('em3', 3),
+  evt('ontem', -1),
+  evt('encerrado', 1, { status: 'encerrado' }),
+  evt('outraDivisao', 1, { categoria: 'oeste' }),
+  evt('semData', 1, { data: '' }),
+];
+const ids = (l) => l.map(x => x.ev.id);
+
+confere('entram hoje, amanhã e em 2 dias - nessa ordem',
+  ids(eventosProximos('barra')), ['hoje', 'amanha', 'em2']);
+confere('evento de 3 dias fica fora da janela',
+  ids(eventosProximos('barra')).includes('em3'), false);
+confere('evento que já passou fica fora',
+  ids(eventosProximos('barra')).includes('ontem'), false);
+confere('evento encerrado fica fora',
+  ids(eventosProximos('barra')).includes('encerrado'), false);
+confere('evento de outra divisão fica fora',
+  ids(eventosProximos('barra')).includes('outraDivisao'), false);
+// Sem esta, '' < qualquer data no comparador de texto e o evento entraria.
+confere('evento sem data fica fora',
+  ids(eventosProximos('barra')).includes('semData'), false);
+confere('a contagem de dias sai certa',
+  eventosProximos('barra').map(x => x.dias), [0, 1, 2]);
+confere('janela maior alcança mais',
+  ids(eventosProximos('barra', 3)), ['hoje', 'amanha', 'em2', 'em3']);
+
+// Quem não respondeu.
+const ev3 = st.events[0];
+st.reportData = {};
+confere('sem as presenças ainda, devolve null (não zero)', semResposta(ev3), null);
+st.reportData = { hoje: { a: { status: 'confirmado' }, b: { status: 'aguardando' } } };
+confere('aguardando e ausente contam como sem resposta',
+  semResposta(ev3), { faltam: 2, total: 3 });
+st.reportData = { hoje: { a: { status: 'confirmado' }, b: { status: 'familia' }, c: { status: 'trabalho' } } };
+confere('falta justificada É resposta', semResposta(ev3), { faltam: 0, total: 3 });
 
 log('=== campo de data (dd/mm/aaaa) ===');
 
