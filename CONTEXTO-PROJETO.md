@@ -17,7 +17,8 @@ Três modos de entrada, todos no mesmo link:
   Presença e o Rank de Insights.
 - **Modo organizador (PIN)** — criar eventos, cadastrar membros, registrar
   rodadas de Insight, ver percentuais e **gerar o texto da convocação** para
-  colar no grupo.
+  colar no grupo. A primeira tela é um menu, com o **mural de avisos** no
+  topo.
 - **Relatórios (PIN)** — os painéis de análise e o fluxo de colar uma
   convocação do WhatsApp para virar evento.
 
@@ -26,7 +27,7 @@ Três modos de entrada, todos no mesmo link:
 - HTML + CSS + JavaScript puro, em **módulos ES nativos**. Sem framework,
   sem build step, sem dependências além das fontes do Google.
 - `index.html` é só o esqueleto; o visual em `css/estilo.css`; o código em
-  `js/`, repartido em 32 módulos.
+  `js/`, repartido em 34 módulos.
 - Hospedado no GitHub Pages (estático). Todo `git push` atualiza o site.
 - Backend: planilha do Google Sheets via Apps Script publicado como Web App.
   A URL fica em `API_URL`, em `js/nucleo/api.js`.
@@ -158,6 +159,34 @@ rotulado como tal, para não se confundir com um evento próprio.
 > (`converterAguardandoParaInfracionalAoEncerrar`) quanto na tela
 > (`statusEfetivo`).
 
+**Mural de avisos** — o contrapeso dessa regra, no topo do menu do
+organizador (`js/dominio/pendencias.js` + `js/telas/menu-organizador.js`).
+Mostra os eventos ativos da divisão que acontecem de hoje até dois dias à
+frente (`JANELA_DIAS`), dizendo quantos convocados ainda não responderam.
+Existe justamente porque não responder vira falta infracional: a janela é a
+última chance de cobrar quem falta, e sem ela a pessoa seria infracionada
+sem nunca ter sido cutucada.
+
+Três decisões que valem lembrar antes de mexer nele:
+
+- **O mural tem sempre a mesma altura**, vazio ou cheio — duas linhas. É um
+  quadro fixo na parede, e os avisos é que vão e vêm; assim as seções
+  abaixo nunca dançam na tela quando um evento entra ou sai. Passando de
+  dois avisos, rola por dentro. Por isso a altura da linha é fixa no CSS, e
+  não `min-height`: a altura do mural é uma conta em cima dela.
+- **Vazio, ele diz "Nada nos próximos 2 dias"** em vez de sumir. Sumir era
+  ambíguo — não dava para saber se era "nada para ver" ou "ainda
+  carregando".
+- **As presenças dos eventos do mural são buscadas a cada entrada no menu**,
+  não guardadas: o número muda a cada integrante que responde, e mostrar
+  valor velho seria pior que não mostrar. Até chegarem, o aviso diz que
+  está vendo — sem os dados, todo mundo pareceria não ter respondido.
+
+> **A armadilha da data vazia:** evento sem data fica de fora do mural de
+> propósito. Na comparação de texto `''` é anterior a qualquer data, então
+> sem essa guarda ele apareceria sempre. A mesma armadilha espera o
+> encerramento automático.
+
 **Percentual de presença** — só conta evento **encerrado** (um evento aberto
 ainda pode mudar), e só conta membro que estava convidado, isto é, que tem
 linha em `Presencas`. Assim quem entrou no clube depois não é penalizado por
@@ -204,6 +233,14 @@ o mesmo formato.
 colada do WhatsApp e transforma em evento — `parseConvocacaoTexto`, em
 `js/dominio/parser.js`. Ele casa os nomes com o cadastro por semelhança
 (distância de Levenshtein), então "Fabio Big" bate com "FÁBIO BIG".
+
+Depois de colado, dá para **recolar por cima** ("Corrigir", que conserta uma
+convocação lida errada sem apagar e refazer o evento) e **ver o texto
+original**. Os dois ficam na aba **Encerrados do organizador**, não nos
+Relatórios — a aba Eventos de lá mostrava quase a mesma lista e saiu, mas os
+dois botões só existiam nela, então vieram junto antes da remoção.
+"Corrigir" só aparece nas divisões que acessam Relatórios, porque é para lá
+que ele leva; "ver o texto original" é só leitura e vale em qualquer uma.
 
 **Escrever** (novo): o botão **📋 Criar chamada**, no card de cada evento da
 aba Eventos, monta o texto da convocação para colar no grupo —
@@ -253,7 +290,7 @@ a cada mudança:
 | `servidor.py` | serve o app local com o cache desligado |
 | `estrutura.py` | 7 verificações: imports circulares, hierarquia de camadas, sintaxe, nome sem import, import sobrando, ações sem tratador |
 | `regras.mjs` | as regras do clube que, se quebrarem, saem erradas numa convocação sem ninguém perceber |
-| `telas.mjs` | desenha as 51 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
+| `telas.mjs` | desenha as 68 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
 
 O `--html` do `telas.mjs` é a rede de proteção mais útil: captura o HTML de
 todas as telas, você mexe, captura de novo e compara. Diferença que aparecer
@@ -279,7 +316,7 @@ ferramentas, acima):
 
     py ferramentas/estrutura.py     # imports, camadas, sintaxe, ações
     node ferramentas/regras.mjs     # ordem hierárquica e formato da convocação
-    node ferramentas/telas.mjs      # desenha as 51 telas e abas
+    node ferramentas/telas.mjs      # desenha as 68 telas e abas
 
 Eles dizem que o app **não quebrou**, não que está bonito: não cobrem
 aparência, impressão/PDF, o caminho de rede real nem o `Code.gs`.
@@ -295,6 +332,13 @@ Web App com `?action=versao`; o passo a passo está no [LINK.md](LINK.md).
 
 Ideias registradas, nada pedido ainda:
 
+- **Encerramento automático do evento** na virada do dia dele. Hoje
+  encerrar é manual, e não há nenhum gatilho de tempo no `Code.gs`. É o
+  passo que fecha a história do mural de avisos: enquanto ele não existe, o
+  mural cobra um prazo que nada faz cumprir. A decisão que define o tamanho
+  é **onde roda** — no app (só encerra quando alguém abre) ou num gatilho de
+  tempo do Apps Script (correto, mas é código mexendo sozinho na planilha de
+  produção). Cuidado com a armadilha da data vazia, acima.
 - **Multi-divisão de verdade** (um jogo de abas por divisão na planilha) —
   ver [PLANO-MULTI-DIVISAO.md](PLANO-MULTI-DIVISAO.md). Combinado que fica
   para uma sessão dedicada.

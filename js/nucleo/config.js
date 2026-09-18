@@ -148,7 +148,7 @@ export const MESES_ABREV = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AG
 export const DIAS_SEMANA_LETRA = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'];
 export const NOMES_MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
-// Painel unico da tela "Relatorios": cabecalho + 7 abas + o conteudo da aba
+// Painel unico da tela "Relatorios": cabecalho + 6 abas + o conteudo da aba
 // ativa. E o analogo do renderAdmin() do Modo organizador, so que focado no
 // fluxo de colar convocacao. As 4 ultimas abas (uma por TIPOS_EVENTO, nessa
 // ordem especifica pedida) sao paginas fixas so de tabela - sem chips de
