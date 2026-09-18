@@ -17,6 +17,9 @@ import { renderRank } from './telas/rank.js';
 import { renderRelatorioShell } from './telas/relatorios.js';
 import { acoes as acoesRelatorios } from './telas/relatorios.js';
 import { acoes as acoesAdmin } from './telas/admin.js';
+import { acoes as acoesAdminEventos } from './telas/admin-eventos.js';
+import { acoes as acoesAdminMembros } from './telas/admin-membros.js';
+import { acoes as acoesAdminInsights } from './telas/admin-insights.js';
 import { acoes as acoesComuns } from './ui/comuns.js';
 import { acoes as acoesGraficos } from './ui/graficos.js';
 import { acoes as acoesHome } from './telas/home.js';
@@ -111,6 +114,9 @@ const ACOES = {};
 for (const [area, mapa] of Object.entries({
   acoesRelatorios,
   acoesAdmin,
+  acoesAdminEventos,
+  acoesAdminMembros,
+  acoesAdminInsights,
   acoesComuns,
   acoesGraficos,
   acoesHome,
