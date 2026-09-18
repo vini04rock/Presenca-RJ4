@@ -74,9 +74,11 @@ Diferença que aparecer ali é mudança de verdade na tela.
     node ferramentas/telas.mjs --html depois.txt
 
 A saída é estável: rodar duas vezes seguidas dá exatamente o mesmo HTML.
-Por isso o calendário do teste aponta para um mês fixo do passado — no mês
-atual ele marcaria o dia de hoje, e a comparação acusaria diferença toda vez
-que o dia virasse.
+Isso custa duas gambiarras, pelo mesmo motivo: o calendário do teste aponta
+para um mês fixo do passado (no mês atual ele marcaria o dia de hoje), e o
+relógio fica parado, por causa do carimbo "Gerado em" do cabeçalho de
+impressão — sem isso a saída mudava de um segundo para o outro e a
+comparação acusava diferença em telas que ninguém tocou.
 
 ### Se não tiver Node instalado
 

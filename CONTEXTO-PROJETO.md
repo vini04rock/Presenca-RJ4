@@ -27,7 +27,7 @@ Três modos de entrada, todos no mesmo link:
 - HTML + CSS + JavaScript puro, em **módulos ES nativos**. Sem framework,
   sem build step, sem dependências além das fontes do Google.
 - `index.html` é só o esqueleto; o visual em `css/estilo.css`; o código em
-  `js/`, repartido em 34 módulos.
+  `js/`, repartido em 37 módulos.
 - Hospedado no GitHub Pages (estático). Todo `git push` atualiza o site.
 - Backend: planilha do Google Sheets via Apps Script publicado como Web App.
   A URL fica em `API_URL`, em `js/nucleo/api.js`.
@@ -62,6 +62,13 @@ Não há import circular. Duas consequências práticas: a ação de uma tela mo
 no mesmo arquivo que a tela (mexer no Calendário é abrir
 `js/telas/calendario.js` e mais nada), e `ferramentas/estrutura.py` consegue
 provar que a hierarquia continua de pé.
+
+O Modo organizador é a exceção ao "uma tela por arquivo", porque é grande
+demais para uma: `js/telas/admin.js` ficou só com o esqueleto (cabeçalho,
+barra de abas, troca de aba), e cada seção tem o próprio arquivo —
+`admin-eventos.js`, `admin-membros.js` e `admin-insights.js`. O esqueleto
+sabe **qual** aba desenhar, nunca **como**. Cada um exporta as próprias
+ações, e o `app.js` junta os quatro mapas.
 
 O `render()` em `js/nucleo/render.js` é só um interruptor de 4 linhas: o
 roteador de verdade vive no `app.js`, que é quem conhece as telas, e se
@@ -364,6 +371,6 @@ Ideias registradas, nada pedido ainda:
 - **Multi-divisão de verdade** (um jogo de abas por divisão na planilha) —
   ver [PLANO-MULTI-DIVISAO.md](PLANO-MULTI-DIVISAO.md). Combinado que fica
   para uma sessão dedicada.
-- `js/telas/admin.js` e `js/telas/relatorios.js` são os dois maiores
-  arquivos. Cada um é uma tela coerente com abas internas; se um dia
-  incomodarem, dá para repartir por aba.
+- `js/telas/relatorios.js` é hoje o maior arquivo (593 linhas). É uma tela
+  coerente com abas internas; se um dia incomodar, dá para repartir por aba,
+  como já foi feito com o organizador.

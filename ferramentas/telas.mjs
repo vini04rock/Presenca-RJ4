@@ -64,6 +64,14 @@ globalThis.alert = () => {};
 globalThis.confirm = () => true;
 globalThis.fetch = () => new Promise(() => {});
 
+// Relogio parado, so pro carimbo "Gerado em" do cabecalho de impressao (as
+// duas unicas chamadas a toLocaleString no app: admin-insights.js e
+// relatorios.js). Sem isso a saida muda de um segundo pro outro, e a
+// comparacao antes/depois - que e o que esta ferramenta existe pra servir -
+// acusa diferenca em telas que ninguem tocou. Mesmo motivo do calendario
+// apontar pra um mes fixo do passado.
+Date.prototype.toLocaleString = function () { return '01/01/2026, 00:00:00'; };
+
 // ---------- 1. todo modulo carrega? --------------------------------------
 function listar(dir, base = '') {
   const out = [];
