@@ -125,6 +125,73 @@ h1, h2, h3, .display {
   display: flex; align-items: center; justify-content: center;
   font-size: 17px; flex-shrink: 0;
 }
+/* Mural de avisos, no topo do menu do organizador (avisoEventosProximos) -
+   o que acontece nos proximos dias, com uma linha por evento. E lembrete,
+   nao destino: precisa ser visto de relance, mas nao pode ter o peso dos
+   cards de secao logo abaixo, que sao pra onde a pessoa de fato vai. Por
+   isso linhas baixas separadas por fio, dentro de um painel so, em vez de
+   um card por evento.
+
+   O mural tem SEMPRE a mesma altura, vazio ou cheio: e um quadro fixo na
+   parede, e os avisos e que vao e vem. Assim as secoes abaixo nunca dancam
+   na tela quando um evento entra ou sai - quem ja sabe onde fica "Membros"
+   continua achando no mesmo lugar. Vazio, o mural diz que nao ha nada; e o
+   silencio informado, diferente do bloco que sumia e deixava a duvida se
+   era "nada pra ver" ou "ainda carregando".
+
+   A conta: 2 linhas de --aviso-linha-h, mais o fio de 1px que separa uma
+   da outra. Passando de 2 avisos, rola dentro do mural em vez de crescer.
+   Por isso a altura da linha e fixa, e nao so um min-height - se uma linha
+   crescesse, a conta se perdia e o mural mostraria meia linha no rodape.
+   O recheio sai do .card e vai pra linha, senao o fio nao alcanca as
+   bordas. */
+.aviso-painel {
+  --aviso-linha-h: 66px;
+  padding: 0;
+  height: calc(var(--aviso-linha-h) * 2 + 1px);
+  overflow-y: auto;
+}
+/* A cor do left border vem inline, por linha: cada evento tem a propria
+   urgencia (vermelho com gente faltando, verde quando todos responderam).
+   Uma cor unica pro mural mentiria sobre um dos avisos. */
+.aviso-linha {
+  display: flex; align-items: center; gap: 9px;
+  height: var(--aviso-linha-h);
+  padding: 0 12px;
+  border-top: 1px solid var(--line);
+  border-left: 3px solid transparent;
+  cursor: pointer;
+}
+.aviso-linha:first-child { border-top: none; }
+.aviso-linha:active { background: var(--surface-alt); }
+.aviso-icone {
+  width: 26px; height: 26px; border-radius: 50%; border: 1.5px solid;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; flex-shrink: 0;
+}
+/* Precisa poder encolher abaixo do proprio conteudo, senao o corte do nome
+   logo abaixo nunca dispara - um item flex nao encolhe sozinho. */
+.aviso-texto { flex: 1; min-width: 0; }
+/* Nome em UMA linha, cortado com reticencias: e o que mais engorda a linha.
+   Um nome longo quebrava em duas e estouraria a altura fixa acima. Perder o
+   fim custa pouco aqui - a data e a contagem logo abaixo ja dizem de que
+   evento se trata, e um toque abre ele por inteiro. */
+.aviso-nome {
+  font-family: 'Rye', serif; font-weight: 400;
+  font-size: 13.5px; line-height: 1.25; color: var(--white-strong);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.aviso-meta { font-size: 10.5px; color: var(--text-muted); margin-top: 1px; }
+.aviso-contagem { font-size: 10.5px; margin-top: 1px; }
+.aviso-seta { color: var(--text-muted); font-size: 15px; flex-shrink: 0; }
+/* Mural vazio: a mensagem ocupa o quadro inteiro, centrada. Sem isso ela
+   encostaria no topo e o vazio embaixo pareceria defeito. */
+.aviso-vazio {
+  height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  text-align: center; padding: 0 16px;
+  font-size: 11.5px; color: var(--text-muted);
+}
 .tipo-home-card { min-height: 84px; }
 .tipo-home-card:active { filter: brightness(0.82); }
 .tipo-home-icone {

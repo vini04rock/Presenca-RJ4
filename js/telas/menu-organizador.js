@@ -9,7 +9,7 @@
 // em Eventos troca pra Membros sem passar por aqui. Este menu e a porta de
 // entrada, nao o unico caminho.
 
-import { eventosProximos, semResposta } from '../dominio/pendencias.js';
+import { JANELA_DIAS, eventosProximos, semResposta } from '../dominio/pendencias.js';
 import { loadPresencasProximas } from '../dados/carregar.js';
 import { escopoPorChave, escoposAtivos } from '../nucleo/config.js';
 import { diaDaSemana, formatDataBR } from '../nucleo/util.js';
@@ -65,36 +65,54 @@ function quando(dias) {
   return `faltam ${dias} dias`;
 }
 
-// Aviso no topo: evento chegando e quantos ainda nao responderam. Some
-// sozinho quando nao ha evento na janela - o menu volta a ser so os cards.
+// Um aviso do mural: o evento que esta chegando e quantos ainda nao
+// responderam. Uma linha, nao um card - na janela de 2 dias e comum ter
+// dois eventos seguidos, e como cards soltos eles empurravam as secoes pra
+// fora da tela e disputavam atencao com elas.
 //
 // Quem ja respondeu tudo tambem aparece, so que como lembrete tranquilo
-// (sem o ⚠️): saber que o evento e amanha e util mesmo sem ter o que cobrar.
-function avisoEventosProximos() {
-  return eventosProximos(state.adminEscopo).map(({ ev, dias }) => {
-    const r = semResposta(ev);
-    const pendente = r && r.faltam > 0;
-    const cor = pendente ? '#D9573C' : '#4CAF6E';
-    const icone = pendente ? '⚠️' : '📅';
-    const linha = [diaDaSemana(ev.data), formatDataBR(ev.data), quando(dias)]
-      .filter(Boolean).join(' · ');
-    const contagem = r === null
-      ? 'vendo quem já respondeu…'
-      : (pendente ? `${r.faltam} de ${r.total} ainda não responderam` : 'todos responderam');
-    return `
-      <div class="card event-card menu-org-card" style="border-left:3px solid ${cor};" data-action="open-event" data-id="${ev.id}">
-        <div class="menu-org-linha">
-          <div class="menu-org-icone" style="border-color:${cor};">${icone}</div>
-          <div>
-            <div class="name">${escapeHtml(ev.nome)}</div>
-            <div class="meta">${escapeHtml(linha)}</div>
-            <div class="meta" style="color:${pendente ? cor : 'var(--text-muted)'};">${escapeHtml(contagem)}</div>
-          </div>
-        </div>
-        <div class="arrow">›</div>
+// (📅 verde, sem o ⚠️): saber que o evento e amanha e util mesmo sem ter o
+// que cobrar. A cor fica na linha, nao no mural - com dois eventos de
+// urgencias diferentes, uma cor unica pro bloco mentiria sobre um dos dois.
+function linhaAviso({ ev, dias }) {
+  const r = semResposta(ev);
+  const pendente = r && r.faltam > 0;
+  const cor = pendente ? '#D9573C' : '#4CAF6E';
+  const icone = pendente ? '⚠️' : '📅';
+  const detalhe = [diaDaSemana(ev.data), formatDataBR(ev.data), quando(dias)]
+    .filter(Boolean).join(' · ');
+  const contagem = r === null
+    ? 'vendo quem já respondeu…'
+    : (pendente ? `${r.faltam} de ${r.total} ainda não responderam` : 'todos responderam');
+  return `
+    <div class="aviso-linha" style="border-left-color:${cor};" data-action="open-event" data-id="${ev.id}">
+      <div class="aviso-icone" style="border-color:${cor};">${icone}</div>
+      <div class="aviso-texto">
+        <div class="aviso-nome">${escapeHtml(ev.nome)}</div>
+        <div class="aviso-meta">${escapeHtml(detalhe)}</div>
+        <div class="aviso-contagem" style="color:${pendente ? cor : 'var(--text-muted)'};">${escapeHtml(contagem)}</div>
       </div>
-    `;
-  }).join('');
+      <div class="aviso-seta">›</div>
+    </div>
+  `;
+}
+
+// O mural fica na tela mesmo sem nenhum aviso, com a mesma altura de
+// sempre: e um quadro fixo na parede, e os avisos e que vao e vem. Vazio,
+// ele diz que nao ha nada - silencio informado, diferente do bloco que
+// sumia e deixava a duvida entre "nada pra ver" e "ainda carregando".
+//
+// O rotulo nao muda com a contagem, justamente porque o mural e permanente:
+// "Mural de avisos" continua verdade com zero, um ou cinco eventos.
+function avisoEventosProximos() {
+  const proximos = eventosProximos(state.adminEscopo);
+  const conteudo = proximos.length
+    ? proximos.map(linhaAviso).join('')
+    : `<div class="aviso-vazio">Nada nos próximos ${JANELA_DIAS} dias</div>`;
+  return `
+    <div class="rotulo-secao">Mural de avisos</div>
+    <div class="card aviso-painel">${conteudo}</div>
+  `;
 }
 
 // Entrar no menu: desenha na hora e busca as presencas dos eventos proximos
