@@ -26,6 +26,10 @@ export function iniciarCorrecaoConvocacao(id) {
   state.relatorioDuplicidadeConfirmada = false;
   state.relatorioTab = 'enviar';
   state.relatorioColarStep = 'texto';
+  // O botao que chama isto mora na aba "Encerrados" do organizador, ou
+  // seja, noutra tela. Sem trocar a view, o render redesenharia o
+  // organizador e o clique nao faria nada visivel.
+  state.view = 'relatorio';
   render();
 }
 

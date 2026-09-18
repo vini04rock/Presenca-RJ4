@@ -219,6 +219,19 @@ add('organizador / insights (outra data)', { isAdmin:true, adminEscopo:'regional
 // Evento sendo editado: o campo de data nasce preenchido com a data dele.
 add('organizador / editar evento',    { isAdmin:true, adminEscopo:'barra', adminTab:'eventos',
   editingEventId:'e1', newEventSelected:new Set(['m1']) }, T.renderAdmin);
+// O evento e1 dos dados falsos tem textoOriginal (nasceu de convocacao
+// colada), entao e nele que "Corrigir" e "Ver texto original" aparecem.
+add('organizador / encerrados (texto original)', { isAdmin:true, adminEscopo:'barra',
+  adminTab:'encerrados', relatorioTextoOriginalExpandido:new Set(['e1']) }, T.renderAdmin);
+// Divisao sem Relatorios (Oeste): "Ver texto original" fica, "Corrigir" nao -
+// ele leva pra tela de Relatorios, que essa divisao nao acessa. Precisa de um
+// evento encerrado proprio, com textoOriginal, que os dados falsos nao tem.
+add('organizador / encerrados (sem corrigir)', { isAdmin:true, adminEscopo:'oeste',
+  adminTab:'encerrados', relatorioTextoOriginalExpandido:new Set(['eo1']),
+  events:[{ id:'eo1', nome:'Pub do Oeste', data:'2026-09-05', horario:'20:00',
+    endereco:'Bar X', outros:'', status:'encerrado', criadoEm:'01/09/2026',
+    categoria:'oeste', tipo:'Pub', textoOriginal:'CONVOCACAO\n1. Fulano (X)',
+    memberIds:['m1'] }] }, T.renderAdmin);
 add('organizador / membros (grau VI)', { isAdmin:true, adminEscopo:'barra', adminTab:'membros',
   newMemberGrau:'VI' }, T.renderAdmin);
 add('organizador / eventos (barra)',  { isAdmin:true, adminEscopo:'barra', adminTab:'eventos' }, T.renderAdmin);
@@ -243,17 +256,12 @@ add('organizador / novo evento',      { isAdmin:true, adminEscopo:'barra', admin
 add('organizador / ajustar rodada',   { isAdmin:true, adminEscopo:'regional', adminTab:'insights',
   insightEditandoRodadaId:'r1', insightAjusteMembroIds:['m1','m2'],
   insightAjusteInfo:{ m1:{nome:'Costa',divisao:'Barra - RJ4'}, m2:{nome:'Bull',divisao:'Barra - RJ4'} } }, T.renderAdmin);
-for (const aba of ['resumo','enviar','eventos','Pub','Bate e Volta','Reunião','Ação Social']) {
+for (const aba of ['resumo','enviar','Pub','Bate e Volta','Reunião','Ação Social']) {
   add(`relatorios / ${aba}`, { isAdmin:true, adminEscopo:'regional',
     relatorioCategoriaAlvo:'regional', relatorioTab:aba, relatorioFiltroDivisao:'todas' }, T.renderRelatorioShell);
 }
 add('relatorios / resumo (so barra)', { isAdmin:true, adminEscopo:'barra',
   relatorioCategoriaAlvo:'barra', relatorioTab:'resumo' }, T.renderRelatorioShell);
-// Com "Todas as divisoes" a lista vem agrupada e fechada, entao os cards de
-// evento nem chegam a ser desenhados - filtrando numa divisao eles aparecem,
-// que e o que esta tela precisa checar.
-add('relatorios / eventos (uma divisao)', { isAdmin:true, adminEscopo:'regional',
-  relatorioTab:'eventos', relatorioFiltroDivisao:'barra' }, T.renderRelatorioShell);
 // Revisao da convocacao colada - tem o campo de data do evento.
 add('relatorios / revisão do colado', { isAdmin:true, adminEscopo:'barra',
   relatorioTab:'enviar', relatorioColarStep:'revisao', relatorioCategoriaAlvo:'barra',
@@ -281,6 +289,7 @@ const LIMPO = {
   calendarioEditandoData:null, insightMostrarDataCustom:false, insightDataEscolhida:'',
   calendarioAjustandoData:false, calendarioConfirmandoExclusao:false,
   relatorioParsed:null, relatorioColarStep:'texto', editingEventId:null,
+  relatorioTextoOriginalExpandido:new Set(),
   newEventSelected:null, insightRankRodadaSelecionada:null,
 };
 log('');

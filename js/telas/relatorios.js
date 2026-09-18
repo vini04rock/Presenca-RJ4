@@ -2,9 +2,8 @@
 
 import { estatisticasMembrosPorPeriodo, estatisticasMembrosPorTipo, eventosDoRelatorioEscopo, resumoDonutPeriodo } from '../dominio/estatisticas.js';
 import { computeCounts, statusEfetivo } from '../dominio/status.js';
-import { ABAS_COM_FILTRO_DIVISAO, RELATORIO_TABS, STATUS, STATUS_TOTAIS_LABEL, TIPOS_EVENTO, TIPOS_EVENTO_TABS_ORDEM, classeTipoEvento, corTipoEvento, emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao } from '../nucleo/config.js';
+import { ABAS_COM_FILTRO_DIVISAO, RELATORIO_TABS, STATUS, STATUS_TOTAIS_LABEL, TIPOS_EVENTO, TIPOS_EVENTO_TABS_ORDEM, emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
-import { TIPO_HOME_IMAGEM } from '../nucleo/imagens.js';
 import { dataCorteMeses, dataDoCampoOuAvisar, escapeHtml, formatDataBR } from '../nucleo/util.js';
 import { campoData, renderFichaMembro, renderListaEstatisticasPorDivisao } from '../ui/comuns.js';
 import { renderDonutCard, renderRankingFaltasInfracionais } from '../ui/graficos.js';
@@ -72,7 +71,6 @@ export async function entrarNosRelatorios() {
   state.relatorioEditandoEventoId = null;
   state.relatorioTipoEscolhido = null;
   state.relatorioEstatisticasExpandidas = new Set();
-  state.relatorioEventosExpandidos = new Set();
   state.relatorioMembroFichaId = null;
   // A pagina principal depois do PIN e o "Resumo Relatorio" (os 5 donuts) -
   // as outras 6 abas ficam a um clique de distancia.
@@ -99,8 +97,7 @@ export function renderRelatorioShell(app) {
     return;
   }
 
-  const conteudo = state.relatorioTab === 'eventos' ? conteudoRelatorioEventos()
-    : state.relatorioTab === 'resumo' ? conteudoRelatorioPresenca()
+  const conteudo = state.relatorioTab === 'resumo' ? conteudoRelatorioPresenca()
     : state.relatorioTab === 'enviar' ? conteudoRelatorioColar()
     : TIPOS_EVENTO_TABS_ORDEM.includes(state.relatorioTab) ? conteudoRelatorioTipoFixo(state.relatorioTab)
     : conteudoRelatorioColar();
@@ -342,107 +339,6 @@ function conteudoRelatorioResultado() {
   `;
 }
 
-function renderCardEvento(ev) {
-  const pct = ev.status === 'encerrado' && state.reportData[ev.id]
-    ? (() => { const c = computeCounts(ev); const total = ev.memberIds.length;
-                return total ? Math.round((c.confirmado / total) * 100) : 0; })()
-    : null;
-  const textoAberto = state.relatorioTextoOriginalExpandido.has(ev.id);
-  const confirmandoExclusao = state.confirmDeleteId === ev.id;
-  const cor = corTipoEvento(ev.tipo);
-  // Mesma arte de fundo por tipo da tela "Escolha o tipo de evento" - a
-  // classe tipo-* (cor solida) so entra se ainda nao tiver imagem pra esse
-  // tipo (ver TIPO_HOME_IMAGEM).
-  const imagemFundo = TIPO_HOME_IMAGEM[ev.tipo];
-  const estiloFundo = imagemFundo
-    ? `background-image:url('${imagemFundo}'); background-size:cover; background-position:center; border-left:3px solid ${cor};`
-    : '';
-  return `
-    <div class="card event-card ${imagemFundo ? '' : classeTipoEvento(ev.tipo)}" style="${estiloFundo}" data-action="open-event" data-id="${ev.id}">
-      <div style="min-width:0; flex:1;">
-        <div style="display:flex; align-items:center; gap:14px;">
-          ${ev.tipo ? `<div class="tipo-home-icone" style="border-color:${cor}; flex-shrink:0;">${emojiTipoEvento(ev.tipo)}</div>` : ''}
-          <div style="min-width:0;">
-            <div class="name nome-cortado">${escapeHtml(ev.nome)}</div>
-            <div class="meta">${ev.data ? formatDataBR(ev.data) + ' · ' : ''}${ev.status === 'encerrado' ? 'Encerrado' : 'Ativo'}${pct !== null ? ' · ' + pct + '% presença' : ''}</div>
-          </div>
-        </div>
-        <div style="margin-top:8px; display:flex; gap:14px; flex-wrap:wrap;">
-          ${ev.status === 'encerrado' ? `<div class="btn ghost" style="padding:2px 0; font-size:12px;" data-action="corrigir-convocacao" data-id="${ev.id}">✏️ Corrigir</div>` : ''}
-          ${ev.textoOriginal ? `<div class="btn ghost" style="padding:2px 0; font-size:12px;" data-action="toggle-texto-original" data-id="${ev.id}">${textoAberto ? '📄 Esconder texto original' : '📄 Ver texto original'}</div>` : ''}
-          <div class="btn ghost" style="padding:2px 0; font-size:12px;" data-action="ask-delete-event" data-id="${ev.id}">🗑️ Excluir</div>
-        </div>
-        ${textoAberto ? `<pre class="texto-original-pre" data-action="ignore-click">${escapeHtml(ev.textoOriginal)}</pre>` : ''}
-        ${confirmandoExclusao ? `
-          <div class="alert" data-action="ignore-click" style="margin-top:10px;">
-            <div class="alert-title">Excluir "${escapeHtml(ev.nome)}"?</div>
-            <div class="alert-msg">Apaga o evento e as confirmações de todos os membros. Não dá para desfazer.</div>
-            <div class="row-gap" style="margin-top:10px;">
-              <button class="btn danger" data-action="delete-event" data-id="${ev.id}">Sim, excluir</button>
-              <button class="btn secondary" data-action="cancel-delete-event">Cancelar</button>
-            </div>
-          </div>
-        ` : ''}
-      </div>
-      <div class="arrow">›</div>
-    </div>
-  `;
-}
-
-// Lista de eventos agrupada por divisao - so faz sentido no Regional com
-// "Todas as divisões", onde os eventos vem de categorias diferentes e senao
-// nao da pra saber de qual divisao e cada um so olhando o nome. Mesmo
-// padrao visual/comportamento (cabecalho recolhivel, comeca fechado) de
-// renderListaEstatisticasPorDivisao.
-function renderEventosAgrupados(eventos) {
-  const porDivisao = {};
-  eventos.forEach(ev => {
-    const nomeDivisao = escopoPorChave(ev.categoria).nome;
-    (porDivisao[nomeDivisao] = porDivisao[nomeDivisao] || []).push(ev);
-  });
-  const nomeRegional = escopoPorChave('regional').nome;
-  const ordenadas = Object.keys(porDivisao).sort((a, b) => {
-    if (a === nomeRegional) return -1;
-    if (b === nomeRegional) return 1;
-    return a.localeCompare(b);
-  });
-  return `
-    <div class="card" style="padding: 4px 16px;">
-      ${ordenadas.map(divisao => {
-        const itens = porDivisao[divisao];
-        const aberto = state.relatorioEventosExpandidos.has(divisao);
-        return `
-          <div class="division-subheader clicavel" data-action="toggle-relatorio-eventos-divisao" data-value="${escapeHtml(divisao)}">
-            <span>${aberto ? '▾' : '▸'} ${escapeHtml(divisao.toUpperCase())}</span>
-            <span class="division-counts">${itens.length} ${itens.length === 1 ? 'evento' : 'eventos'}</span>
-          </div>
-          ${aberto ? itens.map(renderCardEvento).join('') : ''}
-        `;
-      }).join('')}
-    </div>
-  `;
-}
-
-function conteudoRelatorioEventos() {
-  const eventos = eventosDoRelatorioEscopo();
-  if (!eventos.length) return '<div class="empty">Nenhum evento ainda nessa divisão.</div>';
-  const agrupar = state.adminEscopo === 'regional' && state.relatorioFiltroDivisao === 'todas';
-  return `
-    ${state.reportError ? `
-      <div class="alert" style="margin-bottom:14px;">
-        <div class="alert-title">Não consegui carregar a % de alguns eventos</div>
-        <div class="alert-msg">${escapeHtml(state.reportError)}.</div>
-        <button class="btn secondary block" data-action="retry-relatorio-eventos" style="margin-top:10px;">Tentar de novo</button>
-      </div>
-    ` : ''}
-    ${agrupar ? renderEventosAgrupados(eventos) : `
-      <div class="card" style="padding: 4px 16px;">
-        ${eventos.map(renderCardEvento).join('')}
-      </div>
-    `}
-  `;
-}
-
 // Drill-down de um card (chave = 'total' ou um tipo): grafico de barras +
 // tabela dos eventos que entraram na janela escolhida naquele card.
 function conteudoRelatorioTipoDetalhe(encerrados, chave) {
@@ -578,12 +474,6 @@ export const acoes = {
   },
   'fechar-ficha-membro': async (id, target, action, e) => {
     state.relatorioMembroFichaId = null; return render();
-  },
-  'toggle-relatorio-eventos-divisao': async (id, target, action, e) => {
-    const chave = target.dataset.value;
-    if (state.relatorioEventosExpandidos.has(chave)) state.relatorioEventosExpandidos.delete(chave);
-    else state.relatorioEventosExpandidos.add(chave);
-    return render();
   },
   'set-relatorio-filtro-divisao': async (id, target, action, e) => {
     state.relatorioFiltroDivisao = target.dataset.value;

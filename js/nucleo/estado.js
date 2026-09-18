@@ -229,7 +229,6 @@ exportandoPdfAdmin: false,
   relatorioMembroFichaId: null,
   // Mesma ideia, para a aba Eventos agrupada por divisao (Regional +
   // "Todas as divisões").
-  relatorioEventosExpandidos: new Set(),
   // Quais eventos tem o "Ver texto original" (ver renderCardEvento) aberto.
   relatorioTextoOriginalExpandido: new Set(),
   // Janela (em meses) de cada donut do painel de Presenca - uma chave por
