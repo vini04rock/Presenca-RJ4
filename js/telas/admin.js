@@ -108,10 +108,15 @@ function renderAjusteInsightRodada() {
   const gruposCandidatos = agruparMembrosRodadaPorDivisao(candidatos);
 
   return `
-    <div class="alert info" style="margin-bottom:16px;">
-      <div class="alert-msg">Ajustando a rodada de ${formatDataBR(r.data)}. Toque num integrante pra trocar entre Fez/Não fez, ou remova/adicione quem participou.</div>
+    <div class="btn ghost" style="margin-bottom:10px;" data-action="cancelar-ajuste-insight-rodada">‹ Voltar às rodadas</div>
+    <div class="alert info" style="margin-bottom:12px;">
+      <div class="alert-msg">Ajustando a rodada de ${formatDataBR(r.data)}. Toque num integrante pra trocar entre Fez/Não fez.</div>
     </div>
-    ${grupos.map(g => {
+    <div class="tabs no-print">
+      <div class="tab ${state.insightAjusteMostrarAdicionar ? '' : 'active'}" data-action="ajuste-rodada-aba" data-tab="participaram">Quem participou (${membrosAtuais.length})</div>
+      <div class="tab ${state.insightAjusteMostrarAdicionar ? 'active' : ''}" data-action="ajuste-rodada-aba" data-tab="adicionar">Adicionar (${candidatos.length})</div>
+    </div>
+    ${state.insightAjusteMostrarAdicionar ? '' : grupos.map(g => {
       const aberto = state.insightAjusteDivisoesExpandidas.has(g.e.chave);
       return `
       <div class="card" style="padding: 4px 16px; margin-bottom:12px;">
@@ -135,11 +140,9 @@ function renderAjusteInsightRodada() {
     `;
     }).join('')}
 
+    ${!state.insightAjusteMostrarAdicionar ? '' : `
     <div class="card" style="padding: 4px 16px; margin-bottom:12px;">
-      <div class="division-subheader clicavel" data-action="toggle-ajuste-rodada-adicionar">
-        <span>${state.insightAjusteMostrarAdicionar ? '▾' : '▸'} Adicionar integrante que faltou nesta rodada</span>
-      </div>
-      ${state.insightAjusteMostrarAdicionar ? (
+      ${(
         gruposCandidatos.length === 0
           ? '<div class="empty">Todo mundo elegível já está nesta rodada.</div>'
           : gruposCandidatos.map(g => `
@@ -155,8 +158,9 @@ function renderAjusteInsightRodada() {
                 `).join('')}
               </div>
             `).join('')
-      ) : ''}
+      )}
     </div>
+    `}
 
     <div class="row-gap" style="margin-bottom:16px;">
       <button class="btn block" data-action="salvar-ajuste-insight-rodada" ${state.insightSalvando ? 'disabled' : ''}>
@@ -316,7 +320,7 @@ function renderAdminInsights() {
     </div>
   `;
 
-  const blocoNovaRodada = state.insightEditandoRodadaId ? renderAjusteInsightRodada() : `
+  const blocoNovaRodada = `
     <div class="alert info" style="margin-bottom:16px;">
       <div class="alert-msg">Marque quem fez o insight nessa rodada e confirme no final. Quem não participa mais, use "Remover da lista".</div>
     </div>
@@ -339,7 +343,17 @@ function renderAdminInsights() {
   // (ver SECOES_ORGANIZADOR): "quem esta fora do insight" fica junto da
   // marcacao porque e a mesma tarefa, decidir quem entra na conta.
   if (state.adminTab === 'insights-rodadas') {
-    return historico || '<div class="empty">Nenhuma rodada registrada ainda.</div>';
+    // Ajustar uma rodada acontece AQUI, na aba onde esta o botao, tomando o
+    // lugar da lista enquanto dura. Antes o painel de ajuste era desenhado
+    // junto com o de criar rodada - o que funcionava quando tudo vivia numa
+    // tela so, mas depois da separacao em abas o toque em "Ajustar" nao
+    // mostrava nada: a pessoa continuava na aba da lista, e o painel tinha
+    // ido parar na aba do lado.
+    if (state.insightEditandoRodadaId) return erro + renderAjusteInsightRodada();
+    // So o aviso de ajuste aparece aqui; o de rodada nova pertence a outra
+    // aba, senao a confirmacao sai longe de onde a acao aconteceu.
+    const aviso = state.insightResultado && state.insightResultado.ajuste ? resultado : '';
+    return aviso + erro + (historico || '<div class="empty">Nenhuma rodada registrada ainda.</div>');
   }
   if (state.adminTab === 'insights-relatorio') {
     // Sem periodo escolhido, usa o que o servidor ja somou (todas as
@@ -361,7 +375,7 @@ function renderAdminInsights() {
   }
   return `
     <div class="no-print">
-      ${resultado}${erro}
+      ${state.insightResultado && state.insightResultado.ajuste ? '' : resultado}${erro}
       ${blocoNovaRodada}
       ${blocoExcluidos}
     </div>
@@ -825,6 +839,9 @@ export const acoes = {
     return confirmarInsightRodada();
   },
   'ajustar-insight-rodada': async (id, target, action, e) => {
+    // O painel de ajuste so existe nesta aba; garante que e nela que a
+    // pessoa esta, mesmo que um dia o botao apareca noutro lugar.
+    state.adminTab = 'insights-rodadas';
     return iniciarAjusteInsightRodada(target.dataset.id);
   },
   'salvar-ajuste-insight-rodada': async (id, target, action, e) => {
@@ -851,8 +868,8 @@ export const acoes = {
     }
     return render();
   },
-  'toggle-ajuste-rodada-adicionar': async (id, target, action, e) => {
-    state.insightAjusteMostrarAdicionar = !state.insightAjusteMostrarAdicionar;
+  'ajuste-rodada-aba': async (id, target, action, e) => {
+    state.insightAjusteMostrarAdicionar = target.dataset.tab === 'adicionar';
     return render();
   },
   'toggle-ajuste-rodada-divisao': async (id, target, action, e) => {

@@ -81,6 +81,38 @@ function renderGrupoRodadaPorDivisao(titulo, grupos, grupoChave) {
   `;
 }
 
+// Um donut por divisao que participou da rodada - o mesmo formato da aba
+// "Rank total", so que contando apenas os membros daquela rodada, nao a
+// media de todas. Antes esta aba tinha so o donut do total: dava pra ver
+// que 60% fizeram, mas nao QUAL divisao puxou pra baixo.
+//
+// Divisao que nao entrou na rodada nao aparece (agruparMembrosRodadaPorDivisao
+// ja corta as vazias) - um donut zerado diria "0% fizeram", que e diferente
+// de "nao participou".
+function donutsDivisoesDaRodada(membros) {
+  const grupos = agruparMembrosRodadaPorDivisao(membros);
+  if (!grupos.length) return '';
+  return `
+    <div class="donut-grid" style="margin-top:14px;">
+      ${grupos.map(g => {
+        const fez = g.membros.filter(m => m.fez).length;
+        const total = g.membros.length;
+        const pct = total ? Math.round((fez / total) * 100) : null;
+        return `
+          <div class="card donut-card">
+            <div style="font-weight:600; margin-bottom:8px;">${escapeHtml(g.e.nome)}</div>
+            ${renderDonutChart([
+              { label: 'Fez', value: fez, cor: 'var(--status-confirmado)' },
+              { label: 'Não fez', value: total - fez, cor: 'var(--status-infracional)' },
+            ], pct === null ? '—' : pct + '%', 'fazem', 110)}
+            <div class="info-line" style="padding:8px 0 0; color:var(--text-muted); font-size:12px;">${fez} de ${total} ${total === 1 ? 'fez' : 'fizeram'}</div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
 function renderRodadaDetalhe(r) {
   const membros = r.membros || [];
   const fez = membros.filter(m => m.fez).length;
@@ -92,6 +124,7 @@ function renderRodadaDetalhe(r) {
         { label: 'Fez', value: fez, cor: 'var(--status-confirmado)' },
         { label: 'Não fez', value: naoFez, cor: 'var(--status-infracional)' },
       ], r.percentual === null ? '—' : r.percentual + '%', 'fazem', 130)}
+      ${donutsDivisoesDaRodada(membros)}
       ${renderGrupoRodadaPorDivisao('✅ FIZERAM', agruparMembrosRodadaPorDivisao(membros.filter(m => m.fez)), 'fez')}
       ${renderGrupoRodadaPorDivisao('⭕ NÃO FIZERAM', agruparMembrosRodadaPorDivisao(membros.filter(m => !m.fez)), 'naofez')}
     </div>
