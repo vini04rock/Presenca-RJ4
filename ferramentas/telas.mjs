@@ -220,6 +220,21 @@ add('organizador / menu (evento amanhã, todos responderam)', { isAdmin:true, ad
   m3:{ status:'trabalho' } } } }, T.renderMenuOrganizador);
 add('organizador / menu (presenças ainda carregando)', { isAdmin:true, adminEscopo:'barra',
   events:[evProximo], reportData:{} }, T.renderMenuOrganizador);
+// Mais avisos do que cabem: o mural tem altura de 2 linhas, entao com 3
+// eventos na janela ele tem que rolar por dentro em vez de crescer e
+// empurrar as secoes pra fora da tela. Um de cada dia da janela - hoje,
+// amanha e depois - que e o pior caso real.
+const evHoje = { ...evProximo, id:'ep2', nome:'Reunião de Diretoria', data:daquiA(0),
+  horario:'20:00', tipo:'Reunião' };
+const evDepois = { ...evProximo, id:'ep3', nome:'Entrega de Alimentos na Fundação Angélica Goulart',
+  data:daquiA(2), horario:'09:00', tipo:'Ação Social' };
+add('organizador / menu (mural transbordando)', { isAdmin:true, adminEscopo:'barra',
+  events:[evHoje, evProximo, evDepois],
+  reportData:{ ep1:{ m1:{ status:'confirmado' } }, ep2:{}, ep3:{ m1:{ status:'confirmado' },
+    m2:{ status:'familia' }, m3:{ status:'trabalho' } } } }, T.renderMenuOrganizador);
+// O mural vazio ("Nada nos proximos 2 dias") ja e desenhado pelos tres casos
+// logo abaixo: os eventos dos dados falsos tem data fixa e nenhum cai na
+// janela, entao o menu de qualquer divisao nasce com o mural vazio.
 add('organizador / menu (regional)', { isAdmin:true, adminEscopo:'regional' }, T.renderMenuOrganizador);
 add('organizador / menu (barra)',    { isAdmin:true, adminEscopo:'barra' }, T.renderMenuOrganizador);
 add('organizador / menu (oeste)',    { isAdmin:true, adminEscopo:'oeste' }, T.renderMenuOrganizador);
