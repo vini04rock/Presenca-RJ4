@@ -219,6 +219,18 @@ add('organizador / insights (outra data)', { isAdmin:true, adminEscopo:'regional
 // Evento sendo editado: o campo de data nasce preenchido com a data dele.
 add('organizador / editar evento',    { isAdmin:true, adminEscopo:'barra', adminTab:'eventos',
   editingEventId:'e1', newEventSelected:new Set(['m1']) }, T.renderAdmin);
+// Com uma rodada em ajuste, a aba "Nova rodada" tem que continuar sendo a de
+// CRIAR - antes ela era sequestrada pelo painel de ajuste.
+add('organizador / nova rodada (com ajuste aberto)', { isAdmin:true, adminEscopo:'regional',
+  adminTab:'insights', insightEditandoRodadaId:'r3',
+  insightAjusteMembroIds:['m1','m2'],
+  insightAjusteInfo:{ m1:{nome:'Costa',divisao:'Barra - RJ4'}, m2:{nome:'Bull',divisao:'Barra - RJ4'} } }, T.renderAdmin);
+// Depois de ajustar, a confirmacao tem que aparecer na aba das rodadas - e
+// NAO na de criar, que e onde ela era desenhada antes.
+add('organizador / rodadas (ajuste salvo)', { isAdmin:true, adminEscopo:'regional',
+  adminTab:'insights-rodadas', insightResultado:{ ajuste:true, percentual:80, totalSim:4, totalElegiveis:5 } }, T.renderAdmin);
+add('organizador / nova rodada (criada)', { isAdmin:true, adminEscopo:'regional',
+  adminTab:'insights', insightResultado:{ ajuste:false, percentual:60, totalSim:3, totalElegiveis:5 } }, T.renderAdmin);
 add('organizador / membros (grau VI)', { isAdmin:true, adminEscopo:'barra', adminTab:'membros',
   newMemberGrau:'VI' }, T.renderAdmin);
 add('organizador / eventos (barra)',  { isAdmin:true, adminEscopo:'barra', adminTab:'eventos' }, T.renderAdmin);
@@ -240,9 +252,24 @@ add('criar chamada (regional)',       { convocacaoEventoId:'e3', convocacaoModel
   convocacaoCampos:{} }, T.renderConvocacao);
 add('organizador / novo evento',      { isAdmin:true, adminEscopo:'barra', adminTab:'eventos',
   newEventSelected:new Set(['m1']), newEventTipo:'Pub' }, T.renderAdmin);
-add('organizador / ajustar rodada',   { isAdmin:true, adminEscopo:'regional', adminTab:'insights',
+add('organizador / ajustar rodada',   { isAdmin:true, adminEscopo:'regional', adminTab:'insights-rodadas',
   insightEditandoRodadaId:'r1', insightAjusteMembroIds:['m1','m2'],
   insightAjusteInfo:{ m1:{nome:'Costa',divisao:'Barra - RJ4'}, m2:{nome:'Bull',divisao:'Barra - RJ4'} } }, T.renderAdmin);
+// A aba "Adicionar" do painel de ajuste: m3 (Almeida) esta elegivel e nao
+// esta nesta rodada, entao tem que aparecer como candidato.
+add('organizador / ajustar rodada (aba adicionar)', { isAdmin:true, adminEscopo:'regional',
+  adminTab:'insights-rodadas', insightEditandoRodadaId:'r3', insightAjusteMostrarAdicionar:true,
+  insightAjusteMembroIds:['m1','m2'], insightMarcacoes:{ m1:true, m2:false },
+  insightAjusteInfo:{ m1:{nome:'Costa',divisao:'Barra - RJ4'}, m2:{nome:'Bull',divisao:'Barra - RJ4'} } }, T.renderAdmin);
+// Ninguem sobrando pra adicionar: os CINCO elegiveis (as tres da Barra mais
+// Tigre e Falcao - o Regional nao faz insight) ja estao na rodada.
+add('organizador / ajustar rodada (nada a adicionar)', { isAdmin:true, adminEscopo:'regional',
+  adminTab:'insights-rodadas', insightEditandoRodadaId:'r3', insightAjusteMostrarAdicionar:true,
+  insightAjusteMembroIds:['m1','m2','m3','m4','m5'],
+  insightMarcacoes:{ m1:true, m2:false, m3:false, m4:true, m5:false },
+  insightAjusteInfo:{ m1:{nome:'Costa',divisao:'Barra - RJ4'}, m2:{nome:'Bull',divisao:'Barra - RJ4'},
+    m3:{nome:'Almeida',divisao:'Barra - RJ4'}, m4:{nome:'Tigre',divisao:'Recreio - RJ4'},
+    m5:{nome:'Falcao',divisao:'Gardênia - RJ4'} } }, T.renderAdmin);
 for (const aba of ['resumo','enviar','eventos','Pub','Bate e Volta','Reunião','Ação Social']) {
   add(`relatorios / ${aba}`, { isAdmin:true, adminEscopo:'regional',
     relatorioCategoriaAlvo:'regional', relatorioTab:aba, relatorioFiltroDivisao:'todas' }, T.renderRelatorioShell);
@@ -276,6 +303,8 @@ const LIMPO = {
   calendarioPinErro:null, calendarioPinVerificando:false,
   homeEventosAberto:false, homeEscopo:null, homeTipo:null, relatorioMembroFichaId:null,
   relatorioTipoDetalhe:null, insightEditandoRodadaId:null, calendarioOrganizarEtapa:null,
+  insightResultado:null, insightAjusteMostrarAdicionar:false,
+  insightAjusteDivisoesExpandidas:new Set(),
   relatorioFiltroDivisao:'todas',
   insightFiltroDataInicio:'', insightFiltroDataFim:'',
   calendarioEditandoData:null, insightMostrarDataCustom:false, insightDataEscolhida:'',
