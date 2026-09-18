@@ -106,6 +106,27 @@ const DIAS_SEMANA = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'
 //
 // A data e montada por partes de proposito: new Date('2026-09-19') e lido
 // como UTC e, no fuso do Brasil, voltaria o dia anterior.
+// Hoje, no formato em que as datas viajam e sao comparadas ('2026-09-18').
+// Sai do relogio do aparelho - e o unico que o navegador tem. Pra decisao
+// que muda dado (encerrar evento sozinho, por exemplo) isso nao basta: ali
+// quem tem que decidir e o servidor, que conhece o fuso da planilha.
+export function hojeISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Quantos dias faltam ate a data: 0 = hoje, 1 = amanha, negativo = ja passou.
+// Devolve null se nao for uma data. Conta por dia de calendario, nao por 24h
+// - um evento amanha as 7h e "amanha", mesmo faltando 14 horas.
+export function diasAte(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
+  if (!m) return null;
+  const alvo = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  return Math.round((alvo - hoje) / 86400000);
+}
+
 export function diaDaSemana(iso) {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
   if (!m) return '';

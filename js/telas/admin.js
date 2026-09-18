@@ -3,7 +3,7 @@
 import { agruparMembrosRodadaPorDivisao } from '../dominio/divisoes.js';
 import { estatisticasInsightsPorPeriodo, eventosDoEscopo, membrosDoEscopo, membrosElegiveisEvento } from '../dominio/estatisticas.js';
 import { computeCounts, getReportGroups } from '../dominio/status.js';
-import { FUNCOES, GRAUS, cargosDoGrau, TIPOS_EVENTO, corTipoEvento, divisoesSemRegional, emojiTipoEvento, escopoPorChave } from '../nucleo/config.js';
+import { FUNCOES, GRAUS, cargosDoGrau, TIPOS_EVENTO, corTipoEvento, divisoesSemRegional, emojiTipoEvento, escopoPorChave, escoposAtivos } from '../nucleo/config.js';
 import { genId, state } from '../nucleo/estado.js';
 import { TIPO_HOME_IMAGEM } from '../nucleo/imagens.js';
 import { dataDoCampoOuAvisar, escapeHtml, formatDataBR, formatDataCurta, hexParaRgba } from '../nucleo/util.js';
@@ -382,6 +382,32 @@ function renderAdminInsights() {
   `;
 }
 
+// "Corrigir" e "Ver texto original" viviam na aba Eventos dos Relatorios,
+// que mostrava quase a mesma lista que esta aqui. A aba de la saiu; estes
+// dois vieram junto, porque eram o unico caminho pra consertar uma
+// convocacao colada errada (recolar por cima, sem apagar o evento) e pra
+// reler o texto que deu origem a ele.
+//
+// So aparecem em evento que nasceu de convocacao colada - evento criado na
+// mao nao tem textoOriginal.
+//
+// "Ver texto original" e so leitura e vale pra qualquer divisao. Ja
+// "Corrigir" joga a pessoa na tela de Relatorios (aba Enviar), que segue
+// restrita a Regional e Barra - entao ele so aparece onde essa tela existe,
+// senao o botao levaria a um lugar que aquela divisao nao acessa.
+function blocoConvocacaoOriginal(ev) {
+  if (!ev.textoOriginal) return '';
+  const aberto = state.relatorioTextoOriginalExpandido.has(ev.id);
+  const podeCorrigir = escoposAtivos().some(e => e.chave === state.adminEscopo);
+  return `
+    <div style="margin-top:10px; display:flex; gap:14px; flex-wrap:wrap;">
+      ${podeCorrigir ? `<div class="btn ghost" style="padding:2px 0; font-size:12px;" data-action="corrigir-convocacao" data-id="${ev.id}">✏️ Corrigir</div>` : ''}
+      <div class="btn ghost" style="padding:2px 0; font-size:12px;" data-action="toggle-texto-original" data-id="${ev.id}">${aberto ? '📄 Esconder texto original' : '📄 Ver texto original'}</div>
+    </div>
+    ${aberto ? `<pre class="texto-original-pre" data-action="ignore-click">${escapeHtml(ev.textoOriginal)}</pre>` : ''}
+  `;
+}
+
 function renderAdminRelatorio() {
   const encerrados = eventosDoEscopo().filter(e => e.status === 'encerrado');
   if (encerrados.length === 0) {
@@ -418,6 +444,7 @@ function renderAdminRelatorio() {
           <div class="count-box-report">⭕ Falta infracional <b>${n(counts.infracional)}</b></div>
         </div>
         ${carregado ? `<button class="btn secondary block" data-action="copy-report" data-id="${ev.id}" style="margin-top:10px;">${state.copiedEventId === ev.id ? 'Copiado ✓' : '📋 Copiar relatório'}</button>` : ''}
+        ${blocoConvocacaoOriginal(ev)}
         ${isOpen && carregado ? renderReportDetail(ev) : ''}
         ${renderExcluirEvento(ev)}
       </div>

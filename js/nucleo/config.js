@@ -157,7 +157,6 @@ export const TIPOS_EVENTO_TABS_ORDEM = ['Pub', 'Bate e Volta', 'Reunião', 'Aç�
 export const RELATORIO_TABS = [
   { chave: 'resumo', label: 'Resumo Relatório' },
   { chave: 'enviar', label: 'Enviar Relatório' },
-  { chave: 'eventos', label: 'Eventos' },
   ...TIPOS_EVENTO_TABS_ORDEM.map(t => ({ chave: t, label: 'Relatório ' + t })),
 ];
 
@@ -166,7 +165,7 @@ export const RELATORIO_TABS = [
 // um filtro por divisao no topo - "Todas" agrega o clube inteiro, uma
 // divisao especifica restringe so aquela categoria. Ver
 // eventosDoRelatorioEscopo()/membrosVisiveisRelatorio().
-export const ABAS_COM_FILTRO_DIVISAO = ['resumo', 'eventos', ...TIPOS_EVENTO_TABS_ORDEM];
+export const ABAS_COM_FILTRO_DIVISAO = ['resumo', ...TIPOS_EVENTO_TABS_ORDEM];
 
 export const STATUS_TOTAIS_LABEL = {
   confirmado: 'confirmados', aguardando: 'aguardando', trabalho: 'faltas (trabalho)',

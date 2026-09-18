@@ -9,7 +9,10 @@
 // em Eventos troca pra Membros sem passar por aqui. Este menu e a porta de
 // entrada, nao o unico caminho.
 
+import { JANELA_DIAS, eventosProximos, semResposta } from '../dominio/pendencias.js';
+import { loadPresencasProximas } from '../dados/carregar.js';
 import { escopoPorChave, escoposAtivos } from '../nucleo/config.js';
+import { diaDaSemana, formatDataBR } from '../nucleo/util.js';
 import { state } from '../nucleo/estado.js';
 import { escapeHtml } from '../nucleo/util.js';
 import { render } from '../nucleo/render.js';
@@ -54,6 +57,74 @@ function cardSecao(s) {
   `;
 }
 
+// "e hoje" / "e amanha" / "faltam 3 dias" - o numero cru ("0 dias") nao diz
+// nada de imediato pra quem bate o olho.
+function quando(dias) {
+  if (dias === 0) return 'é hoje';
+  if (dias === 1) return 'é amanhã';
+  return `faltam ${dias} dias`;
+}
+
+// Um aviso do mural: o evento que esta chegando e quantos ainda nao
+// responderam. Uma linha, nao um card - na janela de 2 dias e comum ter
+// dois eventos seguidos, e como cards soltos eles empurravam as secoes pra
+// fora da tela e disputavam atencao com elas.
+//
+// Quem ja respondeu tudo tambem aparece, so que como lembrete tranquilo
+// (📅 verde, sem o ⚠️): saber que o evento e amanha e util mesmo sem ter o
+// que cobrar. A cor fica na linha, nao no mural - com dois eventos de
+// urgencias diferentes, uma cor unica pro bloco mentiria sobre um dos dois.
+function linhaAviso({ ev, dias }) {
+  const r = semResposta(ev);
+  const pendente = r && r.faltam > 0;
+  const cor = pendente ? '#D9573C' : '#4CAF6E';
+  const icone = pendente ? '⚠️' : '📅';
+  const detalhe = [diaDaSemana(ev.data), formatDataBR(ev.data), quando(dias)]
+    .filter(Boolean).join(' · ');
+  const contagem = r === null
+    ? 'vendo quem já respondeu…'
+    : (pendente ? `${r.faltam} de ${r.total} ainda não responderam` : 'todos responderam');
+  return `
+    <div class="aviso-linha" style="border-left-color:${cor};" data-action="open-event" data-id="${ev.id}">
+      <div class="aviso-icone" style="border-color:${cor};">${icone}</div>
+      <div class="aviso-texto">
+        <div class="aviso-nome">${escapeHtml(ev.nome)}</div>
+        <div class="aviso-meta">${escapeHtml(detalhe)}</div>
+        <div class="aviso-contagem" style="color:${pendente ? cor : 'var(--text-muted)'};">${escapeHtml(contagem)}</div>
+      </div>
+      <div class="aviso-seta">›</div>
+    </div>
+  `;
+}
+
+// O mural fica na tela mesmo sem nenhum aviso, com a mesma altura de
+// sempre: e um quadro fixo na parede, e os avisos e que vao e vem. Vazio,
+// ele diz que nao ha nada - silencio informado, diferente do bloco que
+// sumia e deixava a duvida entre "nada pra ver" e "ainda carregando".
+//
+// O rotulo nao muda com a contagem, justamente porque o mural e permanente:
+// "Mural de avisos" continua verdade com zero, um ou cinco eventos.
+function avisoEventosProximos() {
+  const proximos = eventosProximos(state.adminEscopo);
+  const conteudo = proximos.length
+    ? proximos.map(linhaAviso).join('')
+    : `<div class="aviso-vazio">Nada nos próximos ${JANELA_DIAS} dias</div>`;
+  return `
+    <div class="rotulo-secao">Mural de avisos</div>
+    <div class="card aviso-painel">${conteudo}</div>
+  `;
+}
+
+// Entrar no menu: desenha na hora e busca as presencas dos eventos proximos
+// em seguida, sem travar a tela - ate elas chegarem o aviso diz que esta
+// vendo. Quem chama e o PIN (primeira entrada) e o "‹ Menu" de dentro das
+// secoes, porque o numero muda enquanto a pessoa trabalha.
+export async function entrarNoMenuOrganizador() {
+  state.view = 'admin-menu';
+  render();
+  return loadPresencasProximas(eventosProximos(state.adminEscopo).map(x => x.ev));
+}
+
 export function renderMenuOrganizador(app) {
   app.innerHTML = `
     <div class="back-link on-photo" data-action="go-divisoes">‹ Trocar divisão</div>
@@ -61,6 +132,7 @@ export function renderMenuOrganizador(app) {
       <h1 style="font-size: 20px;">Organizador</h1>
       <div class="count-box">${escapeHtml(escopoPorChave(state.adminEscopo).nome.toUpperCase())}</div>
     </div>
+    ${avisoEventosProximos()}
     ${secoesVisiveis().map(cardSecao).join('')}
   `;
 }
@@ -68,8 +140,7 @@ export function renderMenuOrganizador(app) {
 // Acoes do menu do organizador.
 export const acoes = {
   'go-menu-organizador': async (id, target, action, e) => {
-    state.view = 'admin-menu';
-    return render();
+    return entrarNoMenuOrganizador();
   },
   'abrir-secao-organizador': async (id, target, action, e) => {
     return abrirAbaOrganizador(target.dataset.tab);

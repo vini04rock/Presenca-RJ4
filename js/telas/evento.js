@@ -80,7 +80,12 @@ export function renderEvent(app) {
 export const acoes = {
   'voltar-do-evento': async (id, target, action, e) => {
     const origem = state.eventoVoltarPara;
-    if (origem && origem.view === 'relatorio' && state.isAdmin) {
+    // O aviso de evento proximo, no menu do organizador, tambem abre evento
+    // - sem este caso o "Voltar" caia no "senao" la embaixo, que manda pra
+    // tela inicial E derruba a sessao de organizador (isAdmin = false).
+    if (origem && origem.view === 'admin-menu' && state.isAdmin) {
+      state.view = 'admin-menu';
+    } else if (origem && origem.view === 'relatorio' && state.isAdmin) {
       state.view = 'relatorio';
       state.relatorioTab = origem.relatorioTab || 'eventos';
     } else if (origem && origem.view === 'admin' && state.isAdmin) {
