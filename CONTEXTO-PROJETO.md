@@ -158,20 +158,38 @@ rotulado como tal, para não se confundir com um evento próprio.
 
 **Status** — os 4 do seletor manual (⚠️ Aguardando, ✅ Confirmado, ❌ Família,
 ❌ Trabalho) e mais 2 que só nascem da convocação colada (❌ Justificada,
-⭕ Infracional).
+⭕ Não justificada).
 
 > **Regra-chave:** ao encerrar um evento, quem ficou em "Aguardando" vira
-> **"Infracional"**. Não responder à convocação é falta igual à falta sem
+> **"Não justificada"**. Não responder à convocação é falta igual à falta sem
 > justificativa — decisão do clube. Isso vale tanto na planilha
 > (`converterAguardandoParaInfracionalAoEncerrar`) quanto na tela
 > (`statusEfetivo`).
+
+> **O nome mudou, o dado nao.** Ate 21/09/2026 esse status se chamava
+> **"Infracional"**, e o nome saiu por ser ofensivo demais para o que
+> descreve. Trocou so o que a pessoa le. Nao mudaram, de proposito:
+>
+> - **`STATUS_ROTULO.infracional`, que continua gravando `'Infracional'`
+>   na planilha.** `statusParaChave` compara o texto exato, entao renomear
+>   ali faria todo registro ja salvo cair silenciosamente em "Aguardando" —
+>   perda de historico sem nenhum erro na tela.
+> - A **chave interna** `infracional`, os nomes de funcao
+>   (`rankingFaltasInfracionais`) e a variavel de cor CSS
+>   (`--status-infracional`). Ninguem ve, e renomear so espalharia risco.
+>
+> O parser reconhece **as duas palavras** (`js/dominio/parser.js`): as
+> convocacoes antigas continuam no grupo do WhatsApp e ainda sao recoladas
+> pelo "Corrigir". E la a ordem dos testes importa — `"nao justificad"`
+> tem que ser checado **antes** de `"justificad"`, senao toda falta nao
+> justificada seria lida como justificada, que e o oposto.
 
 **Mural de avisos** — o contrapeso dessa regra, no topo do menu do
 organizador (`js/dominio/pendencias.js` + `js/telas/menu-organizador.js`).
 Mostra os eventos ativos da divisão que acontecem de hoje até dois dias à
 frente (`JANELA_DIAS`), dizendo quantos convocados ainda não responderam.
-Existe justamente porque não responder vira falta infracional: a janela é a
-última chance de cobrar quem falta, e sem ela a pessoa seria infracionada
+Existe justamente porque não responder vira falta não justificada: a janela
+é a última chance de cobrar quem falta, e sem ela a pessoa levaria a falta
 sem nunca ter sido cutucada.
 
 Três decisões que valem lembrar antes de mexer nele:
@@ -196,7 +214,7 @@ Três decisões que valem lembrar antes de mexer nele:
 
 **Encerramento automático** — o outro lado da regra. Todo evento cuja data
 já passou é encerrado sozinho, e encerrar converte quem ficou "Aguardando"
-em "Infracional". É o que torna a regra justa: o prazo passa a valer sempre,
+em "Não justificada". É o que torna a regra justa: o prazo passa a valer sempre,
 não só quando alguém lembra de apertar "Encerrar".
 
 Quem faz isso é o **`Code.gs`**, por um gatilho de tempo, de madrugada
@@ -209,7 +227,7 @@ todo mundo "Aguardando" sem virar falta.
 - **A virada é no dia seguinte ao do evento.** Um evento de hoje fica aberto
   o dia inteiro, porque quem está lá ainda confirma pelo celular.
 - **Evento sem data nunca é encerrado** — a mesma armadilha acima, só que
-  aqui o estrago seria pior: encerrar infraciona quem não respondeu.
+  aqui o estrago seria pior: encerrar dá falta a quem não respondeu.
 - Ele reusa `converterAguardandoParaInfracionalAoEncerrar`, a mesma função do
   botão "Encerrar" do app. Regra escrita duas vezes vira duas regras
   diferentes no dia em que uma delas mudar.
@@ -335,7 +353,7 @@ sem quebrar nada. Detalhes em [ferramentas/README.md](ferramentas/README.md).
 
 - Base preto e branco, do clube, com cor usada **só onde carrega
   significado**: status (verde confirmado, amarelo justificada, vermelho
-  infracional), tipo de evento e divisão. Os status também se distinguem por
+  não justificada), tipo de evento e divisão. Os status também se distinguem por
   forma e peso, não só por cor.
 - Fonte de destaque: **Rye** — entalhada, remete ao emblema do clube.
 - Fonte de corpo: **IBM Plex Sans**.

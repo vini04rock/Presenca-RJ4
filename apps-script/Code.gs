@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-09-18-v-encerramento-automatico';
+var VERSAO = '2026-09-21-v-nao-justificada';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -1431,7 +1431,7 @@ var ORDEM_SECOES = [
   { chave: 'familia', titulo: 'FALTA - FAMILIA' },
   { chave: 'trabalho', titulo: 'FALTA - TRABALHO' },
   { chave: 'justificada', titulo: 'FALTA - JUSTIFICADA' },
-  { chave: 'infracional', titulo: 'FALTA - INFRACIONAL (inclui quem nao respondeu)' }
+  { chave: 'infracional', titulo: 'FALTA - NAO JUSTIFICADA (inclui quem nao respondeu)' }
 ];
 
 function atualizarRelatorio() {
@@ -1518,7 +1518,7 @@ function atualizarRelatorio() {
     // trabalho e justificada contam juntos como "justificada", igual la.
     var totalJustificadas = porStatus.familia.length + porStatus.trabalho.length + porStatus.justificada.length;
     formatos.push({ linha: linhasSaida.length + 1, tipo: 'resumo' });
-    linhasSaida.push(['❌ Faltas justificadas: ' + totalJustificadas + '   ⭕ Faltas infracionais: ' + porStatus.infracional.length, '']);
+    linhasSaida.push(['❌ Faltas justificadas: ' + totalJustificadas + '   ⭕ Faltas nao justificadas: ' + porStatus.infracional.length, '']);
 
     ORDEM_SECOES.forEach(function (secao) {
       var lista = porStatus[secao.chave];

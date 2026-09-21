@@ -52,8 +52,9 @@ function sugerirCorrespondencias(nomeParsedNorm, candidatos) {
 // Palavra reconhecida manda sobre o emoji quando os dois aparecem e nao
 // batem (ex.: "✅ aguardando" na lista real - erro de digitacao humano, a
 // palavra e que vale). Quem nao tem emoji nem palavra nenhuma cai em
-// "infracional" junto com quem tem ⭕ explicito - decisao do clube: nao
-// responder a convocacao e tratado igual a falta sem justificativa.
+// falta nao justificada (chave interna "infracional") junto com quem tem
+// ⭕ explicito - decisao do clube: nao responder a convocacao e tratado
+// igual a falta sem justificativa.
 function statusDoResto(resto) {
   const semEmoji = stripEmoji(resto).trim();
   const palavra = normalizarNome(semEmoji);
@@ -61,6 +62,14 @@ function statusDoResto(resto) {
   if (palavra.includes('aguardand')) return 'aguardando';
   if (palavra.includes('trabalho')) return 'trabalho';
   if (palavra.includes('famil')) return 'familia';
+  // A ordem destas tres linhas importa, e nao da pra trocar sem quebrar:
+  // "justificad" esta contido em "nao justificad", entao se a segunda viesse
+  // antes, TODA falta nao justificada seria lida como justificada - o oposto
+  // do que ela e. O teste round-trip do regras.mjs pega isso.
+  if (palavra.includes('nao justificad')) return 'infracional';
+  // "Falta infracional" era como este status se chamava ate 21/09/2026.
+  // Continua reconhecido de proposito: convocacoes antigas, salvas no grupo
+  // ou reColadas pelo "Corrigir", ainda usam a palavra antiga.
   if (palavra.includes('infracional')) return 'infracional';
   if (palavra.includes('justificad')) return 'justificada';
 

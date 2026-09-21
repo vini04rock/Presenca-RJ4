@@ -329,7 +329,7 @@ function conteudoRelatorioResultado() {
       <div class="info-line">✅ Confirmados: ${groups.confirmado.length}</div>
       ${ev.status !== 'encerrado' ? `<div class="info-line">⚠️ Aguardando: ${groups.aguardando.length}</div>` : ''}
       <div class="info-line">❌ Faltas justificadas: ${groups.familia.length + groups.trabalho.length + groups.justificada.length}</div>
-      <div class="info-line">⭕ Faltas infracionais (inclui quem não respondeu): ${groups.infracional.length}</div>
+      <div class="info-line">⭕ Faltas não justificadas (inclui quem não respondeu): ${groups.infracional.length}</div>
       ${groups.infracional.length ? `<div class="info-line" style="white-space:pre-wrap; color:var(--text-muted);">${groups.infracional.map(n => '- ' + n).join('\n')}</div>` : ''}
     </div>
     <div class="row-gap" style="margin-top:14px;">

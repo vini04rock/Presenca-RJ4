@@ -34,7 +34,7 @@ export function buildReportText(ev) {
   lines.push('');
   // Sem secao de "Nao responderam": evento encerrado nao tem mais esse
   // status (ver statusEfetivo) - quem nao respondeu ja caiu em Infracional.
-  lines.push(`⭕ FALTA INFRACIONAL (${groups.infracional.length})`);
+  lines.push(`⭕ FALTA NÃO JUSTIFICADA (${groups.infracional.length})`);
   lines.push(...(groups.infracional.length ? groups.infracional.map(n => '- ' + n) : ['- Nenhuma']));
   return lines.join('\n');
 }

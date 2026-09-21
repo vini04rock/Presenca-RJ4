@@ -62,7 +62,7 @@ export function segmentosDonutStatus(statusPeriodo) {
   return [
     { label: 'Confirmado', value: statusPeriodo.confirmado, cor: 'var(--status-confirmado)' },
     { label: 'Faltas justificadas', value: statusPeriodo.justificada, cor: 'var(--status-justificada)' },
-    { label: 'Faltas infracionais', value: statusPeriodo.infracional, cor: 'var(--status-infracional)' },
+    { label: 'Faltas não justificadas', value: statusPeriodo.infracional, cor: 'var(--status-infracional)' },
   ];
 }
 
@@ -77,7 +77,7 @@ export function renderRankingFaltasInfracionais(encerrados) {
   if (!ranking.length) return '';
   return `
     <div class="card" style="margin-top:14px;">
-      <div style="font-weight:600; margin-bottom:2px;">⚠️ Mais faltas infracionais</div>
+      <div style="font-weight:600; margin-bottom:2px;">⚠️ Mais faltas não justificadas</div>
       <div style="color:var(--text-muted); font-size:12px; margin-bottom:8px;">Últimos ${meses === 1 ? 'mês' : meses + ' meses'}</div>
       ${ranking.map(r => `
         <div class="info-line" style="display:flex; justify-content:space-between; align-items:center;">

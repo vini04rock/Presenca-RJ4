@@ -56,7 +56,7 @@ export const STATUS = {
   // "infracional" cobre tanto falta sem justificativa quanto quem nao
   // respondeu a convocacao (mesmo tratamento, decisao do clube).
   justificada: { emoji: '❌', label: 'Justificada' },
-  infracional: { emoji: '⭕', label: 'Infracional' }
+  infracional: { emoji: '⭕', label: 'Não justificada' }
 };
 export const STATUS_PICKER_KEYS = ['aguardando', 'confirmado', 'familia', 'trabalho'];
 export const GRAUS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
@@ -169,7 +169,7 @@ export const ABAS_COM_FILTRO_DIVISAO = ['resumo', ...TIPOS_EVENTO_TABS_ORDEM];
 
 export const STATUS_TOTAIS_LABEL = {
   confirmado: 'confirmados', aguardando: 'aguardando', trabalho: 'faltas (trabalho)',
-  familia: 'faltas (família)', justificada: 'faltas justificadas', infracional: 'faltas infracionais'
+  familia: 'faltas (família)', justificada: 'faltas justificadas', infracional: 'faltas não justificadas'
 };
 
 export const RELATORIO_PERIODOS = [1, 3, 6, 12];

@@ -47,7 +47,7 @@ uma URL diferente e quebra o app.
 ### Encerramento automático (ligar uma vez só)
 
 O `Code.gs` encerra sozinho, de madrugada, todo evento cuja data já passou —
-e encerrar converte quem ficou "Aguardando" em "Infracional". Isso depende de
+e encerrar converte quem ficou "Aguardando" em "Não justificada". Isso depende de
 um **gatilho de tempo**, que **não vai junto no código colado**: publicar o
 `Code.gs` não liga o gatilho.
 
@@ -78,7 +78,7 @@ Abas em uso:
   divisão para os dados — ver `PLANO-MULTI-DIVISAO.md`).
 - `Relatorio` — por evento, gerada sob demanda pelo botão "Gerar relatório
   na planilha" (só aparece dentro do organizador Regional). Mostra as
-  mesmas 3 categorias do app (confirmado/justificada/infracional), com um
+  mesmas 3 categorias do app (confirmado/justificada/não justificada), com um
   resumo por evento igual ao que aparece ao salvar uma convocação colada.
 - `Regional RJ4` — resumo comparativo entre divisões, em 4 janelas de
   tempo (1/3/6/12 meses), gerada pelo mesmo botão.

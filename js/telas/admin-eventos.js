@@ -226,7 +226,7 @@ export function renderAdminRelatorio() {
         <div class="count-grid">
           <div class="count-box-report">✅ Confirmados <b>${n(counts.confirmado)}</b></div>
           <div class="count-box-report">❌ Falta justificada <b>${n(counts.familia + counts.trabalho + counts.justificada)}</b></div>
-          <div class="count-box-report">⭕ Falta infracional <b>${n(counts.infracional)}</b></div>
+          <div class="count-box-report">⭕ Falta não justificada <b>${n(counts.infracional)}</b></div>
         </div>
         ${carregado ? `<button class="btn secondary block" data-action="copy-report" data-id="${ev.id}" style="margin-top:10px;">${state.copiedEventId === ev.id ? 'Copiado ✓' : '📋 Copiar relatório'}</button>` : ''}
         ${blocoConvocacaoOriginal(ev)}
@@ -292,7 +292,7 @@ function renderReportDetail(ev) {
       ${donut}
       ${section('Confirmados', '✅', groups.confirmado)}
       ${section('Falta - Justificada', '❌', faltaJustificada)}
-      ${section('Falta - Infracional', '⭕', groups.infracional)}
+      ${section('Falta - Não justificada', '⭕', groups.infracional)}
     </div>
   `;
 }

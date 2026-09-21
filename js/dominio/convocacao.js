@@ -24,7 +24,7 @@ const LEGENDA_PARTICIPACAO = [
   '⚠️ Aguardando confirmação',
   '✅ Presença confirmada',
   '❌ Falta justificada',
-  '⭕ Falta infracional',
+  '⭕ Falta não justificada',
 ];
 const LEGENDA_OPERACAO = [
   'Operação',
@@ -37,7 +37,7 @@ const LEGENDA_BATE_VOLTA = [
   '⚠️ Aguardando confirmação',
   '✅ Presença confirmada',
   '❌ Falta justificada',
-  '⭕ Falta infracional',
+  '⭕ Falta não justificada',
 ];
 const RESPALDO = [
   'Prazo para a justificativa: 1 dia antes do evento.',
