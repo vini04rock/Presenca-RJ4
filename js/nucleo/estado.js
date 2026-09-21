@@ -34,6 +34,20 @@ export let state = {
   saving: false,
   pinErro: null,
   pinVerificando: false,
+  // A credencial do organizador, depois que o PIN foi conferido: o escopo
+  // que ele abriu e o valor digitado. Fica so na memoria da aba - recarregar
+  // a pagina perde, igual ja acontecia com isAdmin.
+  //
+  // Ela existe porque o Code.gs passou a EXIGIR PIN nas acoes de escrita
+  // (ver ACOES_PROTEGIDAS la e em nucleo/api.js). Antes o valor digitado era
+  // jogado fora assim que a tela trocava: servia so pra decidir o que
+  // desenhar. Agora viaja junto com cada gravacao, anexado pelo api() - a
+  // pessoa continua digitando UMA vez, na entrada.
+  //
+  // Guarda o escopo junto porque ha dois caminhos de PIN com escopos
+  // diferentes: o Modo organizador (adminEscopo) e o Organizar do Calendario
+  // (calendarioEscopo). O par precisa bater pra planilha aceitar.
+  pinAtual: null,
   newEventSelected: null,
   newEventTipo: null,
   // Chave de ESCOPOS - qual botao o organizador escolheu na tela de

@@ -95,6 +95,8 @@ export const acoes = {
       state.view = 'home';
       state.isAdmin = false;
       state.adminEscopo = null;
+      // A credencial cai junto com a sessao de organizador (ver nucleo/api.js).
+      state.pinAtual = null;
     }
     return render();
   },

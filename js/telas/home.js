@@ -216,7 +216,9 @@ export const acoes = {
     return openEvent(id);
   },
   'go-home': async (id, target, action, e) => {
-    state.view = 'home'; state.isAdmin = false; state.adminEscopo = null; return render();
+    // pinAtual sai junto com isAdmin: a credencial nao pode sobreviver a
+    // saida do modo organizador (ver nucleo/api.js).
+    state.view = 'home'; state.isAdmin = false; state.adminEscopo = null; state.pinAtual = null; return render();
   },
   'abrir-home-eventos': async (id, target, action, e) => {
     state.homeEventosAberto = true; return render();

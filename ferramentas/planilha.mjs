@@ -44,6 +44,10 @@ function novaAba(nome, linhasIniciais) {
     getLastColumn: () => dados.reduce((m, l) => Math.max(m, l.length), 0),
     setFrozenRows() { return s; },
     appendRow(l) { dados.push(l.slice()); return s; },
+    // 1-indexada como no Apps Script, e a linha 1 e o cabecalho. Quem apaga
+    // varias percorre de tras pra frente (ver apagarLinhas no Code.gs) -
+    // apagar de frente pra tras embaralharia os indices no meio do caminho.
+    deleteRow(linha) { dados.splice(linha - 1, 1); return s; },
     getRange(linha, coluna, nLinhas, nColunas) {
       const altura = nLinhas === undefined ? 1 : nLinhas;
       const largura = nColunas === undefined ? 1 : nColunas;
@@ -96,7 +100,7 @@ function montaPlanilha(eventos, presencas) {
 }
 
 // ---------- o ambiente do Apps Script, só o que o Code.gs toca ------------
-function carregaCodeGs(planilhaFalsa) {
+function carregaCodeGs(planilhaFalsa, propriedades) {
   const gatilhos = [];
   const logados = [];
   // Cada addItem do onOpen vira um par [rótulo, nome da função] aqui.
@@ -141,7 +145,15 @@ function carregaCodeGs(planilhaFalsa) {
         return t;
       },
     },
-    PropertiesService: { getScriptProperties: () => ({ getProperty: () => null, setProperty() {} }) },
+    // Os PINs de mentira do teste da guarda de permissao. Sem nada passado,
+    // continua devolvendo null como antes - e ai todo PIN e invalido, que e
+    // exatamente o cenario "ninguem configurou PIN".
+    PropertiesService: {
+      getScriptProperties: () => ({
+        getProperty: (k) => (propriedades && propriedades[k] !== undefined ? propriedades[k] : null),
+        setProperty(k, v) { if (propriedades) propriedades[k] = v; },
+      }),
+    },
     ContentService: { createTextOutput: () => ({ setMimeType: () => ({}) }), MimeType: {} },
     console,
   };
@@ -278,6 +290,98 @@ log('=== o menu da planilha ===');
   // menu: só falha quando alguém clica.
   const orfaos = funcoes.filter(fn => typeof contexto[fn] !== 'function');
   confere('todo item aponta pra uma função que existe', orfaos, []);
+}
+
+log('');
+log('=== permissao: quem pode gravar na planilha ===');
+{
+  // Ate 21/09/2026 qualquer um com a URL do Web App (que e publica, vive no
+  // js/nucleo/api.js) podia apagar um evento digitando-a no navegador. O PIN
+  // so decidia qual TELA o app desenhava. Estes testes existem pra isso nao
+  // voltar sem ninguem perceber.
+  const PINS = { PIN_REGIONAL: '0418', PIN_BARRA: '1801', PIN_RECREIO: '1805' };
+  const monta = () => {
+    const p = montaPlanilha([ev('alvo', daquiA(3), 'ativo')], []);
+    return { p, ...carregaCodeGs(p, { ...PINS }) };
+  };
+  const existeAlvo = (p) => coluna(p, 'Eventos', 0).includes('alvo');
+
+  // --- sem PIN nenhum: recusa, e o evento continua la ---
+  {
+    const { p, contexto } = monta();
+    const r = contexto.executar('eventoRemover', { id: 'alvo' });
+    confere('sem PIN, a remocao e recusada', r.ok, false);
+    confere('e o evento continua na planilha', existeAlvo(p), true);
+  }
+
+  // --- PIN errado: idem ---
+  {
+    const { p, contexto } = monta();
+    const r = contexto.executar('eventoRemover', { id: 'alvo', escopo: 'barra', pin: '9999' });
+    confere('PIN errado tambem e recusado', r.ok, false);
+    confere('e o evento continua na planilha', existeAlvo(p), true);
+  }
+
+  // --- PIN certo da divisao: passa ---
+  {
+    const { p, contexto } = monta();
+    const r = contexto.executar('eventoRemover', { id: 'alvo', escopo: 'barra', pin: '1801' });
+    confere('com o PIN da divisao, remove', r.ok, true);
+    confere('e o evento sai da planilha', existeAlvo(p), false);
+  }
+
+  // --- o Regional e chave-mestra, inclusive aqui ---
+  {
+    const { p, contexto } = monta();
+    const r = contexto.executar('eventoRemover', { id: 'alvo', escopo: 'barra', pin: '0418' });
+    confere('o PIN Regional abre qualquer divisao', r.ok, true);
+    confere('e o evento sai da planilha', existeAlvo(p), false);
+  }
+
+  // --- PIN de OUTRA divisao nao serve pro escopo declarado ---
+  {
+    const { contexto } = monta();
+    const r = contexto.executar('eventoRemover', { id: 'alvo', escopo: 'barra', pin: '1805' });
+    confere('PIN de outra divisao nao vale', r.ok, false);
+  }
+
+  // --- a confirmacao de presenca NAO pode ter sido protegida ---
+  // A tela do membro e publica, sem PIN. Se ela entrar na lista por engano,
+  // o app quebra pra todo o clube - e essa e a unica coisa que ele faz.
+  {
+    const { contexto } = monta();
+    const r = contexto.executar('presenca', {
+      eventoId: 'alvo', membroId: 'm1', status: 'confirmado',
+      direto: false, destacado: false, acompanhado: false,
+    });
+    confere('confirmar presenca continua sem pedir PIN', r.ok, true);
+  }
+
+  // --- as leituras continuam publicas ---
+  {
+    const { contexto } = monta();
+    confere('ler os dados continua publico', contexto.executar('dados', {}).ok, true);
+    confere('o rank continua publico', contexto.executar('rankPresenca', { janela: 'sempre' }).ok, true);
+  }
+
+  // --- toda acao protegida e de fato barrada, uma a uma ---
+  {
+    const { contexto } = monta();
+    const passaram = contexto.ACOES_PROTEGIDAS.filter(a => contexto.executar(a, {}).ok !== false);
+    confere('nenhuma acao protegida passa sem PIN', passaram, []);
+  }
+
+  // --- e a lista cobre tudo que grava ---
+  // Um "if (action === 'x') return comTrava(...)" novo no executar() que nao
+  // entre na lista nasce desprotegido, e nada avisaria. Esta conferencia le o
+  // proprio Code.gs e cobra a lista.
+  {
+    const fonte = fs.readFileSync(CODE_GS, 'utf8');
+    const { contexto } = monta();
+    const gravam = [...fonte.matchAll(/if \(action === '([a-zA-Z]+)'\) return comTrava/g)].map(m => m[1]);
+    const desprotegidas = gravam.filter(a => a !== 'presenca' && !contexto.ACOES_PROTEGIDAS.includes(a));
+    confere('toda acao que grava esta na lista (menos presenca)', desprotegidas, []);
+  }
 }
 
 log('');

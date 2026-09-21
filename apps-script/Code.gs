@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-09-21-v-nao-justificada';
+var VERSAO = '2026-09-21-v-autenticacao-backend';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -124,7 +124,32 @@ function responder(obj, callback) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+// Acoes que gravam e so o organizador pode disparar.
+//
+// Ate 21/09/2026 o PIN nao protegia NADA aqui: ele decidia qual TELA o
+// navegador desenhava, e a planilha obedecia a quem chamasse. Como a URL do
+// Web App vive em js/nucleo/api.js - publica por natureza, o app e estatico -
+// bastava digita-la no navegador com ?action=eventoRemover&id=... pra apagar
+// um evento sem saber PIN nenhum.
+//
+// "presenca" fica DE FORA de proposito: a tela de confirmar e publica, sem
+// PIN, e e por ela que o membro comum grava. Proteger ali quebraria o app
+// para todo mundo. As leituras tambem ficam de fora - o app inteiro e
+// publico, nao ha o que esconder numa lista de eventos.
+var ACOES_PROTEGIDAS = [
+  'eventoSalvar', 'eventoRemover', 'membroSalvar', 'membroRemover',
+  'criarEventoDeTexto', 'criarEventosDeCalendario', 'relatorio',
+  'insightSalvar', 'insightRodadaAjustar', 'insightRodadaRemover',
+  'insightMembroRemover', 'insightMembroReincluir'
+];
+
 function executar(action, p) {
+  // A guarda vem ANTES de qualquer despacho: uma acao protegida nao chega
+  // a tocar na planilha sem PIN valido para o escopo declarado.
+  if (ACOES_PROTEGIDAS.indexOf(action) !== -1) {
+    var conferencia = verificarPin(String(p.escopo || ''), String(p.pin || ''));
+    if (!conferencia.valido) return { ok: false, erro: 'Sem permissao - entre no modo organizador de novo' };
+  }
   if (action === 'versao') return { ok: true, versao: VERSAO };
   if (action === 'dados') return { ok: true, membros: lerMembros(), eventos: lerEventos() };
   if (action === 'presencas') return { ok: true, presencas: lerPresencas(p.eventoId) };
@@ -203,36 +228,18 @@ function verificarPin(escopo, pinDigitado) {
   return { ok: true, valido: !!pinEscopo && pinDigitado === pinEscopo };
 }
 
-// Rodar UMA VEZ pelo editor do Apps Script (selecionar esta funcao no menu
-// de funcoes, no topo, e clicar em Executar) para criar os 7 PINs, todos
-// comecando iguais ao PIN unico de hoje. Depois disso, trocar um PIN e so
-// editar a propriedade correspondente em Configuracoes do projeto >
-// Propriedades do script - nao precisa rodar esta funcao de novo.
-function configurarPinsIniciais() {
-  var props = PropertiesService.getScriptProperties();
-  var chaves = ['BARRA', 'OESTE', 'RECREIO', 'CURICICA', 'TAQUARA', 'GARDENIA', 'REGIONAL'];
-  chaves.forEach(function (c) { props.setProperty('PIN_' + c, '0987'); });
-  return 'PINs criados: ' + chaves.map(function (c) { return 'PIN_' + c; }).join(', ');
-}
-
-// Rodar UMA VEZ pelo editor do Apps Script para trocar os 7 PINs de uma vez
-// so, pelos novos valores definidos em 10/09/2026. Depois de rodar e
-// conferir que funcionou, pode apagar esta funcao (ou deixar, nao faz mal -
-// so nao roda sozinha, precisa ser chamada na mao).
-function configurarPinsNovos() {
-  var props = PropertiesService.getScriptProperties();
-  var novos = {
-    REGIONAL: '0418',
-    BARRA: '1801',
-    CURICICA: '1802',
-    GARDENIA: '1803',
-    OESTE: '1804',
-    RECREIO: '1805',
-    TAQUARA: '1806'
-  };
-  Object.keys(novos).forEach(function (c) { props.setProperty('PIN_' + c, novos[c]); });
-  return 'PINs atualizados: ' + Object.keys(novos).join(', ');
-}
+// Os PINs NAO ficam em codigo, nem mesmo numa funcao de uso unico.
+//
+// Existiam aqui duas funcoes (configurarPinsIniciais/configurarPinsNovos)
+// que gravavam os 7 valores de uma vez. Faziam o servico certo, mas ficaram
+// no arquivo depois de usadas - e o arquivo e versionado num repositorio
+// PUBLICO, entao os PINs estavam legiveis para qualquer um. Sairam em
+// 21/09/2026.
+//
+// Trocar um PIN e editar a propriedade correspondente em Configuracoes do
+// projeto > Propriedades do script. Nunca escrever o valor aqui: o segredo
+// que entra num commit esta queimado, porque o git guarda o historico mesmo
+// depois de apagado.
 
 // ---------- ABAS ----------
 

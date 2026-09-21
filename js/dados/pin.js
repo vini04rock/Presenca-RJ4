@@ -23,7 +23,13 @@ export async function conferirPin({ campo, escopo, chaveVerificando, chaveErro, 
   render();
   try {
     const r = await api('verificarPin', { escopo, pin: val });
-    if (r.valido) await aoEntrar();
+    if (r.valido) {
+      // Guardado, nao descartado: o backend exige o PIN em toda gravacao
+      // administrativa (ver ACOES_PROTEGIDAS em nucleo/api.js). Sem isso a
+      // pessoa entraria na tela e toda acao seria recusada.
+      state.pinAtual = { escopo, pin: val };
+      await aoEntrar();
+    }
     else state[chaveErro] = 'PIN incorreto.';
   } catch (e) {
     state[chaveErro] = 'Não consegui verificar (' + e.message + '). Tente de novo.';
