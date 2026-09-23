@@ -2,7 +2,7 @@
 
 import { COR_TODOS_EVENTOS, TIPOS_EVENTO, TIPO_HOME_TAGLINE, classeTipoEvento, corTipoEvento, emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
-import { IMG_CALENDARIO_HOME, IMG_HOME_EVENTOS, IMG_MODO_ORGANIZADOR, IMG_RANK_INSIGHTS, IMG_RANK_PRESENCA, LOGO_SRC, TIPO_HOME_IMAGEM } from '../nucleo/imagens.js';
+import { IMG_CALENDARIO_HOME, IMG_HOME_EVENTOS, IMG_RANK_INSIGHTS, IMG_RANK_PRESENCA, LOGO_SRC, TIPO_HOME_IMAGEM } from '../nucleo/imagens.js';
 import { diaDaSemana, escapeHtml, formatDataCurta, hexParaRgba, hojeISO } from '../nucleo/util.js';
 import { renderCardEscopo } from '../ui/comuns.js';
 import { openEvent } from '../fluxos/evento.js';
@@ -33,12 +33,22 @@ function proximoEvento() {
     .sort((a, b) => a.data.localeCompare(b.data) || (a.horario || '').localeCompare(b.horario || ''))[0];
 }
 
-// Card no topo da tela inicial, com atalho direto pro evento. Sem ele, quem
-// abre o app pra confirmar presenca passa por 4 toques (Eventos -> divisao
-// -> tipo -> evento) antes de chegar la.
-function renderProximoEvento() {
+// A faixa logo abaixo do titulo: o atalho pro proximo evento quando existe
+// um, e um espaco vazio da mesma altura quando nao existe.
+//
+// A altura e reservada nos dois casos, igual ao mural do organizador (ver
+// dominio/pendencias.js): o que fica embaixo nao pode dancar na tela
+// conforme haja ou nao evento marcado.
+//
+// O atalho existe porque, sem ele, quem abre o app pra confirmar presenca
+// passa por 4 toques (Eventos -> divisao -> tipo -> evento) antes de chegar
+// la.
+function renderFaixaDestaque() {
   const ev = proximoEvento();
-  if (!ev) return '';
+  // Sem evento futuro o espaco fica vazio, mas continua ocupado: a altura e
+  // reservada no CSS (.home-destaque-vazio). Deixar o espaco cair faria a
+  // tela inteira subir e descer conforme houvesse ou nao evento marcado.
+  if (!ev) return '<div class="home-destaque-vazio"></div>';
   const cor = corTipoEvento(ev.tipo);
   const imagemFundo = TIPO_HOME_IMAGEM[ev.tipo];
   const estiloFundo = imagemFundo
@@ -48,51 +58,82 @@ function renderProximoEvento() {
   const detalhe = [diaDaSemana(ev.data), ev.horario, escopoPorChave(ev.categoria).nome]
     .filter(Boolean).map(escapeHtml).join(' · ');
   return `
-    <div class="rotulo-secao">Próximo evento</div>
-    <div class="card event-card event-card-compacto ${imagemFundo ? '' : classeTipoEvento(ev.tipo)}" style="${estiloFundo}" data-action="open-event" data-id="${ev.id}">
-      ${dataCurta ? `<div class="event-date-badge">${dataCurta}</div>` : ''}
-      <div>
-        <div class="name">${escapeHtml(ev.nome)}${ev.tipo ? ' ' + emojiTipoEvento(ev.tipo) : ''}</div>
-        <div class="meta">${detalhe}</div>
+    <div class="home-destaque">
+      <div class="rotulo-secao home-rotulo-destaque">Próximo evento</div>
+      <div class="card event-card event-card-compacto ${imagemFundo ? '' : classeTipoEvento(ev.tipo)}" style="${estiloFundo}" data-action="open-event" data-id="${ev.id}">
+        ${dataCurta ? `<div class="event-date-badge">${dataCurta}</div>` : ''}
+        <div>
+          <div class="name">${escapeHtml(ev.nome)}${ev.tipo ? ' ' + emojiTipoEvento(ev.tipo) : ''}</div>
+          <div class="meta">${detalhe}</div>
+        </div>
+        <div class="arrow">›</div>
       </div>
-      <div class="arrow">›</div>
     </div>
   `;
 }
 
 function renderHomeInicio(app) {
   app.innerHTML = `
-    <div class="crest-wrap">
-      <img src="${LOGO_SRC}" alt="Insanos MC Brasil">
-      <h1>Confirmação de Presença</h1>
-      <div class="sub">RJ4</div>
-    </div>
-    <div class="ring-divider"></div>
-    ${renderProximoEvento()}
-    <div class="row-gap" style="margin-bottom:12px;">
-      <div class="card event-card card-rank-home card-rank-presenca-home" style="background-image:url('${IMG_RANK_PRESENCA}');" data-action="go-rank">
-        <div></div>
-        <div class="arrow">›</div>
+    <div class="home-raiz">
+
+      <div class="home-barra-topo">
+        <div class="home-lemas">
+          <span>IRMANDADE</span><span>RESPEITO</span><span>LIBERDADE</span><span>ESTRADA</span><span>SEMPRE</span>
+        </div>
+        <div class="home-selo">Regional RJ4</div>
       </div>
-      <div class="card event-card card-rank-home card-rank-insights-home" style="background-image:url('${IMG_RANK_INSIGHTS}');" data-action="go-rank-insights">
-        <div></div>
-        <div class="arrow">›</div>
+
+      <div class="crest-wrap home-crest">
+        <img src="${LOGO_SRC}" alt="Insanos MC Brasil">
+        <h1>Confirmação de Presença</h1>
+        <div class="home-linha-titulo"><span>REGIONAL RJ4</span></div>
       </div>
-    </div>
-    <div class="card event-card card-eventos-home" style="background-image:url('${IMG_HOME_EVENTOS}');" data-action="abrir-home-eventos">
-      <div></div>
-      <div class="arrow">›</div>
-    </div>
-    <div class="card event-card card-eventos-home" style="background-image:url('${IMG_CALENDARIO_HOME}'); border-left:3px solid #5FA0C4;" data-action="go-calendario-divisoes">
-      <div></div>
-      <div class="arrow">›</div>
-    </div>
-    <div class="card event-card card-admin-home card-organizador-home" style="background-image:url('${IMG_MODO_ORGANIZADOR}');" data-action="go-divisoes">
-      <div></div>
-      <div class="arrow">›</div>
-    </div>
-    <div class="footer-admin">
-      <div class="brand-tag">Desenvolvido por: Almeida - Adm. Barra - RJ4</div>
+
+      ${renderFaixaDestaque()}
+
+      <div class="home-grade home-grade-ranks">
+        <div class="card event-card card-rank-home card-rank-presenca-home" style="background-image:url('${IMG_RANK_PRESENCA}');" data-action="go-rank">
+          <div></div>
+          <div class="arrow">›</div>
+        </div>
+        <div class="card event-card card-rank-home card-rank-insights-home" style="background-image:url('${IMG_RANK_INSIGHTS}');" data-action="go-rank-insights">
+          <div></div>
+          <div class="arrow">›</div>
+        </div>
+      </div>
+
+      <div class="home-grade home-grade-principais">
+        <div class="card event-card card-eventos-home" style="background-image:url('${IMG_HOME_EVENTOS}');" data-action="abrir-home-eventos">
+          <div></div>
+          <div class="arrow">›</div>
+        </div>
+        <div class="card event-card card-eventos-home card-calendario-home" style="background-image:url('${IMG_CALENDARIO_HOME}');" data-action="go-calendario-divisoes">
+          <div></div>
+          <div class="arrow">›</div>
+        </div>
+      </div>
+
+      <div class="home-rodape">
+        <div class="home-rodape-marca">
+          <div class="home-rodape-nome">INSANOS MC <i>|</i> REGIONAL RJ4</div>
+          <div class="home-rodape-lemas">DISCIPLINA · RESPEITO · IRMANDADE · SEMPRE</div>
+        </div>
+        <div class="home-rodape-mote">
+          <div class="home-rodape-anel"></div>
+          <div>LIBERDADE NOS MOVE</div>
+        </div>
+        <div class="home-rodape-acao">
+          <div class="home-btn-organizador" data-action="go-divisoes">
+            <span class="home-btn-organizador-icone">⚙️</span>
+            <span class="home-btn-organizador-texto">
+              <span class="home-btn-organizador-titulo">Modo organizador</span>
+              <span class="home-btn-organizador-sub">Área administrativa</span>
+            </span>
+          </div>
+          <div class="brand-tag">Desenvolvido por: Almeida<br>Adm. Barra - RJ4</div>
+        </div>
+      </div>
+
     </div>
   `;
 }

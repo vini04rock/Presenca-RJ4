@@ -922,3 +922,226 @@ label {
    text-overflow acima nunca dispara - um item flex nao encolhe abaixo do
    proprio conteudo sem isto. */
 .event-card-compacto > div:not(.arrow):not(.event-date-badge) { min-width: 0; }
+
+/* ======================================================================
+   TELA INICIAL (a raiz do app, renderHomeInicio)
+   ======================================================================
+   Esta e a UNICA tela larga do app. As outras 67 continuam na coluna de
+   480px do #app - por isso a largura e liberada pelo :has(), que so pega
+   quando a raiz da tela inicial esta desenhada, em vez de mexer no #app e
+   alcancar tudo.
+
+   Navegador sem :has() (Safari < 15.4) cai na coluna de 480px de sempre:
+   fica estreito, nao fica quebrado. E no celular o :has() nem entra em
+   jogo, porque a tela ja e mais estreita que 480px. */
+/* ESTE NUMERO E O BOTAO DE VOLUME DA TELA INICIAL INTEIRA.
+   Todos os cards daqui tem proporcao fixa (aspect-ratio) e largura em fracao
+   da coluna, entao nenhum deles tem tamanho proprio: quem decide e a largura
+   do container. Mexer so aqui aumenta ou diminui TODOS juntos, mantendo a
+   arrumacao e as proporcoes intactas - nao ha nenhum outro lugar pra ajustar
+   "o tamanho dos cards".
+   1320 -> 990 (-25%) em 23/09/2026: a 1320 os cards tomavam a tela toda, e
+   isto e um app de uso, nao uma pagina de apresentacao.
+   No celular isto nao muda nada: a tela ja e mais estreita que 990. */
+#app:has(> .home-raiz) { max-width: 990px; }
+
+/* --- barra decorativa do topo --------------------------------------- */
+/* So texto: os lemas do clube e o selo da regional. Nao ha menu sanduiche
+   aqui de proposito - ele prometeria uma gaveta de navegacao que o app nao
+   tem, e a reorganizacao era pra mexer so na posicao das coisas. */
+.home-barra-topo {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; flex-wrap: wrap; margin-bottom: clamp(10px, 2vw, 22px);
+}
+.home-lemas {
+  display: flex; flex-wrap: wrap;
+  gap: clamp(5px, 1.4vw, 18px);
+  font-size: clamp(7.5px, 1.35vw, 10.5px);
+  letter-spacing: 0.17em; color: var(--text-muted);
+}
+/* O tracinho entre os lemas e desenhado, nao digitado: assim a ultima
+   palavra nao fica com um separador orfao pendurado no fim. */
+.home-lemas span + span::before {
+  content: ''; display: inline-block;
+  width: 1px; height: 8px; margin-right: clamp(5px, 1.4vw, 18px);
+  background: var(--line-strong); vertical-align: -1px;
+}
+.home-selo {
+  border: 1px solid #6B5A2E; background: rgba(10, 10, 10, 0.72);
+  padding: 4px 11px; white-space: nowrap;
+  font-size: clamp(7.5px, 1.3vw, 10px);
+  letter-spacing: 0.15em; text-transform: uppercase; color: #D4A24C;
+}
+
+/* --- brasao e titulo ------------------------------------------------- */
+.home-crest { margin-bottom: clamp(10px, 1.8vw, 18px); }
+.home-crest h1 { font-size: clamp(21px, 4.2vw, 46px); }
+/* "REGIONAL RJ4" com um filete de cada lado. Os filetes sao pseudo-elementos
+   pra nao precisarem existir no HTML: sao enfeite, nao conteudo. */
+.home-linha-titulo {
+  display: flex; align-items: center; justify-content: center;
+  gap: 14px; margin-top: 8px;
+}
+.home-linha-titulo::before, .home-linha-titulo::after {
+  content: ''; height: 1px; flex: 0 1 clamp(30px, 12vw, 190px);
+  background: linear-gradient(to right, transparent, #6B5A2E, transparent);
+}
+.home-linha-titulo span {
+  font-size: clamp(9px, 1.5vw, 12.5px);
+  letter-spacing: 0.34em; color: #D4A24C; white-space: nowrap;
+}
+
+/* --- a faixa de destaque (proximo evento OU a frase) ----------------- */
+/* Largura limitada: numa tela de 1320px, um card de evento esticado de
+   ponta a ponta ficaria com o nome perdido no meio de um vazio enorme. */
+.home-destaque, .home-destaque-vazio {
+  max-width: 620px; margin: 0 auto clamp(10px, 1.6vw, 18px);
+}
+.home-rotulo-destaque { text-align: center; }
+/* O mesmo espaco que o card do proximo evento ocuparia (rotulo + card),
+   guardado vazio nos dias sem evento marcado. Sem isso a linha dos ranks
+   e tudo abaixo dela subiria de um dia pro outro. */
+.home-destaque-vazio { height: clamp(58px, 7vw, 78px); }
+
+/* --- as duas grades de cards ----------------------------------------- */
+.home-grade {
+  display: grid; gap: clamp(8px, 1.3vw, 18px);
+  margin-bottom: clamp(8px, 1.3vw, 18px);
+}
+/* Rank de Presenca + Rank de Insights: sempre dois por linha, inclusive no
+   celular - e o que o app ja fazia, e as artes (proporcao ~5.15:1) aguentam
+   a largura pela metade. */
+/* Os ranks sao a linha MENOR: ficam recuados, ocupando ~78% da largura que
+   Eventos/Calendario ocupam. E a hierarquia da arte - confirmar presenca e
+   ver o calendario sao o que se vem fazer aqui; os ranks sao consulta.
+   O recuo vale em QUALQUER largura: a tela inicial nao se reorganiza, ela
+   so encolhe (ver a nota sobre reflow logo abaixo). */
+.home-grade-ranks {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 78%; margin-left: auto; margin-right: auto;
+}
+/* A TELA INICIAL NAO TEM REFLOW: nenhuma largura de tela reorganiza os
+   cards. Dois por linha no monitor, dois por linha no celular - o que muda
+   e so o tamanho, porque toda medida daqui e fracao da largura (%, vw,
+   clamp) e todo card tem aspect-ratio. Assim o integrante ve a MESMA tela
+   em qualquer aparelho, so maior ou menor.
+   Isto so passou a ser possivel quando as artes de Eventos e Calendario
+   foram redesenhadas em 21:9 (23/09/2026). Com os banners antigos de 4.84:1
+   havia uma quebra em 720px por necessidade: espremidos pela metade num
+   celular eles viravam um filete de 37px de altura e o texto desenhado
+   dentro sumia. Se um dia as artes voltarem a ser largas, a quebra volta
+   junto - nao e preferencia de layout, e a proporcao da imagem mandando. */
+.home-grade-principais { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* Dentro da grade quem manda na largura e a coluna, nao o card - o flex e o
+   min-width que os cards usavam quando viviam num .row-gap sobrariam aqui,
+   e o min-width chegaria a estourar a coluna numa tela bem estreita. */
+.home-grade .card-rank-home { flex: none; min-width: 0; }
+.home-grade .card-eventos-home {
+  min-height: 0; margin-bottom: 0;
+  /* 1200x515 - a proporcao exata em que as artes de Eventos e Calendario
+     foram redesenhadas (21:9). Card e imagem na mesma proporcao e o unico
+     jeito de o "cover" nao cortar nem ampliar nada, em qualquer largura:
+     no celular, empilhados e com a largura cheia, e no computador, lado a
+     lado. Mexer neste numero sem redesenhar as artes volta a cortar. */
+  aspect-ratio: 1200 / 515;
+}
+.card-calendario-home { border-left: 3px solid #5FA0C4; }
+
+/* --- rodape ----------------------------------------------------------- */
+/* Tres blocos numa linha so: marca a esquerda, mote no centro, organizador a
+   direita. O Modo organizador desceu pra ca vindo do meio da tela: com a
+   planilha exigindo PIN, ele e porta de servico, nao fluxo principal.
+   nowrap de proposito - a tela inicial nao se reorganiza em largura nenhuma,
+   entao o rodape encolhe junto com o resto em vez de quebrar em linhas.
+   TODO tamanho daqui e clamp() com vw no meio: sem isso o texto fica do
+   mesmo tamanho num monitor e num celular, e no celular ele acaba MAIOR que
+   os cards ao lado. Foi o que aconteceu com o "Desenvolvido por", que estava
+   herdando os 16px do navegador porque a unica regra de .brand-tag exige
+   .footer-admin como ancestral, e aqui o ancestral e outro. */
+.home-rodape {
+  display: flex; align-items: center; justify-content: center;
+  gap: clamp(8px, 1.6vw, 28px); flex-wrap: wrap;
+  margin-top: clamp(14px, 2.4vw, 30px);
+  padding-top: clamp(10px, 1.8vw, 20px);
+  border-top: 1px solid var(--line);
+}
+/* O rodape e a UNICA parte da tela inicial que pode quebrar em linhas, e
+   quebra por necessidade fisica: sao tres blocos de TEXTO, e texto tem uma
+   largura minima que nenhuma escala resolve. Num celular de 390px sobram
+   ~358px, e os tres lado a lado pedem ~443px - com nowrap eles nao
+   encolhiam, empurravam a PAGINA INTEIRA pra 780px e cortavam os cards e o
+   selo do topo pela direita.
+   Os cards continuam sem quebra nenhuma: la o conteudo e imagem, que
+   encolhe de verdade junto com o card.
+   A quebra e automatica, pelo flex-basis de cada bloco: cabendo os tres na
+   linha, ficam na linha; nao cabendo, empilham centralizados. Nao ha
+   largura magica escrita em lugar nenhum. */
+.home-rodape > * { min-width: 0; }
+.home-rodape-marca { flex: 1 1 200px; }
+.home-rodape-mote { flex: 1 1 130px; text-align: center; }
+.home-rodape-acao { flex: 1 1 230px; }
+/* Empilhado (celular), tudo centralizado - alinhar a esquerda/direita so faz
+   sentido quando os blocos sao vizinhos numa linha. */
+@media (max-width: 719px) {
+  .home-rodape { text-align: center; }
+  .home-rodape-acao { justify-content: center; }
+  .home-rodape .brand-tag { text-align: center; }
+}
+
+.home-rodape-nome {
+  font-size: clamp(8px, 1.35vw, 13px); letter-spacing: 0.14em;
+  color: var(--white-strong); white-space: nowrap;
+}
+.home-rodape-nome i { color: var(--line-strong); font-style: normal; margin: 0 3px; }
+.home-rodape-lemas {
+  font-size: clamp(6px, 1vw, 9.5px); letter-spacing: 0.1em;
+  color: var(--text-muted); margin-top: 4px;
+}
+.home-rodape-mote {
+  font-size: clamp(6px, 1vw, 9.5px); letter-spacing: 0.2em;
+  color: var(--text-muted);
+}
+.home-rodape-anel {
+  width: clamp(5px, 0.7vw, 9px); height: clamp(5px, 0.7vw, 9px); border-radius: 50%;
+  border: 1px solid #6B5A2E; margin: 0 auto clamp(4px, 0.7vw, 7px);
+  position: relative;
+}
+/* Os dois filetes que saem do anel, como na arte. */
+.home-rodape-anel::before, .home-rodape-anel::after {
+  content: ''; position: absolute; top: 50%; width: clamp(12px, 4vw, 70px); height: 1px;
+  background: linear-gradient(to right, transparent, #6B5A2E);
+}
+.home-rodape-anel::before { right: 100%; margin-right: 6px; }
+.home-rodape-anel::after {
+  left: 100%; margin-left: 6px;
+  background: linear-gradient(to left, transparent, #6B5A2E);
+}
+.home-rodape-acao {
+  display: flex; align-items: center; gap: clamp(6px, 1.2vw, 18px);
+  justify-content: flex-end;
+}
+.home-btn-organizador {
+  display: flex; align-items: center; gap: clamp(5px, 0.9vw, 9px); cursor: pointer;
+  border: 1px solid #6B5A2E; background: rgba(10, 10, 10, 0.72);
+  padding: clamp(5px, 0.9vw, 8px) clamp(8px, 1.5vw, 14px);
+  white-space: nowrap;
+}
+.home-btn-organizador:active { filter: brightness(0.82); }
+.home-btn-organizador-icone { font-size: clamp(10px, 1.5vw, 17px); }
+.home-btn-organizador-texto { display: block; }
+.home-btn-organizador-titulo {
+  display: block; font-weight: 600; color: var(--white-strong);
+  font-size: clamp(8.5px, 1.4vw, 13.5px);
+}
+.home-btn-organizador-sub {
+  display: block; color: var(--text-muted); margin-top: 1px;
+  font-size: clamp(6.5px, 1.1vw, 10.5px);
+}
+/* A regra global de .brand-tag pede .footer-admin como ancestral, que aqui
+   nao existe - sem esta linha o texto cai nos 16px padrao do navegador. */
+.home-rodape .brand-tag {
+  margin: 0; text-align: right; line-height: 1.45;
+  font-size: clamp(6.5px, 1.1vw, 10.5px); letter-spacing: 0.06em;
+  color: var(--line-strong); font-family: 'IBM Plex Sans', sans-serif;
+  white-space: nowrap;
+}
