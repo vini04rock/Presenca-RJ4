@@ -29,14 +29,18 @@ export const IMG_REGIONAL = 'img/regional.webp';
 export const IMG_HOME_EVENTOS = 'img/home-eventos.webp';
 
 
-// Arte de fundo do card "Modo organizador" da tela inicial (texto ja
-// desenhado - por isso o card nao repete esse texto em HTML, so a seta).
-export const IMG_MODO_ORGANIZADOR = 'img/modo-organizador.jpg';
 // Arte de fundo do card "Calendario" da tela inicial (texto ja desenhado).
 // Redesenhada em 21:9 (1200x515) em 23/09/2026, junto com a do card Eventos:
 // os dois sao os cards GRANDES da tela, e o banner antigo de 4.84:1 nao
 // cabia na altura nova sem ser cortado no meio do titulo.
 export const IMG_CALENDARIO_HOME = 'img/calendario-home.webp';
+
+// Arte do botao "Modo organizador", no rodape da tela inicial (engrenagem,
+// texto e seta ja desenhados - por isso o botao nao repete nada em HTML).
+// 4:1, a proporcao em que ele foi desenhado; e o menor elemento da tela
+// (~180px no computador, ~115px no celular), entao a arte foi composta
+// "grande", com o texto ocupando boa parte da altura.
+export const IMG_MODO_ORGANIZADOR = 'img/modo-organizador.webp';
 // Arte de fundo de cada tipo (base64, comprimida pra WebP bem pequeno - ver
 // processo no historico do projeto) - alimentado aos poucos conforme cada
 // arte for chegando. Tipo sem entrada aqui cai na cor solida (ver

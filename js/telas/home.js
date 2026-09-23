@@ -2,7 +2,7 @@
 
 import { COR_TODOS_EVENTOS, TIPOS_EVENTO, TIPO_HOME_TAGLINE, classeTipoEvento, corTipoEvento, emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
-import { IMG_CALENDARIO_HOME, IMG_HOME_EVENTOS, IMG_RANK_INSIGHTS, IMG_RANK_PRESENCA, LOGO_SRC, TIPO_HOME_IMAGEM } from '../nucleo/imagens.js';
+import { IMG_CALENDARIO_HOME, IMG_HOME_EVENTOS, IMG_MODO_ORGANIZADOR, IMG_RANK_INSIGHTS, IMG_RANK_PRESENCA, LOGO_SRC, TIPO_HOME_IMAGEM } from '../nucleo/imagens.js';
 import { diaDaSemana, escapeHtml, formatDataCurta, hexParaRgba, hojeISO } from '../nucleo/util.js';
 import { renderCardEscopo } from '../ui/comuns.js';
 import { openEvent } from '../fluxos/evento.js';
@@ -123,13 +123,7 @@ function renderHomeInicio(app) {
           <div>LIBERDADE NOS MOVE</div>
         </div>
         <div class="home-rodape-acao">
-          <div class="home-btn-organizador" data-action="go-divisoes">
-            <span class="home-btn-organizador-icone">⚙️</span>
-            <span class="home-btn-organizador-texto">
-              <span class="home-btn-organizador-titulo">Modo organizador</span>
-              <span class="home-btn-organizador-sub">Área administrativa</span>
-            </span>
-          </div>
+          <div class="card event-card home-btn-organizador" style="background-image:url('${IMG_MODO_ORGANIZADOR}');" data-action="go-divisoes"></div>
           <div class="brand-tag">Desenvolvido por: Almeida<br>Adm. Barra - RJ4</div>
         </div>
       </div>

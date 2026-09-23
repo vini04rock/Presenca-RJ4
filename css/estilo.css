@@ -1120,23 +1120,19 @@ label {
   display: flex; align-items: center; gap: clamp(6px, 1.2vw, 18px);
   justify-content: flex-end;
 }
+/* Card de arte, nao botao de texto: a engrenagem, o "Modo organizador" e a
+   seta estao desenhados na imagem, igual aos outros cards da tela.
+   A largura e clamp() em vez de fracao da coluna porque ele nao esta numa
+   grade - vive no rodape, ao lado do "Desenvolvido por". Os limites seguem o
+   que o botao de texto ja media: ~180px no computador, ~115px no celular. */
 .home-btn-organizador {
-  display: flex; align-items: center; gap: clamp(5px, 0.9vw, 9px); cursor: pointer;
-  border: 1px solid #6B5A2E; background: rgba(10, 10, 10, 0.72);
-  padding: clamp(5px, 0.9vw, 8px) clamp(8px, 1.5vw, 14px);
-  white-space: nowrap;
+  width: clamp(115px, 13vw, 185px);
+  aspect-ratio: 4 / 1;
+  background-size: cover; background-position: center;
+  border: none; padding: 0; margin-bottom: 0;
+  cursor: pointer;
 }
 .home-btn-organizador:active { filter: brightness(0.82); }
-.home-btn-organizador-icone { font-size: clamp(10px, 1.5vw, 17px); }
-.home-btn-organizador-texto { display: block; }
-.home-btn-organizador-titulo {
-  display: block; font-weight: 600; color: var(--white-strong);
-  font-size: clamp(8.5px, 1.4vw, 13.5px);
-}
-.home-btn-organizador-sub {
-  display: block; color: var(--text-muted); margin-top: 1px;
-  font-size: clamp(6.5px, 1.1vw, 10.5px);
-}
 /* A regra global de .brand-tag pede .footer-admin como ancestral, que aqui
    nao existe - sem esta linha o texto cai nos 16px padrao do navegador. */
 .home-rodape .brand-tag {
