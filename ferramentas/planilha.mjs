@@ -385,6 +385,32 @@ log('=== permissao: quem pode gravar na planilha ===');
 }
 
 log('');
+log('=== Rank de Insights: os números de cada divisão ===');
+{
+  // O caso real de 25/09/2026, na Gardênia: 4 integrantes, 7 rodadas, 3
+  // "Sim" ao todo. A media por rodada (0,43) virava 0 arredondada, e o
+  // grafico da divisao saia todo vermelho ao lado de um "11%" certo.
+  const membrosG = ['g1', 'g2', 'g3', 'g4'];
+  const rodadas = ['r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7'];
+  const sim = new Set(['r1|g1', 'r3|g2', 'r6|g1']);
+  const p = montaPlanilha([], []);
+  p.abas.Membros = novaAba('Membros', [['ID', 'Nome', 'Grau', 'Divisao', 'Funcoes', 'Cargo'],
+    ...membrosG.map(id => [id, 'Membro ' + id, 'X', 'Gardênia - RJ4', '', ''])]);
+  p.abas.InsightRodadas = novaAba('InsightRodadas', [['ID', 'Data', 'Criado em'],
+    ...rodadas.map((r, i) => [r, `2026-09-0${i + 1}`, ''])]);
+  p.abas.InsightPresencas = novaAba('InsightPresencas', [['ID Rodada', 'ID Membro', 'Membro', 'Divisao', 'Fez'],
+    ...rodadas.flatMap(r => membrosG.map(m => [r, m, 'Membro ' + m, 'Gardênia - RJ4', sim.has(r + '|' + m) ? 'Sim' : 'Nao']))]);
+  const { contexto } = carregaCodeGs(p);
+  const r = contexto.executar('insightEstatisticas', {});
+  const g = r.divisoes.find(d => d.chave === 'gardenia');
+  confere('manda as somas exatas (3 de 28)', [g.fez, g.marcacoes], [3, 28]);
+  confere('o percentual continua 11%', g.percentual, 11);
+  confere('a média por rodada não vira 0', [g.mediaPorRodada, g.mediaTotalPorRodada], [0.4, 4]);
+  const vazia = r.divisoes.find(d => d.chave === 'barra');
+  confere('divisão sem rodada nenhuma vem zerada', [vazia.fez, vazia.marcacoes, vazia.percentual], [0, 0, null]);
+}
+
+log('');
 log(falhas === 0 ? 'TUDO OK' : `${falhas} FALHA(S) — veja acima`);
 fs.writeFileSync(SAIDA, linhas.join('\n'), 'utf8');
 process.exit(falhas === 0 ? 0 : 1);

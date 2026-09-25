@@ -5,11 +5,11 @@
 // quem acompanha o numero e o Regional.
 
 import { agruparMembrosRodadaPorDivisao } from '../dominio/divisoes.js';
-import { estatisticasInsightsPorPeriodo } from '../dominio/estatisticas.js';
+import { estatisticasInsightsPorPeriodo, numerosInsightDivisao } from '../dominio/estatisticas.js';
 import { divisoesSemRegional } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { dataDoCampoOuAvisar, escapeHtml, formatDataBR } from '../nucleo/util.js';
-import { renderRankInsightsConteudo } from '../ui/insights.js';
+import { formatMedia, renderRankInsightsConteudo } from '../ui/insights.js';
 import { campoData } from '../ui/comuns.js';
 import { loadInsightStats } from '../dados/carregar.js';
 import { cancelarAjusteInsightRodada, confirmarInsightRodada, excluirInsightRodada, iniciarAjusteInsightRodada, reincluirMembroInsight, removerMembroInsight, salvarAjusteInsightRodada } from '../fluxos/insights.js';
@@ -175,6 +175,7 @@ export function renderAdminInsights() {
 
   const blocoMarcacao = divisoesSemRegional().map(e => {
     const item = porChave(e.chave);
+    const media = numerosInsightDivisao(item, d.rodadas);
     const membros = d.membros
       .filter(m => m.divisao === e.nome)
       .sort((a, b) => (b.percentual ?? -1) - (a.percentual ?? -1) || a.nome.localeCompare(b.nome));
@@ -183,7 +184,7 @@ export function renderAdminInsights() {
       <div class="card" style="padding: 4px 16px; margin-bottom:12px;">
         <div class="division-subheader clicavel" data-action="toggle-insight-divisao-grupo" data-value="${e.chave}">
           <span>${aberto ? '▾' : '▸'} ${escapeHtml(e.nome.toUpperCase())}</span>
-          <span class="division-counts">${item ? item.mediaPorRodada : 0}/${item ? item.mediaTotalPorRodada : 0} por rodada &nbsp;·&nbsp; <b>${item && item.percentual !== null ? item.percentual + '%' : '—'}</b></span>
+          <span class="division-counts">${formatMedia(media.mediaFez)}/${formatMedia(media.mediaTotal)} por rodada &nbsp;·&nbsp; <b>${item && item.percentual !== null ? item.percentual + '%' : '—'}</b></span>
         </div>
         ${aberto ? (membros.length === 0 ? '<div class="empty">Nenhum membro cadastrado.</div>' : membros.map(m => {
           const marcado = !!state.insightMarcacoes[m.id];

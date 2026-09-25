@@ -137,7 +137,9 @@ const insight = {
   membros: daBase.map((m,i) => ({ id:m.id, nome:m.nome, divisao:m.divisao, grau:m.grau,
     funcoes:m.funcoes, rodadas:5, confirmacoes:5-i, percentual:Math.round(((5-i)/5)*100) })),
   divisoes: [
-    { chave:'barra', nome:'Barra - RJ4', totalMembros:3, mediaPorRodada:2, mediaTotalPorRodada:3, percentual:70 },
+    // Barra no formato do Code.gs atual (com as somas); Recreio no antigo,
+    // sem elas - o app tem que desenhar os dois (ver numerosInsightDivisao).
+    { chave:'barra', nome:'Barra - RJ4', totalMembros:3, fez:11, marcacoes:15, mediaPorRodada:2.2, mediaTotalPorRodada:3, percentual:73 },
     { chave:'recreio', nome:'Recreio - RJ4', totalMembros:1, mediaPorRodada:1, mediaTotalPorRodada:1, percentual:60 },
   ],
   excluidos: [{ id:'m5', nome:'Falcao', divisao:'Gardênia - RJ4' }],

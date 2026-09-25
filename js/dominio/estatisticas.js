@@ -346,11 +346,42 @@ export function estatisticasInsightsPorPeriodo(stats, historico, inicio, fim) {
     const cadastrados = membros.filter(m => m.divisao === dv.nome).length;
     return {
       ...dv,
-      mediaPorRodada: num ? Math.round(c.sim / num) : 0,
-      mediaTotalPorRodada: num ? Math.round(c.total / num) : cadastrados,
+      fez: c.sim,
+      marcacoes: c.total,
+      mediaPorRodada: num ? Math.round((c.sim / num) * 10) / 10 : 0,
+      mediaTotalPorRodada: num ? Math.round((c.total / num) * 10) / 10 : cadastrados,
       percentual: c.total ? Math.round((c.sim / c.total) * 100) : null,
     };
   });
 
   return { stats: { ...stats, rodadas: num, membros, divisoes }, rodadas };
+}
+
+// Os numeros do grafico de uma divisao no Rank de Insights: as fatias
+// (fez/naoFez, somando todas as rodadas) e a media por rodada, sem
+// arredondar - quem desenha e que formata.
+//
+// As fatias vem das somas exatas, nunca das medias: arredondada pra inteiro,
+// a media de uma divisao com 3 "Sim" em 7 rodadas (0,43) virava 0, e o
+// grafico saia todo vermelho ao lado de um "11%" que estava certo.
+//
+// Um Code.gs publicado antes dessa correcao nao manda fez/marcacoes. Ai as
+// somas sao refeitas a partir do que ele manda (media de marcacoes por
+// rodada x rodadas, e o percentual por cima disso) - chega no mesmo numero,
+// porque as marcacoes por rodada sao sempre inteiras. Pode sair quando o
+// Code.gs novo estiver no ar.
+export function numerosInsightDivisao(item, rodadas) {
+  if (!item) return { fez: 0, naoFez: 0, mediaFez: 0, mediaTotal: 0 };
+  let fez = item.fez;
+  let marcacoes = item.marcacoes;
+  if (fez === undefined || marcacoes === undefined) {
+    marcacoes = Math.round((item.mediaTotalPorRodada || 0) * rodadas);
+    fez = Math.round(((item.percentual || 0) / 100) * marcacoes);
+  }
+  return {
+    fez,
+    naoFez: Math.max(0, marcacoes - fez),
+    mediaFez: rodadas ? fez / rodadas : 0,
+    mediaTotal: rodadas ? marcacoes / rodadas : (item.mediaTotalPorRodada || 0),
+  };
 }

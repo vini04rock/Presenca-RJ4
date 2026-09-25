@@ -4,11 +4,18 @@
 // organizador. Enquanto estava dentro de telas/rank-insights.js, mexer
 // naquela tela mudava a do organizador sem avisar.
 
+import { numerosInsightDivisao } from '../dominio/estatisticas.js';
 import { divisoesSemRegional } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { escapeHtml, formatDataBR } from '../nucleo/util.js';
 import { linhaFuncoes } from './comuns.js';
 import { renderDonutChart, renderSparklineTendencia } from './graficos.js';
+
+// Media por rodada, com no maximo uma casa: "0,4", "7", "8,1". Inteiro sai
+// sem casa nenhuma - "7,0" seria ruido.
+export function formatMedia(n) {
+  return (Math.round(n * 10) / 10).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+}
 
 // "historico" e a lista de rodadas do grafico de tendencia. O Rank publico
 // nao filtra nada e nem passa o parametro (usa o state, como sempre); a aba
@@ -44,16 +51,15 @@ export function renderRankInsightsConteudo(d, historico) {
     <div class="donut-grid" style="margin-bottom:16px;">
       ${divisoesSemRegional().map(e => {
         const item = porChave(e.chave);
-        const fez = item ? item.mediaPorRodada : 0;
-        const naoFez = Math.max(0, (item ? item.mediaTotalPorRodada : 0) - fez);
+        const n = numerosInsightDivisao(item, d.rodadas);
         return `
           <div class="card donut-card">
             <div style="font-weight:600; margin-bottom:8px;">${escapeHtml(e.nome)}</div>
             ${renderDonutChart([
-              { label: 'Fez', value: fez, cor: 'var(--status-confirmado)' },
-              { label: 'Não fez', value: naoFez, cor: 'var(--status-infracional)' },
+              { label: 'Fez', value: n.fez, cor: 'var(--status-confirmado)' },
+              { label: 'Não fez', value: n.naoFez, cor: 'var(--status-infracional)' },
             ], linhaPct(item && item.percentual), 'fazem', 110)}
-            <div class="info-line" style="padding:8px 0 0; color:var(--text-muted); font-size:12px;">${fez}/${item ? item.mediaTotalPorRodada : 0} fazem, em média, por rodada</div>
+            <div class="info-line" style="padding:8px 0 0; color:var(--text-muted); font-size:12px;">${formatMedia(n.mediaFez)} de ${formatMedia(n.mediaTotal)} fazem, em média, por rodada</div>
           </div>
         `;
       }).join('')}

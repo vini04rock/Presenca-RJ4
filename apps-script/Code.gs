@@ -83,6 +83,9 @@ function statusParaChave(rotulo) {
 function simNao(v) { return v ? 'Sim' : 'Nao'; }
 function ehSim(v) { return String(v).trim().toLowerCase() === 'sim'; }
 
+// 0.428 -> 0.4. Para medias que perdem o sentido arredondadas pra inteiro.
+function umaCasa(n) { return Math.round(n * 10) / 10; }
+
 // ---------- ENTRADAS ----------
 
 function doGet(e) {
@@ -1852,14 +1855,21 @@ function calcularEstatisticasInsights() {
     };
   });
 
+  // fez/marcacoes sao as somas exatas, e e delas que o app desenha o grafico
+  // de cada divisao. As medias por rodada ficam com uma casa decimal: antes
+  // eram arredondadas pra inteiro, e uma divisao com 3 "Sim" em 7 rodadas
+  // (0,43 por rodada) virava 0 - o grafico saia todo vermelho ao lado de um
+  // "11%" que estava certo.
   var divisoes = CHAVES_DIVISOES_DETALHE.map(function (chave) {
     var d = porDivisaoSnapshot[chave] || { total: 0, sim: 0 };
     var membrosDaDivisao = membrosElegiveis.filter(function (m) { return m.divisao === ESCOPOS_NOME[chave]; });
     return {
       chave: chave, nome: ESCOPOS_NOME[chave],
       totalMembros: membrosDaDivisao.length,
-      mediaPorRodada: numRodadas ? Math.round(d.sim / numRodadas) : 0,
-      mediaTotalPorRodada: numRodadas ? Math.round(d.total / numRodadas) : membrosDaDivisao.length,
+      fez: d.sim,
+      marcacoes: d.total,
+      mediaPorRodada: numRodadas ? umaCasa(d.sim / numRodadas) : 0,
+      mediaTotalPorRodada: numRodadas ? umaCasa(d.total / numRodadas) : membrosDaDivisao.length,
       percentual: d.total ? Math.round((d.sim / d.total) * 100) : null
     };
   });
@@ -1966,6 +1976,9 @@ function atualizarAbaInsight() {
     if (f.tipo === 'cabecalho') r.setFontWeight('bold').setFontColor('#666666').setFontSize(10);
   });
   s.getRange(linhaCabecalhoDivisoes + 1, 4, Math.max(0, linhaFimDivisoes - linhaCabecalhoDivisoes), 1).setNumberFormat('0"%"');
+  // A media por rodada tem uma casa decimal (ver calcularEstatisticasInsights) -
+  // sem o formato fixo a coluna misturaria "4" com "0,4".
+  s.getRange(linhaCabecalhoDivisoes + 1, 2, Math.max(0, linhaFimDivisoes - linhaCabecalhoDivisoes), 1).setNumberFormat('0.0');
   s.getRange(1, 4, linhasSaida.length, 1).setNumberFormat('0"%"');
 
   s.setColumnWidth(1, 240);

@@ -22,7 +22,7 @@ const { ordenarPorHierarquia } = await import(url('nucleo/util.js'));
 const { CARGOS, cargosDoGrau } = await import(url('nucleo/config.js'));
 const { montarConvocacao, camposIniciais, dataDaConvocacao, blocoInformacoes } = await import(url('dominio/convocacao.js'));
 const { parseConvocacaoTexto } = await import(url('dominio/parser.js'));
-const { estatisticasInsightsPorPeriodo } = await import(url('dominio/estatisticas.js'));
+const { estatisticasInsightsPorPeriodo, numerosInsightDivisao } = await import(url('dominio/estatisticas.js'));
 const { mascaraData, dataISOdeBR, formatDataBR } = await import(url('nucleo/util.js'));
 const { eventosProximos, semResposta } = await import(url('dominio/pendencias.js'));
 const { state: st } = await import(url('nucleo/estado.js'));
@@ -171,6 +171,40 @@ confere('a data da borda entra no período', soUmDia.stats.rodadas, 1);
 // Divisao: 2 de 3 fizeram por rodada em agosto (Ana e Bia), 6 linhas no total.
 confere('média da divisão em agosto', soAgosto.stats.divisoes.map(d => [d.mediaPorRodada, d.mediaTotalPorRodada, d.percentual]),
   [[2, 3, 67]]);
+
+// Media que nao da inteiro: 6 "Sim" em 12 marcacoes, ao longo de 4 rodadas.
+// Arredondada pra inteiro ela virava 2 - e o grafico mentia.
+confere('média quebrada fica com uma casa', tudo.stats.divisoes.map(d => [d.mediaPorRodada, d.mediaTotalPorRodada, d.percentual]),
+  [[1.5, 3, 50]]);
+confere('e as somas exatas vão junto', tudo.stats.divisoes.map(d => [d.fez, d.marcacoes]), [[6, 12]]);
+
+log('=== gráfico de cada divisão no Rank de Insights ===');
+
+// O caso real que abriu isto (Gardênia, 25/09/2026): 3 "Sim" em 28
+// marcações, 7 rodadas. O meio dizia 11% e o grafico saia todo vermelho,
+// porque a fatia verde era a media arredondada (0,43 -> 0).
+const gardenia = numerosInsightDivisao({ fez: 3, marcacoes: 28, percentual: 11, mediaTotalPorRodada: 4 }, 7);
+confere('Gardênia: a fatia verde não some', [gardenia.fez, gardenia.naoFez], [3, 25]);
+confere('Gardênia: a média por rodada não arredonda', Math.round(gardenia.mediaFez * 10) / 10, 0.4);
+
+// Code.gs antigo (sem fez/marcacoes): as somas sao refeitas do percentual e
+// chegam nos mesmos numeros. Os tres casos sao os valores reais de hoje.
+const semSomas = (percentual, mediaTotalPorRodada) =>
+  numerosInsightDivisao({ percentual, mediaTotalPorRodada, mediaPorRodada: 0 }, 7);
+confere('Code.gs antigo: Gardênia', [semSomas(11, 4).fez, semSomas(11, 4).naoFez], [3, 25]);
+confere('Code.gs antigo: Curicica', [semSomas(33, 7).fez, semSomas(33, 7).naoFez], [16, 33]);
+confere('Code.gs antigo: Taquara', [semSomas(43, 2).fez, semSomas(43, 2).naoFez], [6, 8]);
+
+// A fatia tem que bater com o numero do meio, em toda divisao.
+const reais = [['barra', 26, 57, 46], ['oeste', 83, 91, 91], ['recreio', 44, 89, 49],
+  ['curicica', 16, 49, 33], ['taquara', 6, 14, 43], ['gardenia', 3, 28, 11]];
+confere('a fatia verde bate com o % do meio, nas 6 divisões',
+  reais.map(([k, fez, marcacoes, pct]) => {
+    const n = numerosInsightDivisao({ fez, marcacoes, percentual: pct }, 7);
+    return [k, Math.round(n.fez / (n.fez + n.naoFez) * 100) === pct];
+  }),
+  reais.map(([k]) => [k, true]));
+confere('divisão sem dado não quebra', numerosInsightDivisao(undefined, 7), { fez: 0, naoFez: 0, mediaFez: 0, mediaTotal: 0 });
 
 // Periodo sem rodada nenhuma nao pode dividir por zero.
 const vazio = estatisticasInsightsPorPeriodo(statsFake, rodadasFake, '2026-01-01', '2026-01-31');
