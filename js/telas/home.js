@@ -124,7 +124,7 @@ function renderHomeInicio(app) {
         </div>
         <div class="home-rodape-acao">
           <div class="card event-card home-btn-organizador" style="background-image:url('${IMG_MODO_ORGANIZADOR}');" data-action="go-divisoes"></div>
-          <div class="brand-tag">Desenvolvido por: Almeida<br>Adm. Barra - RJ4</div>
+          <div class="brand-tag">Desenvolvido por: Almeida<br>Social. Barra - RJ4</div>
         </div>
       </div>
 
