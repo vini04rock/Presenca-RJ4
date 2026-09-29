@@ -39,7 +39,7 @@ function render() {
   if (state.loadError) {
     app.innerHTML = `
       <div class="crest-wrap">
-        <img src="${LOGO_SRC}" alt="Insanos MC Brasil">
+        <img src="${LOGO_SRC}" alt="Insanos MC Regional RJ4">
       </div>
       <div class="alert">
         <div class="alert-title">Não consegui carregar os dados</div>

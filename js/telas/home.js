@@ -84,7 +84,7 @@ function renderHomeInicio(app) {
       </div>
 
       <div class="crest-wrap home-crest">
-        <img src="${LOGO_SRC}" alt="Insanos MC Brasil">
+        <img src="${LOGO_SRC}" alt="Insanos MC Regional RJ4">
         <h1>Confirmação de Presença</h1>
         <div class="home-linha-titulo"><span>REGIONAL RJ4</span></div>
       </div>

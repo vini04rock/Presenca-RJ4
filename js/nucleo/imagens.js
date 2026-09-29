@@ -1,6 +1,6 @@
 // Caminhos das artes usadas nos cards (os arquivos vivem em img/).
 
-export const LOGO_SRC = 'img/logo.png';
+export const LOGO_SRC = 'img/logo.webp';
 // Segundo passo: escolher o tipo de evento, dentro do escopo ja escolhido.
 // "Todos os eventos" entra como opcao a mais, pra eventos sem tipo marcado
 // (o campo e opcional na criacao) nao ficarem impossiveis de achar.
