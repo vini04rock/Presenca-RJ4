@@ -28,6 +28,9 @@ const SECOES = [
   // abas la dentro (ver SECOES_ORGANIZADOR em admin.js).
   { aba: 'eventos', nome: 'Eventos', desc: 'Criar, editar, encerrar e ver os encerrados', icone: '🏍️', cor: '#E0B23C' },
   { aba: 'membros', nome: 'Membros', desc: 'Cadastro, grau, cargo, funções e presenças', icone: '👥', cor: '#4C86D9' },
+  // Em todas as 7 divisoes: cada uma ve os proprios integrantes, e o
+  // Regional escolhe a divisao antes do nome.
+  { acao: 'abrir-relatorio-individual', nome: 'Relatório individual', desc: 'Presença e Insight de cada integrante', icone: '📄', cor: '#D4A24C' },
   // Insight e rodada do Regional - nao existe no nivel da divisao.
   { aba: 'insights', nome: 'Insights', desc: 'Rodadas de Insight', icone: '💡', cor: '#B57EDC', visivel: () => state.adminEscopo === 'regional' },
   // Os Relatorios seguem so no Regional e na Barra - decisao do clube, que

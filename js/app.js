@@ -29,6 +29,7 @@ import { acoes as acoesRankinsights } from './telas/rank-insights.js';
 import { acoes as acoesPin } from './telas/pin.js';
 import { acoes as acoesCalendario } from './telas/calendario.js';
 import { acoes as acoesMenuOrganizador, renderMenuOrganizador } from './telas/menu-organizador.js';
+import { acoes as acoesRelatorioIndividual, renderRelatorioIndividual } from './telas/relatorio-individual.js';
 
 function render() {
   const app = document.getElementById('app');
@@ -58,6 +59,7 @@ function render() {
   if (state.view === 'admin-pin') return renderPin(app);
   if (state.view === 'admin-menu') return renderMenuOrganizador(app);
   if (state.view === 'admin') return renderAdmin(app);
+  if (state.view === 'relatorio-individual') return renderRelatorioIndividual(app);
   if (state.view === 'convocacao') return renderConvocacao(app);
   if (state.view === 'relatorio') return renderRelatorioShell(app);
   if (state.view === 'calendario-divisoes') return renderCalendarioDivisoes(app);
@@ -127,6 +129,7 @@ for (const [area, mapa] of Object.entries({
   acoesCalendario,
   acoesMenuOrganizador,
   acoesConvocacao,
+  acoesRelatorioIndividual,
 })) {
   for (const nome of Object.keys(mapa)) {
     if (ACOES[nome]) throw new Error('Acao repetida em ' + area + ': ' + nome);

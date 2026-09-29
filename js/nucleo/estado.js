@@ -76,6 +76,18 @@ export let state = {
   convocacaoCampos: {},
   convocacaoCopiado: false,
 
+  // Relatorio individual (Modo organizador). Sem integrante escolhido, a
+  // tela mostra a lista de nomes; com um, o relatorio dele. O periodo vale
+  // pra qualquer integrante que se abra, ate alguem limpar.
+  relIndMembroId: null,
+  relIndDados: null,
+  relIndCarregando: false,
+  relIndErro: null,
+  // So no Regional: quais divisoes estao abertas mostrando os nomes.
+  relIndDivisoesAbertas: new Set(),
+  relIndFiltroInicio: '',
+  relIndFiltroFim: '',
+
   newMemberGrau: null,
   // So aparece quando o grau escolhido tem cargo (VI ou V) - ver CARGOS.
   newMemberCargo: null,

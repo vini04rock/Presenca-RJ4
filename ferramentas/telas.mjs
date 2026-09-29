@@ -162,7 +162,7 @@ Object.assign(state, {
 
 // ---------- 3. desenha tudo ----------------------------------------------
 const T = {};
-for (const m of ['home','evento','rank','rank-insights','calendario','pin','relatorios','admin','convocacao','menu-organizador']) {
+for (const m of ['home','evento','rank','rank-insights','calendario','pin','relatorios','admin','convocacao','menu-organizador','relatorio-individual']) {
   Object.assign(T, await import(url('telas/' + m + '.js')));
 }
 const casos = [];
@@ -343,6 +343,43 @@ add('relatorios / ficha do membro',   { isAdmin:true, adminEscopo:'regional',
   relatorioTab:'resumo', relatorioMembroFichaId:'m1' }, T.renderRelatorioShell);
 add('relatorios / detalhe por tipo',  { isAdmin:true, adminEscopo:'regional',
   relatorioTab:'resumo', relatorioTipoDetalhe:'Pub' }, T.renderRelatorioShell);
+// Relatorio individual. Os dados imitam a resposta do Code.gs
+// (relatorioIndividual): Costa foi convocado pra Pub e Reuniao da Barra e
+// pra um evento do Regional, nunca pra Bate e Volta - esse bloco nao pode
+// aparecer.
+const relInd = {
+  ok: true,
+  membro: { id:'m1', nome:'Costa', grau:'VI', cargo:'Diretor', divisao:'Barra - RJ4', funcoes:['sargento_armas'] },
+  eventos: [
+    { id:'e1', nome:'Pub do mes', data:'2026-07-05', tipo:'Pub', categoria:'barra', status:'confirmado' },
+    { id:'e4', nome:'Acao Social', data:'2026-07-10', tipo:'Ação Social', categoria:'barra', status:'familia' },
+    { id:'e7', nome:'Pub de agosto', data:'2026-08-05', tipo:'Pub', categoria:'barra', status:'infracional' },
+    { id:'e3', nome:'Reuniao Regional', data:'2026-08-20', tipo:'Reunião', categoria:'regional', status:'confirmado' },
+  ],
+  insight: { elegivel:true, rodadas:[
+    { id:'r1', data:'2026-07-02', fez:true }, { id:'r2', data:'2026-07-09', fez:false },
+    { id:'r3', data:'2026-08-02', fez:true },
+  ] },
+};
+const org = { isAdmin:true, view:'relatorio-individual' };
+add('relatório individual / lista (barra)',     { ...org, adminEscopo:'barra' }, T.renderRelatorioIndividual);
+add('relatório individual / lista (regional)',  { ...org, adminEscopo:'regional',
+  relIndDivisoesAbertas:new Set(['barra']) }, T.renderRelatorioIndividual);
+add('relatório individual / divisão sem ninguém', { ...org, adminEscopo:'taquara' }, T.renderRelatorioIndividual);
+add('relatório individual / carregando',        { ...org, adminEscopo:'barra', relIndMembroId:'m1',
+  relIndCarregando:true }, T.renderRelatorioIndividual);
+add('relatório individual / erro',              { ...org, adminEscopo:'barra', relIndMembroId:'m1',
+  relIndErro:'A conexao demorou demais' }, T.renderRelatorioIndividual);
+add('relatório individual / completo',          { ...org, adminEscopo:'barra', relIndMembroId:'m1',
+  relIndDados:relInd }, T.renderRelatorioIndividual);
+add('relatório individual / só agosto',         { ...org, adminEscopo:'barra', relIndMembroId:'m1',
+  relIndDados:relInd, relIndFiltroInicio:'2026-08-01', relIndFiltroFim:'2026-08-31' }, T.renderRelatorioIndividual);
+add('relatório individual / nada no período',   { ...org, adminEscopo:'barra', relIndMembroId:'m1',
+  relIndDados:{ ...relInd, insight:{ elegivel:false, rodadas:[] } },
+  relIndFiltroInicio:'2026-01-01', relIndFiltroFim:'2026-01-31' }, T.renderRelatorioIndividual);
+add('relatório individual / do Regional',       { ...org, adminEscopo:'regional', relIndMembroId:'m6',
+  relIndDados:{ ok:true, membro:{ id:'m6', nome:'Chefe', grau:'X', divisao:'Regional RJ4', funcoes:[] },
+    eventos:[relInd.eventos[3]], insight:{ elegivel:false, rodadas:[] } } }, T.renderRelatorioIndividual);
 
 const LIMPO = {
   // A lista de eventos volta ao padrao entre um caso e outro: o card de
@@ -365,6 +402,8 @@ const LIMPO = {
   relatorioTextoOriginalExpandido:new Set(),
   reportData:presencas,
   newEventSelected:null, insightRankRodadaSelecionada:null,
+  relIndMembroId:null, relIndDados:null, relIndCarregando:false, relIndErro:null,
+  relIndFiltroInicio:'', relIndFiltroFim:'', relIndDivisoesAbertas:new Set(),
 };
 log('');
 log('=== 2. desenhar cada tela e aba ===');

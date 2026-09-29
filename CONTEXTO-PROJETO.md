@@ -27,7 +27,7 @@ Três modos de entrada, todos no mesmo link:
 - HTML + CSS + JavaScript puro, em **módulos ES nativos**. Sem framework,
   sem build step, sem dependências além das fontes do Google.
 - `index.html` é só o esqueleto; o visual em `css/estilo.css`; o código em
-  `js/`, repartido em 37 módulos.
+  `js/`, repartido em 39 módulos.
 - Hospedado no GitHub Pages (estático). Todo `git push` atualiza o site.
 - Backend: planilha do Google Sheets via Apps Script publicado como Web App.
   A URL fica em `API_URL`, em `js/nucleo/api.js`.
@@ -275,6 +275,26 @@ acumulável e sem hierarquia; cargo é um só por pessoa e tem ordem.
 de divisão (o Regional fica de fora: quem faz insight é a base). Por padrão
 todo membro participa; quem for removido entra em `InsightExcluidos`.
 
+**Relatório individual** — um card do menu do organizador, nas 7 divisões
+(`js/telas/relatorio-individual.js`, contas em
+`js/dominio/relatorio-individual.js`). Numa divisão lista os integrantes
+dela; no Regional, cada divisão é um grupo que abre ao toque. O relatório de
+um integrante tem presença na divisão (geral e por tipo), os eventos do
+Regional **à parte**, o Insight e o histórico evento a evento, com filtro
+de período.
+
+- **Só aparece o que ele podia fazer.** Um tipo de evento só ganha bloco se
+  ele foi convocado para pelo menos um evento encerrado daquele tipo; o
+  Insight só aparece se ele participa do Insight. "0% em Bate e Volta" para
+  quem nunca foi chamado seria uma acusação, não um número.
+- **Divisão e Regional não se somam**, pela mesma regra do percentual
+  pessoal acima. Para quem é do Regional, os eventos do Regional são os da
+  divisão dele, e o bloco à parte não existe.
+- **Uma chamada só à planilha** (`relatorioIndividual`, no `Code.gs`), que
+  devolve os dados crus; o período é recortado no app. Buscar presença
+  evento por evento, como a Ficha dos Relatórios faz, viraria centenas de
+  chamadas em alguns meses.
+
 ## A convocação: o app lê e escreve
 
 Este é um ciclo fechado que vale entender junto, porque as duas pontas usam
@@ -341,7 +361,7 @@ a cada mudança:
 | `servidor.py` | serve o app local com o cache desligado |
 | `estrutura.py` | 7 verificações: imports circulares, hierarquia de camadas, sintaxe, nome sem import, import sobrando, ações sem tratador |
 | `regras.mjs` | as regras do clube que, se quebrarem, saem erradas numa convocação sem ninguém perceber |
-| `telas.mjs` | desenha as 68 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
+| `telas.mjs` | desenha as 77 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
 | `planilha.mjs` | roda o `Code.gs` de verdade contra uma planilha de mentira; hoje cobre o encerramento automático |
 
 O `--html` do `telas.mjs` é a rede de proteção mais útil: captura o HTML de
@@ -368,7 +388,7 @@ ferramentas, acima):
 
     py ferramentas/estrutura.py     # imports, camadas, sintaxe, ações
     node ferramentas/regras.mjs     # ordem hierárquica e formato da convocação
-    node ferramentas/telas.mjs      # desenha as 68 telas e abas
+    node ferramentas/telas.mjs      # desenha as 77 telas e abas
     node ferramentas/planilha.mjs   # o encerramento automático, no Code.gs
 
 Eles dizem que o app **não quebrou**, não que está bonito: não cobrem

@@ -215,6 +215,70 @@ confere('período vazio não quebra', [vazio.stats.rodadas, vazio.stats.membros[
 confere('a lista de membros continua a mesma', soAgosto.stats.membros.map(m => m.id), ['a', 'b', 'c']);
 confere('grau e funções vêm do cadastro, não do histórico', soAgosto.stats.membros[0].grau, 'X');
 
+log('=== relatório individual ===');
+{
+  const { montarRelatorioIndividual } = await import(url('dominio/relatorio-individual.js'));
+  const evento = (id, data, tipo, categoria, status) => ({ id, nome: 'Evento ' + id, data, tipo, categoria, status });
+  // Um integrante da Barra: dois Pubs e uma Reunião da Barra, um Pub do
+  // Regional. NUNCA foi convocado pra Bate e Volta nem pra Ação Social.
+  const dadosBarra = {
+    membro: { id: 'm1', nome: 'Costa', grau: 'VI', cargo: 'Diretor', divisao: 'Barra - RJ4', funcoes: [] },
+    eventos: [
+      evento('a', '2026-07-01', 'Pub', 'barra', 'confirmado'),
+      evento('b', '2026-08-01', 'Pub', 'barra', 'infracional'),
+      evento('c', '2026-08-15', 'Reunião', 'barra', 'familia'),
+      evento('d', '2026-09-01', 'Pub', 'regional', 'confirmado'),
+    ],
+    insight: { elegivel: true, rodadas: [
+      { id: 'r1', data: '2026-07-10', fez: true },
+      { id: 'r2', data: '2026-08-10', fez: false },
+      { id: 'r3', data: '2026-09-10', fez: true },
+    ] },
+  };
+  const tudo = montarRelatorioIndividual(dadosBarra, '', '');
+  const resumoDe = (r) => r && [r.convites, r.confirmado, r.justificada, r.infracional, r.percentual];
+
+  confere('divisão: só os 3 eventos da Barra', resumoDe(tudo.divisao.geral), [3, 1, 1, 1, 33]);
+  confere('só ganha bloco o tipo em que foi convocado', tudo.divisao.porTipo.map(t => t.tipo), ['Pub', 'Reunião']);
+  confere('Pub da Barra: 1 de 2', resumoDe(tudo.divisao.porTipo[0].resumo), [2, 1, 0, 1, 50]);
+  confere('o Regional fica à parte, sem misturar', resumoDe(tudo.regional.geral), [1, 1, 0, 0, 100]);
+  confere('Insight: 2 de 3 rodadas', [tudo.insight.fez, tudo.insight.naoFez, tudo.insight.percentual], [2, 1, 67]);
+  confere('a evolução é acumulada, na ordem do tempo', tudo.divisao.evolucao.map(x => x.pct), [100, 50, 33]);
+  confere('histórico: mais recente primeiro, com a origem', tudo.historico.map(x => x.id + ':' + x.origem),
+    ['d:regional', 'c:divisao', 'b:divisao', 'a:divisao']);
+
+  // Período: só agosto. O Pub de julho, o do Regional e duas rodadas saem.
+  const agosto = montarRelatorioIndividual(dadosBarra, '2026-08-01', '2026-08-31');
+  confere('agosto: a divisão só conta o que caiu no período', resumoDe(agosto.divisao.geral), [2, 0, 1, 1, 0]);
+  confere('agosto: sem evento do Regional, o bloco some', agosto.regional, null);
+  confere('agosto: o Insight também respeita o período', [agosto.insight.rodadas, agosto.insight.fez], [1, 0]);
+
+  // Fora do Insight: o bloco não aparece, mesmo com rodadas antigas.
+  const semInsight = montarRelatorioIndividual({ ...dadosBarra, insight: { elegivel: false, rodadas: dadosBarra.insight.rodadas } }, '', '');
+  confere('quem não participa do Insight não vê o bloco', semInsight.insight, null);
+
+  // Participa, mas nenhuma rodada no período: o bloco fica, zerado - ele é
+  // elegível, só não houve rodada. Diferente de não participar.
+  const semRodada = montarRelatorioIndividual(dadosBarra, '2026-01-01', '2026-01-31');
+  confere('participa sem rodada no período: bloco fica, com 0', [semRodada.insight && semRodada.insight.rodadas], [0]);
+  confere('sem nada no período, os blocos de presença somem', [semRodada.divisao, semRodada.regional], [null, null]);
+
+  // Integrante do próprio Regional: os eventos do Regional SÃO os dele.
+  const doRegional = montarRelatorioIndividual({
+    membro: { id: 'm9', nome: 'Chefe', grau: 'V', divisao: 'Regional RJ4', funcoes: [] },
+    eventos: [evento('x', '2026-09-01', 'Pub', 'regional', 'confirmado')],
+    insight: { elegivel: false, rodadas: [] },
+  }, '', '');
+  confere('do Regional: os eventos contam como da divisão dele', resumoDe(doRegional.divisao.geral), [1, 1, 0, 0, 100]);
+  confere('do Regional: não existe bloco "Eventos do Regional" à parte', doRegional.regional, null);
+
+  // Evento sem data some quando há período escolhido (não dá pra saber se
+  // cai dentro), mas conta no "desde sempre".
+  const semData = { ...dadosBarra, eventos: [evento('s', '', 'Pub', 'barra', 'confirmado')] };
+  confere('evento sem data conta no desde sempre', montarRelatorioIndividual(semData, '', '').divisao.geral.convites, 1);
+  confere('evento sem data fica de fora com período', montarRelatorioIndividual(semData, '2026-01-01', '').divisao, null);
+}
+
 log('=== ordem hierárquica (grau, depois cargo, depois nome) ===');
 
 // A diretoria da Barra, como estava na convocação real do Pub de 09SET26.

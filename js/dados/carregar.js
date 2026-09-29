@@ -95,6 +95,30 @@ export async function carregarRankInsights() {
   render();
 }
 
+// Tudo de um integrante, pro Relatorio individual - uma chamada so (ver
+// relatorioIndividual no Code.gs). Sempre busca de novo ao abrir: um evento
+// encerrado desde a ultima vez muda os numeros.
+//
+// Se a pessoa voltar pra lista e abrir outro nome antes da resposta chegar,
+// a resposta velha e jogada fora - senao o relatorio de um apareceria com o
+// nome do outro.
+export async function loadRelatorioIndividual(membroId) {
+  state.relIndCarregando = true;
+  state.relIndErro = null;
+  state.relIndDados = null;
+  render();
+  try {
+    const r = await api('relatorioIndividual', { membroId });
+    if (state.relIndMembroId !== membroId) return;
+    state.relIndDados = r;
+  } catch (e) {
+    if (state.relIndMembroId !== membroId) return;
+    state.relIndErro = e.message;
+  }
+  state.relIndCarregando = false;
+  render();
+}
+
 // Presencas de eventos que ainda VAO acontecer, pro aviso do menu do
 // organizador. Diferente de loadReportData, que so busca o que falta e
 // guarda pra sempre: aqui busca sempre de novo, porque o numero muda a cada

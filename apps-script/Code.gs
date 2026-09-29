@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-09-21-v-autenticacao-backend';
+var VERSAO = '2026-09-29-v-relatorio-individual';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -179,6 +179,10 @@ function executar(action, p) {
   if (action === 'verificarPin') return verificarPin(String(p.escopo || ''), String(p.pin || ''));
   if (action === 'rankPresenca') return { ok: true, rank: calcularRankPresenca(String(p.janela || 'sempre')) };
   if (action === 'insightEstatisticas') return calcularEstatisticasInsights();
+  // Leitura, como as outras - fica fora de ACOES_PROTEGIDAS. Nao revela nada
+  // que "presencas" e "insightRodadas" ja nao entreguem a qualquer um; so
+  // junta tudo de um integrante numa chamada so.
+  if (action === 'relatorioIndividual') return relatorioIndividual(String(p.membroId || ''));
   // 30 (nao 5) desde a aba "Por rodada" do Rank de Insights publico - antes
   // so precisava das ultimas 5 pro sparkline de tendencia, agora tambem
   // alimenta uma lista navegavel de rodadas passadas.
@@ -1880,6 +1884,72 @@ function calcularEstatisticasInsights() {
   });
 
   return { ok: true, rodadas: numRodadas, membros: membros, divisoes: divisoes, excluidos: excluidosLista };
+}
+
+// Tudo de um integrante numa chamada so, pro "Relatorio individual" do
+// Modo organizador. Sem isso o app teria que buscar as presencas evento por
+// evento (uma chamada cada), o que com alguns meses de eventos das 7
+// divisoes vira centenas de chamadas pra abrir uma tela.
+//
+// Devolve os dados crus e deixa as contas pro app (js/dominio/
+// relatorio-individual.js): e la que o periodo e filtrado, entao trocar as
+// datas nao precisa voltar aqui.
+//
+// - eventos: so os ENCERRADOS em que ele tem linha em Presencas - ou seja,
+//   onde foi convocado. Evento aberto ainda pode mudar, e evento em que ele
+//   nao estava nao conta contra ele (mesma regra de lerEstatisticasMembros).
+//   Quem ficou "Aguardando" num evento encerrado sai como "infracional",
+//   igual o statusEfetivo do app faz.
+// - insight.elegivel: participa do Insight hoje (e de divisao e nao esta em
+//   InsightExcluidos). Mesmo criterio de membrosElegiveisInsight.
+function relatorioIndividual(membroId) {
+  if (!membroId) throw new Error('Faltou o integrante');
+  var membro = lerMembros().filter(function (m) { return m.id === membroId; })[0];
+  if (!membro) return { ok: false, erro: 'Integrante nao encontrado' };
+
+  var encerrados = {};
+  linhas(aba(ABA_EVENTOS, CAB_EVENTOS)).forEach(function (l) {
+    if (!l[0] || String(l[6]) !== 'encerrado') return;
+    var cat = String(l[8] || '');
+    encerrados[String(l[0])] = {
+      id: String(l[0]), nome: String(l[1] || ''), data: formatarData(l[2]),
+      tipo: String(l[9] || ''),
+      categoria: (cat === '' || cat === 'divisao') ? 'barra' : cat
+    };
+  });
+
+  var eventos = [];
+  linhas(aba(ABA_PRESENCAS, CAB_PRESENCAS)).forEach(function (l) {
+    if (String(l[2]) !== membroId) return;
+    var ev = encerrados[String(l[0])];
+    if (!ev) return;
+    var status = statusParaChave(l[4]);
+    eventos.push({
+      id: ev.id, nome: ev.nome, data: ev.data, tipo: ev.tipo, categoria: ev.categoria,
+      status: status === 'aguardando' ? 'infracional' : status
+    });
+  });
+  eventos.sort(function (a, b) { return (a.data || '').localeCompare(b.data || ''); });
+
+  var excluido = acharLinha(aba(ABA_INSIGHT_EXCLUIDOS, CAB_INSIGHT_EXCLUIDOS),
+    function (l) { return String(l[0]) === membroId; });
+  var dataRodada = {};
+  linhas(aba(ABA_INSIGHT_RODADAS, CAB_INSIGHT_RODADAS)).forEach(function (l) {
+    if (l[0]) dataRodada[String(l[0])] = formatarData(l[1]);
+  });
+  var rodadas = [];
+  linhas(aba(ABA_INSIGHT_PRESENCAS, CAB_INSIGHT_PRESENCAS)).forEach(function (l) {
+    if (String(l[1]) !== membroId || !(String(l[0]) in dataRodada)) return;
+    rodadas.push({ id: String(l[0]), data: dataRodada[String(l[0])], fez: ehSim(l[4]) });
+  });
+  rodadas.sort(function (a, b) { return (a.data || '').localeCompare(b.data || ''); });
+
+  return {
+    ok: true,
+    membro: membro,
+    eventos: eventos,
+    insight: { elegivel: membro.divisao !== ESCOPOS_NOME.regional && !excluido, rodadas: rodadas }
+  };
 }
 
 // Espelho na planilha do "Rank de Insights" publico do app - ate aqui os

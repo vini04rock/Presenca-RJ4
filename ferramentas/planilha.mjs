@@ -411,6 +411,56 @@ log('=== Rank de Insights: os números de cada divisão ===');
 }
 
 log('');
+log('=== relatório individual: o que o Code.gs devolve de um integrante ===');
+{
+  // m1 (Barra) foi convocado pra e1 (encerrado, Pub), e2 (encerrado, sem
+  // resposta), e3 (ativo) e e5 (Regional, encerrado). Nao estava em e4.
+  const p = montaPlanilha([
+    ev('e1', '2026-08-01', 'encerrado'),
+    ev('e2', '2026-08-15', 'encerrado'),
+    ev('e3', '2099-01-01', 'ativo'),
+    ev('e4', '2026-08-20', 'encerrado'),
+    [...ev('e5', '2026-09-01', 'encerrado').slice(0, 8), 'regional', 'Reunião', ''],
+    // Linha antiga, de quando a categoria nao existia: tem que virar "barra".
+    [...ev('e6', '2026-06-01', 'encerrado').slice(0, 8), '', 'Pub', ''],
+  ], [
+    pr('e1', 'm1', 'Confirmado'),
+    pr('e2', 'm1', 'Aguardando'),
+    pr('e3', 'm1', 'Confirmado'),
+    pr('e4', 'm2', 'Confirmado'),
+    pr('e5', 'm1', 'Familia'),
+    pr('e6', 'm1', 'Confirmado'),
+  ]);
+  p.abas.Membros = novaAba('Membros', [['ID', 'Nome', 'Grau', 'Divisao', 'Funcoes', 'Cargo'],
+    ['m1', 'Costa', 'VI', 'Barra - RJ4', 'caveira', 'Diretor'],
+    ['m2', 'Bull', 'X', 'Barra - RJ4', '', ''],
+    ['m3', 'Chefe', 'V', 'Regional RJ4', '', 'Operacional']]);
+  p.abas.InsightRodadas = novaAba('InsightRodadas', [['ID', 'Data', 'Criado em'],
+    ['r1', '2026-08-02', ''], ['r2', '2026-08-09', '']]);
+  p.abas.InsightPresencas = novaAba('InsightPresencas', [['ID Rodada', 'ID Membro', 'Membro', 'Divisao', 'Fez'],
+    ['r1', 'm1', 'Costa', 'Barra - RJ4', 'Sim'], ['r2', 'm1', 'Costa', 'Barra - RJ4', 'Nao'],
+    ['r1', 'm2', 'Bull', 'Barra - RJ4', 'Sim']]);
+  p.abas.InsightExcluidos = novaAba('InsightExcluidos', [['ID Membro', 'Nome', 'Removido em'], ['m2', 'Bull', '']]);
+  const { contexto } = carregaCodeGs(p);
+
+  // Sem PIN: e leitura, igual ao resto do que o app le.
+  const r = contexto.executar('relatorioIndividual', { membroId: 'm1' });
+  confere('é leitura pública (não pede PIN)', r.ok, true);
+  confere('só os encerrados em que ele foi convocado, em ordem', r.eventos.map(e => e.id), ['e6', 'e1', 'e2', 'e5']);
+  confere('quem não respondeu num encerrado sai como infracional', r.eventos.find(e => e.id === 'e2').status, 'infracional');
+  confere('a categoria vem junto (divisão x Regional)', r.eventos.map(e => e.categoria), ['barra', 'barra', 'barra', 'regional']);
+  confere('o tipo vem junto', r.eventos.find(e => e.id === 'e5').tipo, 'Reunião');
+  confere('o cadastro dele vem junto', [r.membro.nome, r.membro.cargo, r.membro.funcoes], ['Costa', 'Diretor', ['caveira']]);
+  confere('Insight: participa, e as rodadas dele', [r.insight.elegivel, r.insight.rodadas.map(x => x.fez)], [true, [true, false]]);
+
+  const excluido = contexto.executar('relatorioIndividual', { membroId: 'm2' });
+  confere('removido do Insight não é elegível', excluido.insight.elegivel, false);
+  const regional = contexto.executar('relatorioIndividual', { membroId: 'm3' });
+  confere('integrante do Regional não faz Insight', regional.insight.elegivel, false);
+  confere('integrante que não existe é recusado', contexto.executar('relatorioIndividual', { membroId: 'zz' }).ok, false);
+}
+
+log('');
 log(falhas === 0 ? 'TUDO OK' : `${falhas} FALHA(S) — veja acima`);
 fs.writeFileSync(SAIDA, linhas.join('\n'), 'utf8');
 process.exit(falhas === 0 ? 0 : 1);
