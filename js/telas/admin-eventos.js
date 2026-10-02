@@ -7,11 +7,13 @@
 
 import { eventosDoEscopo, membrosElegiveisEvento } from '../dominio/estatisticas.js';
 import { computeCounts, getReportGroups } from '../dominio/status.js';
-import { TIPOS_EVENTO, corTipoEvento, emojiTipoEvento, escoposAtivos } from '../nucleo/config.js';
+import { corTipoEvento, emojiTipoEvento, escoposAtivos } from '../nucleo/config.js';
 import { genId, state } from '../nucleo/estado.js';
 import { TIPO_HOME_IMAGEM } from '../nucleo/imagens.js';
 import { dataDoCampoOuAvisar, escapeHtml, formatDataBR, formatDataCurta, hexParaRgba } from '../nucleo/util.js';
+import { camposDoEvento, chamadaParaGuardar, enderecoDoEvento, peVazio } from '../dominio/convocacao.js';
 import { campoData } from '../ui/comuns.js';
+import { caixa, guardarDigitado, quadro, quadroRoteiro, quadroTipo } from '../ui/quadros-chamada.js';
 import { renderDonutChart, segmentosDonutStatus } from '../ui/graficos.js';
 import { salvarOuAvisar } from '../dados/carregar.js';
 import { paramsDeEvento } from '../fila/presenca.js';
@@ -108,38 +110,50 @@ export function renderAdminEventos() {
   `;
 }
 
+// O formulario de criar/editar evento tem os mesmos quadros 1 a 3 da
+// chamada (ui/quadros-chamada.js): o evento ja nasce com o que a chamada
+// precisa, e o "Criar chamada" abre praticamente pronto.
+//
+// Nada aqui e lido do campo na hora de salvar - tudo vai pro state enquanto
+// se digita (ver aoDigitarNoFormulario), porque a tela redesenha ao escolher
+// o tipo ou mexer nos P.E.
 function renderEventForm() {
   const selected = state.newEventSelected;
   const isEditing = !!state.editingEventId;
-  const existing = isEditing ? state.events.find(e => e.id === state.editingEventId) : null;
+  const f = state.newEventForm || {};
+  const ch = state.newEventChamada || camposDoEvento({});
   const elegiveis = membrosElegiveisEvento();
+  const campoF = (chave, extra) => `data-evf="${chave}" ${extra || ''}`;
   return `
     <div class="card">
-      <div class="field">
+      <div class="field" style="margin-bottom:0;">
         <label>Nome do evento</label>
-        <input type="text" id="new-event-name" placeholder="Ex: Pub Mensal - 09SET26" value="${existing ? escapeHtml(existing.nome) : ''}">
+        <input type="text" id="new-event-name" ${campoF('nome')} placeholder="Ex: Pub Mensal - 09SET26" value="${escapeHtml(f.nome || '')}">
       </div>
-      <label>Tipo de evento (opcional)</label>
-      <div class="chip-grid wide" style="margin-bottom: 14px;">
-        ${TIPOS_EVENTO.map(t => `<button class="chip-option ${state.newEventTipo === t ? 'active' : ''}" data-action="pick-tipo-evento" data-value="${escapeHtml(t)}">${escapeHtml(t)}</button>`).join('')}
-      </div>
+    </div>
+
+    ${quadroTipo({ campos: ch, attr: 'data-evc', categoria: state.adminEscopo, tipo: state.newEventTipo, acaoTipo: 'pick-tipo-evento' })}
+
+    ${quadro(2, 'Informações', `
+      ${caixa({ rotulo: 'Destino', valor: ch.destino, atributos: 'data-evc="destino"', dica: 'Ex: Bandas Bar - Paraíba do Sul' })}
       <div class="row-gap" style="margin-bottom: 0;">
-        <div class="field" style="flex: 1; min-width: 130px;">
+        <div class="field" style="flex: 1; min-width: 130px; margin-bottom:0;">
           <label>Data</label>
-          <input type="text" inputmode="numeric" maxlength="10" class="campo-data" id="new-event-data" placeholder="dd/mm/aaaa" autocomplete="off" value="${existing && existing.data ? formatDataBR(existing.data) : ''}">
+          <input type="text" inputmode="numeric" maxlength="10" class="campo-data" id="new-event-data" ${campoF('data')} placeholder="dd/mm/aaaa" autocomplete="off" value="${escapeHtml(f.data || '')}">
         </div>
-        <div class="field" style="flex: 1; min-width: 100px;">
+        <div class="field" style="flex: 1; min-width: 100px; margin-bottom:0;">
           <label>Horário</label>
-          <input type="time" id="new-event-horario" value="${existing && existing.horario ? existing.horario : ''}">
+          <input type="time" id="new-event-horario" ${campoF('horario')} value="${escapeHtml(f.horario || '')}">
         </div>
       </div>
+    `)}
+
+    ${quadroRoteiro({ campos: ch, attr: 'data-evc', acaoAdicionarPe: 'adicionar-evento-pe', acaoRemoverPe: 'remover-evento-pe' })}
+
+    <div class="card">
       <div class="field">
-        <label>Endereço</label>
-        <input type="text" id="new-event-endereco" placeholder="Ex: Av. Olegário Maciel, 101 - Barra da Tijuca" value="${existing && existing.endereco ? escapeHtml(existing.endereco) : ''}">
-      </div>
-      <div class="field">
-        <label>Outros (opcional)</label>
-        <textarea id="new-event-outros" rows="2" placeholder="Ex: link do mapa, horário de destacamento, observações">${existing && existing.outros ? escapeHtml(existing.outros) : ''}</textarea>
+        <label>Observações para os membros (opcional)</label>
+        <textarea id="new-event-outros" ${campoF('outros')} rows="2" placeholder="Ex: levar colete, traje do clube">${escapeHtml(f.outros || '')}</textarea>
       </div>
       <div style="display:flex; align-items:baseline; justify-content:space-between; gap:8px;">
         <label style="margin-bottom:0;">Quem participa</label>
@@ -165,6 +179,43 @@ function renderEventForm() {
       </div>
     </div>
   `;
+}
+
+// Chamado pelo ouvinte de digitacao do app.js. Guarda no state o que foi
+// digitado no formulario de evento; devolve true se o campo era dele.
+export function aoDigitarNoFormulario(el) {
+  if (!state.newEventForm || !el.dataset) return false;
+  if (el.dataset.evf) { state.newEventForm[el.dataset.evf] = el.value; return true; }
+  if (el.classList && el.classList.contains('new-event-checkbox')) {
+    if (el.checked) state.newEventSelected.add(el.dataset.id);
+    else state.newEventSelected.delete(el.dataset.id);
+    return true;
+  }
+  return guardarDigitado(state.newEventChamada, el, 'evc');
+}
+
+// Abre o formulario: vazio pra evento novo, ou com o que o evento ja tem.
+function abrirFormulario(ev) {
+  state.newEventForm = {
+    nome: ev ? ev.nome || '' : '',
+    data: ev && ev.data ? formatDataBR(ev.data) : '',
+    horario: ev ? ev.horario || '' : '',
+    outros: ev ? ev.outros || '' : '',
+  };
+  const ch = camposDoEvento(ev || {});
+  // No evento o subtitulo em branco ja quer dizer "o nome do evento" - nao
+  // precisa vir preenchido com ele, senao renomear o evento deixaria o
+  // subtitulo com o nome antigo.
+  if (ev && (!ev.chamada || !String(ev.chamada.subtitulo || '').trim())) ch.subtitulo = '';
+  state.newEventChamada = ch;
+}
+
+function fecharFormulario() {
+  state.newEventSelected = null;
+  state.editingEventId = null;
+  state.newEventTipo = null;
+  state.newEventForm = null;
+  state.newEventChamada = null;
 }
 
 // "Corrigir" e "Ver texto original" viviam na aba Eventos dos Relatorios,
@@ -326,6 +377,7 @@ export const acoes = {
     state.newEventSelected = new Set(membrosElegiveisEvento().map(m => m.id));
     state.editingEventId = null;
     state.newEventTipo = null;
+    abrirFormulario(null);
     return render();
   },
 
@@ -335,20 +387,31 @@ export const acoes = {
     state.editingEventId = id;
     state.newEventSelected = new Set(ev.memberIds);
     state.newEventTipo = ev.tipo || null;
+    abrirFormulario(ev);
     return render();
   },
 
   'cancel-new-event': async (id, target, action, e) => {
-    state.newEventSelected = null;
-    state.editingEventId = null;
-    state.newEventTipo = null;
+    fecharFormulario();
+    return render();
+  },
+
+  'adicionar-evento-pe': async (id, target, action, e) => {
+    state.newEventChamada.pes = [...(state.newEventChamada.pes || []), peVazio()];
+    return render();
+  },
+
+  'remover-evento-pe': async (id, target, action, e) => {
+    const i = Number(target.dataset.value);
+    state.newEventChamada.pes = (state.newEventChamada.pes || []).filter((_, j) => j !== i);
     return render();
   },
 
   'marcar-todos-membros': async (id, target, action, e) => {
-    // Mexe direto nos checkboxes, sem re-renderizar - o estado deles so e
-    // lido de verdade na hora de salvar (ver save-new-event).
+    // Mexe direto nos checkboxes, sem re-renderizar, e guarda no state -
+    // a tela pode redesenhar depois (ao mexer num P.E.) e precisa lembrar.
     const ligar = action === 'marcar-todos-membros';
+    state.newEventSelected = new Set(ligar ? membrosElegiveisEvento().map(m => m.id) : []);
     document.querySelectorAll('.new-event-checkbox').forEach(c => { c.checked = ligar; });
     return;
   },
@@ -359,33 +422,37 @@ export const acoes = {
   },
 
   'save-new-event': async (id, target, action, e) => {
-    const nome = document.getElementById('new-event-name').value.trim();
+    const f = state.newEventForm || {};
+    const nome = String(f.nome || '').trim();
     const data = dataDoCampoOuAvisar('new-event-data', 'A data do evento');
     if (data === null) return;
-    const horario = document.getElementById('new-event-horario').value;
-    const endereco = document.getElementById('new-event-endereco').value.trim();
-    const outros = document.getElementById('new-event-outros').value.trim();
-    const checked = Array.from(document.querySelectorAll('.new-event-checkbox:checked')).map(c => c.dataset.id);
+    const checked = [...(state.newEventSelected || [])];
     if (!nome || checked.length === 0) return;
+    const chamada = chamadaParaGuardar(state.newEventChamada);
     const evento = {
       id: state.editingEventId || genId(),
-      nome, memberIds: checked, data, horario, endereco, outros,
+      nome, memberIds: checked, data,
+      horario: f.horario || '',
+      // O endereco "de uma linha" que o resto do app le continua existindo:
+      // e o destino da chamada, nome + endereco.
+      endereco: enderecoDoEvento(chamada),
+      outros: String(f.outros || '').trim(),
       tipo: state.newEventTipo || '',
       // A categoria vem de qual botao o organizador entrou (Barra ou
       // Regional), nao de uma escolha manual no formulario.
       categoria: state.adminEscopo,
       status: state.editingEventId
         ? (state.events.find(e => e.id === state.editingEventId) || {}).status || 'ativo'
-        : 'ativo'
+        : 'ativo',
+      chamada,
     };
     state.events = state.editingEventId
       ? state.events.map(ev => ev.id === evento.id ? { ...ev, ...evento } : ev)
       : [...state.events, evento];
-    state.newEventSelected = null;
-    state.editingEventId = null;
-    state.newEventTipo = null;
+    fecharFormulario();
     render();
-    await salvarOuAvisar('eventoSalvar', paramsDeEvento(evento));
+    // POST: com os P.E. e as vias, a chamada nao cabe numa URL.
+    await salvarOuAvisar('eventoSalvar', { ...paramsDeEvento(evento), chamada }, { post: true });
   },
 
   'toggle-event-status': async (id, target, action, e) => {

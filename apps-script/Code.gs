@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-10-02-v-textos-chamada';
+var VERSAO = '2026-10-03-v-evento-com-chamada';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -46,7 +46,12 @@ var CAB_MEMBROS = ['ID', 'Nome', 'Grau', 'Divisao', 'Funcoes', 'Cargo'];
 // convocacao (ver criarEventoDeTexto) - eventos criados pelo Modo
 // organizador manual ficam com essa coluna vazia, e lerEventos() ja trata
 // esse caso (linhas antigas nem tem a coluna preenchida na planilha).
-var CAB_EVENTOS = ['ID', 'Nome', 'Data', 'Horario', 'Endereco', 'Outros', 'Status', 'Criado em', 'Categoria', 'Tipo', 'Texto Original'];
+//
+// "Chamada" (ultima coluna) guarda, em JSON, os quadros 1 a 3 da chamada do
+// WhatsApp que o formulario do evento ja preenche: subtitulo, destino, os
+// P.E. com horarios e vias, e o roteiro. Vazia nos eventos antigos e nos
+// que vieram de convocacao colada - o app entao deduz do endereco.
+var CAB_EVENTOS = ['ID', 'Nome', 'Data', 'Horario', 'Endereco', 'Outros', 'Status', 'Criado em', 'Categoria', 'Tipo', 'Texto Original', 'Chamada'];
 var CAB_PRESENCAS = ['ID Evento', 'Evento', 'ID Membro', 'Membro', 'Status',
                      'Direto', 'Destacado', 'Acompanhado', 'Atualizado em'];
 // So membros de divisao fazem insight (Regional RJ4 fica de fora - ver
@@ -347,6 +352,7 @@ function lerEventos() {
         })(),
         tipo: String(l[9] || ''),
         textoOriginal: String(l[10] || ''),
+        chamada: parseOuVazio(String(l[11] || ''), null),
         memberIds: membrosDoEvento(String(l[0]))
       };
     });
@@ -1183,8 +1189,13 @@ function salvarEvento(p) {
   // encerrar/reabrir, que tambem passa por aqui) apagaria o texto original
   // guardado numa correcao anterior.
   var textoOriginal = p.textoOriginal !== undefined ? p.textoOriginal : (achado ? achado.valores[10] : '');
+  // Mesma ideia: so o formulario do evento e o "Salvar no evento" da chamada
+  // mandam a chamada. Encerrar, reabrir, mudar a data no Calendario e a
+  // convocacao colada nao mandam - e nao podem apagar a que ja esta la.
+  var chamada = p.chamada !== undefined ? chamadaComoTexto(p.chamada) : (achado ? achado.valores[11] : '');
   var linha = [id, p.nome, p.data || '', p.horario || '', p.endereco || '',
-               p.outros || '', p.status || 'ativo', criadoEm, categoria, p.tipo || '', textoOriginal || ''];
+               p.outros || '', p.status || 'ativo', criadoEm, categoria, p.tipo || '', textoOriginal || '',
+               chamada || ''];
   if (achado) s.getRange(achado.indice, 1, 1, linha.length).setValues([linha]);
   else s.appendRow(linha);
   renomearEmPresencas(0, id, p.nome);
@@ -1198,6 +1209,13 @@ function salvarEvento(p) {
   // "Aguardando" pra converter).
   if ((p.status || 'ativo') === 'encerrado') converterAguardandoParaInfracionalAoEncerrar(id);
   return { ok: true, id: id };
+}
+
+// A chamada chega como objeto pelo POST (corpo JSON) e como texto pela URL.
+// Na planilha fica sempre o texto JSON.
+function chamadaComoTexto(v) {
+  if (v === null || v === '') return '';
+  return typeof v === 'string' ? v : JSON.stringify(v);
 }
 
 function converterAguardandoParaInfracionalAoEncerrar(eventoId) {
@@ -2205,9 +2223,9 @@ function gerarDadosFakeTeste() {
     data.setDate(data.getDate() - diasAtras);
     var dataIso = Utilities.formatDate(data, fuso(), 'yyyy-MM-dd');
     var status = diasAtras > 2 ? 'encerrado' : 'ativo';
-    // Idem CAB_EVENTOS - a ultima ('Texto Original') fica vazia, que e o
-    // normal pra evento que nao veio de convocacao colada.
-    novosEventos.push([id, nome, dataIso, '', '', '', status, agora(), categoria, sorteia(tipos), '']);
+    // Idem CAB_EVENTOS - as duas ultimas ('Texto Original' e 'Chamada')
+    // ficam vazias, que e o normal pra evento criado assim.
+    novosEventos.push([id, nome, dataIso, '', '', '', status, agora(), categoria, sorteia(tipos), '', '']);
     membros.forEach(function (m) {
       novasPresencas.push([id, nome, m.id, m.nome, sorteia(statusPossiveis),
         simNao(Math.random() < 0.5), simNao(Math.random() < 0.2), simNao(Math.random() < 0.3), agora()]);

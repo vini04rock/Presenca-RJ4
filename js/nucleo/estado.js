@@ -50,6 +50,14 @@ export let state = {
   pinAtual: null,
   newEventSelected: null,
   newEventTipo: null,
+  // Formulario de criar/editar evento. Tudo o que e digitado vai pra ca na
+  // hora (ver aoDigitarNoFormulario em telas/admin-eventos.js): a tela
+  // redesenha ao escolher o tipo ou mexer nos P.E., e sem isso o que ja
+  // tinha sido digitado sumia.
+  //   newEventForm: { nome, data (dd/mm/aaaa), horario (HH:MM), outros }
+  //   newEventChamada: os quadros 1 a 3 da chamada (ver camposDoEvento)
+  newEventForm: null,
+  newEventChamada: null,
   // Chave de ESCOPOS - qual botao o organizador escolheu na tela de
   // divisoes. Decide a categoria de todo evento criado, a divisao de todo
   // membro cadastrado, e filtra o que aparece nas abas Eventos, Membros e
@@ -89,6 +97,9 @@ export let state = {
   convocacaoTextoSalvando: false,
   // { chave, texto } - o aviso de salvo/erro, embaixo do quadro certo.
   convocacaoTextoMsg: null,
+  // "Salvar no evento", embaixo da previa.
+  convocacaoEventoSalvando: false,
+  convocacaoEventoMsg: null,
 
   // Relatorio individual (Modo organizador). Sem integrante escolhido, a
   // tela mostra a lista de nomes; com um, o relatorio dele. O periodo vale

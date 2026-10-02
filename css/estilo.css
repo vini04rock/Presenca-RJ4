@@ -924,6 +924,26 @@ label {
   line-height: 1.5;
   color: var(--text-muted);
 }
+/* O resumo do evento na tela do membro: o destino e cada P.E. numa linha
+   curta, com os horários embaixo em letra menor. Uma linha fina separa os
+   pontos, pra dar pra correr o olho sem virar uma parede de texto. */
+.evento-ponto {
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+}
+.evento-ponto:first-of-type { margin-top: 6px; }
+.evento-ponto-nome { font-size: 14px; }
+.evento-ponto-detalhe {
+  color: var(--text-muted);
+  font-size: 12.5px;
+  margin-top: 3px;
+}
+.evento-mapa {
+  font-size: 12px;
+  margin-left: 6px;
+  white-space: nowrap;
+}
+
 /* Cada P.E. num bloco próprio, para dar pra ver onde um acaba e o outro começa. */
 .chamada-pe {
   border: 1px solid var(--line);

@@ -1,16 +1,21 @@
 // Tela "Criar chamada": a chamada dividida em quadros, na mesma ordem em que
 // sai no texto, com a prévia e o botão de copiar no fim.
 //
-// Dois quadros gravam na planilha:
+// Os quadros 1 a 3 abrem com o que está salvo no evento, e o "Salvar no
+// evento" leva o que mudou de volta pra ele.
+//
+// Dois quadros gravam na planilha por conta própria:
 //   - o 8 (responsável), salvo por divisão;
 //   - o 6 e o 7 (regras do clube, atenção), um texto só para a RJ4 inteira,
 //     que só quem entrou pelo Regional personaliza. As divisões usam o
 //     mesmo texto, sem o botão.
 // A legenda (5) continua fixa, só para conferência.
 
-import { LEGENDA, TEXTOS_PADRAO, camposIniciais, dataDaChamada, linhaDoBonde, montarConvocacao, peVazio, quadroMembros, responsavelDoCadastro, textoEfetivo } from '../dominio/convocacao.js';
+import { LEGENDA, TEXTOS_PADRAO, camposDoEvento, chamadaParaGuardar, dataDaChamada, enderecoDoEvento, horaParaEvento, montarConvocacao, peVazio, quadroMembros, responsavelDoCadastro, textoEfetivo } from '../dominio/convocacao.js';
 import { api, apiPost } from '../nucleo/api.js';
-import { TIPOS_EVENTO, emojiTipoEvento, escopoPorChave } from '../nucleo/config.js';
+import { escopoPorChave } from '../nucleo/config.js';
+import { paramsDeEvento } from '../fila/presenca.js';
+import { caixa, guardarDigitado, quadro, quadroRoteiro, quadroTipo, textoFixo } from '../ui/quadros-chamada.js';
 import { state } from '../nucleo/estado.js';
 import { copiarTexto, escapeHtml } from '../nucleo/util.js';
 import { render } from '../nucleo/render.js';
@@ -43,63 +48,22 @@ function textosAtuais() {
 // ---------- campos -----------------------------------------------------------
 // Três famílias de campo, cada uma com o próprio atributo, para o ouvinte
 // saber onde guardar o que foi digitado: data-campo (o resto dos quadros),
-// data-pe + data-campo (um P.E.) e data-resp (o responsável).
-
-function caixa({ rotulo, valor, dica, linhas, atributos, desligado }) {
-  const v = escapeHtml(valor || '');
-  const d = escapeHtml(dica || '');
-  const off = desligado ? 'disabled' : '';
-  const entrada = linhas > 1
-    ? `<textarea ${atributos} rows="${linhas}" placeholder="${d}" ${off}>${v}</textarea>`
-    : `<input type="text" ${atributos} placeholder="${d}" value="${v}" ${off}>`;
-  return `<div class="field">${rotulo ? `<label>${escapeHtml(rotulo)}</label>` : ''}${entrada}</div>`;
-}
+// data-pe + data-campo (um P.E.) e data-resp (o responsável). Os quadros 1
+// e 3 são desenhados por ui/quadros-chamada.js, os mesmos do formulário de
+// evento.
 
 function campo(chave, rotulo, dica, linhas) {
   return caixa({ rotulo, dica, linhas, valor: state.convocacaoCampos[chave], atributos: `data-campo="${chave}"` });
 }
 
-// Os três horários lado a lado, pra não ocupar três linhas com três números.
-function horariosDoPe(pe, i) {
-  return `<div class="row-gap">${[
-    ['concentracao', 'Concentração', '06:00'],
-    ['briefing', 'Briefing', '06:30'],
-    ['saida', 'Saída', '07:00'],
-  ].map(([chave, rotulo, dica]) => `
-    <div class="field" style="flex:1; margin-bottom:0;">
-      <label>${rotulo}</label>
-      <input type="text" data-pe="${i}" data-campo="${chave}" placeholder="${dica}" value="${escapeHtml(pe[chave] || '')}">
-    </div>`).join('')}</div>`;
-}
-
-// ---------- os quadros -------------------------------------------------------
-
-function quadro(numero, titulo, corpo, nota) {
-  return `
-    <div class="card chamada-quadro">
-      <div class="chamada-quadro-titulo"><span>${numero}</span>${escapeHtml(titulo)}</div>
-      ${nota ? `<div class="chamada-quadro-nota">${nota}</div>` : ''}
-      ${corpo}
-    </div>
-  `;
-}
-
-// Os quadros de texto fixo mostram o texto como vai sair, sem campo.
-function textoFixo(linhas) {
-  return `<pre class="chamada-fixo">${escapeHtml(linhas.join('\n'))}</pre>`;
-}
-
-function quadroTipo(ev) {
+function quadroTipoTela(ev) {
   const c = state.convocacaoCampos;
-  return quadro(1, 'Tipo de chamada', `
-    <div class="chip-grid wide" style="margin-bottom:12px;">
-      ${TIPOS_EVENTO.map(t => `
-        <button class="chip-option ${c.tipo === t ? 'active' : ''}" data-action="set-convocacao-tipo" data-value="${escapeHtml(t)}">${emojiTipoEvento(t)} ${escapeHtml(t)}</button>
-      `).join('')}
-    </div>
-    <div class="info-line chamada-auto">${escapeHtml(linhaDoBonde(ev.categoria))}</div>
-    ${campo('subtitulo', 'Subtítulo', 'Ex: Inauguração Divisão Paraíba do Sul')}
-  `, 'O tipo vai no topo e a linha do bonde logo abaixo.');
+  return quadroTipo({ campos: c, attr: 'data-campo', categoria: ev.categoria, tipo: c.tipo, acaoTipo: 'set-convocacao-tipo' });
+}
+
+function quadroRoteiroTela() {
+  return quadroRoteiro({ campos: state.convocacaoCampos, attr: 'data-campo',
+    acaoAdicionarPe: 'adicionar-convocacao-pe', acaoRemoverPe: 'remover-convocacao-pe' });
 }
 
 function quadroInformacoes(ev) {
@@ -118,53 +82,6 @@ function quadroInformacoes(ev) {
     </div>
     ${data ? '' : '<div class="chamada-quadro-nota" style="margin-top:8px;">O evento está sem data. Edite o evento para ela aparecer na chamada.</div>'}
   `, 'A data vem do evento.');
-}
-
-function quadroRoteiro() {
-  const c = state.convocacaoCampos;
-  const pes = c.pes || [];
-  return quadro(3, 'Roteiro', `
-    ${pes.map((pe, i) => `
-      <div class="chamada-pe">
-        <div class="chamada-pe-topo">
-          <b>📍 PE ${i + 1}</b>
-          <button class="btn ghost" style="padding:2px 0; font-size:12px;" data-action="remover-convocacao-pe" data-value="${i}">Remover</button>
-        </div>
-        ${caixa({ rotulo: 'Nome do ponto', linhas: 2, valor: pe.nome, atributos: `data-pe="${i}" data-campo="nome"`,
-          dica: 'Ex: Posto Ipiranga - Cebolão' })}
-        ${caixa({ rotulo: 'Endereço (opcional)', valor: pe.endereco, atributos: `data-pe="${i}" data-campo="endereco"` })}
-        ${caixa({ rotulo: 'Link do Maps', valor: pe.maps, atributos: `data-pe="${i}" data-campo="maps"`,
-          dica: 'https://maps.app.goo.gl/…' })}
-        ${horariosDoPe(pe, i)}
-      </div>
-    `).join('')}
-    <button class="btn secondary block" data-action="adicionar-convocacao-pe" style="margin-bottom:16px;">+ Adicionar P.E.</button>
-    <div style="font-weight:600; margin-bottom:8px;">🏁 Destino final</div>
-    ${campo('destinoEndereco', 'Endereço', 'Rua, número - bairro, cidade')}
-    ${campo('destinoMaps', 'Link do Maps', 'https://maps.app.goo.gl/…')}
-    ${roteiroDoBondeTela(pes)}
-  `, 'O nome do destino é o do quadro 2.');
-}
-
-// O roteiro é montado dos P.E.: o app escreve a sequência, os 📍 e o 🏁, e
-// cada trecho ganha uma caixa só para as vias. Entra na chamada quando
-// alguma via (ou observação) for preenchida.
-function roteiroDoBondeTela(pes) {
-  const destino = String(state.convocacaoCampos.destino || '').trim().toUpperCase() || 'DESTINO';
-  const trechos = pes.map((pe, i) => {
-    const fim = i + 1 < pes.length ? `PE ${i + 2}` : destino;
-    return caixa({ rotulo: `🛣️ Trecho ${i + 1} — PE ${i + 1} → ${fim}`, linhas: 4, valor: pe.vias,
-      atributos: `data-pe="${i}" data-campo="vias"`,
-      dica: 'Uma via por linha\nAv. Ayrton Senna\nLinha Amarela — sentido Fundão' });
-  }).join('');
-  return `
-    <div style="font-weight:600; margin:8px 0;">🎯 Roteiro do bonde</div>
-    <div class="chamada-quadro-nota">${pes.length
-      ? 'A sequência dos pontos o app monta sozinho. Preencha só as vias de cada trecho.'
-      : 'Adicione um P.E. acima para montar os trechos.'}</div>
-    ${trechos}
-    ${campo('roteiro', 'Observações do roteiro (opcional)', 'Ex: A partir da Casa do Alemão, o bonde segue pela BR-040.', 3)}
-  `;
 }
 
 function quadroMembrosTela(ev) {
@@ -243,9 +160,9 @@ export function renderConvocacao(app) {
       <div class="sub">${escapeHtml(ev.nome)}</div>
     </div>
 
-    ${quadroTipo(ev)}
+    ${quadroTipoTela(ev)}
     ${quadroInformacoes(ev)}
-    ${quadroRoteiro()}
+    ${quadroRoteiroTela()}
     ${quadroMembrosTela(ev)}
     ${quadro(5, 'Legenda', textoFixo(LEGENDA), 'Texto fixo do clube.')}
     ${quadroTextoEditavel(6, 'Regras do clube', 'regras')}
@@ -257,6 +174,10 @@ export function renderConvocacao(app) {
       <pre id="convocacao-previa" class="convocacao-previa">${escapeHtml(textoDaConvocacao())}</pre>
     </div>
 
+    ${state.convocacaoEventoMsg ? `<div class="chamada-quadro-nota" style="margin-bottom:8px;">${escapeHtml(state.convocacaoEventoMsg)}</div>` : ''}
+    <button class="btn secondary block" data-action="salvar-convocacao-no-evento" style="margin-bottom:10px;" ${state.convocacaoEventoSalvando ? 'disabled' : ''}>
+      ${state.convocacaoEventoSalvando ? 'Salvando…' : '💾 Salvar no evento'}
+    </button>
     <button class="btn block" data-action="copiar-convocacao">
       ${state.convocacaoCopiado ? '✓ Copiado!' : '📋 Copiar chamada'}
     </button>
@@ -270,12 +191,7 @@ export function renderConvocacao(app) {
   };
   app.querySelectorAll('[data-campo]').forEach(el => {
     el.addEventListener('input', () => {
-      if (el.dataset.pe !== undefined) {
-        const pe = state.convocacaoCampos.pes[Number(el.dataset.pe)];
-        if (pe) pe[el.dataset.campo] = el.value;
-      } else {
-        state.convocacaoCampos[el.dataset.campo] = el.value;
-      }
+      guardarDigitado(state.convocacaoCampos, el, 'campo');
       atualizarPrevia();
     });
   });
@@ -320,7 +236,8 @@ export const acoes = {
     const ev = state.events.find(x => x.id === id);
     if (!ev) return;
     state.convocacaoEventoId = id;
-    state.convocacaoCampos = camposIniciais(ev);
+    state.convocacaoCampos = camposDoEvento(ev);
+    state.convocacaoEventoMsg = null;
     state.convocacaoResponsavel = responsavelDoCadastro(ev.categoria, state.roster);
     state.convocacaoRespMsg = null;
     state.convocacaoRespSalvando = false;
@@ -403,6 +320,34 @@ export const acoes = {
       state.convocacaoTextoMsg = { chave, texto: 'Não consegui salvar: ' + err.message + '.' };
     }
     state.convocacaoTextoSalvando = false;
+    if (state.view === 'convocacao') render();
+  },
+  // Leva o que foi mudado nos quadros 1 a 3 de volta pro evento, pra
+  // próxima chamada (e a tela do membro) já sairem com isso.
+  'salvar-convocacao-no-evento': async (id, target, action, e) => {
+    const ev = eventoAtual();
+    if (!ev || state.convocacaoEventoSalvando) return;
+    const c = state.convocacaoCampos;
+    const atualizado = {
+      ...ev,
+      tipo: c.tipo || ev.tipo || '',
+      // Horário que não dá pra ler como hora não apaga o que o evento tinha.
+      horario: horaParaEvento(c.horario) || ev.horario || '',
+      endereco: enderecoDoEvento(c) || ev.endereco || '',
+      chamada: chamadaParaGuardar(c),
+    };
+    state.convocacaoEventoSalvando = true;
+    state.convocacaoEventoMsg = null;
+    render();
+    try {
+      // POST: com os P.E. e as vias, a chamada não cabe numa URL.
+      await apiPost('eventoSalvar', { ...paramsDeEvento(atualizado), chamada: atualizado.chamada });
+      state.events = state.events.map(x => x.id === ev.id ? atualizado : x);
+      state.convocacaoEventoMsg = '✅ Salvo no evento.';
+    } catch (err) {
+      state.convocacaoEventoMsg = 'Não consegui salvar no evento: ' + err.message + '.';
+    }
+    state.convocacaoEventoSalvando = false;
     if (state.view === 'convocacao') render();
   },
   'fechar-convocacao': async (id, target, action, e) => {

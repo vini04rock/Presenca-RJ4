@@ -118,7 +118,7 @@ sem controlar o servidor.
 | Aba | O que guarda |
 |---|---|
 | `Membros` | id, nome, grau, divisão, funções, **cargo** |
-| `Eventos` | id, nome, data, horário, endereço, outros, status, categoria, tipo, texto original |
+| `Eventos` | id, nome, data, horário, endereço, outros, status, categoria, tipo, texto original, **chamada** (JSON) |
 | `Presencas` | uma linha por evento × membro, com status e as flags Direto/Destacado/Acompanhado |
 | `InsightRodadas` | uma linha por rodada |
 | `InsightPresencas` | uma linha por rodada × membro (Sim/Não) |
@@ -346,6 +346,34 @@ Volta ou Ação Social. Por isso não há mais um modelo por tipo, e
 Embaixo dela vem `⚙️ BONDE REGIONAL - RJ4 ⚙️`, ou `⚙️ DIVISÃO BARRA - RJ4 ⚙️`
 num evento de divisão.
 
+**O evento já nasce com a chamada.** O formulário de criar e editar
+evento tem os mesmos quadros 1 a 3 (tipo e subtítulo; destino, data e
+horário; P.E., destino final e roteiro), desenhados pelo mesmo
+`js/ui/quadros-chamada.js`. Eles ficam guardados em JSON na coluna
+`Chamada` da aba Eventos, e o "Criar chamada" abre com eles. O que for
+mudado na tela da chamada volta para o evento pelo botão **💾 Salvar no
+evento**. Os campos antigos continuam preenchidos (endereço = destino +
+endereço do destino), então relatórios, planilha e tudo o mais que lê o
+endereço de uma linha seguem iguais. Evento sem a coluna (os antigos, e os
+de convocação colada) continua abrindo a chamada com as sugestões tiradas
+do endereço e do "Outros".
+
+> Só o formulário e o "Salvar no evento" mandam a chamada, e vão por POST
+> (não cabe numa URL). Encerrar, reabrir e mudar a data pelo Calendário não
+> a mandam, e o `Code.gs` mantém a que já estava, do mesmo jeito que faz
+> com o texto original.
+
+**A tela do membro mostra a chamada enxuta.** Num evento com chamada
+salva, o cartão de informações vira data e horário, o 🏁 destino com o
+endereço e um "Abrir no mapa", e uma linha curta por P.E. com os horários.
+As vias e os textos do clube ficam de fora: são da chamada, e no celular
+virariam uma parede de texto.
+
+> O formulário de evento guarda cada campo no state enquanto se digita
+> (`aoDigitarNoFormulario`). Antes ele só lia os campos na hora de salvar,
+> e qualquer redesenho (escolher o tipo, acrescentar um P.E.) apagava o que
+> já tinha sido digitado.
+
 **O roteiro do bonde é montado dos P.E.** A pessoa só escreve as vias de
 cada trecho, uma por linha; a sequência (`PE 1 → PE 2 → DESTINO`), o
 `📍 PE 1 — Saída`, os `🛣️ TRECHO` e o `🏁` o app escreve. As vias ficam
@@ -404,7 +432,7 @@ a cada mudança:
 | `servidor.py` | serve o app local com o cache desligado |
 | `estrutura.py` | 7 verificações: imports circulares, hierarquia de camadas, sintaxe, nome sem import, import sobrando, ações sem tratador |
 | `regras.mjs` | as regras do clube que, se quebrarem, saem erradas numa convocação sem ninguém perceber |
-| `telas.mjs` | desenha as 80 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
+| `telas.mjs` | desenha as 82 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
 | `planilha.mjs` | roda o `Code.gs` de verdade contra uma planilha de mentira; hoje cobre o encerramento automático |
 
 O `--html` do `telas.mjs` é a rede de proteção mais útil: captura o HTML de
@@ -431,13 +459,14 @@ ferramentas, acima):
 
     py ferramentas/estrutura.py     # imports, camadas, sintaxe, ações
     node ferramentas/regras.mjs     # ordem hierárquica e formato da convocação
-    node ferramentas/telas.mjs      # desenha as 80 telas e abas
+    node ferramentas/telas.mjs      # desenha as 82 telas e abas
     node ferramentas/planilha.mjs   # o encerramento automático, no Code.gs
 
 Eles dizem que o app **não quebrou**, não que está bonito: não cobrem
 aparência, impressão/PDF, o caminho de rede real nem o resto do `Code.gs` —
 o `planilha.mjs` só alcança o encerramento automático, a guarda de PIN, o
-relatório individual, o responsável e os textos da chamada.
+relatório individual, o responsável, os textos da chamada e a chamada
+guardada no evento.
 
 Se a mudança mexeu no `Code.gs`, ele precisa ser **republicado à parte** no
 Apps Script — não vai junto no `git push`. Confira depois chamando a URL do

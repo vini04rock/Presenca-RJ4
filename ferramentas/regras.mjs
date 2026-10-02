@@ -20,7 +20,8 @@ globalThis.window = { addEventListener() {} };
 
 const { ordenarPorHierarquia } = await import(url('nucleo/util.js'));
 const { CARGOS, cargosDoGrau } = await import(url('nucleo/config.js'));
-const { montarConvocacao, camposIniciais, dataDaChamada, comoHora, responsavelDoCadastro, peVazio, roteiroDoBonde, TEXTOS_PADRAO } = await import(url('dominio/convocacao.js'));
+const { montarConvocacao, camposIniciais, dataDaChamada, comoHora, responsavelDoCadastro, peVazio, roteiroDoBonde, TEXTOS_PADRAO,
+  camposDoEvento, chamadaParaGuardar, enderecoDoEvento, horaParaEvento, resumoDoEvento } = await import(url('dominio/convocacao.js'));
 const { parseConvocacaoTexto } = await import(url('dominio/parser.js'));
 const { estatisticasInsightsPorPeriodo, numerosInsightDivisao } = await import(url('dominio/estatisticas.js'));
 const { mascaraData, dataISOdeBR, formatDataBR } = await import(url('nucleo/util.js'));
@@ -491,6 +492,42 @@ confere('a atenção sem texto salvo continua a padrão', comTextos.includes('�
 confere('texto salvo vazio volta ao padrão',
   montarConvocacao(evRegional, rosterTeste, camposReg, respBull, { regras: '  ', atencao: '' }), textoReg);
 confere('o padrão é o texto da chamada oficial', TEXTOS_PADRAO.regras.split('\n')[0], 'Prazo para a justificativa: 1 dia antes do evento.');
+
+log('');
+log('=== chamada guardada no evento: o evento nasce com os quadros 1 a 3 ===');
+const evBarraSemChamada = () => ({ id:'e0', nome:'Pub', tipo:'Pub', categoria:'barra', data:'2026-09-09',
+  horario:'19:30', endereco:"Lucky Murphy's Irish Pub, Barra da Tijuca", outros:'' });
+// O que o formulário do evento guarda tem que voltar igual na chamada -
+// senão a chamada "pronta" sairia diferente do que foi digitado no evento.
+const guardada = chamadaParaGuardar(camposReg);
+const evComChamada = { ...evRegional, chamada: guardada };
+const reaberta = camposDoEvento(evComChamada);
+confere('a chamada do evento sai igual à que foi montada',
+  montarConvocacao(evComChamada, rosterTeste, reaberta, respBull), textoReg);
+confere('o tipo e o horário vêm do evento, não da coluna Chamada', [reaberta.tipo, reaberta.horario], ['Ação Social', '07:00h']);
+confere('P.E. vazio não é guardado', chamadaParaGuardar({ pes: [peVazio(), { ...peVazio(), nome: ' PE ' }] }).pes.map(p => p.nome), ['PE']);
+confere('subtítulo em branco vira o nome do evento',
+  camposDoEvento({ ...evRegional, chamada: { ...guardada, subtitulo: '' } }).subtitulo, evRegional.nome);
+confere('evento sem chamada guardada cai nas sugestões de sempre',
+  camposDoEvento(evBarraSemChamada()).destino, "Lucky Murphy's Irish Pub");
+confere('evento com chamada sem P.E. ainda abre com um P.E. pra preencher',
+  camposDoEvento({ ...evRegional, chamada: { destino: 'X' } }).pes.length, 1);
+confere('o endereço de uma linha, pro resto do app', enderecoDoEvento(guardada),
+  'Bandas Bar - Paraíba do Sul, Av. Mal. Castelo Branco, 395');
+confere('a hora da chamada vira a hora do evento', [horaParaEvento('07:00h'), horaParaEvento('7h30'), horaParaEvento('cedo')],
+  ['07:00', '07:30', '']);
+
+log('');
+log('=== tela do membro: só o essencial da chamada ===');
+const resumo = resumoDoEvento(evComChamada);
+confere('o destino com endereço e mapa', [resumo.destino, resumo.endereco, resumo.maps],
+  ['Bandas Bar - Paraíba do Sul', 'Av. Mal. Castelo Branco, 395', 'https://maps.app.goo.gl/destino']);
+confere('cada P.E. numa linha, o nome de duas linhas junto', resumo.pes.map(p => [p.numero, p.nome]),
+  [[1, 'Posto Ipiranga - Cebolão'], [2, 'Integração com Bonde RJ3 · Casa do Alemão - Washington Luiz']]);
+confere('os horários do P.E. no formato da chamada', resumo.pes[0].horarios,
+  [{ rotulo: 'Concentração', hora: '06:00h' }, { rotulo: 'Briefing', hora: '06:30h' }, { rotulo: 'Saída', hora: '07:00h' }]);
+confere('as vias ficam de fora (só a chamada leva)', JSON.stringify(resumo).includes('Ayrton'), false);
+confere('evento sem chamada guardada não tem resumo', resumoDoEvento(evRegional), null);
 
 log('');
 log('=== chamada: evento de divisão traz os convocados da divisão ===');

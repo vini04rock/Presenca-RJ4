@@ -1,15 +1,17 @@
 // Carrega da planilha para o state e redesenha. Nao decide nada de tela.
 
-import { api } from '../nucleo/api.js';
+import { api, apiPost } from '../nucleo/api.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
 import { emLotes } from '../nucleo/util.js';
 
 // Usado nas telas do organizador, onde quem grava e uma pessoa so e um aviso
 // direto resolve.
-export async function salvarOuAvisar(action, params) {
+// { post: true } manda pelo corpo, e nao pela URL - pra quando o que vai
+// junto e grande demais (a chamada de um evento, com P.E. e vias).
+export async function salvarOuAvisar(action, params, opcoes) {
   try {
-    return await api(action, params);
+    return await (opcoes && opcoes.post ? apiPost(action, params) : api(action, params));
   } catch (e) {
     alert('Não consegui salvar na planilha.\n\n' + e.message + '.\n\nVerifique sua conexão e tente de novo.');
     await loadInitial();

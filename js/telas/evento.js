@@ -3,6 +3,7 @@
 import { FUNCOES } from '../nucleo/config.js';
 import { getMemberStatus, state } from '../nucleo/estado.js';
 import { escapeHtml, formatDataBR, linkify, ordenarPorHierarquia } from '../nucleo/util.js';
+import { resumoDoEvento } from '../dominio/convocacao.js';
 import { renderHome } from './home.js';
 import { renderConfirmadoRow, renderListaMembros, renderStatusBanner } from '../ui/comuns.js';
 import { render } from '../nucleo/render.js';
@@ -31,6 +32,55 @@ export function renderConfirmados(app) {
   `;
 }
 
+// "Abrir no mapa" em vez do link cru - o link do Maps é comprido e não diz
+// nada a quem lê.
+function linkMapa(url) {
+  if (!/^https?:\/\//i.test(url || '')) return '';
+  return ` <a class="evento-mapa" href="${escapeHtml(url)}" target="_blank" rel="noopener">Abrir no mapa</a>`;
+}
+
+// O cartão de informações. Evento com a chamada salva mostra o essencial
+// dela - onde é, e onde e quando encontrar o bonde -, enxuto, sem as vias e
+// os textos do clube. Evento sem chamada (os antigos) mostra o de sempre.
+function renderInfoEvento(ev) {
+  const resumo = resumoDoEvento(ev);
+  const dataHora = [ev.data ? `🗓️ ${formatDataBR(ev.data)}` : '', ev.horario ? `⏰ ${escapeHtml(ev.horario)}` : '']
+    .filter(Boolean).join(' &nbsp;·&nbsp; ');
+  const outros = ev.outros ? `<div class="info-line" style="white-space: pre-wrap;">ℹ️ ${linkify(ev.outros)}</div>` : '';
+
+  if (!resumo) {
+    const hasInfo = ev.data || ev.horario || ev.endereco || ev.outros;
+    if (!hasInfo) return '';
+    return `
+      <div class="card" style="margin-bottom: 16px;">
+        ${ev.data ? `<div class="info-line">🗓️ ${formatDataBR(ev.data)}</div>` : ''}
+        ${ev.horario ? `<div class="info-line">⏰ ${escapeHtml(ev.horario)}</div>` : ''}
+        ${ev.endereco ? `<div class="info-line">📍 ${linkify(ev.endereco)}</div>` : ''}
+        ${outros}
+      </div>
+    `;
+  }
+
+  return `
+    <div class="card evento-resumo" style="margin-bottom: 16px;">
+      ${dataHora ? `<div class="info-line">${dataHora}</div>` : ''}
+      ${resumo.destino || resumo.endereco ? `
+        <div class="evento-ponto">
+          <div class="evento-ponto-nome">🏁 ${escapeHtml(resumo.destino || 'Destino')}${linkMapa(resumo.maps)}</div>
+          ${resumo.endereco ? `<div class="evento-ponto-detalhe">${escapeHtml(resumo.endereco)}</div>` : ''}
+        </div>
+      ` : ''}
+      ${resumo.pes.map(pe => `
+        <div class="evento-ponto">
+          <div class="evento-ponto-nome">📍 PE ${pe.numero}${pe.nome ? ' · ' + escapeHtml(pe.nome) : ''}${linkMapa(pe.maps)}</div>
+          ${pe.horarios.length ? `<div class="evento-ponto-detalhe">${pe.horarios.map(h => `${escapeHtml(h.rotulo)} <b>${escapeHtml(h.hora)}</b>`).join(' &nbsp;·&nbsp; ')}</div>` : ''}
+        </div>
+      `).join('')}
+      ${outros}
+    </div>
+  `;
+}
+
 export function renderEvent(app) {
   const ev = state.events.find(e => e.id === state.currentEventId);
   if (!ev) { state.view = 'home'; return renderHome(app); }
@@ -38,7 +88,6 @@ export function renderEvent(app) {
     .map(id => state.roster.find(m => m.id === id))
     .filter(Boolean);
 
-  const hasInfo = ev.data || ev.horario || ev.endereco || ev.outros;
   const confirmados = members.filter(m => getMemberStatus(m.id).status === 'confirmado');
 
   app.innerHTML = `
@@ -52,14 +101,7 @@ export function renderEvent(app) {
         </button>
       </div>
     </div>
-    ${hasInfo ? `
-      <div class="card" style="margin-bottom: 16px;">
-        ${ev.data ? `<div class="info-line">🗓️ ${formatDataBR(ev.data)}</div>` : ''}
-        ${ev.horario ? `<div class="info-line">⏰ ${escapeHtml(ev.horario)}</div>` : ''}
-        ${ev.endereco ? `<div class="info-line">📍 ${linkify(ev.endereco)}</div>` : ''}
-        ${ev.outros ? `<div class="info-line" style="white-space: pre-wrap;">ℹ️ ${linkify(ev.outros)}</div>` : ''}
-      </div>
-    ` : ''}
+    ${renderInfoEvento(ev)}
     ${renderStatusBanner()}
     <div class="card" style="padding: 4px 16px;">
       ${members.length === 0 ? '<div class="empty">Nenhum membro nesse evento.</div>' : renderListaMembros(ev, members)}

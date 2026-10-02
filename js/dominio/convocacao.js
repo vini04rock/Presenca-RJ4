@@ -199,6 +199,83 @@ export function camposIniciais(ev) {
   };
 }
 
+// ---------- a chamada guardada no evento ------------------------------------
+// O evento guarda os quadros 1 a 3 (menos o tipo e o horário, que já são
+// campos do evento) na coluna "Chamada" da planilha. Assim a chamada abre
+// pronta, e o que se muda nela volta pro evento pelo "Salvar no evento".
+
+const CAMPOS_GUARDADOS = ['subtitulo', 'destino', 'destinoEndereco', 'destinoMaps', 'roteiro'];
+
+// Os campos dos quadros a partir do evento. Evento sem chamada guardada
+// (os antigos, e os que vieram de convocação colada) cai nas sugestões de
+// sempre, deduzidas do endereço e do "Outros".
+export function camposDoEvento(ev) {
+  const ch = ev && ev.chamada;
+  if (!ch || typeof ch !== 'object') return camposIniciais(ev || {});
+  const c = { tipo: ev.tipo || '', horario: comoHora(ev.horario) };
+  CAMPOS_GUARDADOS.forEach(k => { c[k] = String(ch[k] || ''); });
+  // Subtítulo em branco é o nome do evento, como nas sugestões.
+  if (!c.subtitulo.trim()) c.subtitulo = String(ev.nome || '').trim();
+  c.pes = (Array.isArray(ch.pes) ? ch.pes : []).map(pe => ({ ...peVazio(), ...pe }));
+  if (!c.pes.length) c.pes = [peVazio()];
+  return c;
+}
+
+// O que vai pra coluna "Chamada": só o que tem conteúdo, sem espaço sobrando.
+// P.E. totalmente vazio (nem nome, nem vias) não é guardado.
+export function chamadaParaGuardar(campos) {
+  const c = campos || {};
+  const fora = {};
+  CAMPOS_GUARDADOS.forEach(k => { fora[k] = String(c[k] || '').trim(); });
+  fora.pes = (c.pes || [])
+    .map(pe => {
+      const limpo = {};
+      Object.keys(peVazio()).forEach(k => { limpo[k] = String((pe && pe[k]) || '').trim(); });
+      return limpo;
+    })
+    .filter(pe => Object.values(pe).some(Boolean));
+  return fora;
+}
+
+// O endereço "de uma linha" do evento, que o resto do app (tela do membro
+// antiga, relatórios, planilha) continua lendo: nome do destino + endereço.
+export function enderecoDoEvento(campos) {
+  return [campos && campos.destino, campos && campos.destinoEndereco]
+    .map(v => String(v || '').trim()).filter(Boolean).join(', ');
+}
+
+// '07:00h', '7h', '7' -> '07:00', o formato do campo Horário do evento.
+// O que não for hora vira vazio.
+export function horaParaEvento(texto) {
+  const m = /^(\d{2}):(\d{2})h$/.exec(comoHora(texto));
+  return m ? `${m[1]}:${m[2]}` : '';
+}
+
+// O que o integrante vê na tela do evento: só o essencial, sem o texto
+// inteiro da chamada. Onde é, e onde e quando encontrar o bonde. As vias do
+// roteiro ficam de fora - são detalhe de quem puxa o bonde, e no celular
+// virariam uma parede de texto. null quando o evento não tem chamada
+// guardada (aí a tela mostra o endereço de sempre).
+export function resumoDoEvento(ev) {
+  if (!ev || !ev.chamada || typeof ev.chamada !== 'object') return null;
+  const c = camposDoEvento(ev);
+  const pes = pesDaChamada(c).map((pe, i) => ({
+    numero: i + 1,
+    nome: linhasDe(pe.nome).filter(Boolean).join(' · '),
+    endereco: String(pe.endereco || '').trim(),
+    maps: String(pe.maps || '').trim(),
+    horarios: [['Concentração', pe.concentracao], ['Briefing', pe.briefing], ['Saída', pe.saida]]
+      .filter(([, v]) => String(v || '').trim())
+      .map(([rotulo, v]) => ({ rotulo, hora: comoHora(v) })),
+  }));
+  return {
+    destino: c.destino.trim(),
+    endereco: c.destinoEndereco.trim(),
+    maps: c.destinoMaps.trim(),
+    pes,
+  };
+}
+
 // O responsável sugerido pelo cadastro, para quando nada foi salvo ainda.
 // Sem ninguém no cargo, vem vazio - o texto então sai com "(nome)", que é
 // melhor do que uma chamada assinada pela pessoa errada.

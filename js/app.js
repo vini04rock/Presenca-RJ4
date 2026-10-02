@@ -17,7 +17,7 @@ import { renderRank } from './telas/rank.js';
 import { renderRelatorioShell } from './telas/relatorios.js';
 import { acoes as acoesRelatorios } from './telas/relatorios.js';
 import { acoes as acoesAdmin } from './telas/admin.js';
-import { acoes as acoesAdminEventos } from './telas/admin-eventos.js';
+import { acoes as acoesAdminEventos, aoDigitarNoFormulario } from './telas/admin-eventos.js';
 import { acoes as acoesAdminMembros } from './telas/admin-membros.js';
 import { acoes as acoesAdminInsights } from './telas/admin-insights.js';
 import { acoes as acoesComuns } from './ui/comuns.js';
@@ -92,8 +92,13 @@ document.getElementById('app').addEventListener('input', (e) => {
     // Digitando no fim (o caso normal), mantem o cursor no fim - senao a
     // barra recem-inserida jogaria o cursor pra tras.
     if (cursorNoFim) e.target.setSelectionRange(e.target.value.length, e.target.value.length);
+    // A data do formulario de evento tambem vai pro state (ja com as barras).
+    aoDigitarNoFormulario(e.target);
     return;
   }
+  // O formulario de evento guarda tudo no state enquanto se digita - ver
+  // aoDigitarNoFormulario. Nao redesenha: so lembra.
+  if (aoDigitarNoFormulario(e.target)) return;
   if (e.target.id === 'new-member-nome') {
     state.newMemberNome = e.target.value;
   }

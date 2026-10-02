@@ -524,6 +524,35 @@ log('=== regras e atenção da chamada: um texto só, e só o Regional muda ==='
 }
 
 log('');
+log('=== evento com a chamada guardada (coluna Chamada) ===');
+{
+  // A aba como ela está hoje na planilha de produção: 11 colunas, sem a
+  // "Chamada". O Code.gs tem que acrescentar a coluna sozinho.
+  const p = montaPlanilha([ev('antigo', daquiA(5), 'ativo')], []);
+  const PINS = { PIN_BARRA: '1801' };
+  const { contexto } = carregaCodeGs(p, PINS);
+  const cred = { escopo: 'barra', pin: '1801' };
+  const lido = (id) => contexto.executar('dados', {}).eventos.find(e => e.id === id);
+
+  confere('evento antigo, sem a coluna: chamada vazia', lido('antigo').chamada, null);
+  const chamada = { destino: 'Bandas Bar', pes: [{ nome: 'Posto Ipiranga', concentracao: '06:00' }] };
+  // Pelo POST a chamada chega como objeto de verdade.
+  contexto.executar('eventoSalvar', { ...cred, id: 'novo', nome: 'Bonde', data: daquiA(9), categoria: 'barra', chamada });
+  confere('a coluna Chamada é criada no cabeçalho', p.abas.Eventos.dados[0][11], 'Chamada');
+  confere('e a chamada volta igual', lido('novo').chamada, chamada);
+
+  // Encerrar, reabrir ou mudar a data no Calendário não mandam a chamada -
+  // e não podem apagá-la.
+  contexto.executar('eventoSalvar', { ...cred, id: 'novo', nome: 'Bonde', data: daquiA(9), categoria: 'barra', status: 'encerrado' });
+  confere('encerrar não apaga a chamada', lido('novo').chamada, chamada);
+  // Pela URL (JSONP) ela chega como texto.
+  contexto.executar('eventoSalvar', { ...cred, id: 'novo', nome: 'Bonde', data: daquiA(9), categoria: 'barra',
+    chamada: JSON.stringify({ destino: 'Outro' }) });
+  confere('chamada em texto também é aceita', lido('novo').chamada, { destino: 'Outro' });
+  confere('salvar o evento antigo não quebra a linha dele', lido('antigo').nome, 'Evento antigo');
+}
+
+log('');
 log(falhas === 0 ? 'TUDO OK' : `${falhas} FALHA(S) — veja acima`);
 fs.writeFileSync(SAIDA, linhas.join('\n'), 'utf8');
 process.exit(falhas === 0 ? 0 : 1);

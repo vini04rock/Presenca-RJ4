@@ -183,6 +183,13 @@ add('home (escolha tipo)',            { homeEventosAberto:true, homeEscopo:'barr
 add('home (lista de eventos)',        { homeEventosAberto:true, homeEscopo:'barra', homeTipo:'todos' }, T.renderHome);
 add('home (eventos regional)',        { homeEventosAberto:true, homeEscopo:'regional', homeTipo:'todos' }, T.renderHome);
 add('evento',                         { currentEventId:'e2' }, T.renderEvent);
+// Evento com a chamada salva: o membro ve o resumo enxuto (destino e P.E.).
+add('evento (com chamada salva)',     { currentEventId:'e2', events: eventos.map(ev => ev.id === 'e2'
+  ? { ...ev, chamada:{ subtitulo:'', destino:'Bandas Bar', destinoEndereco:'Av. Mal. Castelo Branco, 395',
+      destinoMaps:'https://maps.app.goo.gl/x', roteiro:'',
+      pes:[{ nome:'Posto Ipiranga - Cebolão', endereco:'', maps:'https://maps.app.goo.gl/y',
+        concentracao:'06:00', briefing:'06:30', saida:'07:00', vias:'Av. Ayrton Senna' }] } }
+  : ev) }, T.renderEvent);
 add('evento (regional, agrupado)',    { currentEventId:'e3' }, T.renderEvent);
 add('confirmados',                    { currentEventId:'e2' }, T.renderConfirmados);
 add('rank de presenca',               { rankJanela:'sempre' }, T.renderRank);
@@ -260,9 +267,17 @@ add('organizador / insights-relatorio (periodo vazio)', { isAdmin:true, adminEsc
 // data" aberto, por isso nao aparecia em teste nenhum.
 add('organizador / insights (outra data)', { isAdmin:true, adminEscopo:'regional',
   adminTab:'insights', insightMostrarDataCustom:true, insightDataEscolhida:'2026-09-21' }, T.renderAdmin);
-// Evento sendo editado: o campo de data nasce preenchido com a data dele.
+// Evento sendo editado: o formulario nasce com o que o evento tem (ver
+// abrirFormulario em telas/admin-eventos.js), inclusive os quadros da chamada.
+const chamadaFalsa = { subtitulo:'', destino:'Bandas Bar - Paraíba do Sul', destinoEndereco:'Av. Mal. Castelo Branco, 395',
+  destinoMaps:'https://maps.app.goo.gl/x', roteiro:'',
+  pes:[{ nome:'Posto Ipiranga - Cebolão', endereco:'', maps:'https://maps.app.goo.gl/y',
+    concentracao:'06:00', briefing:'06:30', saida:'07:00', vias:'Av. Ayrton Senna' },
+    { nome:'Casa do Alemão', endereco:'BR-040, km 111', maps:'', concentracao:'08:00', briefing:'', saida:'09:00', vias:'' }] };
 add('organizador / editar evento',    { isAdmin:true, adminEscopo:'barra', adminTab:'eventos',
-  editingEventId:'e1', newEventSelected:new Set(['m1']) }, T.renderAdmin);
+  editingEventId:'e1', newEventSelected:new Set(['m1']), newEventTipo:'Pub',
+  newEventForm:{ nome:'Pub do mes', data:'05/09/2026', horario:'20:00', outros:'' },
+  newEventChamada:{ ...chamadaFalsa, tipo:'Pub', horario:'20:00h' } }, T.renderAdmin);
 // Com uma rodada em ajuste, a aba "Nova rodada" tem que continuar sendo a de
 // CRIAR - antes ela era sequestrada pelo painel de ajuste.
 add('organizador / nova rodada (com ajuste aberto)', { isAdmin:true, adminEscopo:'regional',
@@ -321,7 +336,14 @@ add('criar chamada (buscando responsável)', { convocacaoEventoId:'e3', convocac
 add('criar chamada (responsável não carregou)', { convocacaoEventoId:'e2', convocacaoCampos:{ pes:[] },
   convocacaoRespEstado:'erro', convocacaoRespMsg:'Não consegui salvar: Falha de conexao.' }, T.renderConvocacao);
 add('organizador / novo evento',      { isAdmin:true, adminEscopo:'barra', adminTab:'eventos',
-  newEventSelected:new Set(['m1']), newEventTipo:'Pub' }, T.renderAdmin);
+  newEventSelected:new Set(['m1']), newEventTipo:'Pub',
+  newEventForm:{ nome:'', data:'', horario:'', outros:'' },
+  newEventChamada:{ subtitulo:'', destino:'', destinoEndereco:'', destinoMaps:'', roteiro:'',
+    pes:[{ nome:'', endereco:'', maps:'', concentracao:'', briefing:'', saida:'', vias:'' }] } }, T.renderAdmin);
+// Sem o formulario aberto pelo botao (estado antigo, ou vindo de outra aba):
+// desenha vazio em vez de quebrar.
+add('organizador / novo evento (sem estado do formulário)', { isAdmin:true, adminEscopo:'regional', adminTab:'eventos',
+  newEventSelected:new Set(), newEventTipo:null }, T.renderAdmin);
 add('organizador / ajustar rodada',   { isAdmin:true, adminEscopo:'regional', adminTab:'insights-rodadas',
   insightEditandoRodadaId:'r1', insightAjusteMembroIds:['m1','m2'],
   insightAjusteInfo:{ m1:{nome:'Costa',divisao:'Barra - RJ4'}, m2:{nome:'Bull',divisao:'Barra - RJ4'} } }, T.renderAdmin);
@@ -401,6 +423,8 @@ const LIMPO = {
   events: eventos,
   convocacaoEventoId:null, convocacaoCampos:{}, convocacaoCopiado:false,
   convocacaoResponsavel:{}, convocacaoRespEstado:'pronto', convocacaoRespSalvando:false, convocacaoRespMsg:null,
+  convocacaoEventoSalvando:false, convocacaoEventoMsg:null,
+  newEventForm:null, newEventChamada:null, newEventTipo:null,
   convocacaoTextos:{}, convocacaoTextoEditando:null, convocacaoTextoRascunho:'', convocacaoTextoSalvando:false, convocacaoTextoMsg:null,
   newMemberGrau:null, newMemberCargo:null,
   pinErro:null, pinVerificando:false,
