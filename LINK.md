@@ -92,6 +92,13 @@ Abas em uso:
   rodadas, com gráfico de tendência. Gerada pelo mesmo botão.
 - `Calendário` — grade visual, um mês por vez, com os eventos marcados em
   cada dia (cor por divisão). Gerada pelo mesmo botão.
+- `Responsaveis` — quem assina a chamada do WhatsApp (tela "Criar chamada"),
+  uma linha por divisão e uma pelo Regional. É dado de verdade, gravado pelo
+  app: editar aqui também vale. Nasce sozinha no primeiro "Salvar
+  responsável".
+- `TextosChamada` — Regras do clube e Atenção da chamada, quando o Regional
+  personaliza. Um texto só para a RJ4 inteira; sem linha, o app usa o
+  padrão dele. Nasce sozinha no primeiro "Salvar".
 - `KV` — formato antigo, mantido apenas como backup da migração inicial.
 
 Todas as abas de resumo (`Calendário`, `Insight RJ4`, `Regional RJ4` e as

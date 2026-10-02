@@ -881,6 +881,63 @@ label {
   overflow-y: auto;
 }
 
+/* Os quadros da tela "Criar chamada" - um por parte da chamada, na ordem em
+   que ela sai no texto. O número na pastilha é o mesmo do comentário de
+   dominio/convocacao.js. */
+.chamada-quadro-titulo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.chamada-quadro-titulo span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.chamada-quadro-nota {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+/* O que o app escreve sozinho (a linha do bonde) - aparece, mas não é campo. */
+.chamada-auto {
+  font-family: ui-monospace, 'Cascadia Mono', 'Consolas', monospace;
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+/* Texto fixo do clube (legenda, regras, atenção) e a lista de membros:
+   mesma letra da prévia, sem a caixa rolando. */
+.chamada-fixo {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, 'Cascadia Mono', 'Consolas', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+/* Cada P.E. num bloco próprio, para dar pra ver onde um acaba e o outro começa. */
+.chamada-pe {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.chamada-pe-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
 
 /* Rótulo pequeno acima de um bloco na tela inicial ("Próximo evento"). */
 .rotulo-secao {

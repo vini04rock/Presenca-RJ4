@@ -291,22 +291,35 @@ add('organizador / encerrados (sem corrigir)', { isAdmin:true, adminEscopo:'oest
 add('organizador / membros (grau VI)', { isAdmin:true, adminEscopo:'barra', adminTab:'membros',
   newMemberGrau:'VI' }, T.renderAdmin);
 add('organizador / eventos (barra)',  { isAdmin:true, adminEscopo:'barra', adminTab:'eventos' }, T.renderAdmin);
-add('criar chamada (convocação)',     { convocacaoEventoId:'e1',
-  convocacaoCampos:{ subtitulo:'Aniversariantes do mês',
-    destino:['Bar do Zé', 'Barra da Tijuca'].join('\n'),
-    linkMapa:'https://maps.app.goo.gl/x', destacamento:'18h30', briefing:'19h15', inicio:'19h30',
-    informacoes:['ℹ️ INFORMAÇÕES ℹ️', '', 'COSTA (X)', 'DIRETOR', 'DIVISÃO BARRA - RJ4', '(21) 90000-0000'].join('\n') } },
+const peFalso = (nome, extra) => ({ nome, endereco:'', maps:'https://maps.app.goo.gl/x',
+  concentracao:'06:00', briefing:'06:30', saida:'07:00', ...extra });
+add('criar chamada (divisão, preenchida)', { convocacaoEventoId:'e1',
+  convocacaoCampos:{ tipo:'Pub', subtitulo:'Aniversariantes do mês', destino:'Bar do Zé',
+    horario:'19:30', pes:[peFalso('Posto Ipiranga - Cebolão')],
+    destinoEndereco:'Barra da Tijuca', destinoMaps:'https://maps.app.goo.gl/x', roteiro:'' },
+  convocacaoResponsavel:{ nome:'Tedboy', cargo:'Subdiretor Divisão Barra', telefone:'21 90000-0000' } },
   T.renderConvocacao);
 add('criar chamada (campos vazios)',  { convocacaoEventoId:'e2', convocacaoCampos:{} }, T.renderConvocacao);
-add('criar chamada (bate e volta)',   { convocacaoEventoId:'e2', convocacaoModelo:'bate-volta',
-  convocacaoCampos:{ subtitulo:'Bonde da Independência',
-    horarios:['Concentração: 05h00','Briefing: 05h15','Saída: 05h30'].join('\n'),
-    concentracao:['Posto Ipiranga Cebolão','Barra da Tijuca'].join('\n'),
-    linkMapa:'https://maps.app.goo.gl/x',
-    roteiro:['PE 1 → PE 2 → Três Rios','BR-040 sentido Petrópolis'].join('\n'),
-    informacoes:'ℹ️ INFORMAÇÕES ℹ️' } }, T.renderConvocacao);
-add('criar chamada (regional)',       { convocacaoEventoId:'e3', convocacaoModelo:'simples',
-  convocacaoCampos:{} }, T.renderConvocacao);
+add('criar chamada (regional, 2 P.E.)', { convocacaoEventoId:'e3',
+  convocacaoCampos:{ tipo:'Bate e Volta', subtitulo:'Inauguração Divisão Paraíba do Sul',
+    destino:'Bandas Bar - Paraíba do Sul', horario:'07:00',
+    pes:[peFalso('Posto Ipiranga - Cebolão'),
+      peFalso('Integração com Bonde RJ3\nCasa do Alemão', { endereco:'Rodovia Washington Luiz, Km 111' })],
+    destinoEndereco:'Av. Mal. Castelo Branco, 395', destinoMaps:'', roteiro:'Seguir pela BR-040.' },
+  convocacaoResponsavel:{ nome:'Bull', cargo:'Operacional RJ4', telefone:'21 90000-0000' } },
+  T.renderConvocacao);
+// O Regional ve o botao de personalizar regras e atencao; aqui, com as regras
+// abertas para edicao e a atencao ja personalizada.
+add('criar chamada (regional editando regras)', { adminEscopo:'regional', convocacaoEventoId:'e3',
+  convocacaoCampos:{ pes:[peFalso('Posto Ipiranga', { vias:'Av. Ayrton Senna' })] },
+  convocacaoTextos:{ atencao:'⚠️ ATENÇÃO ⚠️\n\nTexto novo' },
+  convocacaoTextoEditando:'regras', convocacaoTextoRascunho:'Prazo: 2 dias antes.' }, T.renderConvocacao);
+add('criar chamada (texto salvo)', { adminEscopo:'regional', convocacaoEventoId:'e3', convocacaoCampos:{ pes:[] },
+  convocacaoTextoMsg:{ chave:'regras', texto:'✅ Salvo para a RJ4 inteira.' } }, T.renderConvocacao);
+add('criar chamada (buscando responsável)', { convocacaoEventoId:'e3', convocacaoCampos:{ pes:[] },
+  convocacaoRespEstado:'carregando' }, T.renderConvocacao);
+add('criar chamada (responsável não carregou)', { convocacaoEventoId:'e2', convocacaoCampos:{ pes:[] },
+  convocacaoRespEstado:'erro', convocacaoRespMsg:'Não consegui salvar: Falha de conexao.' }, T.renderConvocacao);
 add('organizador / novo evento',      { isAdmin:true, adminEscopo:'barra', adminTab:'eventos',
   newEventSelected:new Set(['m1']), newEventTipo:'Pub' }, T.renderAdmin);
 add('organizador / ajustar rodada',   { isAdmin:true, adminEscopo:'regional', adminTab:'insights-rodadas',
@@ -386,7 +399,9 @@ const LIMPO = {
   // "proximo evento" depende dela, e um caso que a troca nao pode vazar
   // pro seguinte.
   events: eventos,
-  convocacaoEventoId:null, convocacaoModelo:null, convocacaoCampos:{}, convocacaoCopiado:false,
+  convocacaoEventoId:null, convocacaoCampos:{}, convocacaoCopiado:false,
+  convocacaoResponsavel:{}, convocacaoRespEstado:'pronto', convocacaoRespSalvando:false, convocacaoRespMsg:null,
+  convocacaoTextos:{}, convocacaoTextoEditando:null, convocacaoTextoRascunho:'', convocacaoTextoSalvando:false, convocacaoTextoMsg:null,
   newMemberGrau:null, newMemberCargo:null,
   pinErro:null, pinVerificando:false,
   calendarioPinErro:null, calendarioPinVerificando:false,

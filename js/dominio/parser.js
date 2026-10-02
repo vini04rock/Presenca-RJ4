@@ -86,7 +86,20 @@ function statusDoResto(resto) {
   return 'aguardando';
 }
 
-export function parseConvocacaoTexto(texto) {
+// Data sem ano ("📅 Data: 19/09", como sai a chamada oficial): o ano e o
+// que deixa a data mais perto de hoje. Uma chamada e colada dias antes ou
+// depois do evento, nunca meses - entao em janeiro, "28/12" e do ano que
+// passou, e em dezembro, "03/01" e do que vem.
+function anoMaisProximo(dia, mes, hoje) {
+  const ano = hoje.getFullYear();
+  return [ano - 1, ano, ano + 1]
+    .map(a => ({ a, dist: Math.abs(new Date(a, mes - 1, dia) - hoje) }))
+    .sort((x, y) => x.dist - y.dist)[0].a;
+}
+
+// `hoje` so existe pro teste: sem ele, o ano adivinhado de uma data sem ano
+// mudaria conforme o dia em que o teste roda.
+export function parseConvocacaoTexto(texto, hoje = new Date()) {
   const linhas = String(texto || '').split('\n').map(l => l.trim());
   const avisos = [];
   const evento = { nome: '', tipo: '', data: '', horario: '', endereco: '', outros: '' };
@@ -140,6 +153,20 @@ export function parseConvocacaoTexto(texto) {
       } else {
         avisos.push('Não reconheci a data (mês inválido) — confira o campo Data.');
       }
+    } else {
+      // Sem ano so vale na linha da data: solto no texto, "19/09" podia ser
+      // pedaco de um link ou de um endereco.
+      const linhaData = linhas.find(l => /data\s*:/i.test(l)) || '';
+      const m = linhaData.match(/data\s*:\s*(\d{1,2})\s*\/\s*(\d{1,2})(?!\s*\/)/i);
+      if (m) {
+        const dia = Number(m[1]), mes = Number(m[2]);
+        if (mes >= 1 && mes <= 12 && dia >= 1 && dia <= 31) {
+          const ano = anoMaisProximo(dia, mes, hoje);
+          evento.data = `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+        } else {
+          avisos.push('Não reconheci a data (mês inválido) — confira o campo Data.');
+        }
+      }
     }
   }
 
@@ -178,6 +205,13 @@ export function parseConvocacaoTexto(texto) {
     const mBrief = l.match(/briefing[:\s]*([0-9]{1,2}h[0-9]{0,2})/i);
     if (mBrief) { extrasHorario.push('Briefing: ' + normalizaHora(mBrief[1])); return; }
   });
+  // A chamada oficial traz a hora do evento como "⏰ Horário: 07:00h", e
+  // nao como "Início: 19h30". So vale se o Início nao apareceu.
+  if (!evento.horario) {
+    const linhaHora = linhas.find(l => /hor[áa]rio\s*:\s*\d{1,2}[:h]\d{2}/i.test(l));
+    const m = linhaHora && linhaHora.match(/hor[áa]rio\s*:\s*(\d{1,2})[:h](\d{2})/i);
+    if (m) evento.horario = `${m[1].padStart(2, '0')}:${m[2]}`;
+  }
   if (extrasHorario.length) {
     evento.outros = evento.outros ? evento.outros + '\n' + extrasHorario.join(' · ') : extrasHorario.join(' · ');
   }
@@ -209,6 +243,9 @@ export function parseConvocacaoTexto(texto) {
       // numa, então qualquer convenção de legenda futura já para aqui.
       if (/^(participa[çc][ãa]o|legenda|prazo para)/i.test(l)) break;
       if (/^\.{4,}$/.test(l)) break;
+      // A lista do Bonde Regional abre com um bloco "REGIONAL", sem a
+      // palavra Divisão.
+      if (/^regional$/i.test(l)) { divisaoAtual = 'Regional'; continue; }
       if (/^divis[ãa]o\s+/i.test(l)) { divisaoAtual = l.replace(/^divis[ãa]o\s+/i, 'Divisão ').trim(); continue; }
       const m = l.match(memberRe);
       if (!m) continue;

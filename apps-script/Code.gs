@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-09-29-v-relatorio-individual';
+var VERSAO = '2026-10-02-v-textos-chamada';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -34,6 +34,8 @@ var ABA_KV = 'KV';
 var ABA_INSIGHT_RODADAS = 'InsightRodadas';
 var ABA_INSIGHT_PRESENCAS = 'InsightPresencas';
 var ABA_INSIGHT_EXCLUIDOS = 'InsightExcluidos';
+var ABA_RESPONSAVEIS = 'Responsaveis';
+var ABA_TEXTOS_CHAMADA = 'TextosChamada';
 
 // "Cargo" so faz sentido nos graus VI e V (ver CARGOS no js/nucleo/config.js):
 // sao os graus em que varios integrantes dividem o mesmo grau ocupando
@@ -57,6 +59,15 @@ var CAB_INSIGHT_PRESENCAS = ['ID Rodada', 'ID Membro', 'Membro', 'Divisao', 'Fez
 // divisao participa, sem precisar de nenhuma linha. Remover = entra aqui;
 // voltar a participar = sai daqui.
 var CAB_INSIGHT_EXCLUIDOS = ['ID Membro', 'Nome', 'Removido em'];
+// Quem assina a chamada do WhatsApp (o "Responsavel" da tela Criar chamada),
+// uma linha por divisao/Regional. Escopo e a chave ('barra', 'regional'...),
+// igual a Categoria dos eventos.
+var CAB_RESPONSAVEIS = ['Escopo', 'Nome', 'Cargo', 'Telefone', 'Atualizado em'];
+// Os textos fixos da chamada que o Regional pode personalizar - um texto so
+// para a RJ4 inteira, nao um por divisao. Sem linha (ou com o texto vazio),
+// o app usa o padrao que esta no codigo dele.
+var CAB_TEXTOS_CHAMADA = ['Chave', 'Texto', 'Atualizado em'];
+var CHAVES_TEXTO_CHAMADA = ['regras', 'atencao'];
 
 // Na planilha fica o rotulo legivel; o app continua falando em chaves.
 var STATUS_ROTULO = {
@@ -143,7 +154,9 @@ var ACOES_PROTEGIDAS = [
   'eventoSalvar', 'eventoRemover', 'membroSalvar', 'membroRemover',
   'criarEventoDeTexto', 'criarEventosDeCalendario', 'relatorio',
   'insightSalvar', 'insightRodadaAjustar', 'insightRodadaRemover',
-  'insightMembroRemover', 'insightMembroReincluir'
+  'insightMembroRemover', 'insightMembroReincluir',
+  // Leitura, mas protegida: devolve telefone.
+  'responsavel', 'responsavelSalvar', 'textoChamadaSalvar'
 ];
 
 function executar(action, p) {
@@ -194,6 +207,11 @@ function executar(action, p) {
   if (action === 'insightRodadaRemover') return comTrava(function () { return removerInsightRodada(p.id); });
   if (action === 'insightMembroRemover') return comTrava(function () { return removerMembroDoInsight(String(p.id || '')); });
   if (action === 'insightMembroReincluir') return comTrava(function () { return reincluirMembroNoInsight(String(p.id || '')); });
+  // Os textos personalizados vem junto com o responsavel: a tela precisa dos
+  // dois ao abrir, e cada ida a planilha custa de 2 a 4 segundos.
+  if (action === 'responsavel') return { ok: true, responsavel: lerResponsavel(String(p.categoria || '')), textos: lerTextosChamada() };
+  if (action === 'textoChamadaSalvar') return comTrava(function () { return salvarTextoChamada(p); });
+  if (action === 'responsavelSalvar') return comTrava(function () { return salvarResponsavel(p); });
   throw new Error('Acao desconhecida: ' + action);
 }
 
@@ -1087,6 +1105,63 @@ function salvarMembro(p) {
   else s.appendRow(linha);
   renomearEmPresencas(2, id, p.nome);
   return { ok: true, id: id };
+}
+
+// ---------- RESPONSAVEL DA CHAMADA ----------
+
+function lerResponsavel(escopo) {
+  var achado = acharLinha(aba(ABA_RESPONSAVEIS, CAB_RESPONSAVEIS), function (l) { return String(l[0]) === escopo; });
+  if (!achado) return null;
+  var l = achado.valores;
+  return { nome: String(l[1] || ''), cargo: String(l[2] || ''), telefone: String(l[3] || '') };
+}
+
+// A guarda de ACOES_PROTEGIDAS so confere o PIN contra o escopo em que a
+// pessoa entrou. Aqui confere de novo contra a divisao que vai ser gravada:
+// quem entrou pela Barra nao pode trocar o responsavel do Regional. O PIN do
+// Regional, que e chave-mestra, passa nas duas.
+function salvarResponsavel(p) {
+  var escopo = String(p.categoria || '');
+  if (ESCOPOS_VALIDOS.indexOf(escopo) === -1) throw new Error('Divisao desconhecida');
+  if (!verificarPin(escopo, String(p.pin || '')).valido) {
+    return { ok: false, erro: 'Sem permissao para salvar o responsavel desta divisao' };
+  }
+  var s = aba(ABA_RESPONSAVEIS, CAB_RESPONSAVEIS);
+  var linha = [escopo, String(p.nome || ''), String(p.cargo || ''), String(p.telefone || ''), agora()];
+  var achado = acharLinha(s, function (l) { return String(l[0]) === escopo; });
+  var indice = achado ? achado.indice : s.getLastRow() + 1;
+  // Formato texto antes de gravar: sem isso a planilha transforma
+  // "21964506672" em numero, e o telefone volta sem o formato digitado.
+  var range = s.getRange(indice, 1, 1, linha.length);
+  range.setNumberFormat('@');
+  range.setValues([linha]);
+  return { ok: true };
+}
+
+function lerTextosChamada() {
+  var textos = {};
+  linhas(aba(ABA_TEXTOS_CHAMADA, CAB_TEXTOS_CHAMADA)).forEach(function (l) {
+    var chave = String(l[0]);
+    if (CHAVES_TEXTO_CHAMADA.indexOf(chave) !== -1) textos[chave] = String(l[1] || '');
+  });
+  return textos;
+}
+
+// Regras do clube e Atencao valem para a chamada de todas as divisoes, entao
+// so o PIN do Regional muda. Gravar vazio volta pro padrao do app.
+function salvarTextoChamada(p) {
+  var chave = String(p.chave || '');
+  if (CHAVES_TEXTO_CHAMADA.indexOf(chave) === -1) throw new Error('Texto desconhecido');
+  if (!verificarPin('regional', String(p.pin || '')).valido) {
+    return { ok: false, erro: 'So o Regional pode mudar este texto' };
+  }
+  var s = aba(ABA_TEXTOS_CHAMADA, CAB_TEXTOS_CHAMADA);
+  var linha = [chave, String(p.texto || ''), agora()];
+  var achado = acharLinha(s, function (l) { return String(l[0]) === chave; });
+  var range = s.getRange(achado ? achado.indice : s.getLastRow() + 1, 1, 1, linha.length);
+  range.setNumberFormat('@');
+  range.setValues([linha]);
+  return { ok: true };
 }
 
 function removerMembro(id) {

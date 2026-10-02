@@ -70,11 +70,25 @@ export let state = {
   // Tela "Criar chamada" (o texto da convocacao pro WhatsApp). Os campos
   // comecam sugeridos pelo evento e viram o que o organizador digitar.
   convocacaoEventoId: null,
-  // 'simples' ou 'bate-volta' (ver MODELOS). Comeca escolhido pelo tipo do
-  // evento; o organizador pode trocar.
-  convocacaoModelo: null,
+  // Os quadros 1 a 3 (ver camposIniciais em dominio/convocacao.js), com a
+  // lista de P.E. em convocacaoCampos.pes.
   convocacaoCampos: {},
   convocacaoCopiado: false,
+  // Quadro 8: { nome, cargo, telefone }. Comeca com a sugestao do cadastro e
+  // e trocado pelo que estiver salvo na planilha para a divisao do evento.
+  convocacaoResponsavel: {},
+  // 'carregando' | 'pronto' | 'erro' - a busca do responsavel salvo.
+  convocacaoRespEstado: 'pronto',
+  convocacaoRespSalvando: false,
+  convocacaoRespMsg: null,
+  // Quadros 6 e 7: { regras, atencao } salvos pelo Regional (vazio = padrao),
+  // qual deles esta aberto para edicao e o texto da caixa enquanto isso.
+  convocacaoTextos: {},
+  convocacaoTextoEditando: null,
+  convocacaoTextoRascunho: '',
+  convocacaoTextoSalvando: false,
+  // { chave, texto } - o aviso de salvo/erro, embaixo do quadro certo.
+  convocacaoTextoMsg: null,
 
   // Relatorio individual (Modo organizador). Sem integrante escolhido, a
   // tela mostra a lista de nomes; com um, o relatorio dele. O periodo vale

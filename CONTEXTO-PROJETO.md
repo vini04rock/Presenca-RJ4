@@ -123,6 +123,8 @@ sem controlar o servidor.
 | `InsightRodadas` | uma linha por rodada |
 | `InsightPresencas` | uma linha por rodada × membro (Sim/Não) |
 | `InsightExcluidos` | só quem foi tirado do Insight; sem linha = participa |
+| `Responsaveis` | quem assina a chamada, uma linha por divisão e uma pelo Regional |
+| `TextosChamada` | Regras do clube e Atenção personalizadas pelo Regional; sem linha = o padrão |
 
 **Abas geradas do zero** a cada "Gerar relatório na planilha" (botão que só
 aparece dentro do organizador Regional). Editar nelas não tem efeito:
@@ -313,42 +315,83 @@ dois botões só existiam nela, então vieram junto antes da remoção.
 "Corrigir" só aparece nas divisões que acessam Relatórios, porque é para lá
 que ele leva; "ver o texto original" é só leitura e vale em qualquer uma.
 
-**Escrever** (novo): o botão **📋 Criar chamada**, no card de cada evento da
-aba Eventos, monta o texto da convocação para colar no grupo —
-`js/dominio/convocacao.js` e a tela `js/telas/convocacao.js`. Ele não grava
-nada; só lê o evento e devolve texto.
+**Escrever**: o botão **📋 Criar chamada**, no card de cada evento da aba
+Eventos, monta o texto da chamada para colar no grupo —
+`js/dominio/convocacao.js` e a tela `js/telas/convocacao.js`. Fora o
+responsável (abaixo), ele não grava nada: só lê o evento e devolve texto.
 
-O texto tem três origens, e a separação é proposital:
+**O molde é a chamada oficial do clube**, numa versão limpa: um separador
+só, acentos certos, "PE 1" com espaço, sem espaço duplo. O primeiro exemplo
+oficial foi o do Bonde Regional de Paraíba do Sul (19/09), guardado em
+`ferramentas/exemplos/` com o telefone trocado. Onde o app e um exemplo
+oficial divergirem, vale o exemplo. A ideia é ir ajustando a cada chamada
+nova que aparecer até ficar perfeito.
 
-| Origem | O quê |
-|---|---|
-| **Fixo** | faixa, seções, legendas, prazo, Respaldo RDI, ATENÇÃO/BRIEFING |
-| **Do app** | título, data no formato do clube (`09SET26`) com o dia da semana, divisão, lista numerada na ordem hierárquica |
-| **Do formulário** | roteiro, pontos de encontro, horários, telefone — o que só o organizador sabe na hora |
+A tela e o texto são divididos nos mesmos **8 quadros**, na mesma ordem:
 
-**O app não tenta adivinhar o que não sabe.** Roteiro e pontos de encontro
-mudam a cada evento e não cabem no modelo de dados (um evento tem um lugar e
-um horário); então são campo livre, e a prévia atualiza enquanto se digita.
+| Quadro | O que é | De onde vem |
+|---|---|---|
+| 1. Tipo de chamada | o tipo no topo (`🏥 AÇÃO SOCIAL 🏥`), a linha do bonde, o subtítulo e a estrada de 🏍️ | tipo e nome do evento |
+| 2. Informações | `🎯` destino, `📅 Data: 19/09`, `⏰ Horário: 07:00h` | data do evento; destino e horário sugeridos |
+| 3. Roteiro | um bloco por P.E. (nome, endereço, Maps, Concentração/Briefing/Saída), o `🏁 Destino` e o roteiro do bonde | formulário; o roteiro é montado dos P.E. |
+| 4. Membros | ver abaixo | cadastro |
+| 5. Legenda | 🐯 Esposa, 👨‍👩‍👦 Família, ✅, 🚘 De carro, ⚠️, ❌ Desistência | fixo |
+| 6. Regras do clube | prazo e Respaldo RDI | padrão do clube, ou o que o Regional salvou |
+| 7. Atenção | checklist da moto e briefing do comboio | padrão do clube, ou o que o Regional salvou |
+| 8. Responsável | "Bora rodar!!!!!!", nome - cargo, contato | salvo na planilha |
 
-Dois modelos, escolhidos pelo tipo do evento: **Simples** (Pub, Reunião,
-Ação Social) e **Bate e Volta**, que troca `🎯 DESTINO 🎯` por
-`🫂 CONCENTRAÇÃO 🫂` + `🧭 ROTEIRO 🧭`, usa "Legenda" no lugar de
-"Participação" e ganha os blocos de ATENÇÃO e BRIEFING — é estrada, então
-entra o checklist da moto e as regras do comboio.
+**Todo evento tem um bonde para chegar até ele**, seja Pub, Reunião, Bate e
+Volta ou Ação Social. Por isso não há mais um modelo por tipo, e
+"Bonde Regional" não é um tipo de evento: o tipo só muda a primeira linha.
+Embaixo dela vem `⚙️ BONDE REGIONAL - RJ4 ⚙️`, ou `⚙️ DIVISÃO BARRA - RJ4 ⚙️`
+num evento de divisão.
 
-**Quem assina o rodapé** é o **Subdiretor** da divisão, ou o **Operacional**
-no Regional. Não é o cargo mais alto — é quem responde pela convocação. Sem
-ninguém cadastrado no cargo, sai `(nome)` / `(cargo)` para preencher: uma
-mensagem que vai para o clube inteiro assinada pela pessoa errada é pior que
-um espaço em branco visível. O **telefone o app não guarda**, então entra à
-mão toda vez.
+**O roteiro do bonde é montado dos P.E.** A pessoa só escreve as vias de
+cada trecho, uma por linha; a sequência (`PE 1 → PE 2 → DESTINO`), o
+`📍 PE 1 — Saída`, os `🛣️ TRECHO` e o `🏁` o app escreve. As vias ficam
+guardadas no próprio P.E. (o trecho que sai dele), então acrescentar ou
+remover um P.E. não apaga nem embaralha as vias dos outros. O roteiro só
+entra na chamada quando alguma via ou observação foi preenchida, e um
+trecho sem via sai como `* (vias)`, à vista.
+
+**Regras do clube e Atenção podem ser personalizadas**, para quando o
+clube mudar uma regra. É um texto só para a RJ4 inteira, na aba
+`TextosChamada`, e só quem entra pelo Regional vê o botão "✏️ Personalizar";
+as divisões usam o mesmo texto. Salvar o texto igual ao padrão (ou pelo
+"Voltar ao texto padrão") grava vazio, e vazio quer dizer "use o padrão do
+app".
+
+**A lista de membros muda conforme o evento:**
+
+- **Regional (Bonde Regional):** sai **em branco**, com "Colocar NOME e
+  GRAU" e um bloco por divisão (5 linhas no Regional, 3 nas outras), e cada
+  integrante se coloca no grupo. A ordem dos blocos é a da chamada oficial —
+  Regional, Oeste, Recreio, Barra, Curicica, Taquara, Gardênia —, que **não**
+  é a do resto do app.
+- **Divisão:** os convocados daquela divisão, em `1. Nome (Grau)`, na ordem
+  hierárquica. Quem é de fora da divisão não entra.
+
+**O responsável (quadro 8) fica salvo por divisão**, na aba `Responsaveis`
+da planilha: uma linha para cada divisão e uma para o Regional, com nome,
+cargo e telefone. Toda chamada daquela divisão já abre com ele. Mudou o
+telefone? Troca ali e salva. Até alguém salvar, o app sugere o
+**Subdiretor** da divisão, ou o **Operacional** no Regional, a partir do
+cadastro. Sem ninguém no cargo, sai `(nome)` / `(telefone)` para preencher:
+uma mensagem assinada pela pessoa errada é pior que um espaço em branco
+visível.
+
+> Ler e salvar o responsável **pedem PIN**, ao contrário das outras
+> leituras, porque ele traz telefone. E salvar confere o PIN contra a
+> divisão gravada, não só contra a de entrada: quem entrou pela Barra não
+> troca o responsável do Regional. O PIN do Regional, chave-mestra, troca o
+> de qualquer uma.
 
 > **O teste que protege o formato:** `ferramentas/regras.mjs` gera a
-> convocação e passa de volta pelo parser. Se o texto continua sendo
-> reconhecido — mesma data, mesmo tipo, mesmos integrantes na mesma ordem —
-> o formato está fiel. Foi esse teste que descobriu que o parser só parava a
-> lista em "Participação" e, numa convocação de Bate e Volta (que fecha com
-> "Legenda"), lia o contato do rodapé como se fosse mais um integrante.
+> chamada e passa de volta pelo parser, e também lê a chamada oficial
+> preenchida. É isso que garante que, depois do evento, a chamada colada nos
+> Relatórios continua virando evento. Foi por isso que o parser aprendeu a
+> data sem ano (`📅 Data: 19/09` — o ano é o que deixa a data mais perto de
+> hoje), o `⏰ Horário: 07:00h` e o bloco `REGIONAL` da lista.
 
 ## As ferramentas de conferência
 
@@ -361,7 +404,7 @@ a cada mudança:
 | `servidor.py` | serve o app local com o cache desligado |
 | `estrutura.py` | 7 verificações: imports circulares, hierarquia de camadas, sintaxe, nome sem import, import sobrando, ações sem tratador |
 | `regras.mjs` | as regras do clube que, se quebrarem, saem erradas numa convocação sem ninguém perceber |
-| `telas.mjs` | desenha as 77 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
+| `telas.mjs` | desenha as 80 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
 | `planilha.mjs` | roda o `Code.gs` de verdade contra uma planilha de mentira; hoje cobre o encerramento automático |
 
 O `--html` do `telas.mjs` é a rede de proteção mais útil: captura o HTML de
@@ -388,12 +431,13 @@ ferramentas, acima):
 
     py ferramentas/estrutura.py     # imports, camadas, sintaxe, ações
     node ferramentas/regras.mjs     # ordem hierárquica e formato da convocação
-    node ferramentas/telas.mjs      # desenha as 77 telas e abas
+    node ferramentas/telas.mjs      # desenha as 80 telas e abas
     node ferramentas/planilha.mjs   # o encerramento automático, no Code.gs
 
 Eles dizem que o app **não quebrou**, não que está bonito: não cobrem
 aparência, impressão/PDF, o caminho de rede real nem o resto do `Code.gs` —
-o `planilha.mjs` só alcança o encerramento automático.
+o `planilha.mjs` só alcança o encerramento automático, a guarda de PIN, o
+relatório individual, o responsável e os textos da chamada.
 
 Se a mudança mexeu no `Code.gs`, ele precisa ser **republicado à parte** no
 Apps Script — não vai junto no `git push`. Confira depois chamando a URL do

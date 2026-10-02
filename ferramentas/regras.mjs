@@ -20,7 +20,7 @@ globalThis.window = { addEventListener() {} };
 
 const { ordenarPorHierarquia } = await import(url('nucleo/util.js'));
 const { CARGOS, cargosDoGrau } = await import(url('nucleo/config.js'));
-const { montarConvocacao, camposIniciais, dataDaConvocacao, blocoInformacoes } = await import(url('dominio/convocacao.js'));
+const { montarConvocacao, camposIniciais, dataDaChamada, comoHora, responsavelDoCadastro, peVazio, roteiroDoBonde, TEXTOS_PADRAO } = await import(url('dominio/convocacao.js'));
 const { parseConvocacaoTexto } = await import(url('dominio/parser.js'));
 const { estatisticasInsightsPorPeriodo, numerosInsightDivisao } = await import(url('dominio/estatisticas.js'));
 const { mascaraData, dataISOdeBR, formatDataBR } = await import(url('nucleo/util.js'));
@@ -349,37 +349,36 @@ for (const grau of Object.keys(CARGOS)) {
 confere('grau sem cargo devolve lista vazia', cargosDoGrau('X'), []);
 
 log('');
-log('=== convocação: data no formato do clube ===');
-// Conferido contra duas convocações reais.
-confere('09/09/2026 é quarta', dataDaConvocacao('2026-09-09'), 'Quarta: 09SET26');
-confere('06/09/2026 é domingo', dataDaConvocacao('2026-09-06'), 'Domingo: 06SET26');
-confere('data vazia não quebra', dataDaConvocacao(''), '');
-confere('data inválida não quebra', dataDaConvocacao('não é data'), '');
+log('=== chamada: data e hora no formato da chamada oficial ===');
+// A chamada oficial do Bonde Regional escreve "📅 Data: 19/09" e "06:00h".
+confere('a data sai sem o ano', dataDaChamada('2026-09-19'), '19/09');
+confere('data vazia não quebra', dataDaChamada(''), '');
+confere('data inválida não quebra', dataDaChamada('não é data'), '');
+confere('hora com dois pontos', comoHora('7:00'), '07:00h');
+confere('hora com h', comoHora('6h30'), '06:30h');
+confere('só a hora', comoHora('7'), '07:00h');
+confere('já no formato fica igual', comoHora('06:00h'), '06:00h');
+confere('o que não é hora sai como foi digitado', comoHora('depois do almoço'), 'depois do almoço');
 
 log('');
-log('=== convocação: quem assina o rodapé ===');
+log('=== chamada: quem o cadastro sugere como responsável ===');
 // Decisão do clube: na divisão assina o Subdiretor; no Regional, o
-// Operacional. Não é o cargo mais alto.
+// Operacional. Não é o cargo mais alto. Só vale até alguém salvar outro.
 const diretoriaBarra = [
   { nome:'Costa',  grau:'VI', divisao:'Barra - RJ4', cargo:'Diretor' },
   { nome:'Tedboy', grau:'VI', divisao:'Barra - RJ4', cargo:'Subdiretor' },
   { nome:'Bull',   grau:'V',  divisao:'Regional RJ4', cargo:'Operacional' },
   { nome:'Chefe',  grau:'V',  divisao:'Regional RJ4', cargo:'Diretor Regional' },
 ];
-confere('divisão: assina o Subdiretor, não o Diretor',
-  blocoInformacoes('barra', diretoriaBarra).split('\n')[2], 'TEDBOY (VI)');
-confere('divisão: o cargo sai em caixa alta',
-  blocoInformacoes('barra', diretoriaBarra).split('\n')[3], 'SUBDIRETOR');
-confere('regional: assina o Operacional, em itálico',
-  blocoInformacoes('regional', diretoriaBarra).split('\n')[1], '_Bull - Operacional RJ4_');
-confere('sem ninguém no cargo, sai espaço pra preencher (e não o nome errado)',
-  blocoInformacoes('barra', []).split('\n').slice(2, 4), ['(nome)', '(cargo)']);
+confere('divisão: o Subdiretor, não o Diretor', responsavelDoCadastro('barra', diretoriaBarra),
+  { nome:'Tedboy', cargo:'Subdiretor Divisão Barra', telefone:'' });
+confere('regional: o Operacional', responsavelDoCadastro('regional', diretoriaBarra),
+  { nome:'Bull', cargo:'Operacional RJ4', telefone:'' });
+confere('sem ninguém no cargo, vem vazio (e não o nome errado)', responsavelDoCadastro('oeste', diretoriaBarra),
+  { nome:'', cargo:'', telefone:'' });
 
 log('');
-log('=== convocação: o parser do app relê o que ele mesmo gerou ===');
-// Esta é a prova de que o formato continua fiel: gera a convocação e passa
-// pelo mesmo parser que lê as convocações coladas do grupo. Se alguém mexer
-// no molde e quebrar o formato, esta conferência acusa.
+log('=== chamada: o Bonde Regional sai no padrão oficial ===');
 const rosterTeste = [
   { id:'1', nome:'Costa',     grau:'VI',   divisao:'Barra - RJ4', cargo:'Diretor' },
   { id:'2', nome:'Tedboy',    grau:'VI',   divisao:'Barra - RJ4', cargo:'Subdiretor' },
@@ -387,44 +386,168 @@ const rosterTeste = [
   { id:'4', nome:'Fabio Big', grau:'VIII', divisao:'Barra - RJ4' },
   { id:'5', nome:'Mórbius',   grau:'IX',   divisao:'Barra - RJ4' },
   { id:'6', nome:'China',     grau:'X',    divisao:'Barra - RJ4' },
+  { id:'7', nome:'Bull',      grau:'V',    divisao:'Regional RJ4', cargo:'Operacional' },
 ];
-const evTeste = {
+const evRegional = {
+  id:'r1', nome:'Inauguração Divisão Paraíba do Sul', tipo:'Ação Social', categoria:'regional',
+  data:'2026-09-19', horario:'07:00', endereco:'Bandas Bar - Paraíba do Sul, Av. Mal. Castelo Branco, 395',
+  outros:'https://maps.app.goo.gl/destino',
+};
+const camposReg = camposIniciais(evRegional);
+camposReg.destino = 'Bandas Bar - Paraíba do Sul';
+camposReg.pes = [
+  { ...peVazio(), nome:'Posto Ipiranga - Cebolão', maps:'https://maps.app.goo.gl/pe1',
+    concentracao:'6:00', briefing:'6:30', saida:'7:00' },
+  { ...peVazio(), nome:'Integração com Bonde RJ3\nCasa do Alemão - Washington Luiz',
+    endereco:'Rodovia Washington Luiz, Km 111 - Duque de Caxias', maps:'https://maps.app.goo.gl/pe2',
+    concentracao:'08:00', briefing:'08:30', saida:'09:00' },
+];
+camposReg.pes[0].vias = 'Av. Ayrton Senna\n* Linha Amarela — sentido Fundão';
+const respBull = { nome:'Bull', cargo:'Operacional RJ4', telefone:'21 90000-0000' };
+const textoReg = montarConvocacao(evRegional, rosterTeste, camposReg, respBull);
+const linhasReg = textoReg.split('\n');
+confere('o tipo no topo, o bonde logo abaixo', linhasReg.slice(0, 2), ['🏥 AÇÃO SOCIAL 🏥', '⚙️ BONDE REGIONAL - RJ4 ⚙️']);
+confere('o subtítulo vem do nome do evento', linhasReg[3], 'Inauguração Divisão Paraíba do Sul');
+confere('informações: destino, data e horário', ['🎯 Bandas Bar - Paraíba do Sul', '📅 Data: 19/09', '⏰ Horário: 07:00h']
+  .every(l => linhasReg.includes(l)), true);
+confere('cada P.E. com o próprio número', [linhasReg.includes('📍 PE 1: Posto Ipiranga - Cebolão'),
+  linhasReg.includes('📍 PE 2: Integração com Bonde RJ3')], [true, true]);
+confere('a segunda linha do nome do P.E. fica embaixo dele',
+  linhasReg[linhasReg.indexOf('📍 PE 2: Integração com Bonde RJ3') + 1], 'Casa do Alemão - Washington Luiz');
+confere('os horários do P.E. no formato 06:00h',
+  ['⏰ Concentração: 06:00h', '⏰ Briefing: 06:30h', '⏰ Saída: 07:00h'].every(l => linhasReg.includes(l)), true);
+confere('o destino final', linhasReg.includes('🏁 Destino: Bandas Bar - Paraíba do Sul'), true);
+// A lista do Bonde Regional sai em branco, cada integrante se coloca no grupo
+// - nem o Bull, que é do Regional e está no cadastro, entra.
+confere('a lista sai em branco (ninguém do cadastro entra)', textoReg.includes('Bull (V)'), false);
+const blocos = linhasReg.filter(l => /^(REGIONAL|Divisão .+)$/.test(l));
+confere('as divisões na ordem da chamada oficial', blocos,
+  ['REGIONAL', 'Divisão Oeste', 'Divisão Recreio', 'Divisão Barra', 'Divisão Curicica', 'Divisão Taquara', 'Divisão Gardênia']);
+const iReg = linhasReg.indexOf('REGIONAL');
+const iOeste = linhasReg.indexOf('Divisão Oeste');
+confere('o Regional ganha 5 linhas, as divisões 3',
+  [linhasReg.slice(iReg + 1, iReg + 7), linhasReg.slice(iOeste + 1, iOeste + 5)],
+  [['1.', '2.', '3.', '4.', '5.', ''], ['1.', '2.', '3.', '']]);
+confere('a legenda nova', ['🐯 Esposa', '👨‍👩‍👦 Família', '🚘 De carro', '❌ Desistência'].every(l => linhasReg.includes(l)), true);
+confere('regras, atenção e briefing', ['Respaldo RDI', '⚠️ ATENÇÃO ⚠️', '⚫ BRIEFING ⚫'].every(l => linhasReg.includes(l)), true);
+confere('fecha com o responsável salvo', linhasReg.slice(-5),
+  ['Bora rodar!!!!!! 🏍️🌪️', '', 'Informações:', 'Bull - Operacional RJ4', 'Contato: 21 90000-0000']);
+confere('versão limpa: nenhum espaço sobrando no fim de linha', linhasReg.filter(l => / $/.test(l)), []);
+confere('versão limpa: nenhum espaço duplo fora da estrada de motos',
+  linhasReg.filter(l => !l.includes('🏍️') && /\S  +\S/.test(l)), []);
+confere('versão limpa: um separador só', [...new Set(linhasReg.filter(l => /^\.+$/.test(l)))].length, 1);
+
+const semResp = montarConvocacao(evRegional, rosterTeste, camposReg, {});
+confere('sem responsável, sai espaço pra preencher', semResp.split('\n').slice(-2),
+  ['(nome) - (cargo)', 'Contato: (telefone)']);
+const camposSemPe = { ...camposReg, pes: [peVazio()] };
+confere('P.E. em branco não aparece', montarConvocacao(evRegional, rosterTeste, camposSemPe, respBull).includes('📍 PE'), false);
+confere('evento sem tipo começa direto no bonde',
+  montarConvocacao({ ...evRegional, tipo:'' }, rosterTeste, { ...camposReg, tipo:'' }, respBull).split('\n')[0],
+  '⚙️ BONDE REGIONAL - RJ4 ⚙️');
+
+log('');
+log('=== chamada: o roteiro do bonde é montado dos P.E. ===');
+// A pessoa só escreve as vias de cada trecho; a sequência, os 📍 e o 🏁 o
+// app monta - como no roteiro da chamada oficial.
+confere('o roteiro completo, a partir dos P.E.', roteiroDoBonde(camposReg), [
+  '🎯 Roteiro do Bonde:',
+  'PE 1 → PE 2 → BANDAS BAR - PARAÍBA DO SUL',
+  '',
+  '📍 PE 1 — Saída',
+  'Posto Ipiranga - Cebolão',
+  '',
+  '🛣️ TRECHO 1 — PE 1 → PE 2',
+  'Sequência das vias:',
+  '* Av. Ayrton Senna',
+  '* Linha Amarela — sentido Fundão',
+  '',
+  '📍 PE 2',
+  'Integração com Bonde RJ3',
+  'Casa do Alemão - Washington Luiz',
+  '',
+  '🛣️ TRECHO 2 — PE 2 → BANDAS BAR - PARAÍBA DO SUL',
+  'Sequência das vias:',
+  '* (vias)',
+  '',
+  '🏁 Bandas Bar - Paraíba do Sul',
+]);
+confere('o roteiro entra na chamada', textoReg.includes('🛣️ TRECHO 1 — PE 1 → PE 2'), true);
+const semVias = { ...camposReg, pes: camposReg.pes.map(pe => ({ ...pe, vias: '' })), roteiro: '' };
+confere('sem nenhuma via, não há roteiro (só repetiria os nomes)', roteiroDoBonde(semVias), []);
+confere('só com observação, ela entra com a sequência',
+  roteiroDoBonde({ ...semVias, roteiro: 'Seguir pela BR-040.' }).slice(-1), ['Seguir pela BR-040.']);
+const umPe = { ...semVias, pes: [{ ...camposReg.pes[0], vias: 'Av. Ayrton Senna' }] };
+confere('com um P.E. só, o trecho vai direto ao destino', roteiroDoBonde(umPe)[1], 'PE 1 → BANDAS BAR - PARAÍBA DO SUL');
+confere('P.E. só com vias e sem nome não conta como ponto',
+  roteiroDoBonde({ ...umPe, pes: [...umPe.pes, { ...peVazio(), vias: 'x' }] })[1], 'PE 1 → BANDAS BAR - PARAÍBA DO SUL');
+
+log('');
+log('=== chamada: regras e atenção personalizadas pelo Regional ===');
+const regrasNovas = 'Prazo para a justificativa: 2 dias antes do evento.\n\nRespaldo RDI';
+const comTextos = montarConvocacao(evRegional, rosterTeste, camposReg, respBull, { regras: regrasNovas });
+confere('o texto salvo entra no lugar das regras', [comTextos.includes('2 dias antes'), comTextos.includes('1 dia antes')], [true, false]);
+confere('a atenção sem texto salvo continua a padrão', comTextos.includes('⚫ BRIEFING ⚫'), true);
+confere('texto salvo vazio volta ao padrão',
+  montarConvocacao(evRegional, rosterTeste, camposReg, respBull, { regras: '  ', atencao: '' }), textoReg);
+confere('o padrão é o texto da chamada oficial', TEXTOS_PADRAO.regras.split('\n')[0], 'Prazo para a justificativa: 1 dia antes do evento.');
+
+log('');
+log('=== chamada: evento de divisão traz os convocados da divisão ===');
+const evBarra = {
   id:'e1', nome:'Pub Mensal', tipo:'Pub', categoria:'barra',
   data:'2026-09-09', horario:'19:30',
   endereco:"Lucky Murphy's Irish Pub, Barra da Tijuca",
   outros:'https://maps.app.goo.gl/exemplo\nDestacamento: 18:30 · Briefing: 19:15',
 };
-const textoTeste = montarConvocacao(evTeste, rosterTeste, camposIniciais(evTeste, rosterTeste));
-const lido = parseConvocacaoTexto(textoTeste);
-confere('a data volta igual', lido.evento.data, evTeste.data);
-confere('o tipo volta igual', lido.evento.tipo, 'Pub');
-confere('o horário de início volta igual', lido.evento.horario, '19:30');
-confere('todos os integrantes voltam', lido.membrosParsed.length, rosterTeste.length);
-confere('na ordem hierárquica', lido.membrosParsed.map(m => m.nomeTexto),
-  ordenarPorHierarquia(rosterTeste).map(m => m.nome.toUpperCase()));
-confere('com o grau de cada um', lido.membrosParsed.map(m => m.grauTexto),
-  ordenarPorHierarquia(rosterTeste).map(m => m.grau));
-confere('sem nenhum aviso do parser', lido.avisos, []);
+const camposBarra = camposIniciais(evBarra);
+confere('a concentração do P.E. vem do Destacamento do evento', camposBarra.pes[0].concentracao, '18:30h');
+confere('o destino vem da primeira parte do endereço', camposBarra.destino, "Lucky Murphy's Irish Pub");
+confere('e o endereço do destino é o resto, sem repetir o nome', camposBarra.destinoEndereco, 'Barra da Tijuca');
+const textoBarra = montarConvocacao(evBarra, rosterTeste, camposBarra, respBull);
+const linhasBarra = textoBarra.split('\n');
+confere('a linha do bonde diz a divisão', linhasBarra[1], '⚙️ DIVISÃO BARRA - RJ4 ⚙️');
+const iBarra = linhasBarra.indexOf('Divisão Barra');
+// O Bull é do Regional: mesmo convocado, não entra na lista de um evento da Barra.
+confere('só os da divisão, em Nome (Grau), na ordem hierárquica', linhasBarra.slice(iBarra + 1, iBarra + 7),
+  ['1. Costa (VI)', '2. Tedboy (VI)', '3. Bravo (VI)', '4. Fabio Big (VIII)', '5. Mórbius (IX)', '6. China (X)']);
 
 log('');
-log('=== convocação: o modelo Bate e Volta também volta inteiro ===');
-// Bate e Volta fecha a lista com "Legenda", nao com "Participação". O
-// parser so parava no segundo - entao a varredura seguia ate o fim e lia o
-// contato do rodape ("NOME (GRAU)") como mais um integrante.
-const evBV = Object.assign({}, evTeste, { tipo:'Bate e Volta', nome:'Bate e Volta Serra' });
-const camposBV = camposIniciais(evBV, rosterTeste, 'bate-volta');
-camposBV.roteiro = 'Destino: Serra';
-const textoBV = montarConvocacao(evBV, rosterTeste, camposBV, 'bate-volta');
-const lidoBV = parseConvocacaoTexto(textoBV);
-confere('nao inventa integrante a mais (o do rodape)', lidoBV.membrosParsed.length, rosterTeste.length);
-confere('a lista para antes da legenda',
-  lidoBV.membrosParsed.map(m => m.nomeTexto),
-  ordenarPorHierarquia(rosterTeste).map(m => m.nome.toUpperCase()));
-confere('o tipo volta igual', lidoBV.evento.tipo, 'Bate e Volta');
-confere('tem o bloco de ATENÇÃO', textoBV.includes('⚠️ ATENÇÃO ⚠️'), true);
-confere('tem o bloco de BRIEFING', textoBV.includes('⚫ BRIEFING ⚫'), true);
-confere('usa Legenda, e não Participação',
-  [textoBV.includes('Legenda'), textoBV.includes('Participação')], [true, false]);
+log('=== chamada: o parser do app relê o que ele mesmo gerou ===');
+// A prova de que o formato continua legível: depois do evento, a chamada
+// preenchida no grupo é colada nos Relatórios. Se alguém mexer no molde e o
+// parser deixar de entender, esta conferência acusa.
+const hojeTeste = new Date(2026, 9, 2);
+const lido = parseConvocacaoTexto(textoBarra, hojeTeste);
+confere('a data volta igual (sem ano no texto)', lido.evento.data, evBarra.data);
+confere('o tipo volta igual', lido.evento.tipo, 'Pub');
+confere('o horário volta igual', lido.evento.horario, '19:30');
+confere('todos os integrantes da divisão voltam, na ordem', lido.membrosParsed.map(m => m.nomeTexto),
+  ['Costa', 'Tedboy', 'Bravo', 'Fabio Big', 'Mórbius', 'China']);
+confere('com o grau de cada um', lido.membrosParsed.map(m => m.grauTexto), ['VI', 'VI', 'VI', 'VIII', 'IX', 'X']);
+confere('o rodapé não vira integrante', lido.membrosParsed.some(m => m.nomeTexto === 'Bull'), false);
+confere('sem nenhum aviso do parser', lido.avisos, []);
+
+const lidoReg = parseConvocacaoTexto(textoReg, hojeTeste);
+confere('Bonde Regional em branco: lista vazia, sem aviso', [lidoReg.membrosParsed.length, lidoReg.avisos], [0, []]);
+confere('Bonde Regional: o tipo volta', lidoReg.evento.tipo, 'Ação Social');
+
+log('');
+log('=== chamada: o parser lê a chamada oficial, preenchida no grupo ===');
+// A chamada real do Bonde Regional de 19/09, do jeito que circulou no grupo
+// (o telefone foi trocado por um falso - o repositório é público).
+const oficial = fs.readFileSync(path.join(AQUI, 'exemplos', 'chamada-bonde-regional.txt'), 'utf8');
+const lidoOficial = parseConvocacaoTexto(oficial, hojeTeste);
+confere('a data 19/09 vira 2026-09-19', lidoOficial.evento.data, '2026-09-19');
+confere('o horário 7:00h vira 07:00', lidoOficial.evento.horario, '07:00');
+confere('acha o único preenchido, no bloco do Regional',
+  lidoOficial.membrosParsed.map(m => [m.nomeTexto, m.grauTexto, m.divisaoTexto, m.status]),
+  [['Bull', 'V', 'Regional', 'confirmado']]);
+// Data sem ano: o ano é o que deixa a data mais perto do dia em que se cola.
+confere('em janeiro, 28/12 é do ano que passou',
+  parseConvocacaoTexto('📅 Data: 28/12', new Date(2027, 0, 5)).evento.data, '2026-12-28');
+confere('em dezembro, 03/01 é do ano que vem',
+  parseConvocacaoTexto('📅 Data: 03/01', new Date(2026, 11, 20)).evento.data, '2027-01-03');
 
 log('');
 log(falhas === 0 ? 'TUDO OK' : `${falhas} FALHA(S) — veja acima`);

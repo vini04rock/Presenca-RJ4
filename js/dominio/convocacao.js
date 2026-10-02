@@ -1,64 +1,70 @@
-// Monta o texto da convocação para colar no grupo do WhatsApp.
+// Monta o texto da chamada para colar no grupo do WhatsApp.
 //
-// O molde veio de convocações reais do clube. Cada parte tem uma origem:
-//   fixo        - faixa, seções, legendas, Respaldo RDI, ATENÇÃO/BRIEFING
-//   do app      - título, data, divisão, lista de integrantes
-//   do formulário - roteiro, pontos, horários, contato: o que só o
-//                 organizador sabe na hora. O app não tenta adivinhar.
+// O molde é a chamada oficial do Bonde Regional (Paraíba do Sul, 19/09),
+// numa versão limpa: mesmo separador sempre, acentos certos, "PE 1" com
+// espaço, sem espaço duplo. A chamada é dividida nos mesmos 8 quadros que a
+// tela mostra, na ordem em que aparecem no texto:
+//
+//   1. Tipo de chamada   tipo do evento + "BONDE REGIONAL - RJ4"
+//   2. Informações       destino, data, horário
+//   3. Roteiro           os P.E., o destino final e o roteiro do bonde,
+//                        montado dos P.E. (cada trecho com as próprias vias)
+//   4. Membros           regional: em branco por divisão; divisão: os convocados
+//   5. Legenda           fixo
+//   6. Regras do clube   padrão do clube; o Regional pode personalizar
+//   7. Atenção           idem (checklist da moto + briefing do comboio)
+//   8. Responsável       quem assina, salvo por divisão na planilha
+//
+// Todo evento tem um bonde para chegar até ele - Pub, Reunião, Bate e Volta
+// ou Ação Social. Por isso não há mais um modelo por tipo: o tipo só muda a
+// primeira linha.
 //
 // Este módulo só LÊ e devolve texto - não grava nada em lugar nenhum.
 
-import { MESES_ABREV, emojiTipoEvento, escopoPorChave } from '../nucleo/config.js';
-import { diaDaSemana, ordenarPorHierarquia } from '../nucleo/util.js';
-import { agruparPorDivisao } from './divisoes.js';
+import { emojiTipoEvento, escopoPorChave } from '../nucleo/config.js';
+import { ordenarPorHierarquia } from '../nucleo/util.js';
 
-// Medidas conferidas contra as convocações reais: a faixa tem 5 pares
-// preto/branco e o separador, 44 pontos. Mudar aqui muda em toda convocação.
-const FAIXA = '⚫⚪'.repeat(5);
 const SEPARADOR = '.'.repeat(44);
 
-// Blocos que saem iguais em toda convocação. Ficam aqui, e não espalhados
-// pelo montador, pra dar pra corrigir um texto sem caçar onde ele entra.
-const LEGENDA_PARTICIPACAO = [
-  'Participação',
+// A "estrada" logo abaixo do subtítulo, como na chamada oficial.
+const MOTOS = [
+  '🏍️       🏍️       🏍️       🏍️',
+  '     🏍️       🏍️       🏍️       🏍️',
+];
+
+// Ordem das divisões na lista do Bonde Regional. É a da chamada oficial, e
+// NÃO a do resto do app (Regional e depois alfabética) - por isso fica aqui.
+const ORDEM_NA_CHAMADA = ['regional', 'oeste', 'recreio', 'barra', 'curicica', 'taquara', 'gardenia'];
+// Quantas linhas em branco cada bloco ganha na lista do Bonde Regional.
+const LINHAS_EM_BRANCO = { regional: 5, divisao: 3 };
+
+// Os blocos fixos (quadros 5, 6 e 7). A tela mostra estes mesmos textos,
+// então corrigir uma palavra aqui corrige nos dois lugares.
+export const LEGENDA = [
+  '🐯 Esposa',
+  '👨‍👩‍👦 Família',
+  '✅ Confirmado',
+  '🚘 De carro',
   '⚠️ Aguardando confirmação',
-  '✅ Presença confirmada',
-  '❌ Falta justificada',
-  '⭕ Falta não justificada',
+  '❌ Desistência',
 ];
-const LEGENDA_OPERACAO = [
-  'Operação',
-  '🚧 Voluntário destacado',
-];
-// O Bate e Volta usa "Legenda" no lugar de "Participação", e não tem o
-// bloco de Operação. É assim nas convocações reais - não é descuido.
-const LEGENDA_BATE_VOLTA = [
-  'Legenda',
-  '⚠️ Aguardando confirmação',
-  '✅ Presença confirmada',
-  '❌ Falta justificada',
-  '⭕ Falta não justificada',
-];
-const RESPALDO = [
+export const REGRAS = [
   'Prazo para a justificativa: 1 dia antes do evento.',
   '',
   'Respaldo RDI',
   '',
-  'Art. 14°  São infrações de natureza grave:',
+  'Art. 14° São infrações de natureza grave:',
   '',
   'X - Faltar sem motivo justificado a evento oficial do MC.',
 ];
-// Só em Bate e Volta: é estrada, então entra o checklist da moto e as
-// regras do comboio.
-const ATENCAO = [
+export const ATENCAO = [
   '⚠️ ATENÇÃO ⚠️',
   '',
   '🏍️ Fazer inspeção na moto antes de pegar estrada.',
   '🏍️ Não esquecer de abastecer.',
   '🏍️ Calibrar os pneus.',
   '🏍️ Conferir e ajustar equipamentos de segurança pessoal.',
-];
-const BRIEFING = [
+  '',
   '⚫ BRIEFING ⚫',
   '',
   '♦️ Formação do comboio.',
@@ -67,88 +73,54 @@ const BRIEFING = [
   '♦️ Repassar sinais de gestos.',
   '♦️ Diretrizes gerais.',
 ];
+const DESPEDIDA = 'Bora rodar!!!!!! 🏍️🌪️';
 
-// Quem assina o rodapé, por decisão do clube: na divisão é o Subdiretor;
-// no Regional, o Operacional. Não é o cargo mais alto - é quem de fato
-// responde pela convocação.
+// Quem assina, por decisão do clube: na divisão é o Subdiretor; no
+// Regional, o Operacional. Só serve de sugestão enquanto ninguém salvou um
+// responsável para aquela divisão (ver o quadro 8 da tela).
 const CARGO_QUE_ASSINA = { divisao: 'Subdiretor', regional: 'Operacional' };
 
-// Os campos do formulário, por modelo. A tela desenha a partir daqui, então
-// acrescentar um campo é mexer só nesta lista. `linhas > 1` vira caixa de
-// várias linhas.
-export const MODELOS = {
-  simples: {
-    nome: 'Simples',
-    para: 'Pub, Reunião, Ação Social',
-    campos: [
-      { chave: 'subtitulo', rotulo: 'Subtítulo (opcional)', dica: 'Ex: Aniversariantes do mês' },
-      { chave: 'destino', rotulo: 'Destino', linhas: 4, dica: 'Uma linha por parte do endereço' },
-      { chave: 'linkMapa', rotulo: 'Link do mapa', dica: 'https://maps.app.goo.gl/…' },
-      { chave: 'destacamento', rotulo: 'Destacamento', dica: '18h30', curto: true },
-      { chave: 'briefing', rotulo: 'Briefing', dica: '19h15', curto: true },
-      { chave: 'inicio', rotulo: 'Início', dica: '19h30', curto: true },
-      { chave: 'informacoes', rotulo: 'Informações (rodapé)', linhas: 6 },
-    ],
-  },
-  'bate-volta': {
-    nome: 'Bate e Volta',
-    para: 'saída de estrada, com roteiro',
-    campos: [
-      { chave: 'subtitulo', rotulo: 'Subtítulo (opcional)', dica: 'Ex: Bonde da Independência' },
-      { chave: 'horarios', rotulo: 'Horários', linhas: 4,
-        dica: 'Concentração: 05h00\nBriefing: 05h15\nSaída: 05h30' },
-      { chave: 'concentracao', rotulo: 'Concentração (ponto de encontro)', linhas: 5,
-        dica: 'Uma linha por parte do endereço' },
-      { chave: 'linkMapa', rotulo: 'Link do mapa', dica: 'https://maps.app.goo.gl/…' },
-      { chave: 'roteiro', rotulo: 'Roteiro', linhas: 6,
-        dica: 'Paradas, trechos e destino' },
-      { chave: 'informacoes', rotulo: 'Informações (rodapé)', linhas: 6 },
-    ],
-  },
-};
-
-// Qual modelo o evento pede. Bate e Volta tem roteiro; o resto é simples.
-export function modeloPadrao(ev) {
-  return (ev && ev.tipo === 'Bate e Volta') ? 'bate-volta' : 'simples';
+function ehRegional(categoria) {
+  return escopoPorChave(categoria).chave === 'regional';
 }
 
-// "Barra - RJ4" -> "DIVISÃO BARRA - RJ4"; o Regional não leva o prefixo.
-export function rotuloDivisao(categoria) {
+// 'Barra - RJ4' -> 'Barra'. É como a chamada escreve o nome da divisão.
+function nomeCurto(escopo) {
+  return escopo.nome.replace(/\s*-\s*RJ4$/i, '').replace(/\s*RJ4$/i, '').trim();
+}
+
+// Cabeçalho de um bloco da lista: "REGIONAL" ou "Divisão Oeste".
+function tituloDoBloco(escopo) {
+  return escopo.chave === 'regional' ? 'REGIONAL' : 'Divisão ' + nomeCurto(escopo);
+}
+
+// A linha do bonde, logo abaixo do tipo.
+export function linhaDoBonde(categoria) {
   const e = escopoPorChave(categoria);
-  return e.chave === 'regional' ? e.nome.toUpperCase() : 'DIVISÃO ' + e.nome.toUpperCase();
+  const texto = e.chave === 'regional' ? 'BONDE REGIONAL - RJ4' : 'DIVISÃO ' + e.nome.toUpperCase();
+  return `⚙️ ${texto} ⚙️`;
 }
 
-// '2026-09-09' -> 'Quarta: 09SET26', o formato que o clube usa.
-export function dataDaConvocacao(iso) {
+// '2026-09-19' -> '19/09'. A chamada oficial não leva o ano.
+export function dataDaChamada(iso) {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
-  if (!m) return '';
-  const [, ano, mes, dia] = m;
-  return `${diaDaSemana(iso)}: ${dia}${MESES_ABREV[Number(mes) - 1]}${ano.slice(2)}`;
+  return m ? `${m[3]}/${m[2]}` : '';
 }
 
-// '19:30' -> '19h30'. Devolve o que veio se não reconhecer.
-function comoHora(valor) {
-  const m = /^(\d{1,2}):(\d{2})$/.exec(String(valor || '').trim());
-  return m ? `${m[1].padStart(2, '0')}h${m[2]}` : String(valor || '').trim();
+// '7', '7h', '7:00', '07h30' -> '07:00h' / '07:30h'. O que não reconhecer
+// sai como foi digitado - melhor que sumir com o que a pessoa escreveu.
+export function comoHora(valor) {
+  const texto = String(valor || '').trim();
+  const m = /^(\d{1,2})(?:\s*[:hH]\s*(\d{2})?)?\s*[hH]?$/.exec(texto);
+  if (!m || Number(m[1]) > 23) return texto;
+  return `${m[1].padStart(2, '0')}:${m[2] || '00'}h`;
 }
 
-// A lista numerada, na ordem hierárquica (grau, depois cargo, depois nome).
-export function listaDeIntegrantes(membros) {
-  return ordenarPorHierarquia(membros).map((m, i) =>
-    `${String(i + 1).padStart(2, '0')}. ${m.nome.toUpperCase()}${m.grau ? ` (${m.grau})` : ''}`);
-}
-
-// Num evento regional a lista vem agrupada por divisão, com um cabeçalho
-// antes de cada bloco e a numeração recomeçando - é como o clube escreve.
-function listaAgrupada(membros) {
-  const fora = [];
-  agruparPorDivisao(membros).forEach((g, i) => {
-    if (i) fora.push('');
-    fora.push(g.divisao.toUpperCase());
-    fora.push('');
-    fora.push(...listaDeIntegrantes(g.membros));
-  });
-  return fora;
+// Texto de várias linhas do formulário -> linhas, sem espaço sobrando no
+// fim. As linhas em branco ficam: o juntar() abaixo só não deixa duas
+// seguidas.
+function linhasDe(valor) {
+  return String(valor || '').split('\n').map(l => l.trim());
 }
 
 // Junta as linhas tirando as vazias do começo/fim e nunca deixando duas
@@ -164,147 +136,232 @@ function juntar(linhas) {
   return fora.join('\n');
 }
 
-// Texto de várias linhas do formulário -> linhas, sem as vazias.
-function linhasDe(valor) {
-  return String(valor || '').split('\n').map(l => l.trimEnd()).filter(l => l.trim());
+// Um P.E. vazio. A tela começa com um, e "+ Adicionar P.E." acrescenta.
+// `vias` são as vias do trecho que SAI deste P.E. (até o próximo, ou até o
+// destino) - guardadas no próprio P.E., assim remover um P.E. leva o trecho
+// dele junto e não embaralha as vias dos outros.
+export function peVazio() {
+  return { nome: '', endereco: '', maps: '', concentracao: '', briefing: '', saida: '', vias: '' };
 }
 
-// Sugestões para o formulário: tudo que dá pra deduzir do evento e do
-// cadastro. O organizador ajusta antes de copiar.
-export function camposIniciais(ev, roster, modelo) {
-  const qual = modelo || modeloPadrao(ev);
+// As vias não contam: um P.E. só com vias e sem nome não é um ponto.
+function peTemAlgo(pe) {
+  return Object.entries(pe || {}).some(([k, v]) => k !== 'vias' && String(v || '').trim());
+}
+
+// Os P.E. que entram na chamada, já numerados como saem no texto.
+export function pesDaChamada(campos) {
+  return ((campos && campos.pes) || []).filter(peTemAlgo);
+}
+
+// Para onde vai o trecho que sai do P.E. de índice i: o próximo P.E., ou o
+// destino final. É o rótulo do trecho, na tela e no texto.
+export function fimDoTrecho(campos, i) {
+  const pes = pesDaChamada(campos);
+  if (i + 1 < pes.length) return `PE ${i + 2}`;
+  return String((campos && campos.destino) || '').trim().toUpperCase() || 'DESTINO';
+}
+
+// Regras do clube e Atenção: o texto que o Regional salvou, ou o padrão. Um
+// texto salvo vazio volta pro padrão - é assim que "Restaurar padrão" grava.
+export const TEXTOS_PADRAO = { regras: REGRAS.join('\n'), atencao: ATENCAO.join('\n') };
+export function textoEfetivo(textos, chave) {
+  const salvo = String((textos && textos[chave]) || '').trim();
+  return salvo ? linhasDe(salvo) : TEXTOS_PADRAO[chave].split('\n');
+}
+
+// Sugestões para o formulário: tudo que dá pra deduzir do evento. O
+// organizador ajusta antes de copiar.
+export function camposIniciais(ev) {
   const outros = String(ev.outros || '');
   const link = (outros.match(/https?:\/\/\S+/) || [''])[0];
   const achaHora = (rotulo) => {
     const m = new RegExp(rotulo + '\\s*:\\s*(\\d{1,2}[:h]\\d{2})', 'i').exec(outros);
-    return m ? comoHora(m[1].replace('h', ':')) : '';
+    return m ? comoHora(m[1]) : '';
   };
-  // O endereço é guardado numa linha só, separado por vírgula (ver o
-  // parser). Aqui ele volta uma parte por linha, que é como aparece na
-  // convocação - o organizador arruma se a quebra cair no lugar errado.
-  const endereco = String(ev.endereco || '').split(', ').join('\n');
-  const informacoes = blocoInformacoes(ev.categoria, roster);
-
-  if (qual === 'bate-volta') {
-    const horas = [
-      ['Concentração', achaHora('concentração') || achaHora('destacamento')],
-      ['Briefing', achaHora('briefing')],
-      ['Saída', achaHora('saída') || comoHora(ev.horario)],
-    ].filter(([, v]) => v).map(([nome, v]) => `${nome}: ${v}`);
-    return {
-      subtitulo: '', horarios: horas.join('\n'), concentracao: endereco,
-      linkMapa: link, roteiro: '', informacoes,
-    };
-  }
+  // O endereço é guardado numa linha só, separado por vírgula, e a primeira
+  // parte costuma ser o nome do lugar: ela vira o destino, e o resto, o
+  // endereço - senão o nome sairia duas vezes no bloco do 🏁.
+  const partes = String(ev.endereco || '').split(',').map(p => p.trim()).filter(Boolean);
+  const pe = peVazio();
+  pe.concentracao = achaHora('concentração') || achaHora('destacamento');
+  pe.briefing = achaHora('briefing');
+  pe.saida = achaHora('saída');
   return {
-    subtitulo: '', destino: endereco, linkMapa: link,
-    destacamento: achaHora('destacamento'), briefing: achaHora('briefing'),
-    inicio: comoHora(ev.horario), informacoes,
+    tipo: ev.tipo || '',
+    subtitulo: String(ev.nome || '').trim(),
+    destino: partes[0] || '',
+    horario: comoHora(ev.horario),
+    pes: [pe],
+    destinoEndereco: partes.slice(1).join(', '),
+    destinoMaps: link,
+    roteiro: '',
   };
 }
 
-// O rodapé de contato. O app sabe quem é a diretoria (nome, grau e cargo),
-// mas NÃO guarda telefone - por isso ele entra como um espaço pra preencher.
-// O Regional usa outra forma, em itálico do WhatsApp, que é como já sai
-// hoje no grupo.
-//
-// Se ninguém estiver cadastrado naquele cargo, os campos saem como
-// "(nome)" / "(cargo)" para o organizador preencher. É de propósito: uma
-// mensagem que vai pro clube inteiro assinada pela pessoa errada é pior do
-// que uma com um espaço em branco visível.
-export function blocoInformacoes(categoria, roster) {
+// O responsável sugerido pelo cadastro, para quando nada foi salvo ainda.
+// Sem ninguém no cargo, vem vazio - o texto então sai com "(nome)", que é
+// melhor do que uma chamada assinada pela pessoa errada.
+export function responsavelDoCadastro(categoria, roster) {
   const e = escopoPorChave(categoria);
-  const ehRegional = e.chave === 'regional';
-  const cargoAlvo = ehRegional ? CARGO_QUE_ASSINA.regional : CARGO_QUE_ASSINA.divisao;
-  const quem = (roster || []).find(m => m.divisao === e.nome && m.cargo === cargoAlvo);
-
-  if (ehRegional) {
-    const linha = quem ? `${quem.nome} - ${quem.cargo} RJ4` : '(nome) - (cargo) RJ4';
-    return ['_Informações:_', `_${linha}_`, '_Contato: (telefone)_'].join('\n');
-  }
-  return [
-    'ℹ️ INFORMAÇÕES ℹ️',
-    '',
-    quem ? `${quem.nome.toUpperCase()}${quem.grau ? ` (${quem.grau})` : ''}` : '(nome)',
-    quem ? quem.cargo.toUpperCase() : '(cargo)',
-    rotuloDivisao(categoria),
-    '(telefone)',
-  ].join('\n');
+  const cargo = ehRegional(categoria) ? CARGO_QUE_ASSINA.regional : CARGO_QUE_ASSINA.divisao;
+  const quem = (roster || []).find(m => m.divisao === e.nome && m.cargo === cargo);
+  if (!quem) return { nome: '', cargo: '', telefone: '' };
+  const sufixo = ehRegional(categoria) ? 'RJ4' : 'Divisão ' + nomeCurto(e);
+  return { nome: quem.nome, cargo: `${quem.cargo} ${sufixo}`, telefone: '' };
 }
 
-// O cabeçalho, igual nos dois modelos.
-function cabecalho(ev, campos) {
-  const emoji = emojiTipoEvento(ev.tipo);
-  const titulo = [emoji, String(ev.nome || '').toUpperCase(), emoji].filter(Boolean).join(' ');
+// ---------- os quadros, um por função --------------------------------------
+
+function quadroTipo(ev, c) {
+  const tipo = c.tipo || '';
+  const emoji = emojiTipoEvento(tipo);
   return [
-    FAIXA, '',
-    '*CONVOCAÇÃO GERAL*',
-    '*TODOS OS GRAUS*', '',
-    titulo, '',
-    'Evento',
-    `🗓 ${dataDaConvocacao(ev.data)}`, '',
-    ...(campos.subtitulo ? [String(campos.subtitulo).toUpperCase()] : []),
-    rotuloDivisao(ev.categoria),
+    ...(tipo ? [[emoji, tipo.toUpperCase(), emoji].filter(Boolean).join(' ')] : []),
+    linhaDoBonde(ev.categoria), '',
+    ...(c.subtitulo ? [String(c.subtitulo).trim()] : []),
+    ...MOTOS,
   ];
 }
 
-// A lista de convocados, com o cabeçalho da seção. Evento regional sai
-// agrupado por divisão; evento de divisão, numa lista só.
-function secaoMembros(ev, membros) {
-  const ehRegional = escopoPorChave(ev.categoria).chave === 'regional';
+function quadroInformacoes(ev, c) {
+  const data = dataDaChamada(ev.data);
+  const hora = comoHora(c.horario);
   return [
-    '👥 MEMBROS 👥', '',
-    ...(ehRegional ? listaAgrupada(membros) : [rotuloDivisao(ev.categoria), '', ...listaDeIntegrantes(membros)]),
+    ...(c.destino ? [`🎯 ${String(c.destino).trim()}`] : []),
+    ...(data ? [`📅 Data: ${data}`] : []),
+    ...(hora ? [`⏰ Horário: ${hora}`] : []),
   ];
 }
 
-// O texto completo. `membros` são os convocados já resolvidos do cadastro.
-export function montarConvocacao(ev, membros, campos, modelo) {
-  const c = campos || {};
-  const qual = modelo || modeloPadrao(ev);
+// Cada P.E. vira um bloco próprio, separado dos outros. A primeira linha
+// do nome vai na linha do 📍; as seguintes, logo abaixo (a chamada oficial
+// tem "Integração com Bonde RJ3" e o nome do lugar embaixo).
+function blocoPe(pe, numero) {
+  const [primeira, ...resto] = linhasDe(pe.nome).filter(Boolean);
+  const horarios = [
+    ['Concentração', pe.concentracao], ['Briefing', pe.briefing], ['Saída', pe.saida],
+  ].filter(([, v]) => String(v || '').trim()).map(([nome, v]) => `⏰ ${nome}: ${comoHora(v)}`);
+  return [
+    `📍 PE ${numero}:${primeira ? ' ' + primeira : ''}`,
+    ...resto,
+    ...(pe.endereco ? [`📌 Endereço: ${String(pe.endereco).trim()}`] : []),
+    ...(pe.maps ? [`🌐 Maps: ${String(pe.maps).trim()}`] : []),
+    ...(horarios.length ? ['', ...horarios] : []),
+  ];
+}
 
-  if (qual === 'bate-volta') {
-    return juntar([
-      ...cabecalho(ev, c), '',
-      ...(c.horarios ? ['Horários', ...linhasDe(c.horarios).map(l => `⏰ ${l}`), ''] : []),
-      SEPARADOR, '',
-      '🫂 CONCENTRAÇÃO 🫂', '',
-      ...linhasDe(c.concentracao),
-      ...(c.linkMapa ? [c.linkMapa] : []), '',
-      ...(c.roteiro ? [SEPARADOR, '', '🧭 ROTEIRO 🧭', '', ...linhasDe(c.roteiro), ''] : []),
-      SEPARADOR, '',
-      ...secaoMembros(ev, membros), '',
-      ...LEGENDA_BATE_VOLTA, '',
-      SEPARADOR, '',
-      ...RESPALDO, '',
-      SEPARADOR, '',
-      ...ATENCAO, '',
-      ...BRIEFING, '',
-      SEPARADOR, '',
-      ...String(c.informacoes || '').split('\n'),
+// "* Av. Ayrton Senna" - uma via por linha, com o marcador da chamada
+// oficial. Quem já digitou o marcador não ganha um segundo.
+function comoVia(linha) {
+  return '* ' + linha.replace(/^[*\-•]\s*/, '');
+}
+
+// O roteiro do bonde é montado dos P.E.: a sequência no topo, e um trecho
+// por P.E. com as vias que a pessoa preencheu. Só entra na chamada quando
+// alguém escreveu alguma via ou observação - sem isso seria um roteiro de
+// mentira, só com os nomes que já estão nos blocos de cima.
+//
+// Trecho sem via sai com "* (vias)": o espaço em branco fica visível, igual
+// ao "(telefone)" do rodapé.
+export function roteiroDoBonde(c) {
+  const pes = pesDaChamada(c);
+  const obs = linhasDe(c.roteiro);
+  const temVia = pes.some(pe => String(pe.vias || '').trim());
+  if (!temVia && !obs.some(Boolean)) return [];
+  if (!pes.length) return ['🎯 Roteiro do Bonde:', ...obs];
+
+  const destino = String(c.destino || '').trim();
+  const fora = [
+    '🎯 Roteiro do Bonde:',
+    [...pes.map((_, i) => `PE ${i + 1}`), fimDoTrecho(c, pes.length - 1)].join(' → '),
+  ];
+  pes.forEach((pe, i) => {
+    const nome = linhasDe(pe.nome).filter(Boolean);
+    const vias = linhasDe(pe.vias).filter(Boolean);
+    fora.push('',
+      i === 0 ? `📍 PE 1 — Saída` : `📍 PE ${i + 1}`,
+      ...nome,
+      '',
+      `🛣️ TRECHO ${i + 1} — PE ${i + 1} → ${fimDoTrecho(c, i)}`,
+      'Sequência das vias:',
+      ...(vias.length ? vias.map(comoVia) : ['* (vias)']));
+  });
+  if (destino) fora.push('', `🏁 ${destino}`);
+  if (obs.some(Boolean)) fora.push('', ...obs);
+  return fora;
+}
+
+function quadroRoteiro(c) {
+  const blocos = [];
+  pesDaChamada(c).forEach((pe, i) => blocos.push(blocoPe(pe, i + 1)));
+  if (c.destino || c.destinoEndereco || c.destinoMaps) {
+    blocos.push([
+      `🏁 Destino:${c.destino ? ' ' + String(c.destino).trim() : ''}`,
+      ...(c.destinoEndereco ? [`📌 Endereço: ${String(c.destinoEndereco).trim()}`] : []),
+      ...(c.destinoMaps ? [`🌐 Maps: ${String(c.destinoMaps).trim()}`] : []),
     ]);
   }
+  const roteiro = roteiroDoBonde(c);
+  if (roteiro.length) blocos.push(roteiro);
+  // Os blocos são separados entre si pela mesma linha de pontos do resto.
+  const fora = [];
+  blocos.forEach((b, i) => {
+    if (i) fora.push('', SEPARADOR, '');
+    fora.push(...b);
+  });
+  return fora;
+}
 
-  const horarios = [
-    ['Destacamento', c.destacamento],
-    ['Briefing', c.briefing],
-    ['Início', c.inicio],
-  ].filter(([, v]) => v).map(([nome, v]) => `⏰ ${nome}: ${v}`);
+// Bonde Regional: a lista sai EM BRANCO, um bloco por divisão, e cada
+// integrante se coloca no grupo. Evento de divisão: os convocados daquela
+// divisão, em "Nome (Grau)", na ordem hierárquica.
+export function quadroMembros(ev, membros) {
+  if (ehRegional(ev.categoria)) {
+    const fora = ['👥 MEMBROS 👥', 'Colocar NOME e GRAU'];
+    ORDEM_NA_CHAMADA.forEach(chave => {
+      const e = escopoPorChave(chave);
+      const n = chave === 'regional' ? LINHAS_EM_BRANCO.regional : LINHAS_EM_BRANCO.divisao;
+      fora.push('', tituloDoBloco(e));
+      for (let i = 1; i <= n; i++) fora.push(`${i}.`);
+    });
+    return fora;
+  }
+  const e = escopoPorChave(ev.categoria);
+  const daDivisao = (membros || []).filter(m => m.divisao === e.nome);
+  return [
+    '👥 MEMBROS 👥', '',
+    tituloDoBloco(e),
+    ...ordenarPorHierarquia(daDivisao).map((m, i) => `${i + 1}. ${m.nome}${m.grau ? ` (${m.grau})` : ''}`),
+  ];
+}
 
-  return juntar([
-    ...cabecalho(ev, c), '',
-    SEPARADOR, '',
-    '🎯 DESTINO 🎯', '',
-    ...linhasDe(c.destino),
-    ...(c.linkMapa ? [c.linkMapa] : []),
-    ...(horarios.length ? ['', 'Horários', ...horarios] : []), '',
-    SEPARADOR, '',
-    ...secaoMembros(ev, membros), '',
-    ...LEGENDA_PARTICIPACAO, '',
-    ...LEGENDA_OPERACAO, '',
-    SEPARADOR, '',
-    ...RESPALDO, '',
-    SEPARADOR, '',
-    ...String(c.informacoes || '').split('\n'),
-  ]);
+// Campo vazio sai como "(nome)" / "(telefone)": um espaço em branco visível
+// é melhor que uma chamada que parece completa e não está.
+function quadroResponsavel(r) {
+  const resp = r || {};
+  const nome = String(resp.nome || '').trim() || '(nome)';
+  const cargo = String(resp.cargo || '').trim() || '(cargo)';
+  const telefone = String(resp.telefone || '').trim() || '(telefone)';
+  return [DESPEDIDA, '', 'Informações:', `${nome} - ${cargo}`, `Contato: ${telefone}`];
+}
+
+// O texto completo. `membros` são os convocados já resolvidos do cadastro;
+// `responsavel` é { nome, cargo, telefone }; `textos` é { regras, atencao },
+// o que o Regional personalizou (vazio = o padrão).
+export function montarConvocacao(ev, membros, campos, responsavel, textos) {
+  const c = campos || {};
+  const quadros = [
+    quadroTipo(ev, c),
+    quadroInformacoes(ev, c),
+    quadroRoteiro(c),
+    quadroMembros(ev, membros),
+    LEGENDA,
+    textoEfetivo(textos, 'regras'),
+    textoEfetivo(textos, 'atencao'),
+  ].filter(q => q.some(l => l));
+  const fora = [];
+  quadros.forEach(q => fora.push(...q, '', SEPARADOR, ''));
+  fora.push(...quadroResponsavel(responsavel));
+  return juntar(fora);
 }

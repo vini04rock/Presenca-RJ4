@@ -17,11 +17,14 @@ const READ_RETRIES = 2;
 // perde e o app - a planilha continua protegida.
 //
 // "presenca" nao entra: a tela de confirmar e publica, sem PIN.
+// "responsavel" e leitura, mas entra: devolve telefone, e so o organizador
+// precisa dele.
 const ACOES_PROTEGIDAS = [
   'eventoSalvar', 'eventoRemover', 'membroSalvar', 'membroRemover',
   'criarEventoDeTexto', 'criarEventosDeCalendario', 'relatorio',
   'insightSalvar', 'insightRodadaAjustar', 'insightRodadaRemover',
   'insightMembroRemover', 'insightMembroReincluir',
+  'responsavel', 'responsavelSalvar', 'textoChamadaSalvar',
 ];
 
 // Anexa escopo+PIN quando a acao exige. Some do caminho nas demais, pra

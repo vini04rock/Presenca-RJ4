@@ -461,6 +461,69 @@ log('=== relatório individual: o que o Code.gs devolve de um integrante ===');
 }
 
 log('');
+log('=== responsável da chamada: salvo por divisão, atrás do PIN ===');
+{
+  const p = montaPlanilha([], []);
+  const PINS = { PIN_REGIONAL: '0418', PIN_BARRA: '1801', PIN_RECREIO: '1805' };
+  const { contexto } = carregaCodeGs(p, PINS);
+  const barra = { categoria: 'barra', nome: 'Tedboy', cargo: 'Subdiretor Divisão Barra', telefone: '21964506672' };
+
+  confere('ler sem PIN é recusado (devolve telefone)',
+    contexto.executar('responsavel', { categoria: 'barra' }).ok, false);
+  confere('salvar sem PIN é recusado', contexto.executar('responsavelSalvar', barra).ok, false);
+  confere('nada salvo ainda: devolve vazio',
+    contexto.executar('responsavel', { categoria: 'barra', escopo: 'barra', pin: '1801' }).responsavel, null);
+
+  confere('a Barra salva o dela', contexto.executar('responsavelSalvar', { ...barra, escopo: 'barra', pin: '1801' }).ok, true);
+  confere('e lê de volta igual', contexto.executar('responsavel', { categoria: 'barra', escopo: 'barra', pin: '1801' }).responsavel,
+    { nome: 'Tedboy', cargo: 'Subdiretor Divisão Barra', telefone: '21964506672' });
+
+  // A guarda geral só olha o escopo em que a pessoa entrou. Sem a segunda
+  // conferência, quem entrou pela Barra trocaria o responsável do Regional.
+  const invasao = contexto.executar('responsavelSalvar',
+    { categoria: 'regional', nome: 'Errado', cargo: 'x', telefone: 'x', escopo: 'barra', pin: '1801' });
+  confere('a Barra NÃO troca o do Regional', invasao.ok, false);
+  confere('e o Regional continua sem responsável',
+    contexto.executar('responsavel', { categoria: 'regional', escopo: 'regional', pin: '0418' }).responsavel, null);
+
+  // O PIN do Regional é chave-mestra: entra em qualquer divisão.
+  contexto.executar('responsavelSalvar', { ...barra, nome: 'Costa', escopo: 'regional', pin: '0418' });
+  confere('o PIN do Regional troca o da Barra', p.abas.Responsaveis.dados.slice(1).map(l => [l[0], l[1]]), [['barra', 'Costa']]);
+  confere('salvar de novo atualiza a linha, não cria outra', p.abas.Responsaveis.dados.length, 2);
+  confere('divisão desconhecida é recusada', (() => {
+    try { return contexto.executar('responsavelSalvar', { ...barra, categoria: 'xyz', escopo: 'regional', pin: '0418' }).ok; }
+    catch (e) { return false; }
+  })(), false);
+}
+
+log('');
+log('=== regras e atenção da chamada: um texto só, e só o Regional muda ===');
+{
+  const p = montaPlanilha([], []);
+  const PINS = { PIN_REGIONAL: '0418', PIN_BARRA: '1801' };
+  const { contexto } = carregaCodeGs(p, PINS);
+  const ler = () => contexto.executar('responsavel', { categoria: 'barra', escopo: 'barra', pin: '1801' }).textos;
+
+  confere('nada salvo: textos vazios (o app usa o padrão)', ler(), {});
+  confere('salvar sem PIN é recusado', contexto.executar('textoChamadaSalvar', { chave: 'regras', texto: 'x' }).ok, false);
+  confere('a Barra NÃO muda (vale pra RJ4 inteira)',
+    contexto.executar('textoChamadaSalvar', { chave: 'regras', texto: 'x', escopo: 'barra', pin: '1801' }).ok, false);
+  confere('o Regional muda',
+    contexto.executar('textoChamadaSalvar', { chave: 'regras', texto: 'Regra nova', escopo: 'regional', pin: '0418' }).ok, true);
+  // O PIN do Regional é chave-mestra: quem entrou numa divisão com ele também pode.
+  confere('o PIN do Regional dentro de uma divisão também muda',
+    contexto.executar('textoChamadaSalvar', { chave: 'atencao', texto: 'Atenção nova', escopo: 'barra', pin: '0418' }).ok, true);
+  confere('a Barra lê o que o Regional salvou', ler(), { regras: 'Regra nova', atencao: 'Atenção nova' });
+  contexto.executar('textoChamadaSalvar', { chave: 'regras', texto: '', escopo: 'regional', pin: '0418' });
+  confere('salvar vazio volta ao padrão, sem criar linha nova',
+    [ler().regras, p.abas.TextosChamada.dados.length], ['', 3]);
+  confere('texto que não existe é recusado', (() => {
+    try { return contexto.executar('textoChamadaSalvar', { chave: 'legenda', texto: 'x', escopo: 'regional', pin: '0418' }).ok; }
+    catch (e) { return false; }
+  })(), false);
+}
+
+log('');
 log(falhas === 0 ? 'TUDO OK' : `${falhas} FALHA(S) — veja acima`);
 fs.writeFileSync(SAIDA, linhas.join('\n'), 'utf8');
 process.exit(falhas === 0 ? 0 : 1);
