@@ -458,6 +458,19 @@ log('=== relatório individual: o que o Code.gs devolve de um integrante ===');
   const regional = contexto.executar('relatorioIndividual', { membroId: 'm3' });
   confere('integrante do Regional não faz Insight', regional.insight.elegivel, false);
   confere('integrante que não existe é recusado', contexto.executar('relatorioIndividual', { membroId: 'zz' }).ok, false);
+
+  // Varios de uma vez (o "Exportar varios em PDF"): cada um tem que sair
+  // IGUAL ao que a chamada de um so devolve - e a mesma regra, so lida uma vez.
+  const varios = contexto.executar('relatorioIndividualVarios', { membroIds: 'm3,m1,zz,m2' });
+  confere('vários: é leitura pública (não pede PIN)', varios.ok, true);
+  confere('vários: na ordem pedida, sem quem não existe', varios.relatorios.map(x => x.membro.id), ['m3', 'm1', 'm2']);
+  const soUm = (id) => { const x = contexto.executar('relatorioIndividual', { membroId: id }); return { membro: x.membro, eventos: x.eventos, insight: x.insight }; };
+  confere('vários: cada um igual ao relatório de um só',
+    JSON.stringify(varios.relatorios), JSON.stringify([soUm('m3'), soUm('m1'), soUm('m2')]));
+  confere('vários: a lista também pode vir como array', contexto.executar('relatorioIndividualVarios', { membroIds: ['m2'] }).relatorios.length, 1);
+  let semNinguem = null;
+  try { contexto.executar('relatorioIndividualVarios', { membroIds: '' }); } catch (e) { semNinguem = e.message; }
+  confere('vários: sem ninguém marcado é recusado', semNinguem, 'Nenhum integrante marcado');
 }
 
 log('');

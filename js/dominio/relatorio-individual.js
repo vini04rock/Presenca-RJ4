@@ -11,7 +11,8 @@
 // pra quem nunca foi chamado pra Bate e Volta nao e um numero, e uma
 // acusacao.
 
-import { TIPOS_EVENTO_TABS_ORDEM, escoposEmOrdemDeExibicao } from '../nucleo/config.js';
+import { TIPOS_EVENTO_TABS_ORDEM, emojiTipoEvento, escoposEmOrdemDeExibicao } from '../nucleo/config.js';
+import { formatDataBR } from '../nucleo/util.js';
 
 // Mesma regra dos Relatorios (eventosDoRelatorioEscopo): com um limite
 // escolhido, o que nao tem data fica de fora - nao da pra saber se cai
@@ -111,4 +112,63 @@ export function montarRelatorioIndividual(dados, inicio, fim) {
     // Mais recente primeiro: e o que se procura primeiro numa lista longa.
     historico: eventos.slice().reverse().map(ev => ({ ...ev, origem: origem(ev) })),
   };
+}
+
+// "Desde sempre", "De 01/08/2026 a 31/08/2026"... - vai no cabecalho da
+// tela, do PDF e do texto copiado, pra ninguem ler um numero sem saber de
+// que periodo ele e.
+export function textoDoPeriodo(inicio, fim) {
+  if (!inicio && !fim) return 'Desde sempre';
+  if (inicio && fim) return `De ${formatDataBR(inicio)} a ${formatDataBR(fim)}`;
+  return inicio ? `A partir de ${formatDataBR(inicio)}` : `Até ${formatDataBR(fim)}`;
+}
+
+const pctTexto = (p) => p === null ? '—' : p + '%';
+const nEventosTexto = (n) => `${n} ${n === 1 ? 'evento' : 'eventos'}`;
+
+function linhasPresenca(titulo, bloco) {
+  const g = bloco.geral;
+  return [
+    '',
+    titulo,
+    `📊 ${pctTexto(g.percentual)} (${g.confirmado} de ${nEventosTexto(g.convites)})`,
+    `✅ Confirmou: ${g.confirmado}`,
+    `❌ Falta justificada: ${g.justificada}`,
+    `⭕ Falta não justificada: ${g.infracional}`,
+    ...(bloco.porTipo.length ? ['', 'Por tipo:', ...bloco.porTipo.map(t =>
+      `${emojiTipoEvento(t.tipo)} ${t.tipo}: ${pctTexto(t.resumo.percentual)} (${t.resumo.confirmado} de ${t.resumo.convites})`)] : []),
+  ];
+}
+
+// O texto pra colar no WhatsApp. `r` e o que montarRelatorioIndividual
+// devolve - os mesmos numeros da tela, entao os dois nunca discordam.
+//
+// Do historico so vao as faltas nao justificadas (decisao do clube): e o
+// que se cobra, e o historico inteiro viraria uma parede de texto no grupo.
+// Mais recente primeiro, como na tela.
+export function textoRelatorioIndividual(r, inicio, fim) {
+  const m = r.membro;
+  const faltas = r.historico.filter(ev => ev.status === 'infracional');
+  const linhas = [
+    '📄 RELATÓRIO INDIVIDUAL',
+    m.nome + (m.grau ? ` (${m.grau})` : ''),
+    [m.cargo, m.divisao].filter(Boolean).join(' · '),
+    '🗓️ ' + textoDoPeriodo(inicio, fim),
+  ].filter(Boolean);
+  if (r.divisao) linhas.push(...linhasPresenca('🏁 PRESENÇA · ' + String(m.divisao || '').toUpperCase(), r.divisao));
+  if (r.regional) linhas.push(...linhasPresenca('🏛️ EVENTOS DO REGIONAL', r.regional));
+  if (r.insight) {
+    linhas.push('', '💡 INSIGHT', r.insight.rodadas
+      ? `📊 ${pctTexto(r.insight.percentual)} (fez ${r.insight.fez} de ${r.insight.rodadas} ${r.insight.rodadas === 1 ? 'rodada' : 'rodadas'})`
+      : 'Nenhuma rodada nesse período.');
+  }
+  if (!r.divisao && !r.regional && !r.insight) {
+    linhas.push('', 'Nenhum evento encerrado nem rodada de Insight nesse período.');
+  }
+  linhas.push('', `⭕ FALTAS NÃO JUSTIFICADAS (${faltas.length})`);
+  linhas.push(...(faltas.length
+    ? faltas.map(ev => '- ' + [ev.data ? formatDataBR(ev.data) : 'sem data', ev.nome, ev.origem === 'regional' ? 'Regional' : '']
+        .filter(Boolean).join(' · '))
+    : ['- Nenhuma']));
+  return linhas.join('\n');
 }

@@ -6,15 +6,19 @@
 // vira um grupo que abre ao toque, pra nao despejar cem nomes de uma vez -
 // o mesmo padrao do Rank e da lista de um evento regional.
 //
+// Tres saidas pro relatorio: o PDF de um integrante, o texto pro WhatsApp e
+// o PDF de varios, escolhidos marcando caixas na lista. O PDF e a impressao
+// do navegador (window.print), igual aos Relatorios - sem biblioteca.
+//
 // As contas moram em dominio/relatorio-individual.js; aqui e so desenho.
 
-import { montarRelatorioIndividual } from '../dominio/relatorio-individual.js';
+import { montarRelatorioIndividual, textoDoPeriodo, textoRelatorioIndividual } from '../dominio/relatorio-individual.js';
 import { emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao, STATUS } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
-import { dataDoCampoOuAvisar, escapeHtml, formatDataBR, ordenarPorHierarquia } from '../nucleo/util.js';
+import { copiarTexto, dataDoCampoOuAvisar, escapeHtml, formatDataBR, ordenarPorHierarquia } from '../nucleo/util.js';
 import { campoData, linhaFuncoes } from '../ui/comuns.js';
 import { renderDonutChart, renderSparklineTendencia, segmentosDonutStatus } from '../ui/graficos.js';
-import { loadRelatorioIndividual } from '../dados/carregar.js';
+import { loadRelatorioIndividual, loadRelatoriosIndividuaisVarios } from '../dados/carregar.js';
 import { render } from '../nucleo/render.js';
 
 export function renderRelatorioIndividual(app) {
@@ -26,57 +30,144 @@ export function renderRelatorioIndividual(app) {
       <div class="count-box">${escapeHtml(escopo.nome.toUpperCase())}</div>
     </div>
   `;
+  if (state.relIndVarios) {
+    app.innerHTML = cabecalho('fechar-relind-varios', 'Voltar à seleção') + folhaDeVarios();
+    return;
+  }
   if (state.relIndMembroId) {
     app.innerHTML = cabecalho('fechar-relatorio-individual-membro', 'Integrantes') + conteudoRelatorio();
     return;
   }
   app.innerHTML = cabecalho('go-menu-organizador', 'Menu') + listaIntegrantes();
+  // A caixa da divisao com so parte dos integrantes marcados fica "parcial"
+  // (o traco no lugar do ✓). Isso nao existe como atributo do HTML, so
+  // como propriedade do elemento - por isso vai depois de desenhar.
+  app.querySelectorAll('[data-parcial]').forEach(el => { el.indeterminate = true; });
 }
 
 // ---------- a lista -------------------------------------------------------
 
+// As divisoes que aparecem na lista: so a propria, ou as 7 no Regional.
+function escoposDaLista() {
+  return state.adminEscopo === 'regional' ? escoposEmOrdemDeExibicao() : [escopoPorChave(state.adminEscopo)];
+}
+
+function membrosDoEscopo(e) {
+  return ordenarPorHierarquia(state.roster.filter(m => m.divisao === e.nome));
+}
+
+// Os marcados, na ordem em que aparecem na lista - e a ordem do PDF.
+function marcadosEmOrdem() {
+  return escoposDaLista().flatMap(membrosDoEscopo).filter(m => state.relIndMarcados.has(m.id));
+}
+
 // A divisao nao aparece na linha: numa divisao e a propria tela, e no
 // Regional e o grupo em que a linha esta.
+//
+// Na selecao, tocar na linha marca em vez de abrir o relatorio. A caixa
+// nao tem acao propria: o toque nela sobe pra linha.
 function linhaIntegrante(m) {
+  const selecionando = state.relIndSelecionando;
+  const acao = selecionando ? 'relind-marcar-membro' : 'abrir-relatorio-individual-membro';
   return `
     <div class="member-row">
-      <div class="member-head" data-action="abrir-relatorio-individual-membro" data-id="${m.id}">
-        <div class="member-info-wrap">
-          <div class="member-info">
-            <span class="member-name">${escapeHtml(m.nome)}</span>
-            ${m.grau ? `<span class="grade-box">${escapeHtml(m.grau)}</span>` : ''}
+      <div class="member-head" data-action="${acao}" data-id="${m.id}">
+        <div style="display:flex; align-items:center; min-width:0;">
+          ${selecionando ? `<input type="checkbox" class="relind-check" ${state.relIndMarcados.has(m.id) ? 'checked' : ''}>` : ''}
+          <div class="member-info-wrap">
+            <div class="member-info">
+              <span class="member-name">${escapeHtml(m.nome)}</span>
+              ${m.grau ? `<span class="grade-box">${escapeHtml(m.grau)}</span>` : ''}
+            </div>
+            ${m.cargo ? `<div class="confirmado-divisao">${escapeHtml(m.cargo)}</div>` : ''}
+            ${linhaFuncoes(m.funcoes)}
           </div>
-          ${m.cargo ? `<div class="confirmado-divisao">${escapeHtml(m.cargo)}</div>` : ''}
-          ${linhaFuncoes(m.funcoes)}
         </div>
-        <span class="arrow" style="color:var(--text-muted); font-size:20px;">›</span>
+        ${selecionando ? '' : '<span class="arrow" style="color:var(--text-muted); font-size:20px;">›</span>'}
       </div>
     </div>
   `;
 }
 
-function listaIntegrantes() {
-  const doEscopo = (e) => ordenarPorHierarquia(state.roster.filter(m => m.divisao === e.nome));
-  const aviso = `
-    <div class="alert info" style="margin-bottom:16px;">
-      <div class="alert-msg">Toque num integrante pra ver a presença dele em cada tipo de evento e no Insight.</div>
+// A caixa de uma divisao: marcada com todos, "parcial" com alguns. Tem acao
+// propria, entao no Regional marcar nao abre nem fecha o grupo.
+function caixaDivisao(e, membros) {
+  const n = membros.filter(m => state.relIndMarcados.has(m.id)).length;
+  const todos = membros.length > 0 && n === membros.length;
+  return `<input type="checkbox" class="relind-check" data-action="relind-marcar-divisao" data-value="${e.chave}"
+    ${todos ? 'checked' : ''} ${n && !todos ? 'data-parcial="1"' : ''} ${membros.length ? '' : 'disabled'}>`;
+}
+
+function contagemDivisao(membros) {
+  if (state.relIndSelecionando) {
+    const n = membros.filter(m => state.relIndMarcados.has(m.id)).length;
+    return `${n}/${membros.length} ${membros.length === 1 ? 'marcado' : 'marcados'}`;
+  }
+  return `${membros.length} ${membros.length === 1 ? 'integrante' : 'integrantes'}`;
+}
+
+// O topo da lista: o botao que liga a selecao, ou, ligada, o periodo e o
+// botao de exportar.
+function topoDaLista() {
+  if (!state.relIndSelecionando) {
+    return `
+      <div class="alert info" style="margin-bottom:12px;">
+        <div class="alert-msg">Toque num integrante pra ver a presença dele em cada tipo de evento e no Insight.</div>
+      </div>
+      <button class="btn secondary block" data-action="relind-iniciar-selecao" style="margin-bottom:16px;">📑 Exportar vários em PDF</button>
+    `;
+  }
+  const n = state.relIndMarcados.size;
+  const carregando = state.relIndVariosCarregando;
+  const rotulo = carregando ? `Montando ${n} ${n === 1 ? 'relatório' : 'relatórios'}…`
+    : n ? `📑 Exportar ${n} ${n === 1 ? 'relatório' : 'relatórios'}` : 'Marque quem vai no PDF';
+  return `
+    <div class="card" style="margin-bottom:14px;">
+      <div style="font-weight:600; margin-bottom:4px;">Exportar vários em PDF</div>
+      <div style="color:var(--text-muted); font-size:12.5px; margin-bottom:10px;">Marque a divisão inteira ou cada integrante. Cada um sai em página nova.</div>
+      <div class="row-gap">
+        ${campoData({ id: 'relind-data-inicio', rotulo: 'Data inicial', valor: state.relIndFiltroInicio, estilo: 'margin-bottom:0; flex:1;' })}
+        ${campoData({ id: 'relind-data-fim', rotulo: 'Data final', valor: state.relIndFiltroFim, estilo: 'margin-bottom:0; flex:1;' })}
+      </div>
+      <div style="color:var(--text-muted); font-size:12px; margin:6px 0 10px;">Deixe em branco pra incluir desde sempre.</div>
+      ${state.relIndVariosErro ? `
+        <div class="alert" style="margin-bottom:10px;">
+          <div class="alert-title">Não consegui montar os relatórios</div>
+          <div class="alert-msg">${escapeHtml(state.relIndVariosErro)}.</div>
+        </div>
+      ` : ''}
+      <button class="btn block" data-action="relind-exportar-varios" style="margin-bottom:8px;" ${n && !carregando ? '' : 'disabled'}>${rotulo}</button>
+      <button class="btn secondary block" data-action="relind-cancelar-selecao" ${carregando ? 'disabled' : ''}>Cancelar</button>
     </div>
   `;
+}
+
+function listaIntegrantes() {
+  const selecionando = state.relIndSelecionando;
 
   if (state.adminEscopo !== 'regional') {
-    const membros = doEscopo(escopoPorChave(state.adminEscopo));
+    const e = escopoPorChave(state.adminEscopo);
+    const membros = membrosDoEscopo(e);
     if (!membros.length) return '<div class="empty">Nenhum integrante cadastrado nesta divisão.</div>';
-    return aviso + `<div class="card" style="padding: 4px 16px;">${membros.map(linhaIntegrante).join('')}</div>`;
+    // Na divisao a lista nao tem grupo - na selecao ganha um cabecalho so
+    // pra levar a caixa de "todos".
+    const cabecalhoSelecao = selecionando ? `
+      <div class="division-subheader">
+        <span style="display:flex; align-items:center;">${caixaDivisao(e, membros)}${escapeHtml(e.nome.toUpperCase())}</span>
+        <span class="division-counts">${contagemDivisao(membros)}</span>
+      </div>
+    ` : '';
+    return topoDaLista() + `<div class="card" style="padding: 4px 16px;">${cabecalhoSelecao}${membros.map(linhaIntegrante).join('')}</div>`;
   }
 
-  return aviso + escoposEmOrdemDeExibicao().map(e => {
-    const membros = doEscopo(e);
+  return topoDaLista() + escoposDaLista().map(e => {
+    const membros = membrosDoEscopo(e);
     const aberto = state.relIndDivisoesAbertas.has(e.chave);
     return `
       <div class="card" style="padding: 4px 16px;">
         <div class="division-subheader clicavel" data-action="toggle-relind-divisao" data-value="${e.chave}">
-          <span>${aberto ? '▾' : '▸'} ${escapeHtml(e.nome.toUpperCase())}</span>
-          <span class="division-counts">${membros.length} ${membros.length === 1 ? 'integrante' : 'integrantes'}</span>
+          <span style="display:flex; align-items:center;">${selecionando ? caixaDivisao(e, membros) : ''}${aberto ? '▾' : '▸'} ${escapeHtml(e.nome.toUpperCase())}</span>
+          <span class="division-counts">${contagemDivisao(membros)}</span>
         </div>
         ${aberto ? (membros.length ? membros.map(linhaIntegrante).join('') : '<div class="empty">Nenhum integrante cadastrado.</div>') : ''}
       </div>
@@ -102,11 +193,9 @@ function filtroPeriodo() {
   `;
 }
 
-function textoPeriodo() {
-  const i = state.relIndFiltroInicio, f = state.relIndFiltroFim;
-  if (!i && !f) return 'Desde sempre';
-  if (i && f) return `De ${formatDataBR(i)} a ${formatDataBR(f)}`;
-  return i ? `A partir de ${formatDataBR(i)}` : `Até ${formatDataBR(f)}`;
+// Carimbo do papel: sem ele, um PDF guardado nao diz de quando e.
+function geradoEm() {
+  return `<div class="print-only" style="margin-bottom:10px; font-size:12px; color:var(--text-muted);">Gerado em ${escapeHtml(new Date().toLocaleString('pt-BR'))}</div>`;
 }
 
 function cabecalhoMembro(m) {
@@ -116,7 +205,7 @@ function cabecalhoMembro(m) {
       <div style="font-family:'Rye',serif; font-size:19px; color:var(--white-strong);">${escapeHtml(m.nome)}${m.grau ? ` <span class="grade-box">${escapeHtml(m.grau)}</span>` : ''}</div>
       <div style="color:var(--text-muted); font-size:12.5px; margin-top:4px;">${detalhe || '—'}</div>
       ${linhaFuncoes(m.funcoes)}
-      <div style="color:var(--text-muted); font-size:11.5px; margin-top:8px;">${escapeHtml(textoPeriodo())}</div>
+      <div style="color:var(--text-muted); font-size:11.5px; margin-top:8px;">${escapeHtml(textoDoPeriodo(state.relIndFiltroInicio, state.relIndFiltroFim))}</div>
     </div>
   `;
 }
@@ -201,6 +290,23 @@ function historico(itens, nomeDivisao) {
   `;
 }
 
+// O relatorio de um integrante, do jeito que vai pro papel: o mesmo na tela
+// de um so e em cada pagina do PDF de varios.
+function relatorioDoMembro(dados) {
+  const r = montarRelatorioIndividual(dados, state.relIndFiltroInicio, state.relIndFiltroFim);
+  const m = r.membro;
+  const blocos = [
+    r.divisao ? blocoPresenca('🏁 Presença · ' + m.divisao, r.divisao) : '',
+    r.regional ? blocoPresenca('🏛️ Eventos do Regional', r.regional) : '',
+    r.insight ? blocoInsight(r.insight) : '',
+  ].join('');
+  return `
+    ${cabecalhoMembro(m)}
+    ${blocos || '<div class="empty">Nenhum evento encerrado nem rodada de Insight nesse período.</div>'}
+    ${historico(r.historico, m.divisao)}
+  `;
+}
+
 function conteudoRelatorio() {
   if (state.relIndErro) {
     return `
@@ -214,30 +320,61 @@ function conteudoRelatorio() {
   if (state.relIndCarregando || !state.relIndDados) {
     return '<div class="alert info"><div class="alert-msg">Montando o relatório…</div></div>';
   }
-
-  const r = montarRelatorioIndividual(state.relIndDados, state.relIndFiltroInicio, state.relIndFiltroFim);
-  const m = r.membro;
-  const blocos = [
-    r.divisao ? blocoPresenca('🏁 Presença · ' + m.divisao, r.divisao) : '',
-    r.regional ? blocoPresenca('🏛️ Eventos do Regional', r.regional) : '',
-    r.insight ? blocoInsight(r.insight) : '',
-  ].join('');
-
   return `
     ${filtroPeriodo()}
-    ${cabecalhoMembro(m)}
-    ${blocos || '<div class="empty">Nenhum evento encerrado nem rodada de Insight nesse período.</div>'}
-    ${historico(r.historico, m.divisao)}
+    <div class="row-gap no-print" style="margin-bottom:14px;">
+      <button class="btn secondary" style="flex:1;" data-action="imprimir-relind">🖨️ Exportar PDF</button>
+      <button class="btn secondary" style="flex:1;" data-action="copiar-relatorio-individual">${state.relIndCopiado ? 'Copiado ✓' : '📋 Copiar relatório'}</button>
+    </div>
+    ${geradoEm()}
+    ${relatorioDoMembro(state.relIndDados)}
+  `;
+}
+
+// A folha do PDF de varios: um relatorio embaixo do outro, cada um
+// comecando numa pagina nova (.relind-pagina, no CSS de impressao). Fica na
+// tela depois da impressao, pra dar pra imprimir de novo sem buscar tudo.
+function folhaDeVarios() {
+  const lista = state.relIndVarios;
+  const faltaram = state.relIndMarcados.size - lista.length;
+  return `
+    <div class="card no-print" style="margin-bottom:14px;">
+      <div style="font-weight:600; margin-bottom:4px;">${lista.length} ${lista.length === 1 ? 'relatório pronto' : 'relatórios prontos'}</div>
+      <div style="color:var(--text-muted); font-size:12.5px; margin-bottom:10px;">${escapeHtml(textoDoPeriodo(state.relIndFiltroInicio, state.relIndFiltroFim))}</div>
+      ${faltaram > 0 ? `<div class="chamada-quadro-nota" style="margin-bottom:10px;">${faltaram} ${faltaram === 1 ? 'integrante não foi encontrado' : 'integrantes não foram encontrados'} na planilha e ficou de fora.</div>` : ''}
+      <button class="btn block" data-action="imprimir-relind">🖨️ Imprimir / Exportar PDF</button>
+    </div>
+    ${geradoEm()}
+    ${lista.length ? lista.map(d => `<div class="relind-pagina">${relatorioDoMembro(d)}</div>`).join('')
+      : '<div class="empty">Nenhum dos marcados foi encontrado na planilha.</div>'}
   `;
 }
 
 // ---------- acoes ---------------------------------------------------------
+
+// Le o periodo dos campos. null = alguma data errada (o aviso ja saiu).
+function lerPeriodo() {
+  const inicio = dataDoCampoOuAvisar('relind-data-inicio', 'A data inicial');
+  if (inicio === null) return null;
+  const fim = dataDoCampoOuAvisar('relind-data-fim', 'A data final');
+  if (fim === null) return null;
+  return { inicio, fim };
+}
+
+function sairDaSelecao() {
+  state.relIndSelecionando = false;
+  state.relIndMarcados = new Set();
+  state.relIndVarios = null;
+  state.relIndVariosErro = null;
+  state.relIndVariosCarregando = false;
+}
 
 export const acoes = {
   // Vem do card do menu do organizador. Sempre comeca pela lista.
   'abrir-relatorio-individual': async (id, target, action, e) => {
     state.view = 'relatorio-individual';
     state.relIndMembroId = null;
+    sairDaSelecao();
     return render();
   },
   'toggle-relind-divisao': async (id, target, action, e) => {
@@ -248,6 +385,7 @@ export const acoes = {
   },
   'abrir-relatorio-individual-membro': async (id, target, action, e) => {
     state.relIndMembroId = id;
+    state.relIndCopiado = false;
     return loadRelatorioIndividual(id);
   },
   'recarregar-relatorio-individual': async (id, target, action, e) => {
@@ -263,17 +401,75 @@ export const acoes = {
   // As datas so sao lidas aqui, no toque - ver o comentario no app.js sobre
   // por que o campo de data nao redesenha a tela enquanto se digita.
   'aplicar-relind-periodo': async (id, target, action, e) => {
-    const inicio = dataDoCampoOuAvisar('relind-data-inicio', 'A data inicial');
-    if (inicio === null) return;
-    const fim = dataDoCampoOuAvisar('relind-data-fim', 'A data final');
-    if (fim === null) return;
-    state.relIndFiltroInicio = inicio;
-    state.relIndFiltroFim = fim;
+    const p = lerPeriodo();
+    if (!p) return;
+    state.relIndFiltroInicio = p.inicio;
+    state.relIndFiltroFim = p.fim;
     return render();
   },
   'limpar-relind-periodo': async (id, target, action, e) => {
     state.relIndFiltroInicio = '';
     state.relIndFiltroFim = '';
+    return render();
+  },
+  'imprimir-relind': async (id, target, action, e) => {
+    window.print();
+  },
+  'copiar-relatorio-individual': async (id, target, action, e) => {
+    if (!state.relIndDados) return;
+    const r = montarRelatorioIndividual(state.relIndDados, state.relIndFiltroInicio, state.relIndFiltroFim);
+    const ok = await copiarTexto(textoRelatorioIndividual(r, state.relIndFiltroInicio, state.relIndFiltroFim));
+    if (!ok) return;
+    state.relIndCopiado = true;
+    render();
+    setTimeout(() => {
+      if (!state.relIndCopiado) return;
+      state.relIndCopiado = false;
+      render();
+    }, 1600);
+  },
+
+  // ---- exportar varios ----
+  'relind-iniciar-selecao': async (id, target, action, e) => {
+    sairDaSelecao();
+    state.relIndSelecionando = true;
+    return render();
+  },
+  'relind-cancelar-selecao': async (id, target, action, e) => {
+    sairDaSelecao();
+    return render();
+  },
+  'relind-marcar-membro': async (id, target, action, e) => {
+    if (state.relIndMarcados.has(id)) state.relIndMarcados.delete(id);
+    else state.relIndMarcados.add(id);
+    return render();
+  },
+  // Com todos marcados, desmarca todos; senao (nenhum ou so alguns), marca
+  // todos - o mesmo que a caixa "parcial" faz em qualquer lugar.
+  'relind-marcar-divisao': async (id, target, action, e) => {
+    const membros = membrosDoEscopo(escopoPorChave(target.dataset.value));
+    const todos = membros.length > 0 && membros.every(m => state.relIndMarcados.has(m.id));
+    membros.forEach(m => {
+      if (todos) state.relIndMarcados.delete(m.id);
+      else state.relIndMarcados.add(m.id);
+    });
+    return render();
+  },
+  'relind-exportar-varios': async (id, target, action, e) => {
+    if (state.relIndVariosCarregando) return;
+    const ids = marcadosEmOrdem().map(m => m.id);
+    if (!ids.length) return;
+    const p = lerPeriodo();
+    if (!p) return;
+    state.relIndFiltroInicio = p.inicio;
+    state.relIndFiltroFim = p.fim;
+    await loadRelatoriosIndividuaisVarios(ids);
+    // So imprime se chegou - com erro, a selecao continua na tela, com o aviso.
+    if (state.relIndVarios && state.view === 'relatorio-individual') window.print();
+  },
+  // Volta pra lista com as mesmas caixas marcadas, pra ajustar e tentar de novo.
+  'fechar-relind-varios': async (id, target, action, e) => {
+    state.relIndVarios = null;
     return render();
   },
 };

@@ -627,6 +627,16 @@ label {
 }
 .checkbox-row:last-child { border-bottom: none; }
 .checkbox-row input { width: auto; margin: 0; }
+/* A caixa de marcar do "Exportar varios em PDF" (Relatorio individual), na
+   divisao e em cada integrante. Grande o bastante pro dedo. */
+.relind-check {
+  width: 18px;
+  height: 18px;
+  margin: 0 10px 0 0;
+  flex-shrink: 0;
+  accent-color: var(--white-strong);
+  cursor: pointer;
+}
 .count-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
 .count-box-report {
   border: 1px solid var(--line);
@@ -838,6 +848,11 @@ label {
      expandir - entao forca todo mundo aberto, senao o relatorio impresso
      sai so com "▸ NOME · N membros" e nenhum nome de verdade. */
   .insight-rank-membros { display: block !important; }
+  /* PDF de varios integrantes: cada um comeca numa pagina nova, e um
+     grafico nunca sai cortado ao meio entre duas paginas. O historico pode,
+     de proposito - longo, ele empurraria uma pagina quase vazia. */
+  .relind-pagina + .relind-pagina { break-before: page; }
+  .relind-pagina .donut-card { break-inside: avoid; }
   body::before { display: none !important; }
   :root {
     --bg: #ffffff;

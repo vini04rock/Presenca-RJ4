@@ -415,6 +415,24 @@ add('relatório individual / nada no período',   { ...org, adminEscopo:'barra',
 add('relatório individual / do Regional',       { ...org, adminEscopo:'regional', relIndMembroId:'m6',
   relIndDados:{ ok:true, membro:{ id:'m6', nome:'Chefe', grau:'X', divisao:'Regional RJ4', funcoes:[] },
     eventos:[relInd.eventos[3]], insight:{ elegivel:false, rodadas:[] } } }, T.renderRelatorioIndividual);
+add('relatório individual / copiado',           { ...org, adminEscopo:'barra', relIndMembroId:'m1',
+  relIndDados:relInd, relIndCopiado:true }, T.renderRelatorioIndividual);
+// Exportar varios em PDF.
+add('relatório individual / seleção (barra)',   { ...org, adminEscopo:'barra', relIndSelecionando:true,
+  relIndMarcados:new Set(['m1']) }, T.renderRelatorioIndividual);
+add('relatório individual / seleção (regional)', { ...org, adminEscopo:'regional', relIndSelecionando:true,
+  relIndDivisoesAbertas:new Set(['barra']), relIndMarcados:new Set(['m1', 'm6']) }, T.renderRelatorioIndividual);
+add('relatório individual / seleção vazia',     { ...org, adminEscopo:'barra', relIndSelecionando:true }, T.renderRelatorioIndividual);
+add('relatório individual / montando vários',   { ...org, adminEscopo:'barra', relIndSelecionando:true,
+  relIndMarcados:new Set(['m1']), relIndVariosCarregando:true }, T.renderRelatorioIndividual);
+add('relatório individual / erro em vários',    { ...org, adminEscopo:'barra', relIndSelecionando:true,
+  relIndMarcados:new Set(['m1']), relIndVariosErro:'Acao desconhecida: relatorioIndividualVarios' }, T.renderRelatorioIndividual);
+add('relatório individual / folha de vários',   { ...org, adminEscopo:'regional', relIndSelecionando:true,
+  relIndMarcados:new Set(['m1', 'm6', 'sumiu']),
+  relIndVarios:[relInd, { ok:true, membro:{ id:'m6', nome:'Chefe', grau:'X', divisao:'Regional RJ4', funcoes:[] },
+    eventos:[relInd.eventos[3]], insight:{ elegivel:false, rodadas:[] } }] }, T.renderRelatorioIndividual);
+add('relatório individual / folha vazia',       { ...org, adminEscopo:'barra', relIndSelecionando:true,
+  relIndMarcados:new Set(['sumiu']), relIndVarios:[] }, T.renderRelatorioIndividual);
 
 const LIMPO = {
   // A lista de eventos volta ao padrao entre um caso e outro: o card de
@@ -443,6 +461,8 @@ const LIMPO = {
   newEventSelected:null, insightRankRodadaSelecionada:null,
   relIndMembroId:null, relIndDados:null, relIndCarregando:false, relIndErro:null,
   relIndFiltroInicio:'', relIndFiltroFim:'', relIndDivisoesAbertas:new Set(),
+  relIndCopiado:false, relIndSelecionando:false, relIndMarcados:new Set(), relIndVarios:null,
+  relIndVariosCarregando:false, relIndVariosErro:null,
 };
 log('');
 log('=== 2. desenhar cada tela e aba ===');

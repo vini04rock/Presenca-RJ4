@@ -112,6 +112,15 @@ export let state = {
   relIndDivisoesAbertas: new Set(),
   relIndFiltroInicio: '',
   relIndFiltroFim: '',
+  relIndCopiado: false,
+  // "Exportar varios em PDF": o modo de selecao da lista, quem esta marcado,
+  // e os relatorios ja buscados (null = ainda na selecao; uma lista = a
+  // folha de impressao aberta).
+  relIndSelecionando: false,
+  relIndMarcados: new Set(),
+  relIndVarios: null,
+  relIndVariosCarregando: false,
+  relIndVariosErro: null,
 
   newMemberGrau: null,
   // So aparece quando o grau escolhido tem cargo (VI ou V) - ver CARGOS.

@@ -121,6 +121,23 @@ export async function loadRelatorioIndividual(membroId) {
   render();
 }
 
+// Varios integrantes de uma vez, pro "Exportar varios em PDF" - uma chamada
+// so (relatorioIndividualVarios no Code.gs). Um por um seriam 2 a 4
+// segundos por integrante; a divisao inteira passaria de um minuto.
+export async function loadRelatoriosIndividuaisVarios(membroIds) {
+  state.relIndVariosCarregando = true;
+  state.relIndVariosErro = null;
+  render();
+  try {
+    const r = await api('relatorioIndividualVarios', { membroIds: membroIds.join(',') });
+    state.relIndVarios = r.relatorios || [];
+  } catch (e) {
+    state.relIndVariosErro = e.message;
+  }
+  state.relIndVariosCarregando = false;
+  render();
+}
+
 // Presencas de eventos que ainda VAO acontecer, pro aviso do menu do
 // organizador. Diferente de loadReportData, que so busca o que falta e
 // guarda pra sempre: aqui busca sempre de novo, porque o numero muda a cada

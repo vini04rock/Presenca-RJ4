@@ -278,6 +278,29 @@ log('=== relatório individual ===');
   const semData = { ...dadosBarra, eventos: [evento('s', '', 'Pub', 'barra', 'confirmado')] };
   confere('evento sem data conta no desde sempre', montarRelatorioIndividual(semData, '', '').divisao.geral.convites, 1);
   confere('evento sem data fica de fora com período', montarRelatorioIndividual(semData, '2026-01-01', '').divisao, null);
+
+  // O texto pro WhatsApp: os mesmos numeros da tela, e do historico so as
+  // faltas nao justificadas.
+  const { textoRelatorioIndividual, textoDoPeriodo } = await import(url('dominio/relatorio-individual.js'));
+  const texto = textoRelatorioIndividual(tudo, '', '');
+  const linhasTexto = texto.split('\n');
+  confere('texto: abre com o nome, o grau, o cargo e o período', linhasTexto.slice(0, 4),
+    ['📄 RELATÓRIO INDIVIDUAL', 'Costa (VI)', 'Diretor · Barra - RJ4', '🗓️ Desde sempre']);
+  confere('texto: o geral da divisão bate com a tela', linhasTexto.includes('📊 33% (1 de 3 eventos)'), true);
+  confere('texto: só os tipos em que foi convocado',
+    linhasTexto.filter(l => / \d+% \(\d+ de \d+\)$/.test(l)), ['🍻 Pub: 50% (1 de 2)', '📊 Reunião: 0% (0 de 1)', '🍻 Pub: 100% (1 de 1)']);
+  confere('texto: Bate e Volta não aparece', texto.includes('Bate e Volta'), false);
+  confere('texto: o Regional à parte', linhasTexto.includes('🏛️ EVENTOS DO REGIONAL'), true);
+  confere('texto: o Insight', linhasTexto.includes('📊 67% (fez 2 de 3 rodadas)'), true);
+  confere('texto: termina com as faltas não justificadas', linhasTexto.slice(-2),
+    ['⭕ FALTAS NÃO JUSTIFICADAS (1)', '- 01/08/2026 · Evento b']);
+  confere('texto: sem falta, diz que não tem', textoRelatorioIndividual(doRegional, '', '').split('\n').slice(-1), ['- Nenhuma']);
+  confere('texto: o período escolhido vai no topo', textoRelatorioIndividual(agosto, '2026-08-01', '2026-08-31').split('\n')[3],
+    '🗓️ De 01/08/2026 a 31/08/2026');
+  confere('texto: sem nada no período, avisa', textoRelatorioIndividual(semRodada, '2026-01-01', '2026-01-31')
+    .includes('💡 INSIGHT\nNenhuma rodada nesse período.'), true);
+  confere('período: os quatro jeitos', [textoDoPeriodo('', ''), textoDoPeriodo('2026-08-01', ''), textoDoPeriodo('', '2026-08-31')],
+    ['Desde sempre', 'A partir de 01/08/2026', 'Até 31/08/2026']);
 }
 
 log('=== ordem hierárquica (grau, depois cargo, depois nome) ===');

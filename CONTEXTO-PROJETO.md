@@ -296,6 +296,14 @@ de período.
   devolve os dados crus; o período é recortado no app. Buscar presença
   evento por evento, como a Ficha dos Relatórios faz, viraria centenas de
   chamadas em alguns meses.
+- **Três saídas:** o PDF de um integrante (a impressão do navegador, igual
+  aos Relatórios), o texto pro WhatsApp e o **PDF de vários**. O texto leva
+  os números e, do histórico, só as faltas não justificadas, que é o que se
+  cobra (`textoRelatorioIndividual`). O PDF de vários tem um modo de
+  seleção na lista: a caixa da divisão marca todos dela, e cada integrante
+  sai completo, numa página nova. Os marcados vêm numa chamada só
+  (`relatorioIndividualVarios`), que lê as abas uma vez e monta cada um com
+  a mesma função do relatório de um, então os dois nunca discordam.
 
 ## A convocação: o app lê e escreve
 
@@ -432,7 +440,7 @@ a cada mudança:
 | `servidor.py` | serve o app local com o cache desligado |
 | `estrutura.py` | 7 verificações: imports circulares, hierarquia de camadas, sintaxe, nome sem import, import sobrando, ações sem tratador |
 | `regras.mjs` | as regras do clube que, se quebrarem, saem erradas numa convocação sem ninguém perceber |
-| `telas.mjs` | desenha as 82 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
+| `telas.mjs` | desenha as 90 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
 | `planilha.mjs` | roda o `Code.gs` de verdade contra uma planilha de mentira; hoje cobre o encerramento automático |
 
 O `--html` do `telas.mjs` é a rede de proteção mais útil: captura o HTML de
@@ -459,7 +467,7 @@ ferramentas, acima):
 
     py ferramentas/estrutura.py     # imports, camadas, sintaxe, ações
     node ferramentas/regras.mjs     # ordem hierárquica e formato da convocação
-    node ferramentas/telas.mjs      # desenha as 82 telas e abas
+    node ferramentas/telas.mjs      # desenha as 90 telas e abas
     node ferramentas/planilha.mjs   # o encerramento automático, no Code.gs
 
 Eles dizem que o app **não quebrou**, não que está bonito: não cobrem

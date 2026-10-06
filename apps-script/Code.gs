@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-10-03-v-evento-com-chamada';
+var VERSAO = '2026-10-06-v-relatorio-individual-varios';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -201,6 +201,8 @@ function executar(action, p) {
   // que "presencas" e "insightRodadas" ja nao entreguem a qualquer um; so
   // junta tudo de um integrante numa chamada so.
   if (action === 'relatorioIndividual') return relatorioIndividual(String(p.membroId || ''));
+  // O mesmo, pra varios integrantes de uma vez (o "Exportar varios em PDF").
+  if (action === 'relatorioIndividualVarios') return relatorioIndividualVarios(listaDe(p.membroIds));
   // 30 (nao 5) desde a aba "Por rodada" do Rank de Insights publico - antes
   // so precisava das ultimas 5 pro sparkline de tendencia, agora tambem
   // alimenta uma lista navegavel de rodadas passadas.
@@ -1995,11 +1997,12 @@ function calcularEstatisticasInsights() {
 //   igual o statusEfetivo do app faz.
 // - insight.elegivel: participa do Insight hoje (e de divisao e nao esta em
 //   InsightExcluidos). Mesmo criterio de membrosElegiveisInsight.
-function relatorioIndividual(membroId) {
-  if (!membroId) throw new Error('Faltou o integrante');
-  var membro = lerMembros().filter(function (m) { return m.id === membroId; })[0];
-  if (!membro) return { ok: false, erro: 'Integrante nao encontrado' };
-
+//
+// O trabalho e repartido em dois: ler as abas (uma vez) e montar um
+// integrante a partir do que foi lido. Assim o "Exportar varios em PDF"
+// (relatorioIndividualVarios) monta dezenas de integrantes lendo as abas
+// uma vez so, com a mesma regra de um.
+function tabelasDoRelatorioIndividual() {
   var encerrados = {};
   linhas(aba(ABA_EVENTOS, CAB_EVENTOS)).forEach(function (l) {
     if (!l[0] || String(l[6]) !== 'encerrado') return;
@@ -2011,10 +2014,39 @@ function relatorioIndividual(membroId) {
     };
   });
 
-  var eventos = [];
+  // As presencas e as rodadas ja separadas por integrante.
+  var presencasPorMembro = {};
   linhas(aba(ABA_PRESENCAS, CAB_PRESENCAS)).forEach(function (l) {
-    if (String(l[2]) !== membroId) return;
-    var ev = encerrados[String(l[0])];
+    var mid = String(l[2] || '');
+    if (!mid) return;
+    (presencasPorMembro[mid] = presencasPorMembro[mid] || []).push(l);
+  });
+
+  var excluidos = {};
+  linhas(aba(ABA_INSIGHT_EXCLUIDOS, CAB_INSIGHT_EXCLUIDOS)).forEach(function (l) {
+    if (l[0]) excluidos[String(l[0])] = true;
+  });
+  var dataRodada = {};
+  linhas(aba(ABA_INSIGHT_RODADAS, CAB_INSIGHT_RODADAS)).forEach(function (l) {
+    if (l[0]) dataRodada[String(l[0])] = formatarData(l[1]);
+  });
+  var rodadasPorMembro = {};
+  linhas(aba(ABA_INSIGHT_PRESENCAS, CAB_INSIGHT_PRESENCAS)).forEach(function (l) {
+    var mid = String(l[1] || '');
+    if (!mid || !(String(l[0]) in dataRodada)) return;
+    (rodadasPorMembro[mid] = rodadasPorMembro[mid] || []).push(l);
+  });
+
+  return {
+    membros: lerMembros(), encerrados: encerrados, presencasPorMembro: presencasPorMembro,
+    excluidos: excluidos, dataRodada: dataRodada, rodadasPorMembro: rodadasPorMembro
+  };
+}
+
+function dadosDoRelatorioIndividual(t, membro) {
+  var eventos = [];
+  (t.presencasPorMembro[membro.id] || []).forEach(function (l) {
+    var ev = t.encerrados[String(l[0])];
     if (!ev) return;
     var status = statusParaChave(l[4]);
     eventos.push({
@@ -2024,25 +2056,40 @@ function relatorioIndividual(membroId) {
   });
   eventos.sort(function (a, b) { return (a.data || '').localeCompare(b.data || ''); });
 
-  var excluido = acharLinha(aba(ABA_INSIGHT_EXCLUIDOS, CAB_INSIGHT_EXCLUIDOS),
-    function (l) { return String(l[0]) === membroId; });
-  var dataRodada = {};
-  linhas(aba(ABA_INSIGHT_RODADAS, CAB_INSIGHT_RODADAS)).forEach(function (l) {
-    if (l[0]) dataRodada[String(l[0])] = formatarData(l[1]);
-  });
-  var rodadas = [];
-  linhas(aba(ABA_INSIGHT_PRESENCAS, CAB_INSIGHT_PRESENCAS)).forEach(function (l) {
-    if (String(l[1]) !== membroId || !(String(l[0]) in dataRodada)) return;
-    rodadas.push({ id: String(l[0]), data: dataRodada[String(l[0])], fez: ehSim(l[4]) });
+  var rodadas = (t.rodadasPorMembro[membro.id] || []).map(function (l) {
+    return { id: String(l[0]), data: t.dataRodada[String(l[0])], fez: ehSim(l[4]) };
   });
   rodadas.sort(function (a, b) { return (a.data || '').localeCompare(b.data || ''); });
 
   return {
-    ok: true,
     membro: membro,
     eventos: eventos,
-    insight: { elegivel: membro.divisao !== ESCOPOS_NOME.regional && !excluido, rodadas: rodadas }
+    insight: { elegivel: membro.divisao !== ESCOPOS_NOME.regional && !t.excluidos[membro.id], rodadas: rodadas }
   };
+}
+
+function relatorioIndividual(membroId) {
+  if (!membroId) throw new Error('Faltou o integrante');
+  var t = tabelasDoRelatorioIndividual();
+  var membro = t.membros.filter(function (m) { return m.id === membroId; })[0];
+  if (!membro) return { ok: false, erro: 'Integrante nao encontrado' };
+  var d = dadosDoRelatorioIndividual(t, membro);
+  return { ok: true, membro: d.membro, eventos: d.eventos, insight: d.insight };
+}
+
+// Varios integrantes numa chamada so, na ordem pedida (a ordem do PDF). Quem
+// nao existe mais no cadastro (removido enquanto a tela estava aberta) fica
+// de fora em silencio - o app avisa pela contagem.
+function relatorioIndividualVarios(membroIds) {
+  if (!membroIds.length) throw new Error('Nenhum integrante marcado');
+  var t = tabelasDoRelatorioIndividual();
+  var porId = {};
+  t.membros.forEach(function (m) { porId[m.id] = m; });
+  var relatorios = [];
+  membroIds.forEach(function (id) {
+    if (porId[id]) relatorios.push(dadosDoRelatorioIndividual(t, porId[id]));
+  });
+  return { ok: true, relatorios: relatorios };
 }
 
 // Espelho na planilha do "Rank de Insights" publico do app - ate aqui os
