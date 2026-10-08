@@ -31,8 +31,28 @@ import { acoes as acoesCalendario } from './telas/calendario.js';
 import { acoes as acoesMenuOrganizador, renderMenuOrganizador } from './telas/menu-organizador.js';
 import { acoes as acoesRelatorioIndividual, renderRelatorioIndividual } from './telas/relatorio-individual.js';
 
+// A tela nova entra subindo (.tela-entrando, no fim do estilo.css). So na
+// TROCA de tela: o app redesenha a cada toque e a cada resposta da
+// planilha, e animar todo redesenho faria a tela piscar. Num redesenho da
+// mesma tela a classe sai na hora, e o conteudo novo aparece parado.
+let telaAnterior = null;
+let fimDaEntrada = null;
+function marcarTrocaDeTela(app) {
+  const tela = [state.loading, state.view, state.homeEventosAberto, state.homeEscopo,
+    state.homeTipo, state.adminTab, state.relatorioTab].join('|');
+  clearTimeout(fimDaEntrada);
+  if (tela === telaAnterior) {
+    app.classList.remove('tela-entrando');
+    return;
+  }
+  telaAnterior = tela;
+  app.classList.add('tela-entrando');
+  fimDaEntrada = setTimeout(() => app.classList.remove('tela-entrando'), 800);
+}
+
 function render() {
   const app = document.getElementById('app');
+  marcarTrocaDeTela(app);
   if (state.loading) {
     app.innerHTML = '<div class="loading">Carregando…</div>';
     return;

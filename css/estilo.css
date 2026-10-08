@@ -87,7 +87,10 @@ h1, h2, h3, .display {
   justify-content: space-between;
   cursor: pointer;
 }
-.event-card:active { background: var(--surface-alt); }
+/* background-color, e NUNCA o atalho "background": o atalho zera o
+   background-size dos cards de arte (que vem da classe, nao do style), e no
+   toque a imagem aparecia no tamanho original, gigante e cortada. */
+.event-card:active { background-color: var(--surface-alt); }
 .event-card .name { font-size: 18px; font-family: 'Rye', serif; font-weight: 400; color: var(--white-strong); padding-right: 56px; }
 .event-card .meta { font-size: 12px; color: var(--text-muted); margin-top: 5px; font-family: 'IBM Plex Sans', sans-serif; }
 .event-card .arrow { color: var(--text-muted); font-size: 20px; font-family: 'IBM Plex Sans', sans-serif; }
@@ -97,13 +100,13 @@ h1, h2, h3, .display {
    proprio :active (mais escuro que o normal), senao o toque no celular
    ficaria sem feedback nesses cards. */
 .event-card.tipo-pub { background: rgba(224, 178, 60, 0.14); border-left: 3px solid #E0B23C; }
-.event-card.tipo-pub:active { background: rgba(224, 178, 60, 0.24); }
+.event-card.tipo-pub:active { background-color: rgba(224, 178, 60, 0.24); }
 .event-card.tipo-bate-e-volta { background: rgba(217, 87, 60, 0.14); border-left: 3px solid #D9573C; }
-.event-card.tipo-bate-e-volta:active { background: rgba(217, 87, 60, 0.24); }
+.event-card.tipo-bate-e-volta:active { background-color: rgba(217, 87, 60, 0.24); }
 .event-card.tipo-acao-social { background: rgba(76, 175, 110, 0.14); border-left: 3px solid #4CAF6E; }
-.event-card.tipo-acao-social:active { background: rgba(76, 175, 110, 0.24); }
+.event-card.tipo-acao-social:active { background-color: rgba(76, 175, 110, 0.24); }
 .event-card.tipo-reuniao { background: rgba(76, 134, 217, 0.14); border-left: 3px solid #4C86D9; }
-.event-card.tipo-reuniao:active { background: rgba(76, 134, 217, 0.24); }
+.event-card.tipo-reuniao:active { background-color: rgba(76, 134, 217, 0.24); }
 /* Tela "Escolha o tipo de evento" (renderHomeTipos) - icone grande em
    anel colorido + frase de efeito por tipo. Cards com imagem de fundo
    usam filter:brightness no toque em vez de trocar o background (que so
@@ -1239,4 +1242,235 @@ label {
   font-size: clamp(6.5px, 1.1vw, 10.5px); letter-spacing: 0.06em;
   color: var(--line-strong); font-family: 'IBM Plex Sans', sans-serif;
   white-space: nowrap;
+}
+
+/* ========================================================================
+   ACABAMENTO: vidro, profundidade e movimento (08/10/2026)
+   Uma camada por cima do resto, de proposito no fim do arquivo: nao muda a
+   identidade (preto e branco, cor so onde significa), so da volume. Os
+   cards viram vidro escuro (a foto de fundo aparece desfocada por tras), os
+   botoes ganham relevo e reflexo, e o toque afunda o elemento em vez de so
+   escurecer. Para desfazer, e apagar este bloco.
+   ======================================================================== */
+:root {
+  --radius-lg: 10px;
+  --vidro: linear-gradient(180deg, rgba(38, 37, 35, 0.78) 0%, rgba(16, 16, 15, 0.86) 100%);
+  --sombra-card: 0 1px 0 rgba(255, 255, 255, 0.07) inset, 0 10px 28px -6px rgba(0, 0, 0, 0.75), 0 2px 6px rgba(0, 0, 0, 0.5);
+  --sombra-card-funda: 0 1px 0 rgba(255, 255, 255, 0.10) inset, 0 18px 38px -8px rgba(0, 0, 0, 0.85), 0 4px 10px rgba(0, 0, 0, 0.55);
+  --mola: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* ---- Cards: vidro escuro com volume ---- */
+.card {
+  /* background-color + background-image, e nao o atalho "background": o
+     atalho zeraria o background-size dos cards de arte (ver .event-card:active). */
+  background-color: transparent;
+  background-image: var(--vidro);
+  border-color: rgba(255, 255, 255, 0.09);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--sombra-card);
+  -webkit-backdrop-filter: blur(14px) saturate(130%);
+  backdrop-filter: blur(14px) saturate(130%);
+  transition: transform 0.18s var(--mola), box-shadow 0.18s var(--mola), filter 0.18s ease, background-color 0.18s ease;
+}
+/* O reflexo: uma luz vinda de cima, forte na borda e sumindo no meio do
+   card. Fica por cima da arte e do texto, mas e fraca o bastante pra nao
+   atrapalhar a leitura, e nao pega o toque. */
+.card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(170deg, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0.03) 28%, transparent 50%);
+}
+/* O mural rola por dentro: o reflexo rolaria junto e ficaria pela metade. */
+.aviso-painel::after { display: none; }
+
+/* Cards que se tocam: sobem um pouco no mouse e afundam no toque. */
+.card[data-action], .event-card { cursor: pointer; }
+@media (hover: hover) {
+  .card[data-action]:hover, .event-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--sombra-card-funda);
+  }
+}
+.card[data-action]:active, .event-card:active {
+  transform: translateY(1px) scale(0.985);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 3px 8px rgba(0, 0, 0, 0.6);
+  transition-duration: 0.06s;
+}
+/* Cards de arte: o toque so escurece um pouco e afunda. Antes era 0.82,
+   forte demais junto com o afundar. */
+.menu-org-card:active, .tipo-home-card:active, .card-eventos-home:active,
+.card-admin-home:active, .card-rank-home:active, .card-regional-home:active,
+.card-divisao-home:active, .home-btn-organizador:active { filter: brightness(0.88); }
+
+/* Um brilho que atravessa o card de arte quando o mouse passa (so no
+   computador - no celular nao existe "passar por cima"). */
+.card-eventos-home::before, .card-rank-home::before, .card-admin-home::before,
+.card-regional-home::before, .card-divisao-home::before, .home-btn-organizador::before {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0; left: -60%;
+  width: 45%;
+  pointer-events: none;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.16), transparent);
+  transform: skewX(-18deg);
+  opacity: 0;
+}
+.card-eventos-home, .card-rank-home, .card-admin-home,
+.card-regional-home, .card-divisao-home, .home-btn-organizador { overflow: hidden; }
+@media (hover: hover) {
+  .card-eventos-home:hover::before, .card-rank-home:hover::before, .card-admin-home:hover::before,
+  .card-regional-home:hover::before, .card-divisao-home:hover::before, .home-btn-organizador:hover::before {
+    animation: brilho-passa 0.9s var(--mola);
+  }
+}
+@keyframes brilho-passa {
+  0% { left: -60%; opacity: 1; }
+  100% { left: 130%; opacity: 1; }
+}
+
+/* ---- Botoes: relevo e reflexo de vidro ---- */
+.btn {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, #FFFFFF 0%, #EFECE4 48%, #DCD8CE 52%, #E8E5DD 100%);
+  border-color: rgba(255, 255, 255, 0.85);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 -2px 0 rgba(0, 0, 0, 0.12) inset,
+    0 8px 18px -4px rgba(0, 0, 0, 0.6),
+    0 2px 4px rgba(0, 0, 0, 0.45);
+  transition: transform 0.16s var(--mola), box-shadow 0.16s var(--mola), filter 0.16s ease;
+}
+.btn.secondary, .btn.danger {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.04) 50%, rgba(255, 255, 255, 0.02) 100%);
+  border-color: rgba(255, 255, 255, 0.18);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.14) inset,
+    0 8px 18px -6px rgba(0, 0, 0, 0.7),
+    0 2px 4px rgba(0, 0, 0, 0.4);
+}
+.btn.danger {
+  background: linear-gradient(180deg, rgba(201, 90, 80, 0.20) 0%, rgba(201, 90, 80, 0.07) 100%);
+  border-color: rgba(201, 120, 110, 0.45);
+}
+/* Os botoes sobre a foto (on-photo) pedem fundo escuro proprio; o vidro
+   escuro faz esse papel, com mais contraste que o translucido claro. */
+.btn.secondary.on-photo, .btn.ghost.on-photo, .back-link.on-photo {
+  background: var(--vidro);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border-radius: var(--radius-lg);
+}
+/* O reflexo do botao: a metade de cima um pouco mais clara, como vidro. */
+.btn::after {
+  content: '';
+  position: absolute;
+  left: 1px; right: 1px; top: 1px;
+  height: 48%;
+  border-radius: calc(var(--radius-lg) - 1px) calc(var(--radius-lg) - 1px) 6px 6px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.02));
+  pointer-events: none;
+}
+.btn.ghost { box-shadow: none; background: transparent; overflow: visible; }
+.btn.ghost::after { display: none; }
+@media (hover: hover) {
+  .btn:not(.ghost):hover { transform: translateY(-1px); filter: brightness(1.06); }
+}
+.btn:not(.ghost):active {
+  opacity: 1;
+  transform: translateY(1px) scale(0.98);
+  filter: brightness(0.94);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.4) inset, 0 2px 5px rgba(0, 0, 0, 0.55);
+  transition-duration: 0.06s;
+}
+.btn.secondary:active, .btn.danger:active {
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 2px 5px rgba(0, 0, 0, 0.6);
+}
+
+/* ---- Escolhas (abas, chips, status): a mesma linguagem, mais leve ---- */
+.tab, .chip-option, .picker-btn, .toggle-chip, .confirm-toggle-btn {
+  border-radius: 8px;
+  transition: transform 0.14s var(--mola), background-color 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
+}
+.tab, .chip-option, .picker-btn, .toggle-chip {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.015));
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 3px 8px -2px rgba(0, 0, 0, 0.5);
+}
+.tab.active, .picker-btn.active {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.05));
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.18) inset, 0 0 0 1px rgba(245, 243, 236, 0.25), 0 6px 14px -4px rgba(0, 0, 0, 0.6);
+}
+.chip-option.active {
+  background: linear-gradient(180deg, #FFFFFF 0%, #EAE7DF 100%);
+  box-shadow: 0 1px 0 #fff inset, 0 6px 14px -4px rgba(0, 0, 0, 0.6);
+}
+.tab:active, .chip-option:active, .picker-btn:active, .toggle-chip:active, .confirm-toggle-btn:active {
+  transform: scale(0.96);
+  transition-duration: 0.05s;
+}
+input, select, textarea { border-radius: 8px; }
+/* Etiquetas pequenas (divisao, contagem, data, status): canto levemente
+   arredondado, pra conversar com os cards. O confirmado ganha um relevo
+   de botao, por ser o status que mais importa ver de longe. */
+.status-badge, .event-header .count-box, .event-date-badge, .count-box-report { border-radius: 6px; }
+.status-confirmado {
+  background: linear-gradient(180deg, #FFFFFF 0%, #E9E6DE 100%);
+  box-shadow: 0 1px 0 #fff inset, 0 3px 8px -2px rgba(0, 0, 0, 0.6);
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--line-strong);
+  box-shadow: 0 0 0 3px rgba(245, 243, 236, 0.08);
+}
+
+/* ---- Movimento ---- */
+/* A tela nova entra subindo, um bloco atras do outro. So na troca de tela
+   (o app.js poe a classe .tela-entrando por meio segundo): o app redesenha
+   a cada toque, e animar todo redesenho faria a tela piscar. */
+.tela-entrando > * { animation: entrar 0.42s var(--mola) both; }
+.tela-entrando > *:nth-child(2) { animation-delay: 0.04s; }
+.tela-entrando > *:nth-child(3) { animation-delay: 0.08s; }
+.tela-entrando > *:nth-child(4) { animation-delay: 0.12s; }
+.tela-entrando > *:nth-child(5) { animation-delay: 0.16s; }
+.tela-entrando > *:nth-child(6) { animation-delay: 0.20s; }
+.tela-entrando > *:nth-child(n+7) { animation-delay: 0.24s; }
+@keyframes entrar {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+/* A foto de fundo respira: aproxima e afasta bem devagar. */
+body::before { animation: respirar 40s ease-in-out infinite alternate; transform-origin: center 40%; }
+@keyframes respirar {
+  from { transform: scale(1); }
+  to { transform: scale(1.08); }
+}
+.loading { animation: pulsar 1.4s ease-in-out infinite; }
+@keyframes pulsar {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+/* Quem pediu menos movimento no aparelho fica sem nada disso. */
+@media (prefers-reduced-motion: reduce) {
+  .tela-entrando > *, body::before, .loading { animation: none !important; }
+  .card, .btn, .tab, .chip-option, .picker-btn, .toggle-chip { transition: none !important; }
+}
+
+/* ---- Papel: nada de vidro, sombra nem reflexo ---- */
+@media print {
+  .card, .btn.secondary, .btn.danger {
+    background: #fff !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+  }
+  .status-confirmado { box-shadow: none !important; }
+  .card::after, .btn::after, .card::before { display: none !important; }
+  .tela-entrando > * { animation: none !important; }
 }
