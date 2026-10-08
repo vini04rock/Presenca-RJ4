@@ -4,7 +4,7 @@ import { COR_TODOS_EVENTOS, TIPOS_EVENTO, TIPO_HOME_TAGLINE, classeTipoEvento, c
 import { state } from '../nucleo/estado.js';
 import { IMG_CALENDARIO_HOME, IMG_HOME_EVENTOS, IMG_MODO_ORGANIZADOR, IMG_RANK_INSIGHTS, IMG_RANK_PRESENCA, LOGO_SRC, TIPO_HOME_IMAGEM } from '../nucleo/imagens.js';
 import { diaDaSemana, escapeHtml, formatDataCurta, hexParaRgba, hojeISO, pastilhaQuando } from '../nucleo/util.js';
-import { renderCardEscopo } from '../ui/comuns.js';
+import { renderCardEscopo, seloConfirmados } from '../ui/comuns.js';
 import { openEvent } from '../fluxos/evento.js';
 import { render } from '../nucleo/render.js';
 
@@ -231,7 +231,7 @@ function renderHomeEventos(app) {
               <span class="nome-cortado">${escapeHtml(ev.nome)}</span>
               ${ev.tipo ? `<span class="nome-selo">${emojiTipoEvento(ev.tipo)}</span>` : ''}
             </div>
-            <div class="meta">${memberCount} ${memberCount === 1 ? 'membro' : 'membros'}</div>
+            <div class="meta">${pastilhaQuando(ev)}${seloConfirmados(ev)}${memberCount} ${memberCount === 1 ? 'membro' : 'membros'}</div>
           </div>
           <div class="arrow">›</div>
         </div>

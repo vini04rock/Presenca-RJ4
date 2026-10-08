@@ -222,6 +222,7 @@ async function carregarResponsavel(ev) {
     if (state.convocacaoEventoId !== ev.id) return;
     if (r.responsavel) state.convocacaoResponsavel = r.responsavel;
     state.convocacaoTextos = r.textos || {};
+    state.textosChamada = state.convocacaoTextos;
     state.convocacaoRespEstado = 'pronto';
   } catch (e) {
     if (state.convocacaoEventoId !== ev.id) return;
@@ -314,6 +315,7 @@ export const acoes = {
       // codificados, não cabe com folga numa URL.
       await apiPost('textoChamadaSalvar', { chave, texto });
       state.convocacaoTextos = { ...state.convocacaoTextos, [chave]: texto };
+      state.textosChamada = state.convocacaoTextos;
       state.convocacaoTextoEditando = null;
       state.convocacaoTextoMsg = { chave, texto: texto ? '✅ Salvo para a RJ4 inteira.' : '✅ Voltou ao texto padrão.' };
     } catch (err) {

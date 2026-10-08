@@ -146,6 +146,18 @@ export async function loadRelatoriosIndividuaisVarios(membroIds) {
 //
 // Falha de um evento nao apaga o que ja havia: sem presencas, quem desenha
 // mostra "carregando", nao um numero errado.
+// As Regras do clube (e a Atencao) que o Regional personalizou, pra
+// mensagem de cobranca terminar com o mesmo texto da chamada. Vem junto com
+// o responsavel (acao que pede PIN - o organizador ja tem). Uma vez por
+// sessao; falhou, fica o padrao do app, sem aviso nenhum.
+export async function carregarTextosChamada() {
+  if (state.textosChamada) return;
+  try {
+    const r = await api('responsavel', { categoria: state.adminEscopo });
+    state.textosChamada = r.textos || {};
+  } catch (e) { /* fica o padrao */ }
+}
+
 export async function loadPresencasProximas(eventos) {
   if (!eventos.length) return;
   const results = await emLotes(eventos, 5, e => api('presencas', { eventoId: e.id }));

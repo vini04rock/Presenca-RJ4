@@ -98,6 +98,10 @@ export let state = {
   // Quadros 6 e 7: { regras, atencao } salvos pelo Regional (vazio = padrao),
   // qual deles esta aberto para edicao e o texto da caixa enquanto isso.
   convocacaoTextos: {},
+  // Os mesmos textos personalizados (Regras do clube / Atencao), guardados
+  // pra fora da tela da chamada: a mensagem de "cobrar quem falta" termina
+  // com as Regras. null = ainda nao chegaram (vale o padrao).
+  textosChamada: null,
   convocacaoTextoEditando: null,
   convocacaoTextoRascunho: '',
   convocacaoTextoSalvando: false,

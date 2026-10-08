@@ -5,8 +5,10 @@ import { historicoMembro } from '../dominio/estatisticas.js';
 import { COR_DIVISAO, COR_TODOS_EVENTOS, STATUS, STATUS_PICKER_KEYS, funcaoPorChave } from '../nucleo/config.js';
 import { getMemberStatus, state } from '../nucleo/estado.js';
 import { IMG_DIVISAO, IMG_REGIONAL } from '../nucleo/imagens.js';
-import { escapeHtml, formatDataBR, normalizarBusca, ordenarPorHierarquia, vibrar } from '../nucleo/util.js';
+import { copiarTexto, escapeHtml, formatDataBR, mostrarAviso, normalizarBusca, ordenarPorHierarquia, vibrar } from '../nucleo/util.js';
 import { renderDonutChart, renderSparklineTendencia, segmentosDonutStatus } from './graficos.js';
+import { quemFalta, textoCobranca } from '../dominio/pendencias.js';
+import { textoEfetivo } from '../dominio/convocacao.js';
 import { loadEventStatus } from '../dados/carregar.js';
 import { gravarAgora, setMemberStatus } from '../fila/presenca.js';
 import { render } from '../nucleo/render.js';
@@ -119,6 +121,42 @@ const NIVEL_DO_GRAU = { I: 'ouro', II: 'ouro', III: 'ouro', IV: 'ouro', V: 'ouro
 export function nivelDoGrau(grau) { return NIVEL_DO_GRAU[grau] || 'base'; }
 function selinhoIniciais(m) {
   return `<span class="iniciais iniciais-${nivelDoGrau(m.grau)}" aria-hidden="true">${escapeHtml(iniciais(m.nome))}</span>`;
+}
+
+// O anel pequeno de confirmados: enche conforme o pessoal confirma, a
+// mesma ideia da rosca dos relatorios em miniatura. Na capa do evento e nos
+// cards de evento do organizador.
+export function anelConfirmados(feitos, total) {
+  const r = 7, C = 2 * Math.PI * r;
+  const frac = total ? feitos / total : 0;
+  return `
+    <svg class="anel-confirmados" width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+      <circle cx="9" cy="9" r="${r}" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="2.5"></circle>
+      <circle class="anel-confirmados-cheio" cx="9" cy="9" r="${r}" fill="none" stroke="var(--status-confirmado)" stroke-width="2.5"
+        stroke-linecap="round" stroke-dasharray="${(frac * C).toFixed(2)} ${C.toFixed(2)}" transform="rotate(-90 9 9)"></circle>
+    </svg>
+  `;
+}
+
+// O anel com "3/17" nos cards de evento das listas. So aparece se as
+// respostas daquele evento ja estiverem na memoria (o organizador costuma
+// ter): buscar evento por evento so pra isto deixaria a lista lenta.
+export function seloConfirmados(ev) {
+  const presencas = state.reportData[ev.id];
+  const total = (ev.memberIds || []).length;
+  if (!presencas || !total) return '';
+  const feitos = ev.memberIds.filter(id => presencas[id] && presencas[id].status === 'confirmado').length;
+  return `<span class="selo-confirmados">${anelConfirmados(feitos, total)}${feitos}/${total}</span>`;
+}
+
+// O status de cada convocado pra "cobrar quem falta": da tela do evento
+// aberto, quando e ele, ou das presencas que o mural/organizador buscou.
+// null = ainda nao da pra saber (nada carregado).
+function statusParaCobranca(ev) {
+  if (state.currentEventId === ev.id && state.statusLoaded) return id => getMemberStatus(id).status;
+  const presencas = state.reportData[ev.id];
+  if (!presencas) return null;
+  return id => presencas[id] && presencas[id].status;
 }
 
 export function renderConfirmadoRow(m, i) {
@@ -365,6 +403,16 @@ export const acoes = {
   },
   'retry-status': async (id, target, action, e) => {
     return loadEventStatus(state.currentEventId);
+  },
+  // "Cobrar quem falta": copia pro WhatsApp a lista de quem ainda esta
+  // aguardando. Fica no mural e na tela do evento (so pro organizador).
+  'copiar-cobranca': async (id, target, action, e) => {
+    const ev = state.events.find(x => x.id === id);
+    const statusDe = ev && statusParaCobranca(ev);
+    if (!statusDe) return mostrarAviso('Ainda carregando as respostas. Tente de novo em instantes.');
+    const faltam = quemFalta(ev, statusDe);
+    if (!faltam.length) return mostrarAviso('✅ Todo mundo já respondeu.');
+    return copiarTexto(textoCobranca(ev, faltam, textoEfetivo(state.textosChamada, 'regras')));
   },
   'toggle-member': async (id, target, action, e) => {
     state.expandedMemberId = state.expandedMemberId === id ? null : id;

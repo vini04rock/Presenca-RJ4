@@ -1917,6 +1917,39 @@ input.busca-membro:focus { border-color: rgba(245, 243, 236, 0.45); box-shadow: 
   #pastilha-salvar { transition: none !important; }
 }
 
+/* ---- Cobrar quem falta ---- */
+/* No mural: uma pastilha pequena no lugar da seta, so quando falta gente. */
+.aviso-cobrar {
+  flex-shrink: 0;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(217, 87, 60, 0.6);
+  background: linear-gradient(180deg, rgba(217, 87, 60, 0.24), rgba(217, 87, 60, 0.08));
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.10) inset, 0 3px 8px -2px rgba(0, 0, 0, 0.6);
+  color: #F2B6A8;
+  font-family: 'IBM Plex Sans', sans-serif; font-size: 11px; font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.12s var(--mola);
+}
+.aviso-cobrar:active { transform: scale(0.94); }
+/* No evento (so organizador): logo abaixo da capa. */
+.botao-cobrar { margin: -6px 0 16px; border-color: rgba(217, 87, 60, 0.5); color: #F2B6A8; }
+
+/* ---- Contagem e anel nos cards das listas de eventos ---- */
+.selo-confirmados {
+  display: inline-flex; align-items: center; gap: 4px;
+  margin-right: 6px;
+  font-size: 11px; font-weight: 700; color: var(--white-strong);
+  font-variant-numeric: tabular-nums; vertical-align: middle;
+}
+.selo-confirmados .anel-confirmados { width: 15px; height: 15px; }
+.event-card .meta .contagem, .meta-card-evento .contagem { font-size: 10px; padding: 1px 7px; }
+.meta-card-evento {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 4px 0;
+  margin-top: 6px;
+  color: var(--text-muted); font-size: 12px;
+}
+
 /* ---- Papel: nada de vidro, sombra nem reflexo ---- */
 @media print {
   .card, .btn.secondary, .btn.danger {
@@ -1936,7 +1969,7 @@ input.busca-membro:focus { border-color: rgba(245, 243, 236, 0.45); box-shadow: 
   .evento-capa { background: #fff !important; box-shadow: none !important; }
   .evento-capa::before, .empty::before, .barra-fixa { display: none !important; }
   .carteirinha { background: #fff !important; box-shadow: none !important; border-color: #000 !important; }
-  .carteirinha::after, #pastilha-salvar, .busca-membro { display: none !important; }
+  .carteirinha::after, #pastilha-salvar, .busca-membro, .botao-cobrar, .aviso-cobrar { display: none !important; }
   .carteirinha-nome, .carteirinha-pct b { color: #000 !important; text-shadow: none !important; }
   .carteirinha-pct { box-shadow: none !important; background: none !important; }
   .tela-entrando > * { animation: none !important; }

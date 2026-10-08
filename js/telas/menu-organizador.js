@@ -10,7 +10,7 @@
 // entrada, nao o unico caminho.
 
 import { JANELA_DIAS, eventosProximos, semResposta } from '../dominio/pendencias.js';
-import { loadPresencasProximas } from '../dados/carregar.js';
+import { carregarTextosChamada, loadPresencasProximas } from '../dados/carregar.js';
 import { escopoPorChave, escoposAtivos } from '../nucleo/config.js';
 import { diaDaSemana, formatDataBR, quando } from '../nucleo/util.js';
 import { state } from '../nucleo/estado.js';
@@ -89,7 +89,9 @@ function linhaAviso({ ev, dias }) {
         <div class="aviso-meta">${escapeHtml(detalhe)}</div>
         <div class="aviso-contagem" style="color:${pendente ? cor : 'var(--text-muted)'};">${escapeHtml(contagem)}</div>
       </div>
-      <div class="aviso-seta">›</div>
+      ${pendente
+        ? `<button class="aviso-cobrar" data-action="copiar-cobranca" data-id="${ev.id}" title="Copiar a lista de quem falta pro WhatsApp">📋 Cobrar</button>`
+        : '<div class="aviso-seta">›</div>'}
     </div>
   `;
 }
@@ -119,6 +121,7 @@ function avisoEventosProximos() {
 export async function entrarNoMenuOrganizador() {
   state.view = 'admin-menu';
   render();
+  carregarTextosChamada();
   return loadPresencasProximas(eventosProximos(state.adminEscopo).map(x => x.ev));
 }
 

@@ -27,7 +27,7 @@ Todo `git push` atualiza o site no ar em cerca de 1 minuto.
 
 ## Backend — Google Apps Script
 
-URL do Web App (constante `API_URL` no `index.html`):
+URL do Web App (constante `API_URL` em `js/nucleo/api.js`):
 
     https://script.google.com/macros/s/AKfycbyotQH6FypFdkC6D42WQHszNiuG29wqIBal2jBcwXdoCsT-Om_0gyDxFE02hxfwrZegxw/exec
 

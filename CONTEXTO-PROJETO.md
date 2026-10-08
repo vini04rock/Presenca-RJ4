@@ -27,7 +27,7 @@ Três modos de entrada, todos no mesmo link:
 - HTML + CSS + JavaScript puro, em **módulos ES nativos**. Sem framework,
   sem build step, sem dependências além das fontes do Google.
 - `index.html` é só o esqueleto; o visual em `css/estilo.css`; o código em
-  `js/`, repartido em 39 módulos.
+  `js/`, repartido em 40 módulos.
 - Hospedado no GitHub Pages (estático). Todo `git push` atualiza o site.
 - Backend: planilha do Google Sheets via Apps Script publicado como Web App.
   A URL fica em `API_URL`, em `js/nucleo/api.js`.
@@ -193,6 +193,17 @@ frente (`JANELA_DIAS`), dizendo quantos convocados ainda não responderam.
 Existe justamente porque não responder vira falta não justificada: a janela
 é a última chance de cobrar quem falta, e sem ela a pessoa levaria a falta
 sem nunca ter sido cutucada.
+
+Por isso cada aviso com gente faltando tem o botão **📋 Cobrar**, e a tela
+do evento, aberta pelo organizador, tem o **📋 Cobrar quem falta (N)**. Os
+dois copiam para o WhatsApp a lista de quem está ⚠️ Aguardando, em ordem
+hierárquica (no regional, um bloco por divisão, na ordem oficial),
+terminando com as **Regras do clube**, o mesmo bloco da chamada (prazo da
+justificativa e Respaldo RDI): o padrão, ou o que o Regional personalizou.
+O texto personalizado é buscado na entrada do menu do organizador
+(`carregarTextosChamada`, junto com o responsável); se não chegar, vale o
+padrão. A lista e o texto ficam em `quemFalta`/`textoCobranca`
+(`dominio/pendencias.js`), com teste no `regras.mjs`.
 
 Três decisões que valem lembrar antes de mexer nele:
 
@@ -449,8 +460,8 @@ a cada mudança:
 | `servidor.py` | serve o app local com o cache desligado |
 | `estrutura.py` | 7 verificações: imports circulares, hierarquia de camadas, sintaxe, nome sem import, import sobrando, ações sem tratador |
 | `regras.mjs` | as regras do clube que, se quebrarem, saem erradas numa convocação sem ninguém perceber |
-| `telas.mjs` | desenha as 90 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
-| `planilha.mjs` | roda o `Code.gs` de verdade contra uma planilha de mentira; hoje cobre o encerramento automático |
+| `telas.mjs` | desenha as 92 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
+| `planilha.mjs` | roda o `Code.gs` de verdade contra uma planilha de mentira: encerramento automático, PIN, relatório individual, responsável, textos e chamada do evento |
 
 O `--html` do `telas.mjs` é a rede de proteção mais útil: captura o HTML de
 todas as telas, você mexe, captura de novo e compara. Diferença que aparecer
@@ -468,15 +479,61 @@ sem quebrar nada. Detalhes em [ferramentas/README.md](ferramentas/README.md).
 - O crest e as artes dos cards ficam em `img/` (já foram base64 dentro do
   HTML; saíram na reorganização, que derrubou o `index.html` de 1,1 MB para
   16 linhas).
+- **Os emojis são regra do clube, não enfeite.** Os dos status, dos tipos,
+  das funções e da legenda são o padrão interno do Insanos MC, usado nas
+  convocações e no grupo. Nada pode removê-los, escondê-los ou trocá-los
+  por ícones; melhoria visual entra em volta deles (cor, barra, relevo).
+  Pelo mesmo motivo, os títulos com emoji ganham só o relevo de metal, e
+  não o ouro recortado no texto, que apagaria o emoji.
+
+## Visual e movimento
+
+Desde 08/10/2026 o app tem uma camada de acabamento: cards de vidro escuro
+(a foto de fundo desfocada por trás), botões com relevo e reflexo, e
+movimento. Quase tudo está no fim do `css/estilo.css`, a partir de
+"ACABAMENTO", e apagar aquele trecho volta ao visual antigo. Regras que
+valem antes de mexer:
+
+- **Nunca o atalho `background:` num `:active`, `:hover` ou no `.card`.**
+  Os cards de arte recebem a imagem pelo `style` e o tamanho (`cover`) pela
+  classe; o atalho zera o tamanho, e a arte aparecia gigante no toque. Use
+  `background-color` / `background-image`.
+- **O app redesenha a tela inteira a cada toque**, então animação de CSS
+  pura rodaria de novo a cada confirmação. Quem decide o que se mexe é o
+  `app.js`:
+  - `.tela-entrando` só na **troca** de tela (a chave da tela fica em
+    `marcarTrocaDeTela`); entra pela direita, ou pela esquerda quando o toque
+    foi num "Voltar".
+  - `data-anima="chave"` desenha uma vez por tela (rosca, barras, linha,
+    carteirinha); `data-conta` faz o número subir de 0 até o valor; o HTML
+    já nasce com o valor final.
+  - `data-muda="lugar"` + `data-valor` faz o elemento saltar quando o valor
+    daquele lugar muda (o selo de status de um integrante). Na primeira vez
+    que aparece, só é lembrado.
+- **A busca "Ache seu nome" não redesenha**: redesenhar fecharia o teclado
+  do celular. Todas as linhas do evento vão para o HTML, inclusive as das
+  divisões fechadas, e `aplicarBusca` (`ui/comuns.js`) só liga e desliga
+  classes. Ela roda a cada letra e depois de todo redesenho.
+- **Fora do `#app`**, porque o `#app` é refeito a cada toque: o aviso
+  flutuante (`mostrarAviso`, que todo "copiar" usa) e a pastilha
+  "Salvando… / Salvo" (`atualizarPastilhaSalvar`). O **erro** ao salvar
+  continua como faixa na tela, de propósito.
+- **Pódio dos ranks** (`posicoesDoPodio`): empate divide a medalha, e o
+  seguinte fica com a próxima (dois ouros, depois prata). O Rank de
+  Presença ordena divisões e integrantes pelo %.
+- **Iniciais e carteirinha** usam a cor do grau (`nivelDoGrau`): ouro do I
+  ao V, prata no VI, bronze no VII e VIII, neutro no IX e X.
+- Quem pediu "reduzir movimento" no aparelho fica sem animação, e a
+  impressão/PDF desliga vidro, sombra e enfeites (`@media print`).
 
 ## Antes de subir
 
-Os três testes, que rodam offline e não tocam a planilha (ver a seção das
+Os quatro testes, que rodam offline e não tocam a planilha (ver a seção das
 ferramentas, acima):
 
     py ferramentas/estrutura.py     # imports, camadas, sintaxe, ações
     node ferramentas/regras.mjs     # ordem hierárquica e formato da convocação
-    node ferramentas/telas.mjs      # desenha as 90 telas e abas
+    node ferramentas/telas.mjs      # desenha as 92 telas e abas
     node ferramentas/planilha.mjs   # o encerramento automático, no Code.gs
 
 Eles dizem que o app **não quebrou**, não que está bonito: não cobrem

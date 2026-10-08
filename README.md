@@ -62,11 +62,12 @@ para versionar e revisar, e precisa ser colada lá a cada alteração.
 
 ## Antes de dar push
 
-Dois testes que rodam offline, sem tocar na planilha:
+Quatro testes que rodam offline, sem tocar na planilha:
 
     py ferramentas/estrutura.py     # imports, camadas, sintaxe, ações
-    node ferramentas/regras.mjs     # ordem hierárquica (grau, cargo, nome)
-    node ferramentas/telas.mjs      # desenha as 51 telas e abas
+    node ferramentas/regras.mjs     # regras do clube: hierarquia, chamada, cobrança
+    node ferramentas/telas.mjs      # desenha as 92 telas e abas
+    node ferramentas/planilha.mjs   # o Code.gs contra uma planilha de mentira
 
 Detalhes e o que eles não cobrem: [ferramentas/README.md](ferramentas/README.md).
 

@@ -6,7 +6,7 @@ import { TIPO_HOME_IMAGEM } from '../nucleo/imagens.js';
 import { escapeHtml, formatDataBR, linkify, ordenarPorHierarquia, pastilhaQuando } from '../nucleo/util.js';
 import { resumoDoEvento } from '../dominio/convocacao.js';
 import { renderHome } from './home.js';
-import { renderConfirmadoRow, renderListaMembros, renderStatusBanner } from '../ui/comuns.js';
+import { anelConfirmados, renderConfirmadoRow, renderListaMembros, renderStatusBanner } from '../ui/comuns.js';
 import { render } from '../nucleo/render.js';
 
 // Tela cheia (nao um painel dentro do evento) com quem ja confirmou -
@@ -87,20 +87,6 @@ function renderInfoEvento(ev) {
 // A busca "Ache seu nome" so aparece em lista que da trabalho rolar.
 const MINIMO_PRA_BUSCA = 10;
 
-// O anel pequeno do botao de confirmados: enche conforme o pessoal
-// confirma, a mesma ideia da rosca dos relatorios em miniatura.
-function anelConfirmados(feitos, total) {
-  const r = 7, C = 2 * Math.PI * r;
-  const frac = total ? feitos / total : 0;
-  return `
-    <svg class="anel-confirmados" width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-      <circle cx="9" cy="9" r="${r}" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="2.5"></circle>
-      <circle class="anel-confirmados-cheio" cx="9" cy="9" r="${r}" fill="none" stroke="var(--status-confirmado)" stroke-width="2.5"
-        stroke-linecap="round" stroke-dasharray="${(frac * C).toFixed(2)} ${C.toFixed(2)}" transform="rotate(-90 9 9)"></circle>
-    </svg>
-  `;
-}
-
 // A capa: a arte do tipo como faixa, com o nome por cima e um degrade pra
 // ler. Tipo sem arte fica com a cor dele, sem imagem.
 function renderCapaEvento(ev, members, confirmados) {
@@ -125,6 +111,11 @@ function renderCapaEvento(ev, members, confirmados) {
         ${todosResponderam ? `<span class="todos-responderam" data-anima="todos:${ev.id}">✓ Todos responderam</span>` : ''}
       </div>
     </div>
+    ${state.isAdmin && state.statusLoaded && aguardando > 0 && ev.status !== 'encerrado' ? `
+      <button class="btn secondary block botao-cobrar" data-action="copiar-cobranca" data-id="${ev.id}">
+        📋 Cobrar quem falta (${aguardando})
+      </button>
+    ` : ''}
   `;
 }
 

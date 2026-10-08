@@ -5,8 +5,9 @@
 // Insight parado), mas cada uma so entra se valer o espaco - painel de
 // alerta cheio demais e painel que ninguem le.
 
+import { emojiTipoEvento, escopoPorChave, escoposNaOrdemOficial } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
-import { diasAte, hojeISO } from '../nucleo/util.js';
+import { diaDaSemana, diasAte, formatDataBR, hojeISO, ordenarPorHierarquia, quando } from '../nucleo/util.js';
 
 // Quantos dias antes o evento comeca a aparecer no aviso. O evento se
 // encerra sozinho na virada do dia dele, entao esta janela e a ultima
@@ -45,4 +46,48 @@ export function semResposta(ev) {
     return !p || !p.status || p.status === 'aguardando';
   }).length;
   return { faltam, total };
+}
+
+// Os convocados que ainda estao "aguardando", na ordem hierarquica.
+// statusDe(id) diz o status de cada um - a tela de evento le das
+// confirmacoes abertas, o mural das presencas que ele mesmo buscou.
+export function quemFalta(ev, statusDe) {
+  const membros = (ev.memberIds || [])
+    .map(id => state.roster.find(m => m.id === id))
+    .filter(Boolean)
+    .filter(m => {
+      const s = statusDe(m.id);
+      return !s || s === 'aguardando';
+    });
+  return ordenarPorHierarquia(membros);
+}
+
+// A mensagem de "cobrar quem falta", pronta pro WhatsApp. Evento regional
+// separa por divisao, na ordem oficial do clube (a mesma da chamada).
+// Termina com as Regras do clube - o mesmo bloco da chamada (prazo da
+// justificativa e o Respaldo RDI), que chega pronto em `regras`, uma linha
+// por item: o padrao do app ou o que o Regional personalizou.
+export function textoCobranca(ev, membros, regras) {
+  const linha = (m, i) => `${i + 1}. ${m.nome}${m.grau ? ` (${m.grau})` : ''}`;
+  const quandoTexto = quando(diasAte(ev.data));
+  const data = [diaDaSemana(ev.data), ev.data ? formatDataBR(ev.data) : '', quandoTexto].filter(Boolean).join(' · ');
+  const partes = [
+    '⚠️ *AINDA NÃO RESPONDERAM* ⚠️',
+    '',
+    `${ev.tipo ? emojiTipoEvento(ev.tipo) + ' ' : ''}*${ev.nome}*`,
+  ];
+  if (data) partes.push(`📅 ${data}`);
+  if (ev.categoria === 'regional') {
+    escoposNaOrdemOficial().forEach(e => {
+      const daDivisao = membros.filter(m => m.divisao === e.nome);
+      if (!daDivisao.length) return;
+      partes.push('', `*${e.nome.toUpperCase()}*`, ...daDivisao.map(linha));
+    });
+    const semDivisao = membros.filter(m => !escoposNaOrdemOficial().some(e => e.nome === m.divisao));
+    if (semDivisao.length) partes.push('', '*SEM DIVISÃO*', ...semDivisao.map(linha));
+  } else {
+    partes.push('', `*${escopoPorChave(ev.categoria).nome.toUpperCase()}*`, ...membros.map(linha));
+  }
+  partes.push('', ...regras);
+  return partes.join('\n');
 }

@@ -610,6 +610,40 @@ confere('em dezembro, 03/01 é do ano que vem',
   parseConvocacaoTexto('📅 Data: 03/01', new Date(2026, 11, 20)).evento.data, '2027-01-03');
 
 log('');
+log('=== cobrar quem falta ===');
+{
+  const { quemFalta, textoCobranca } = await import(url('dominio/pendencias.js'));
+  const { textoEfetivo } = await import(url('dominio/convocacao.js'));
+  st.roster = [
+    { id: 'c1', nome: 'Raposo', grau: 'VI', divisao: 'Barra - RJ4' },
+    { id: 'c2', nome: 'Costa', grau: 'VI', divisao: 'Barra - RJ4', cargo: 'Diretor' },
+    { id: 'c3', nome: 'Bravo', grau: 'X', divisao: 'Barra - RJ4' },
+    { id: 'c4', nome: 'Fabiano', grau: 'IX', divisao: 'Oeste - RJ4' },
+    { id: 'c5', nome: 'Bull', grau: 'V', divisao: 'Regional RJ4' },
+  ];
+  const status = { c1: 'aguardando', c2: 'aguardando', c3: 'confirmado', c4: undefined, c5: 'familia' };
+  const evDiv = { id: 'x', nome: 'Pub', data: '2026-10-09', categoria: 'barra', tipo: 'Pub', memberIds: ['c1', 'c2', 'c3'] };
+  const faltamDiv = quemFalta(evDiv, id => status[id]);
+  confere('só quem está aguardando, na ordem hierárquica (cargo antes do nome)', nomes(faltamDiv), ['Costa', 'Raposo']);
+  const regrasPadrao = textoEfetivo({}, 'regras');
+  const texto = textoCobranca(evDiv, faltamDiv, regrasPadrao).split('\n');
+  confere('a lista sai numerada com o grau', texto.filter(l => /^\d+\. /.test(l)), ['1. Costa (VI)', '2. Raposo (VI)']);
+  confere('termina com as Regras do clube, iguais às da chamada', texto.slice(-regrasPadrao.length), regrasPadrao);
+  confere('as Regras padrão são o prazo e o Respaldo RDI', [regrasPadrao[0], regrasPadrao[regrasPadrao.length - 1]],
+    ['Prazo para a justificativa: 1 dia antes do evento.', 'X - Faltar sem motivo justificado a evento oficial do MC.']);
+  confere('com Regras personalizadas, vale o texto do Regional',
+    textoCobranca(evDiv, faltamDiv, textoEfetivo({ regras: 'Regra nova' }, 'regras')).split('\n').slice(-1), ['Regra nova']);
+  confere('sem link nem a frase antiga', /Responda pelo app|Quem não responder/.test(texto.join('\n')), false);
+
+  // Regional: sem resposta (undefined) também é "falta responder", e cada
+  // divisão sai no seu bloco, na ordem oficial (Regional, Oeste, ..., Barra).
+  const evReg = { ...evDiv, categoria: 'regional', memberIds: ['c1', 'c2', 'c3', 'c4', 'c5'] };
+  const faltamReg = quemFalta(evReg, id => status[id]);
+  const blocos = textoCobranca(evReg, faltamReg, regrasPadrao).split('\n').filter(l => /^\*[A-Z]/.test(l) && !l.startsWith('*Pub'));
+  confere('regional: um bloco por divisão, na ordem oficial', blocos, ['*OESTE - RJ4*', '*BARRA - RJ4*']);
+}
+
+log('');
 log(falhas === 0 ? 'TUDO OK' : `${falhas} FALHA(S) — veja acima`);
 fs.writeFileSync(SAIDA, linhas.join('\n'), 'utf8');
 process.exit(falhas === 0 ? 0 : 1);

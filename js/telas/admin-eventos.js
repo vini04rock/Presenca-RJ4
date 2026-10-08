@@ -10,9 +10,9 @@ import { computeCounts, getReportGroups } from '../dominio/status.js';
 import { corTipoEvento, emojiTipoEvento, escoposAtivos } from '../nucleo/config.js';
 import { genId, state } from '../nucleo/estado.js';
 import { TIPO_HOME_IMAGEM } from '../nucleo/imagens.js';
-import { dataDoCampoOuAvisar, escapeHtml, formatDataBR, formatDataCurta, hexParaRgba } from '../nucleo/util.js';
+import { dataDoCampoOuAvisar, escapeHtml, formatDataBR, formatDataCurta, hexParaRgba, pastilhaQuando } from '../nucleo/util.js';
 import { camposDoEvento, chamadaParaGuardar, enderecoDoEvento, peVazio } from '../dominio/convocacao.js';
-import { campoData } from '../ui/comuns.js';
+import { campoData, seloConfirmados } from '../ui/comuns.js';
 import { caixa, guardarDigitado, quadro, quadroRoteiro, quadroTipo } from '../ui/quadros-chamada.js';
 import { renderDonutChart, segmentosDonutStatus } from '../ui/graficos.js';
 import { salvarOuAvisar } from '../dados/carregar.js';
@@ -96,7 +96,11 @@ export function renderAdminEventos() {
             ${ev.tipo ? `<div class="tipo-home-icone" style="border-color:${cor}; flex-shrink:0;">${emojiTipoEvento(ev.tipo)}</div>` : ''}
             <div style="min-width:0;">
               <div class="nome-evento-card">${escapeHtml(ev.nome)}</div>
-              <div style="color:var(--text-muted); font-size:12px; margin-top:5px;">${memberCount} membros · ${ev.status === 'encerrado' ? 'Encerrado' : 'Ativo'}</div>
+              <div class="meta-card-evento">
+                ${pastilhaQuando(ev)}
+                ${seloConfirmados(ev)}
+                <span>${memberCount} membros${ev.status === 'encerrado' ? '' : ' · Ativo'}</span>
+              </div>
             </div>
           </div>
           <div class="row-gap" style="margin-top:12px;">
