@@ -254,6 +254,12 @@ async function copiarSemAviso(texto) {
   }
 }
 
+// Pra comparar nomes na busca: sem acento e sem maiuscula, entao "fabio"
+// acha "FÁBIO BIG".
+export function normalizarBusca(texto) {
+  return String(texto || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+
 // O aviso flutuante: uma pastilha de vidro que sobe do pe da tela e some
 // sozinha. Vive fora do #app de proposito - o app redesenha o #app inteiro
 // a cada toque, e o aviso sumiria no meio da leitura.

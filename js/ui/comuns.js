@@ -5,7 +5,7 @@ import { historicoMembro } from '../dominio/estatisticas.js';
 import { COR_DIVISAO, COR_TODOS_EVENTOS, STATUS, STATUS_PICKER_KEYS, funcaoPorChave } from '../nucleo/config.js';
 import { getMemberStatus, state } from '../nucleo/estado.js';
 import { IMG_DIVISAO, IMG_REGIONAL } from '../nucleo/imagens.js';
-import { escapeHtml, formatDataBR, ordenarPorHierarquia, vibrar } from '../nucleo/util.js';
+import { escapeHtml, formatDataBR, normalizarBusca, ordenarPorHierarquia, vibrar } from '../nucleo/util.js';
 import { renderDonutChart, renderSparklineTendencia, segmentosDonutStatus } from './graficos.js';
 import { loadEventStatus } from '../dados/carregar.js';
 import { gravarAgora, setMemberStatus } from '../fila/presenca.js';
@@ -48,6 +48,13 @@ function renderSubtituloDivisao(nome, membros, aberto) {
       <span class="division-counts">
         ✅ ${c.confirmado} &nbsp; ⚠️ ${c.aguardando} &nbsp; ❌ ${c.faltam} &nbsp;·&nbsp; <b>${pct}%</b>
       </span>
+      ${membros.length ? `
+        <span class="barra-divisao" aria-hidden="true">
+          <i class="barra-divisao-confirmado" style="flex-grow:${c.confirmado}"></i>
+          <i class="barra-divisao-aguardando" style="flex-grow:${c.aguardando}"></i>
+          <i class="barra-divisao-falta" style="flex-grow:${c.faltam}"></i>
+        </span>
+      ` : ''}
     </div>
   `;
 }
@@ -57,17 +64,45 @@ function renderSubtituloDivisao(nome, membros, aberto) {
 // contagem ao vivo e numeracao reiniciando do 01) - os nomes so aparecem na
 // divisao que a pessoa abrir, pra nao rolar por todo mundo ate achar o
 // proprio nome.
+//
+// Todas as linhas vao pro HTML, mesmo as de divisao fechada (o CSS e que
+// esconde): assim a busca "Ache seu nome" acha qualquer um sem redesenhar.
 export function renderListaMembros(ev, members) {
   if (ev.categoria === 'regional') {
     return agruparPorDivisao(members).map(grupo => {
       const aberto = state.expandedDivisoes.has(grupo.divisao);
       return `
-        ${renderSubtituloDivisao(grupo.divisao, grupo.membros, aberto)}
-        ${aberto ? grupo.membros.map((m, i) => renderMemberRow(m, i)).join('') : ''}
+        <div class="grupo-divisao${aberto ? ' aberto' : ''}">
+          ${renderSubtituloDivisao(grupo.divisao, grupo.membros, aberto)}
+          <div class="grupo-linhas">${grupo.membros.map((m, i) => renderMemberRow(m, i)).join('')}</div>
+        </div>
       `;
     }).join('');
   }
   return ordenarPorHierarquia(members).map((m, i) => renderMemberRow(m, i)).join('');
+}
+
+// A busca do evento. Mexe so em classes, sem redesenhar a tela: redesenhar
+// a cada letra fecharia o teclado do celular. Roda a cada letra digitada e
+// depois de todo redesenho (pra busca continuar valendo quando a pessoa
+// marca o status de quem achou). Com busca, a divisao que tem alguem
+// abre sozinha, e a que nao tem some.
+export function aplicarBusca(raiz) {
+  const lista = raiz.querySelector('.lista-membros');
+  if (!lista) return;
+  const termo = normalizarBusca(state.buscaMembro);
+  lista.classList.toggle('buscando', !!termo);
+  let achados = 0;
+  lista.querySelectorAll('.member-row[data-busca]').forEach(linha => {
+    const bate = !termo || linha.dataset.busca.includes(termo);
+    linha.classList.toggle('fora-da-busca', !bate);
+    if (bate) achados++;
+  });
+  lista.querySelectorAll('.grupo-divisao').forEach(g => {
+    g.classList.toggle('tem-resultado', !!g.querySelector('.member-row[data-busca]:not(.fora-da-busca)'));
+  });
+  const vazio = lista.querySelector('.busca-vazia');
+  if (vazio) vazio.hidden = !(termo && !achados);
 }
 
 // As iniciais do integrante num circulo, com o anel na cor do grau: ouro do
@@ -81,8 +116,9 @@ function iniciais(nome) {
   return letras.toUpperCase();
 }
 const NIVEL_DO_GRAU = { I: 'ouro', II: 'ouro', III: 'ouro', IV: 'ouro', V: 'ouro', VI: 'prata', VII: 'bronze', VIII: 'bronze' };
+export function nivelDoGrau(grau) { return NIVEL_DO_GRAU[grau] || 'base'; }
 function selinhoIniciais(m) {
-  return `<span class="iniciais iniciais-${NIVEL_DO_GRAU[m.grau] || 'base'}" aria-hidden="true">${escapeHtml(iniciais(m.nome))}</span>`;
+  return `<span class="iniciais iniciais-${nivelDoGrau(m.grau)}" aria-hidden="true">${escapeHtml(iniciais(m.nome))}</span>`;
 }
 
 export function renderConfirmadoRow(m, i) {
@@ -121,12 +157,10 @@ export function renderStatusBanner() {
   if (!state.statusLoaded) {
     return '<div class="alert info"><div class="alert-msg">Carregando as confirmações…</div></div>';
   }
-  if (state.saveState === 'saving') {
-    return '<div class="alert info"><div class="alert-msg">Salvando… pode continuar marcando.</div></div>';
-  }
-  if (state.saveState === 'saved') {
-    return '<div class="alert ok"><div class="alert-msg">✅ Salvo na planilha</div></div>';
-  }
+  // "Salvando…" e "Salvo" nao entram mais aqui: viraram a pastilha que
+  // flutua no pe da tela (atualizarPastilhaSalvar, no app.js). Como faixa,
+  // eles empurravam a lista pra baixo a cada toque. O erro continua aqui,
+  // de proposito: esse a pessoa nao pode deixar de ver.
   if (state.saveState === 'error') {
     return `
       <div class="alert">
@@ -145,7 +179,7 @@ function renderMemberRow(m, i) {
   const isOpen = state.expandedMemberId === m.id;
   const travado = !state.statusLoaded;
   return `
-    <div class="member-row${travado ? ' travado' : ''}">
+    <div class="member-row${travado ? ' travado' : ''}" data-busca="${escapeHtml(normalizarBusca(m.nome))}">
       <div class="member-head" ${travado ? '' : `data-action="toggle-member" data-id="${m.id}"`}>
         <div class="member-info-wrap">
         <div class="member-info">
@@ -161,11 +195,11 @@ function renderMemberRow(m, i) {
         </div>
         <span class="status-badge status-${st.status}"${travado ? '' : ` data-muda="${state.currentEventId}:${m.id}" data-valor="${st.status}"`}>${s.emoji} ${s.label}</span>
       </div>
-      <div class="picker ${isOpen ? 'open' : ''}">
+      <div class="picker ${isOpen ? 'open' : ''}${isOpen && state.pickerAbrindo === m.id ? ' abrindo' : ''}">
         <div class="picker-group">
           ${STATUS_PICKER_KEYS.map(key => [key, STATUS[key]]).map(([key, val]) => `
-            <button class="picker-btn ${st.status === key ? 'active' : ''}" data-action="set-status" data-id="${m.id}" data-status="${key}">
-              ${val.emoji} ${val.label}
+            <button class="picker-btn picker-${key} ${st.status === key ? 'active' : ''}" data-action="set-status" data-id="${m.id}" data-status="${key}">
+              <span class="picker-emoji">${val.emoji}</span> ${val.label}
             </button>
           `).join('')}
         </div>
@@ -334,7 +368,9 @@ export const acoes = {
   },
   'toggle-member': async (id, target, action, e) => {
     state.expandedMemberId = state.expandedMemberId === id ? null : id;
-    return render();
+    state.pickerAbrindo = state.expandedMemberId;
+    render();
+    state.pickerAbrindo = null;
   },
   'toggle-divisao-grupo': async (id, target, action, e) => {
     const nome = target.dataset.value;

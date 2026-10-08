@@ -22,6 +22,12 @@ export let state = {
   isAdmin: false,
   adminTab: 'eventos',
   expandedMemberId: null,
+  // O que esta digitado na busca "Ache seu nome" da tela de evento. Filtra
+  // a lista sem redesenhar (ver aplicarBusca, em ui/comuns.js).
+  buscaMembro: '',
+  // O painel de status que ACABOU de abrir - so nesse redesenho ele entra
+  // deslizando; nos seguintes (cada toque redesenha) ele ja esta aberto.
+  pickerAbrindo: null,
   // Quais divisoes estao abertas na lista de um evento regional - comeca
   // vazio (tudo fechado), so mostra os nomes da divisao que a pessoa clicar.
   expandedDivisoes: new Set(),

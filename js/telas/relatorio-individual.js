@@ -15,8 +15,9 @@
 import { montarRelatorioIndividual, textoDoPeriodo, textoRelatorioIndividual } from '../dominio/relatorio-individual.js';
 import { emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao, STATUS } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
+import { LOGO_SRC } from '../nucleo/imagens.js';
 import { copiarTexto, dataDoCampoOuAvisar, escapeHtml, formatDataBR, ordenarPorHierarquia } from '../nucleo/util.js';
-import { campoData, linhaFuncoes } from '../ui/comuns.js';
+import { campoData, linhaFuncoes, nivelDoGrau } from '../ui/comuns.js';
 import { renderDonutChart, renderSparklineTendencia, segmentosDonutStatus } from '../ui/graficos.js';
 import { loadRelatorioIndividual, loadRelatoriosIndividuaisVarios } from '../dados/carregar.js';
 import { render } from '../nucleo/render.js';
@@ -198,14 +199,30 @@ function geradoEm() {
   return `<div class="print-only" style="margin-bottom:10px; font-size:12px; color:var(--text-muted);">Gerado em ${escapeHtml(new Date().toLocaleString('pt-BR'))}</div>`;
 }
 
-function cabecalhoMembro(m) {
+// A "carteirinha" do integrante: emblema, nome, grau com o anel da cor
+// dele (ouro/prata/bronze, igual as iniciais das listas), cargo, divisao e
+// o % de presenca em destaque - o da divisao, ou o do Regional pra quem e
+// do Regional. Sai igual na tela e no PDF.
+function cabecalhoMembro(m, r) {
   const detalhe = [m.cargo, m.divisao].filter(Boolean).map(escapeHtml).join(' · ');
+  const bloco = r.divisao || r.regional;
+  const pct = bloco && bloco.geral.percentual !== null ? bloco.geral.percentual : null;
   return `
-    <div class="card" style="margin-bottom:14px;">
-      <div style="font-family:'Rye',serif; font-size:19px; color:var(--white-strong);">${escapeHtml(m.nome)}${m.grau ? ` <span class="grade-box">${escapeHtml(m.grau)}</span>` : ''}</div>
-      <div style="color:var(--text-muted); font-size:12.5px; margin-top:4px;">${detalhe || '—'}</div>
-      ${linhaFuncoes(m.funcoes)}
-      <div style="color:var(--text-muted); font-size:11.5px; margin-top:8px;">${escapeHtml(textoDoPeriodo(state.relIndFiltroInicio, state.relIndFiltroFim))}</div>
+    <div class="carteirinha carteirinha-${nivelDoGrau(m.grau)}">
+      <img class="carteirinha-emblema" src="${LOGO_SRC}" alt="">
+      <div class="carteirinha-dados">
+        <div class="carteirinha-clube">Insanos MC · Regional RJ4</div>
+        <div class="carteirinha-nome">${escapeHtml(m.nome)}</div>
+        <div class="carteirinha-detalhe">${m.grau ? `<span class="carteirinha-grau">${escapeHtml(m.grau)}</span>` : ''}${detalhe || '—'}</div>
+        ${linhaFuncoes(m.funcoes)}
+        <div class="carteirinha-periodo">${escapeHtml(textoDoPeriodo(state.relIndFiltroInicio, state.relIndFiltroFim))}</div>
+      </div>
+      ${pct === null ? '' : `
+        <div class="carteirinha-pct" data-anima="carteirinha:${m.id}:${pct}">
+          <b data-conta="${pct}" data-sufixo="%">${pct}%</b>
+          <span>presença</span>
+        </div>
+      `}
     </div>
   `;
 }
@@ -301,7 +318,7 @@ function relatorioDoMembro(dados) {
     r.insight ? blocoInsight(r.insight) : '',
   ].join('');
   return `
-    ${cabecalhoMembro(m)}
+    ${cabecalhoMembro(m, r)}
     ${blocos || '<div class="empty">Nenhum evento encerrado nem rodada de Insight nesse período.</div>'}
     ${historico(r.historico, m.divisao)}
   `;

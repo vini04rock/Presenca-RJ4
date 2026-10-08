@@ -1431,7 +1431,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* ---- Movimento ---- */
-/* A tela nova entra subindo, um bloco atras do outro. So na troca de tela
+/* A tela nova entra deslizando, um bloco atras do outro. So na troca de tela
    (o app.js poe a classe .tela-entrando por meio segundo): o app redesenha
    a cada toque, e animar todo redesenho faria a tela piscar. */
 .tela-entrando > * { animation: entrar 0.42s var(--mola) both; }
@@ -1442,7 +1442,13 @@ input:focus, select:focus, textarea:focus {
 .tela-entrando > *:nth-child(6) { animation-delay: 0.20s; }
 .tela-entrando > *:nth-child(n+7) { animation-delay: 0.24s; }
 @keyframes entrar {
-  from { opacity: 0; transform: translateY(12px); }
+  from { opacity: 0; transform: translateX(18px); }
+  to { opacity: 1; transform: none; }
+}
+/* Voltando, a tela vem da esquerda (app.js poe .entrando-volta). */
+.tela-entrando.entrando-volta > * { animation-name: entrar-volta; }
+@keyframes entrar-volta {
+  from { opacity: 0; transform: translateX(-18px); }
   to { opacity: 1; transform: none; }
 }
 /* A foto de fundo respira: aproxima e afasta bem devagar. */
@@ -1764,6 +1770,153 @@ body.rolou .barra-fixa-nome { opacity: 1; transform: none; }
   .barra-fixa, .barra-fixa-nome { transition: none !important; }
 }
 
+/* ---- Busca "Ache seu nome" (tela de evento) ---- */
+input.busca-membro {
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: linear-gradient(180deg, rgba(38, 37, 35, 0.78), rgba(16, 16, 15, 0.86));
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.07) inset, 0 6px 16px -6px rgba(0, 0, 0, 0.7);
+}
+input.busca-membro:focus { border-color: rgba(245, 243, 236, 0.45); box-shadow: 0 0 0 3px rgba(245, 243, 236, 0.10), 0 6px 16px -6px rgba(0, 0, 0, 0.7); }
+/* Todas as linhas estao no HTML; quem decide o que aparece e isto. */
+.grupo-divisao .grupo-linhas { display: none; }
+.grupo-divisao.aberto .grupo-linhas { display: block; }
+.lista-membros.buscando .grupo-divisao:not(.tem-resultado) { display: none; }
+.lista-membros.buscando .grupo-divisao.tem-resultado .grupo-linhas { display: block; }
+.member-row.fora-da-busca { display: none; }
+.busca-vazia { padding: 24px 16px; }
+
+/* ---- Barra de cada divisao no evento regional ----
+   Embaixo dos numeros com emoji (que nao mudam): verde, amarelo e
+   vermelho, cada pedaco do tamanho da sua contagem. */
+.barra-divisao {
+  flex-basis: 100%;
+  display: flex; gap: 2px;
+  height: 5px; margin-top: 6px;
+  border-radius: 999px; overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+}
+.barra-divisao i { flex-basis: 0; min-width: 0; }
+.barra-divisao-confirmado { background: var(--status-confirmado); }
+.barra-divisao-aguardando { background: var(--status-justificada); opacity: 0.85; }
+.barra-divisao-falta { background: var(--status-infracional); }
+
+/* ---- Escolher o status: botoes maiores, cada um na cor do seu status ---- */
+.picker.abrindo { animation: abrir-painel 0.3s var(--mola); transform-origin: top center; }
+@keyframes abrir-painel {
+  from { opacity: 0; transform: translateY(-8px) scaleY(0.92); }
+  to { opacity: 1; transform: none; }
+}
+.picker-group .picker-btn { padding: 13px 10px; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.picker-emoji { font-size: 17px; line-height: 1; }
+.picker-confirmado { --cor-status: var(--status-confirmado); }
+.picker-aguardando { --cor-status: var(--status-aguardando); }
+.picker-familia, .picker-trabalho { --cor-status: var(--status-infracional); }
+.picker-btn[class*="picker-"] { border-color: color-mix(in srgb, var(--cor-status, #888) 35%, transparent); }
+.picker-btn[class*="picker-"].active {
+  border-color: var(--cor-status);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--cor-status) 30%, transparent), color-mix(in srgb, var(--cor-status) 10%, transparent));
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.14) inset, 0 0 14px -3px var(--cor-status);
+  color: var(--white-strong);
+}
+
+/* ---- "Salvando… / Salvo": pastilha flutuante (ver app.js) ---- */
+#pastilha-salvar {
+  position: fixed;
+  left: 50%;
+  bottom: calc(22px + env(safe-area-inset-bottom, 0px));
+  z-index: 49;
+  padding: 9px 16px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(48, 47, 44, 0.86), rgba(20, 20, 19, 0.92));
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.10) inset, 0 10px 26px -6px rgba(0, 0, 0, 0.8);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  color: var(--text-muted);
+  font-size: 12.5px; font-weight: 600; white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, 14px);
+  transition: opacity 0.25s ease, transform 0.3s var(--mola), color 0.2s ease, border-color 0.2s ease;
+}
+#pastilha-salvar.visivel { opacity: 1; transform: translate(-50%, 0); }
+#pastilha-salvar.salvo { color: #8BE0AE; border-color: rgba(95, 201, 141, 0.5); }
+
+/* ---- Cards de arte inclinando com o mouse (app.js liga .inclinado) ---- */
+.card[data-action].inclinado:hover {
+  transform: perspective(800px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(-3px);
+  transition-duration: 0.08s;
+}
+.card.inclinado::after {
+  background:
+    radial-gradient(circle at var(--mx, 50%) var(--my, 0%), rgba(255, 255, 255, 0.20), transparent 55%),
+    linear-gradient(170deg, rgba(255, 255, 255, 0.08) 0%, transparent 45%);
+}
+
+/* ---- Relatorio individual: a carteirinha ---- */
+.carteirinha {
+  --anel: rgba(255, 255, 255, 0.28);
+  position: relative;
+  overflow: hidden;
+  display: flex; align-items: center; gap: 14px;
+  margin-bottom: 14px; padding: 16px;
+  border-radius: 14px;
+  border: 1px solid var(--anel);
+  background: linear-gradient(135deg, rgba(62, 54, 40, 0.92) 0%, rgba(24, 23, 21, 0.95) 55%, rgba(14, 14, 13, 0.97) 100%);
+  box-shadow: var(--sombra-card), 0 1px 0 rgba(255, 255, 255, 0.12) inset;
+}
+.carteirinha-ouro { --anel: #E0B23C; }
+.carteirinha-prata { --anel: #C8CCD4; }
+.carteirinha-bronze { --anel: #C4804A; }
+/* Uma faixa de luz atravessada, como no plastico de um cartao. */
+.carteirinha::after {
+  content: '';
+  position: absolute; inset: 0;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, 0.07) 48%, transparent 58%);
+}
+.carteirinha-emblema {
+  width: 62px; height: 62px; flex-shrink: 0;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.7));
+}
+.carteirinha-dados { flex: 1; min-width: 0; }
+.carteirinha-clube { font-size: 9.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--anel); }
+.carteirinha-nome {
+  font-family: 'Rye', serif; font-size: 20px; line-height: 1.2; margin-top: 3px;
+  color: #F3E6C4;
+  text-shadow: 0 1px 0 #8A6A2C, 0 2px 0 #3D2C10, 0 3px 10px rgba(0, 0, 0, 0.65);
+  overflow-wrap: anywhere;
+}
+.carteirinha-detalhe { font-size: 12.5px; color: var(--text-muted); margin-top: 5px; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.carteirinha-grau {
+  padding: 1px 8px; border-radius: 999px;
+  border: 1px solid var(--anel); color: var(--anel);
+  font-size: 11px; font-weight: 700;
+}
+.carteirinha-periodo { font-size: 11px; color: var(--text-muted); margin-top: 8px; }
+.carteirinha-pct {
+  flex-shrink: 0;
+  width: 74px; height: 74px; border-radius: 50%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  border: 2px solid var(--anel);
+  box-shadow: 0 0 16px -4px var(--anel), inset 0 0 12px rgba(0, 0, 0, 0.5);
+  background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.10), rgba(0, 0, 0, 0.2));
+}
+.carteirinha-pct b { font-family: 'Rye', serif; font-weight: 400; font-size: 21px; color: var(--white-strong); line-height: 1; }
+.carteirinha-pct span { font-size: 8.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin-top: 3px; }
+.carteirinha-pct.anima { animation: saltar 0.55s var(--mola); }
+
+@media (prefers-reduced-motion: reduce) {
+  .picker.abrindo, .carteirinha-pct.anima { animation: none !important; }
+  #pastilha-salvar { transition: none !important; }
+}
+
 /* ---- Papel: nada de vidro, sombra nem reflexo ---- */
 @media print {
   .card, .btn.secondary, .btn.danger {
@@ -1782,5 +1935,9 @@ body.rolou .barra-fixa-nome { opacity: 1; transform: none; }
   }
   .evento-capa { background: #fff !important; box-shadow: none !important; }
   .evento-capa::before, .empty::before, .barra-fixa { display: none !important; }
+  .carteirinha { background: #fff !important; box-shadow: none !important; border-color: #000 !important; }
+  .carteirinha::after, #pastilha-salvar, .busca-membro { display: none !important; }
+  .carteirinha-nome, .carteirinha-pct b { color: #000 !important; text-shadow: none !important; }
+  .carteirinha-pct { box-shadow: none !important; background: none !important; }
   .tela-entrando > * { animation: none !important; }
 }

@@ -14,6 +14,7 @@ export async function openEvent(id) {
   state.currentEventId = id;
   state.view = 'event';
   state.expandedMemberId = null;
+  state.buscaMembro = '';
   state.expandedDivisoes = new Set();
   state.currentStatus = {};
   state.saveState = 'idle';

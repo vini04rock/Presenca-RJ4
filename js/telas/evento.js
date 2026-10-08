@@ -84,6 +84,9 @@ function renderInfoEvento(ev) {
   `;
 }
 
+// A busca "Ache seu nome" so aparece em lista que da trabalho rolar.
+const MINIMO_PRA_BUSCA = 10;
+
 // O anel pequeno do botao de confirmados: enche conforme o pessoal
 // confirma, a mesma ideia da rosca dos relatorios em miniatura.
 function anelConfirmados(feitos, total) {
@@ -145,8 +148,13 @@ export function renderEvent(app) {
     ${renderCapaEvento(ev, members, confirmados)}
     ${renderInfoEvento(ev)}
     ${renderStatusBanner()}
-    <div class="card" style="padding: 4px 16px;">
+    ${members.length >= MINIMO_PRA_BUSCA ? `
+      <input id="busca-membro" class="busca-membro" type="search" placeholder="🔎 Ache seu nome…"
+        value="${escapeHtml(state.buscaMembro || '')}" autocomplete="off" autocorrect="off" spellcheck="false">
+    ` : ''}
+    <div class="card lista-membros" style="padding: 4px 16px;">
       ${members.length === 0 ? '<div class="empty">Nenhum membro nesse evento.</div>' : renderListaMembros(ev, members)}
+      <div class="empty busca-vazia" hidden>Ninguém com esse nome por aqui.</div>
     </div>
     <div class="legend">
       ⚠️ Aguardando confirmação &nbsp; ✅ Presença confirmada<br>

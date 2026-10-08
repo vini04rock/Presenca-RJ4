@@ -20,7 +20,7 @@ import { acoes as acoesAdmin } from './telas/admin.js';
 import { acoes as acoesAdminEventos, aoDigitarNoFormulario } from './telas/admin-eventos.js';
 import { acoes as acoesAdminMembros } from './telas/admin-membros.js';
 import { acoes as acoesAdminInsights } from './telas/admin-insights.js';
-import { acoes as acoesComuns } from './ui/comuns.js';
+import { acoes as acoesComuns, aplicarBusca } from './ui/comuns.js';
 import { acoes as acoesGraficos } from './ui/graficos.js';
 import { acoes as acoesHome } from './telas/home.js';
 import { acoes as acoesEvento } from './telas/evento.js';
@@ -31,7 +31,7 @@ import { acoes as acoesCalendario } from './telas/calendario.js';
 import { acoes as acoesMenuOrganizador, renderMenuOrganizador } from './telas/menu-organizador.js';
 import { acoes as acoesRelatorioIndividual, renderRelatorioIndividual } from './telas/relatorio-individual.js';
 
-// A tela nova entra subindo (.tela-entrando, no fim do estilo.css). So na
+// A tela nova entra deslizando (.tela-entrando, no fim do estilo.css). So na
 // TROCA de tela: o app redesenha a cada toque e a cada resposta da
 // planilha, e animar todo redesenho faria a tela piscar. Num redesenho da
 // mesma tela a classe sai na hora, e o conteudo novo aparece parado.
@@ -50,9 +50,14 @@ function marcarTrocaDeTela(app) {
   // Tela nova, memoria nova: os graficos dela se desenham de novo.
   jaAnimados = new Set();
   valoresVistos = new Map();
+  // Entra pela direita quando avanca e pela esquerda quando volta, como
+  // num app de celular. Quem decide e o toque (ver o ouvinte de clique).
+  app.classList.toggle('entrando-volta', proximaDirecao === 'volta');
+  proximaDirecao = 'ida';
   app.classList.add('tela-entrando');
-  fimDaEntrada = setTimeout(() => app.classList.remove('tela-entrando'), 800);
+  fimDaEntrada = setTimeout(() => app.classList.remove('tela-entrando', 'entrando-volta'), 800);
 }
+let proximaDirecao = 'ida';
 
 // O que se mexe depois de desenhado, marcado no HTML:
 //   data-anima="chave"  se desenha ao aparecer (rosca, barra, linha) e o
@@ -105,6 +110,29 @@ function render() {
   marcarTrocaDeTela(app);
   desenhar(app);
   animarNovidades(app);
+  aplicarBusca(app);
+  atualizarPastilhaSalvar();
+}
+
+// "Salvando…" / "✅ Salvo na planilha" na tela de evento: uma pastilha que
+// flutua no pe da tela, fora do #app, em vez de uma faixa que empurrava a
+// lista a cada toque. O erro de gravacao continua como faixa na propria
+// tela (renderStatusBanner) - esse nao pode passar despercebido.
+function atualizarPastilhaSalvar() {
+  const mostrar = state.view === 'event' && (state.saveState === 'saving' || state.saveState === 'saved');
+  let el = document.getElementById('pastilha-salvar');
+  if (!el) {
+    if (!mostrar) return;
+    el = document.createElement('div');
+    el.id = 'pastilha-salvar';
+    el.setAttribute('role', 'status');
+    document.body.appendChild(el);
+  }
+  // Ao sumir, o texto fica como estava, pra pastilha nao trocar de frase
+  // enquanto desaparece.
+  if (mostrar) el.textContent = state.saveState === 'saving' ? 'Salvando… pode continuar marcando' : '✅ Salvo na planilha';
+  el.classList.toggle('visivel', mostrar);
+  el.classList.toggle('salvo', state.saveState === 'saved');
 }
 
 // Enquanto a planilha nao responde: o contorno da tela inicial em vidro,
@@ -189,6 +217,12 @@ document.getElementById('app').addEventListener('input', (e) => {
     aoDigitarNoFormulario(e.target);
     return;
   }
+  // A busca do evento filtra sem redesenhar - redesenhar fecharia o teclado.
+  if (e.target.id === 'busca-membro') {
+    state.buscaMembro = e.target.value;
+    aplicarBusca(document.getElementById('app'));
+    return;
+  }
   // O formulario de evento guarda tudo no state enquanto se digita - ver
   // aoDigitarNoFormulario. Nao redesenha: so lembra.
   if (aoDigitarNoFormulario(e.target)) return;
@@ -246,8 +280,44 @@ document.getElementById('app').addEventListener('click', async (e) => {
 
   const tratar = ACOES[action];
   if (!tratar) return;
+  // Botao de voltar faz a proxima tela entrar pela esquerda.
+  if (target.classList.contains('back-link') || /^(voltar|close|fechar)/.test(action)) proximaDirecao = 'volta';
   return tratar(id, target, action, e);
 });
+
+// Cards de arte inclinam na direcao do mouse, com o reflexo seguindo -
+// so no computador (no celular nao ha "passar por cima") e so pra quem nao
+// pediu menos movimento.
+const SELETOR_INCLINA = '.card-eventos-home, .card-rank-home, .card-regional-home, .card-divisao-home, .card-admin-home, .home-btn-organizador, .tipo-home-card, .menu-org-card';
+const podeInclinar = window.matchMedia
+  && window.matchMedia('(hover: hover) and (pointer: fine)').matches
+  && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+let cardInclinado = null;
+function soltarCard(el) {
+  el.classList.remove('inclinado');
+  el.style.removeProperty('--rx');
+  el.style.removeProperty('--ry');
+}
+if (podeInclinar) {
+  const appEl = document.getElementById('app');
+  appEl.addEventListener('pointermove', (e) => {
+    const el = e.target.closest(SELETOR_INCLINA);
+    if (cardInclinado && cardInclinado !== el) soltarCard(cardInclinado);
+    cardInclinado = el;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+    el.style.setProperty('--rx', ((0.5 - y) * 7).toFixed(2) + 'deg');
+    el.style.setProperty('--ry', ((x - 0.5) * 9).toFixed(2) + 'deg');
+    el.style.setProperty('--mx', (x * 100).toFixed(1) + '%');
+    el.style.setProperty('--my', (y * 100).toFixed(1) + '%');
+    el.classList.add('inclinado');
+  });
+  appEl.addEventListener('pointerleave', () => {
+    if (cardInclinado) soltarCard(cardInclinado);
+    cardInclinado = null;
+  });
+}
 
 // A barra fixa do topo do evento (.barra-fixa) mostra o nome so depois que
 // a capa sai da tela. Um ouvinte so, pro app inteiro: liga e desliga uma
