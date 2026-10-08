@@ -28,6 +28,14 @@ export let state = {
   // O painel de status que ACABOU de abrir - so nesse redesenho ele entra
   // deslizando; nos seguintes (cada toque redesenha) ele ja esta aberto.
   pickerAbrindo: null,
+  // "Puxar pra atualizar" / "Atualizar respostas" na tela de evento: busca
+  // as respostas de novo sem tirar a lista da tela.
+  atualizandoStatus: false,
+  // Calendario: o dia tocado, cuja "folha" sobe de baixo com o evento dele.
+  // calendarioDiaAbrindo marca o redesenho em que ela acabou de abrir (so
+  // nesse ela entra deslizando - igual o pickerAbrindo).
+  calendarioDiaAberto: null,
+  calendarioDiaAbrindo: false,
   // Quais divisoes estao abertas na lista de um evento regional - comeca
   // vazio (tudo fechado), so mostra os nomes da divisao que a pessoa clicar.
   expandedDivisoes: new Set(),

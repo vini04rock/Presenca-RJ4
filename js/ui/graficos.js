@@ -21,7 +21,7 @@ export function renderDonutChart(segments, centro, centroLabel, tamanho) {
   const arcos = total && comDados.length ? comDados.map(s => {
     const frac = s.value / total;
     const arco = `
-      <circle class="donut-arco" cx="${cx}" cy="${cy}" r="${r}" fill="none" style="stroke:${s.cor}" stroke-width="${espessura}"
+      <circle class="donut-arco" data-action="destacar-fatia" data-rotulo="${escapeHtml(s.label)}" data-valor="${s.value} · ${Math.round(frac * 100)}%" cx="${cx}" cy="${cy}" r="${r}" fill="none" style="stroke:${s.cor}" stroke-width="${espessura}"
         stroke-dasharray="${(frac * C).toFixed(2)} ${C.toFixed(2)}"
         stroke-dashoffset="${(-acumulado * C).toFixed(2)}"
         transform="rotate(-90 ${cx} ${cy})"></circle>
@@ -40,13 +40,13 @@ export function renderDonutChart(segments, centro, centroLabel, tamanho) {
       <div style="position:relative; width:${tamanho}px; height:${tamanho}px; flex-shrink:0;">
         <svg width="${tamanho}" height="${tamanho}" viewBox="0 0 ${tamanho} ${tamanho}">${arcos}</svg>
         <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column; text-align:center;">
-          <div style="font-size:${fonteCentro}px; font-weight:700; color:var(--white-strong); line-height:1;"${pctCentro}>${escapeHtml(String(centro))}</div>
-          <div style="font-size:${fonteLabel}px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em; margin-top:3px;">${escapeHtml(centroLabel)}</div>
+          <div class="donut-centro-valor" data-original="${escapeHtml(String(centro))}" style="font-size:${fonteCentro}px; font-weight:700; color:var(--white-strong); line-height:1;"${pctCentro}>${escapeHtml(String(centro))}</div>
+          <div class="donut-centro-rotulo" data-original="${escapeHtml(centroLabel)}" style="font-size:${fonteLabel}px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em; margin-top:3px;">${escapeHtml(centroLabel)}</div>
         </div>
       </div>
       <div class="donut-legend">
         ${segments.map(s => `
-          <div class="donut-legend-item">
+          <div class="donut-legend-item" data-action="destacar-fatia" data-rotulo="${escapeHtml(s.label)}">
             <span class="donut-swatch" style="background:${s.cor};"></span>
             <span class="donut-legend-label">${escapeHtml(s.label)}</span>
             <span class="donut-legend-value">${s.value}${total ? ' · ' + Math.round(s.value / total * 100) + '%' : ''}</span>
@@ -163,6 +163,31 @@ export function renderDonutCard(titulo, chave, encerrados, destaque) {
 // Cada entrada e o corpo do antigo "if (action === ...)" do app.js, tal
 // e qual. O app.js so olha o nome da acao neste mapa e chama.
 export const acoes = {
+  // Tocar numa fatia (ou na legenda dela) acende so ela e poe o numero dela
+  // no meio da rosca; tocar de novo volta ao total. So mexe no que ja esta
+  // na tela - sem redesenhar, senao a rosca se desenharia de novo.
+  'destacar-fatia': async (id, target, action, e) => {
+    const wrap = target.closest('.donut-wrap');
+    if (!wrap) return;
+    const rotulo = target.dataset.rotulo;
+    const arco = [...wrap.querySelectorAll('.donut-arco')].find(c => c.dataset.rotulo === rotulo);
+    const valor = wrap.querySelector('.donut-centro-valor');
+    const legenda = wrap.querySelector('.donut-centro-rotulo');
+    const jaAceso = arco && arco.classList.contains('fatia-acesa');
+    wrap.querySelectorAll('.fatia-acesa').forEach(el => el.classList.remove('fatia-acesa'));
+    if (!arco || jaAceso) {
+      wrap.classList.remove('com-fatia');
+      valor.textContent = valor.dataset.original;
+      legenda.textContent = legenda.dataset.original;
+      return;
+    }
+    wrap.classList.add('com-fatia');
+    arco.classList.add('fatia-acesa');
+    wrap.querySelectorAll('.donut-legend-item').forEach(el => el.classList.toggle('fatia-acesa', el.dataset.rotulo === rotulo));
+    const [n, pct] = arco.dataset.valor.split(' · ');
+    valor.textContent = pct;
+    legenda.textContent = rotulo + ' · ' + n;
+  },
   'set-relatorio-periodo-tipo': async (id, target, action, e) => {
     state.relatorioPeriodoPorGrafico[target.dataset.chave] = Number(target.dataset.value);
     return render();

@@ -8,6 +8,7 @@ import { resumoDoEvento } from '../dominio/convocacao.js';
 import { renderHome } from './home.js';
 import { anelConfirmados, renderConfirmadoRow, renderListaMembros, renderStatusBanner } from '../ui/comuns.js';
 import { render } from '../nucleo/render.js';
+import { atualizarConfirmacoes } from '../fluxos/evento.js';
 
 // Tela cheia (nao um painel dentro do evento) com quem ja confirmou -
 // mesmo visual da lista de membros (numero, nome, grau, selos de
@@ -147,6 +148,11 @@ export function renderEvent(app) {
       ${members.length === 0 ? '<div class="empty">Nenhum membro nesse evento.</div>' : renderListaMembros(ev, members)}
       <div class="empty busca-vazia" hidden>Ninguém com esse nome por aqui.</div>
     </div>
+    ${state.statusLoaded ? `
+      <div class="btn ghost atualizar-respostas" data-action="atualizar-confirmacoes">
+        ${state.atualizandoStatus ? '<span class="girando">🏍️</span> Atualizando…' : '↻ Atualizar respostas'}
+      </div>
+    ` : ''}
     <div class="legend">
       ⚠️ Aguardando confirmação &nbsp; ✅ Presença confirmada<br>
       ❌ Falta (Família) &nbsp; ❌ Falta (Trabalho)<br>
@@ -171,6 +177,9 @@ export const acoes = {
     } else if (origem && origem.view === 'relatorio' && state.isAdmin) {
       state.view = 'relatorio';
       state.relatorioTab = origem.relatorioTab || 'eventos';
+    } else if (origem && origem.view === 'calendario') {
+      // Veio da folha do dia no Calendario: volta pra ela, aberta.
+      state.view = 'calendario';
     } else if (origem && origem.view === 'admin' && state.isAdmin) {
       state.view = 'admin';
       state.adminTab = origem.adminTab || 'eventos';
@@ -182,6 +191,9 @@ export const acoes = {
       state.pinAtual = null;
     }
     return render();
+  },
+  'atualizar-confirmacoes': async (id, target, action, e) => {
+    return atualizarConfirmacoes();
   },
   'toggle-confirmados': async (id, target, action, e) => {
     state.view = 'confirmados'; return render();

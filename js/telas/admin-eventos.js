@@ -19,6 +19,7 @@ import { salvarOuAvisar } from '../dados/carregar.js';
 import { paramsDeEvento } from '../fila/presenca.js';
 import { copyReportToClipboard, exportarRelatorioPdfAdmin, gerarRelatorio } from '../fluxos/relatorio.js';
 import { render } from '../nucleo/render.js';
+import { imagemResultadoEvento, mostrarPreviaImagem } from '../ui/imagem.js';
 
 // A data do evento como pastilha no canto superior direito do card - a
 // mesma .event-date-badge que a lista de eventos da tela inicial ja usa, pra
@@ -129,6 +130,7 @@ function renderEventForm() {
   const elegiveis = membrosElegiveisEvento();
   const campoF = (chave, extra) => `data-evf="${chave}" ${extra || ''}`;
   return `
+    <div class="etapas-form" id="etapas-form">${etapasDoFormulario()}</div>
     <div class="card">
       <div class="field" style="margin-bottom:0;">
         <label>Nome do evento</label>
@@ -196,6 +198,35 @@ export function aoDigitarNoFormulario(el) {
     return true;
   }
   return guardarDigitado(state.newEventChamada, el, 'evc');
+}
+
+// O progresso do formulario, preso no topo enquanto se rola: cada etapa
+// ganha um ✓ quando tem o minimo. So mostra - nada aqui impede de salvar
+// (os campos obrigatorios continuam conferidos no "Salvar").
+function etapasDoFormulario() {
+  const f = state.newEventForm || {};
+  const ch = state.newEventChamada || {};
+  const etapas = [
+    ['Nome', !!String(f.nome || '').trim()],
+    ['Tipo', !!state.newEventTipo],
+    ['Informações', !!String(ch.destino || '').trim() && String(f.data || '').length === 10 && !!f.horario],
+    ['Roteiro', (ch.pes || []).some(pe => String(pe.nome || '').trim())],
+    ['Membros', !!(state.newEventSelected && state.newEventSelected.size)],
+  ];
+  const prontas = etapas.filter(([, ok]) => ok).length;
+  return `
+    <div class="etapas-barra"><i style="width:${Math.round((prontas / etapas.length) * 100)}%"></i></div>
+    <div class="etapas-lista">
+      ${etapas.map(([nome, ok], i) => `<span class="etapa${ok ? ' feita' : ''}"><b>${ok ? '✓' : i + 1}</b>${nome}</span>`).join('')}
+    </div>
+  `;
+}
+
+// Chamada a cada letra digitada no formulario (ver app.js): troca so o
+// quadro de etapas, sem redesenhar a tela - redesenhar fecharia o teclado.
+export function atualizarEtapasDoFormulario(raiz) {
+  const el = raiz.querySelector('#etapas-form');
+  if (el) el.innerHTML = etapasDoFormulario();
 }
 
 // Abre o formulario: vazio pra evento novo, ou com o que o evento ja tem.
@@ -283,7 +314,12 @@ export function renderAdminRelatorio() {
           <div class="count-box-report">❌ Falta justificada <b>${n(counts.familia + counts.trabalho + counts.justificada)}</b></div>
           <div class="count-box-report">⭕ Falta não justificada <b>${n(counts.infracional)}</b></div>
         </div>
-        ${carregado ? `<button class="btn secondary block" data-action="copy-report" data-id="${ev.id}" style="margin-top:10px;">${state.copiedEventId === ev.id ? 'Copiado ✓' : '📋 Copiar relatório'}</button>` : ''}
+        ${carregado ? `
+          <div class="row-gap" style="margin-top:10px;">
+            <button class="btn secondary" style="flex:1;" data-action="copy-report" data-id="${ev.id}">${state.copiedEventId === ev.id ? 'Copiado ✓' : '📋 Copiar relatório'}</button>
+            <button class="btn secondary" style="flex:1;" data-action="imagem-resultado" data-id="${ev.id}">🖼️ Imagem do resultado</button>
+          </div>
+        ` : ''}
         ${blocoConvocacaoOriginal(ev)}
         ${isOpen && carregado ? renderReportDetail(ev) : ''}
         ${renderExcluirEvento(ev)}
@@ -355,6 +391,13 @@ function renderReportDetail(ev) {
 // Acoes das abas Ativos e Encerrados: criar, editar, encerrar, excluir e
 // copiar relatorio. O app.js so olha o nome da acao neste mapa e chama.
 export const acoes = {
+  // A imagem pra postar no grupo (ui/imagem.js), com previa antes.
+  'imagem-resultado': async (id, target, action, e) => {
+    const ev = state.events.find(x => x.id === id);
+    if (!ev || !state.reportData[ev.id]) return;
+    const nome = 'resultado-' + String(ev.nome).toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '.png';
+    return mostrarPreviaImagem(() => imagemResultadoEvento(ev, computeCounts(ev)), nome);
+  },
   'gerar-relatorio': async (id, target, action, e) => {
     return gerarRelatorio();
   },

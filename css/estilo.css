@@ -1950,6 +1950,168 @@ input.busca-membro:focus { border-color: rgba(245, 243, 236, 0.45); box-shadow: 
   color: var(--text-muted); font-size: 12px;
 }
 
+/* ---- Previa da imagem pro grupo (ui/imagem.js) ---- */
+#previa-imagem {
+  position: fixed; inset: 0; z-index: 60;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+  background: rgba(5, 5, 5, 0.78);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  opacity: 0; transition: opacity 0.25s ease;
+}
+#previa-imagem.visivel { opacity: 1; }
+.previa-caixa {
+  width: 100%; max-width: 420px; max-height: 100%;
+  display: flex; flex-direction: column; gap: 12px;
+  transform: translateY(14px) scale(0.98); transition: transform 0.35s var(--mola);
+}
+#previa-imagem.visivel .previa-caixa { transform: none; }
+.previa-caixa img {
+  width: 100%; min-height: 0; flex: 1; object-fit: contain;
+  border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.9);
+}
+.previa-botoes { display: flex; flex-wrap: wrap; gap: 8px; }
+.previa-botoes .btn:not(.ghost) { flex: 1 1 140px; }
+.previa-botoes .btn.ghost { flex-basis: 100%; text-align: center; }
+body.com-previa { overflow: hidden; }
+
+/* ---- Rosca: tocar na fatia acende so ela ---- */
+.donut-arco { cursor: pointer; transition: opacity 0.2s ease, filter 0.2s ease; }
+.donut-wrap.com-fatia .donut-arco:not(.fatia-acesa) { opacity: 0.25; }
+.donut-arco.fatia-acesa { filter: drop-shadow(0 0 6px currentColor) brightness(1.15); }
+.donut-legend-item { cursor: pointer; border-radius: 6px; transition: background-color 0.2s ease; }
+.donut-legend-item.fatia-acesa { background: rgba(255, 255, 255, 0.08); }
+.donut-wrap.com-fatia .donut-centro-rotulo { color: var(--white-strong) !important; }
+
+/* ---- Relatorio individual: o historico como linha do tempo ----
+   Uma linha vertical a esquerda e uma bolinha por evento, na cor do status
+   (o selo com emoji continua a direita, como sempre). */
+.linha-do-tempo .member-row.marco { position: relative; padding-left: 24px; border-bottom: none; }
+.linha-do-tempo .member-row.marco::before {
+  content: ''; position: absolute; left: 6px; top: 0; bottom: 0;
+  width: 2px; background: rgba(255, 255, 255, 0.12);
+}
+/* A linha comeca na primeira bolinha (o titulo do card vem antes dela). */
+.linha-do-tempo > :first-child + .member-row.marco::before { top: 50%; }
+.linha-do-tempo .member-row.marco:last-child::before { bottom: 50%; }
+.linha-do-tempo .member-row.marco::after {
+  content: ''; position: absolute; left: 1px; top: 50%;
+  width: 12px; height: 12px; margin-top: -6px; border-radius: 50%;
+  background: var(--cor-marco, var(--status-aguardando));
+  box-shadow: 0 0 0 3px rgba(14, 14, 13, 0.9), 0 0 10px -1px var(--cor-marco, transparent);
+}
+.marco-confirmado { --cor-marco: var(--status-confirmado); }
+.marco-familia, .marco-trabalho, .marco-justificada { --cor-marco: var(--status-justificada); }
+.marco-infracional { --cor-marco: var(--status-infracional); }
+
+/* ---- Saudacao da tela inicial ---- */
+.home-saudacao {
+  margin-top: 8px;
+  font-size: 12.5px; letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+
+/* ---- Formulario de evento: etapas presas no topo ---- */
+.etapas-form {
+  position: sticky; top: 8px; z-index: 15;
+  margin-bottom: 12px; padding: 10px 12px;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(16, 16, 15, 0.82);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.8);
+}
+.etapas-barra { height: 4px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); overflow: hidden; margin-bottom: 8px; }
+.etapas-barra i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #B8862E, #F0D58E); transition: width 0.35s var(--mola); }
+.etapas-lista { display: flex; justify-content: space-between; gap: 4px; }
+.etapa { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+.etapa b {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  font-size: 10px; font-weight: 700;
+}
+.etapa.feita { color: var(--white-strong); }
+.etapa.feita b { border-color: #E0B23C; background: rgba(224, 178, 60, 0.22); color: #F2D27A; }
+@media (max-width: 400px) { .etapa { font-size: 0; gap: 0; } .etapa b { font-size: 10px; } }
+
+/* ---- Calendario: a folha do dia ---- */
+.folha-fundo { position: fixed; inset: 0; z-index: 40; background: rgba(5, 5, 5, 0.55); }
+.folha-dia {
+  position: fixed; z-index: 41;
+  left: 50%; bottom: 0;
+  width: 100%; max-width: 480px;
+  transform: translateX(-50%);
+  padding: 10px 18px calc(20px + env(safe-area-inset-bottom, 0px));
+  border-radius: 18px 18px 0 0;
+  border: 1px solid rgba(255, 255, 255, 0.12); border-bottom: none;
+  border-top: 3px solid var(--cor-tipo);
+  background: linear-gradient(180deg, rgba(40, 39, 36, 0.92), rgba(16, 16, 15, 0.96));
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 -16px 40px -10px rgba(0, 0, 0, 0.9);
+}
+.folha-dia.abrindo { animation: folha-sobe 0.35s var(--mola); }
+@keyframes folha-sobe { from { transform: translate(-50%, 100%); } to { transform: translate(-50%, 0); } }
+.folha-alca { width: 40px; height: 4px; margin: 0 auto 12px; border-radius: 999px; background: rgba(255, 255, 255, 0.25); }
+.folha-data { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+.folha-evento { margin: 10px 0 16px; }
+.folha-tipo { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--cor-tipo); }
+.folha-nome {
+  margin: 4px 0 8px;
+  font-family: 'Rye', serif; font-size: 20px; color: #F3E6C4;
+  text-shadow: 0 1px 0 #8A6A2C, 0 2px 0 #3D2C10, 0 3px 10px rgba(0, 0, 0, 0.65);
+}
+.folha-meta { font-size: 12.5px; color: var(--text-muted); }
+
+/* ---- Atualizar respostas (botao e puxar pra baixo) ---- */
+.atualizar-respostas { display: block; text-align: center; margin: 10px auto 0; text-decoration: none; }
+.girando { display: inline-block; animation: girar 0.9s linear infinite; }
+@keyframes girar { to { transform: rotate(360deg); } }
+/* O Chrome do Android recarrega a pagina inteira ao puxar no topo; na tela
+   de evento o gesto e nosso (app.js). */
+html.tela-evento, html.tela-evento body { overscroll-behavior-y: contain; }
+#puxar-atualizar {
+  position: fixed; z-index: 45;
+  left: 50%; top: 0;
+  width: 44px; height: 44px; margin-left: -22px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(20, 20, 19, 0.9);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.8);
+  font-size: 20px;
+  opacity: 0; pointer-events: none;
+  transform: translateY(calc(var(--puxado, 0px) * 0.6 - 30px));
+  transition: opacity 0.15s ease, border-color 0.15s ease;
+}
+#puxar-atualizar.visivel { opacity: 1; }
+#puxar-atualizar.pronto { border-color: rgba(95, 201, 141, 0.7); }
+#puxar-atualizar span { display: inline-block; transform: rotate(var(--giro, 0deg)); }
+
+/* ---- Acabamentos finos ---- */
+::selection { background: rgba(212, 162, 76, 0.45); color: #fff; }
+/* Contorno visivel so pra quem navega pelo teclado (Tab) - no toque e no
+   clique ele nao aparece. */
+:focus-visible { outline: 2px solid rgba(240, 213, 142, 0.8); outline-offset: 2px; }
+input:focus-visible, select:focus-visible, textarea:focus-visible { outline: none; }
+/* Barra de rolagem fina, no tom do app (no computador). */
+* { scrollbar-width: thin; scrollbar-color: rgba(212, 162, 76, 0.45) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(212, 162, 76, 0.35); border-radius: 999px; border: 3px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: rgba(212, 162, 76, 0.6); background-clip: padding-box; }
+
+@media (prefers-reduced-motion: reduce) {
+  .folha-dia.abrindo, .girando { animation: none !important; }
+  #previa-imagem, .previa-caixa, .etapas-barra i { transition: none !important; }
+}
+
 /* ---- Papel: nada de vidro, sombra nem reflexo ---- */
 @media print {
   .card, .btn.secondary, .btn.danger {
@@ -1969,7 +2131,9 @@ input.busca-membro:focus { border-color: rgba(245, 243, 236, 0.45); box-shadow: 
   .evento-capa { background: #fff !important; box-shadow: none !important; }
   .evento-capa::before, .empty::before, .barra-fixa { display: none !important; }
   .carteirinha { background: #fff !important; box-shadow: none !important; border-color: #000 !important; }
-  .carteirinha::after, #pastilha-salvar, .busca-membro, .botao-cobrar, .aviso-cobrar { display: none !important; }
+  .carteirinha::after, #pastilha-salvar, .busca-membro, .botao-cobrar, .aviso-cobrar,
+  #previa-imagem, .folha-fundo, .folha-dia, #puxar-atualizar, .atualizar-respostas, .etapas-form { display: none !important; }
+  .linha-do-tempo .member-row.marco::after { box-shadow: none !important; }
   .carteirinha-nome, .carteirinha-pct b { color: #000 !important; text-shadow: none !important; }
   .carteirinha-pct { box-shadow: none !important; background: none !important; }
   .tela-entrando > * { animation: none !important; }

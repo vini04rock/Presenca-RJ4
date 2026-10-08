@@ -284,7 +284,7 @@ function historico(itens, nomeDivisao) {
   if (!itens.length) return '';
   const rotuloOrigem = { divisao: nomeDivisao, regional: 'Regional RJ4' };
   return `
-    <div class="card">
+    <div class="card linha-do-tempo">
       <div style="font-weight:600; margin-bottom:6px;">Histórico evento a evento</div>
       ${itens.map(ev => {
         const s = STATUS[ev.status] || STATUS.infracional;
@@ -292,7 +292,7 @@ function historico(itens, nomeDivisao) {
         const detalhe = [ev.data ? formatDataBR(ev.data) : 'sem data', ev.tipo ? emojiTipoEvento(ev.tipo) + ' ' + ev.tipo : '', origem]
           .filter(Boolean).map(escapeHtml).join(' · ');
         return `
-          <div class="member-row">
+          <div class="member-row marco marco-${ev.status}">
             <div class="member-head" style="cursor:default;">
               <div class="member-info-wrap">
                 <span class="member-name">${escapeHtml(ev.nome)}</span>

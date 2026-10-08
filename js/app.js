@@ -17,7 +17,8 @@ import { renderRank } from './telas/rank.js';
 import { renderRelatorioShell } from './telas/relatorios.js';
 import { acoes as acoesRelatorios } from './telas/relatorios.js';
 import { acoes as acoesAdmin } from './telas/admin.js';
-import { acoes as acoesAdminEventos, aoDigitarNoFormulario } from './telas/admin-eventos.js';
+import { acoes as acoesAdminEventos, aoDigitarNoFormulario, atualizarEtapasDoFormulario } from './telas/admin-eventos.js';
+import { atualizarConfirmacoes } from './fluxos/evento.js';
 import { acoes as acoesAdminMembros } from './telas/admin-membros.js';
 import { acoes as acoesAdminInsights } from './telas/admin-insights.js';
 import { acoes as acoesComuns, aplicarBusca } from './ui/comuns.js';
@@ -112,6 +113,9 @@ function render() {
   animarNovidades(app);
   aplicarBusca(app);
   atualizarPastilhaSalvar();
+  // Na tela de evento, o "puxar pra baixo" e nosso: sem isto o Chrome do
+  // Android recarregaria a pagina inteira no mesmo gesto.
+  document.documentElement.classList.toggle('tela-evento', state.view === 'event');
 }
 
 // "Salvando…" / "✅ Salvo na planilha" na tela de evento: uma pastilha que
@@ -214,7 +218,7 @@ document.getElementById('app').addEventListener('input', (e) => {
     // barra recem-inserida jogaria o cursor pra tras.
     if (cursorNoFim) e.target.setSelectionRange(e.target.value.length, e.target.value.length);
     // A data do formulario de evento tambem vai pro state (ja com as barras).
-    aoDigitarNoFormulario(e.target);
+    if (aoDigitarNoFormulario(e.target)) atualizarEtapasDoFormulario(document.getElementById('app'));
     return;
   }
   // A busca do evento filtra sem redesenhar - redesenhar fecharia o teclado.
@@ -225,7 +229,10 @@ document.getElementById('app').addEventListener('input', (e) => {
   }
   // O formulario de evento guarda tudo no state enquanto se digita - ver
   // aoDigitarNoFormulario. Nao redesenha: so lembra.
-  if (aoDigitarNoFormulario(e.target)) return;
+  if (aoDigitarNoFormulario(e.target)) {
+    atualizarEtapasDoFormulario(document.getElementById('app'));
+    return;
+  }
   if (e.target.id === 'new-member-nome') {
     state.newMemberNome = e.target.value;
   }
@@ -324,6 +331,45 @@ if (podeInclinar) {
 // classe no body, sem redesenhar nada.
 window.addEventListener('scroll', () => {
   document.body.classList.toggle('rolou', window.scrollY > 150);
+}, { passive: true });
+
+// Puxar pra atualizar, na tela de evento: com a pagina no topo, arrastar
+// pra baixo mostra uma moto que gira conforme o dedo desce; soltando depois
+// de PUXAR_PX, busca as respostas de novo (atualizarConfirmacoes).
+const PUXAR_PX = 80;
+let puxarInicio = null;
+let puxarDistancia = 0;
+function indicadorPuxar() {
+  let el = document.getElementById('puxar-atualizar');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'puxar-atualizar';
+    el.innerHTML = '<span>🏍️</span>';
+    document.body.appendChild(el);
+  }
+  return el;
+}
+window.addEventListener('touchstart', (e) => {
+  puxarInicio = (state.view === 'event' && state.statusLoaded && !state.atualizandoStatus && window.scrollY <= 0)
+    ? e.touches[0].clientY : null;
+  puxarDistancia = 0;
+}, { passive: true });
+window.addEventListener('touchmove', (e) => {
+  if (puxarInicio === null) return;
+  puxarDistancia = Math.max(0, Math.min(140, e.touches[0].clientY - puxarInicio));
+  const el = indicadorPuxar();
+  el.style.setProperty('--puxado', puxarDistancia + 'px');
+  el.style.setProperty('--giro', (puxarDistancia * 3) + 'deg');
+  el.classList.toggle('pronto', puxarDistancia >= PUXAR_PX);
+  el.classList.toggle('visivel', puxarDistancia > 10);
+}, { passive: true });
+window.addEventListener('touchend', () => {
+  if (puxarInicio === null) return;
+  const disparar = puxarDistancia >= PUXAR_PX;
+  puxarInicio = null;
+  const el = document.getElementById('puxar-atualizar');
+  if (el) el.classList.remove('visivel', 'pronto');
+  if (disparar) atualizarConfirmacoes();
 }, { passive: true });
 
 definirRender(render);

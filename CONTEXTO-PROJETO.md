@@ -525,6 +525,29 @@ valem antes de mexer:
   ao V, prata no VI, bronze no VII e VIII, neutro no IX e X.
 - Quem pediu "reduzir movimento" no aparelho fica sem animação, e a
   impressão/PDF desliga vidro, sombra e enfeites (`@media print`).
+- **Imagens para o grupo** (`ui/imagem.js`): o resultado de um evento
+  encerrado (aba Encerrados do organizador) e o Rank de Presença, desenhados
+  num `<canvas>` com o fundo, o emblema e a Rye. Abrem numa prévia com
+  Compartilhar/Baixar, e não direto: o celular só deixa compartilhar
+  arquivo logo depois de um toque, e desenhar leva um instante. O título
+  diminui com nome longo e a rosca se ajusta ao espaço, para nada se
+  sobrepor. Cantos arredondados feitos à mão (`retangulo`), porque o
+  `roundRect` não existe antes do iOS 16.
+- **Prévia do link** no WhatsApp: as tags `og:` no `index.html` e a
+  imagem `img/compartilhar.jpg` (1200×630). O WhatsApp guarda a prévia de
+  um link por um tempo, então mudança ali demora a aparecer.
+- **Atualizar respostas** no evento (botão e "puxar para baixo"): busca as
+  respostas sem travar a lista (`atualizarConfirmacoes`, `fluxos/evento.js`)
+  e **não roda com marcação ainda não salva**, que a resposta do servidor
+  apagaria da tela. Na tela de evento o `overscroll-behavior` impede o
+  Chrome do Android de recarregar a página no mesmo gesto. Atualização
+  automática a cada minuto ficou de fora por enquanto: com o clube inteiro
+  com o evento aberto, os pedidos simultâneos ao Apps Script podem esbarrar
+  no limite dele.
+- **Folha do dia** no Calendário, **toque na fatia** da rosca, **linha do
+  tempo** no relatório individual, **etapas** presas no topo do formulário
+  de evento (atualizadas a cada letra sem redesenhar) e a **saudação** da
+  tela inicial.
 
 ## Antes de subir
 

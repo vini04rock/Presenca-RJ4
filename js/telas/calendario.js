@@ -5,7 +5,7 @@ import { apiPost } from '../nucleo/api.js';
 import { DIAS_SEMANA_LETRA, NOMES_MESES, TIPOS_EVENTO, corTipoEvento, emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
-import { dataDoCampoOuAvisar, escapeHtml, formatDataBR, hexParaRgba } from '../nucleo/util.js';
+import { dataDoCampoOuAvisar, diaDaSemana, escapeHtml, formatDataBR, hexParaRgba, pastilhaQuando } from '../nucleo/util.js';
 import { renderEscolhaDivisao, renderTelaPin } from '../ui/comuns.js';
 import { loadInitial, salvarOuAvisar } from '../dados/carregar.js';
 import { conferirPin } from '../dados/pin.js';
@@ -69,7 +69,7 @@ export function renderCalendario(app) {
             ? (marcacao.origem === 'regional' ? 'Regional' : escopoPorChave(marcacao.origem).nome.split(' - ')[0])
             : '';
           return `
-            <div class="calendario-dia${ehHoje(dia) ? ' calendario-dia-hoje' : ''}${tipo ? ' tem-evento' : ''}" style="${estilo}" title="${tipo ? escapeHtml(tipo + (nomeOrigem ? ' - ' + nomeOrigem : '')) : ''}">
+            <div class="calendario-dia${ehHoje(dia) ? ' calendario-dia-hoje' : ''}${tipo ? ' tem-evento calendario-dia-clicavel' : ''}${dataIso === state.calendarioDiaAberto ? ' calendario-dia-selecionado' : ''}" style="${estilo}" ${tipo ? `data-action="calendario-ver-dia" data-value="${dataIso}"` : ''} title="${tipo ? escapeHtml(tipo + (nomeOrigem ? ' - ' + nomeOrigem : '')) : ''}">
               <span class="calendario-dia-numero">${dia}</span>
               ${tipo ? `<span class="calendario-dia-emoji">${emojiTipoEvento(tipo)}</span>` : ''}
               ${nomeOrigem ? `<span class="calendario-dia-origem">${escapeHtml(nomeOrigem)}</span>` : ''}
@@ -87,6 +87,35 @@ export function renderCalendario(app) {
       </div>
     </div>
     <button class="btn secondary block" style="margin-top:14px;" data-action="abrir-calendario-organizar">🗂️ Organizar</button>
+    ${folhaDoDia(marcacoesEscopo)}
+  `;
+}
+
+// A "folha" que sobe de baixo quando se toca num dia com evento: o evento
+// daquele dia, com a contagem, e o caminho pra abrir. Tocar fora fecha.
+function folhaDoDia(marcacoes) {
+  const dataIso = state.calendarioDiaAberto;
+  const marcacao = dataIso && marcacoes[dataIso];
+  const ev = marcacao && state.events.find(e => e.id === marcacao.id);
+  if (!ev) return '';
+  const cor = corTipoEvento(ev.tipo);
+  const [ano, mes, dia] = dataIso.split('-').map(Number);
+  const detalhe = [ev.horario, escopoPorChave(ev.categoria).nome].filter(Boolean).map(escapeHtml).join(' · ');
+  return `
+    <div class="folha-fundo" data-action="calendario-fechar-dia"></div>
+    <div class="folha-dia${state.calendarioDiaAbrindo ? ' abrindo' : ''}" style="--cor-tipo:${cor};">
+      <div class="folha-alca"></div>
+      <div class="folha-data">${escapeHtml(diaDaSemana(dataIso))}, ${dia} de ${NOMES_MESES[mes - 1].toLowerCase()} de ${ano}</div>
+      <div class="folha-evento">
+        <div class="folha-tipo">${ev.tipo ? `${emojiTipoEvento(ev.tipo)} ${escapeHtml(ev.tipo)}` : 'Evento'}</div>
+        <div class="folha-nome">${escapeHtml(ev.nome)}</div>
+        <div class="folha-meta">${pastilhaQuando(ev)}${detalhe}</div>
+      </div>
+      <div class="row-gap">
+        <button class="btn" style="flex:2;" data-action="open-event" data-id="${ev.id}">Abrir evento ›</button>
+        <button class="btn secondary" style="flex:1;" data-action="calendario-fechar-dia">Fechar</button>
+      </div>
+    </div>
   `;
 }
 
@@ -287,12 +316,24 @@ export const acoes = {
     state.view = 'calendario';
     return render();
   },
+  'calendario-ver-dia': async (id, target, action, e) => {
+    state.calendarioDiaAberto = target.dataset.value;
+    state.calendarioDiaAbrindo = true;
+    render();
+    state.calendarioDiaAbrindo = false;
+  },
+  'calendario-fechar-dia': async (id, target, action, e) => {
+    state.calendarioDiaAberto = null;
+    return render();
+  },
   'calendario-mes-anterior': async (id, target, action, e) => {
+    state.calendarioDiaAberto = null;
     state.calendarioMes--;
     if (state.calendarioMes < 0) { state.calendarioMes = 11; state.calendarioAno--; }
     return render();
   },
   'calendario-mes-seguinte': async (id, target, action, e) => {
+    state.calendarioDiaAberto = null;
     state.calendarioMes++;
     if (state.calendarioMes > 11) { state.calendarioMes = 0; state.calendarioAno++; }
     return render();

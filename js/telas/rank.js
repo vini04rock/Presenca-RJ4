@@ -6,6 +6,7 @@ import { escapeHtml } from '../nucleo/util.js';
 import { medalha, posicoesDoPodio } from '../ui/comuns.js';
 import { carregarRank } from '../dados/carregar.js';
 import { render } from '../nucleo/render.js';
+import { imagemRank, mostrarPreviaImagem } from '../ui/imagem.js';
 
 export function renderRank(app) {
   const d = state.rankData;
@@ -102,13 +103,19 @@ function renderRankConteudo(d) {
     `;
   }).join('');
 
-  return cardTotal + blocoDivisoes + blocoMembros;
+  const botaoImagem = `<button class="btn secondary block" style="margin:-4px 0 16px;" data-action="imagem-rank">🖼️ Imagem do rank pro grupo</button>`;
+  return cardTotal + blocoDivisoes + botaoImagem + blocoMembros;
 }
 
 // Acoes do Rank de Presenca.
 // Cada entrada e o corpo do antigo "if (action === ...)" do app.js, tal
 // e qual. O app.js so olha o nome da acao neste mapa e chama.
 export const acoes = {
+  'imagem-rank': async (id, target, action, e) => {
+    if (!state.rankData) return;
+    const janela = state.rankJanela;
+    return mostrarPreviaImagem(() => imagemRank(state.rankData, janela), `rank-presenca-${janela === '6meses' ? '6-meses' : 'geral'}.png`);
+  },
   'go-rank': async (id, target, action, e) => {
     state.view = 'rank'; return render();
   },

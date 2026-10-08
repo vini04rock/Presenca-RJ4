@@ -1,6 +1,6 @@
 // Tela inicial e a navegacao ate a lista de eventos.
 
-import { COR_TODOS_EVENTOS, TIPOS_EVENTO, TIPO_HOME_TAGLINE, classeTipoEvento, corTipoEvento, emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao } from '../nucleo/config.js';
+import { COR_TODOS_EVENTOS, NOMES_MESES, TIPOS_EVENTO, TIPO_HOME_TAGLINE, classeTipoEvento, corTipoEvento, emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { IMG_CALENDARIO_HOME, IMG_HOME_EVENTOS, IMG_MODO_ORGANIZADOR, IMG_RANK_INSIGHTS, IMG_RANK_PRESENCA, LOGO_SRC, TIPO_HOME_IMAGEM } from '../nucleo/imagens.js';
 import { diaDaSemana, escapeHtml, formatDataCurta, hexParaRgba, hojeISO, pastilhaQuando } from '../nucleo/util.js';
@@ -87,6 +87,7 @@ function renderHomeInicio(app) {
         <img src="${LOGO_SRC}" alt="Insanos MC Regional RJ4">
         <h1>Confirmação de Presença</h1>
         <div class="home-linha-titulo"><span>REGIONAL RJ4</span></div>
+        <div class="home-saudacao">${escapeHtml(saudacao())}</div>
       </div>
 
       ${renderFaixaDestaque()}
@@ -238,6 +239,15 @@ function renderHomeEventos(app) {
       `;
     }).join('')}
   `;
+}
+
+// "Boa noite, irmão · Quinta, 8 de outubro" - muda com a hora do aparelho.
+function saudacao() {
+  const agora = new Date();
+  const h = agora.getHours();
+  const periodo = h >= 5 && h < 12 ? 'Bom dia' : h >= 12 && h < 18 ? 'Boa tarde' : 'Boa noite';
+  const dia = `${diaDaSemana(hojeISO())}, ${agora.getDate()} de ${NOMES_MESES[agora.getMonth()].toLowerCase()}`;
+  return `${periodo}, irmão · ${dia}`;
 }
 
 // Acoes da tela inicial e da navegacao ate a lista de eventos.
