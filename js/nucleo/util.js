@@ -127,6 +127,28 @@ export function diasAte(iso) {
   return Math.round((alvo - hoje) / 86400000);
 }
 
+// "é hoje" / "é amanhã" / "faltam 3 dias" - o numero cru ("0 dias") nao diz
+// nada de imediato pra quem bate o olho. Vazio pra data que ja passou ou
+// que nao e data. Usado no mural, na capa do evento e no proximo evento.
+export function quando(dias) {
+  if (dias === null || dias === undefined || dias < 0) return '';
+  if (dias === 0) return 'é hoje';
+  if (dias === 1) return 'é amanhã';
+  return `faltam ${dias} dias`;
+}
+
+// A mesma coisa como pastilha: "É hoje!" ganha destaque proprio (classe
+// contagem-hoje), "É amanhã" um meio-termo. Evento encerrado diz isso.
+export function pastilhaQuando(ev) {
+  if (ev.status === 'encerrado') return '<span class="contagem contagem-encerrado">Encerrado</span>';
+  const dias = diasAte(ev.data);
+  const texto = quando(dias);
+  if (!texto) return '';
+  const classe = dias === 0 ? ' contagem-hoje' : dias === 1 ? ' contagem-amanha' : '';
+  const rotulo = dias === 0 ? 'É hoje!' : texto.charAt(0).toUpperCase() + texto.slice(1);
+  return `<span class="contagem${classe}">${rotulo}</span>`;
+}
+
 export function diaDaSemana(iso) {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
   if (!m) return '';

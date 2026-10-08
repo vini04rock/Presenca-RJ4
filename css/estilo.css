@@ -1596,6 +1596,174 @@ body::before { animation: respirar 40s ease-in-out infinite alternate; transform
   .anima .linha-tendencia { stroke-dasharray: none; }
 }
 
+/* ---- Identidade: titulos de metal gravado ----
+   O titulo da tela inicial e ouro de verdade (degrade recortado no texto,
+   com um brilho que passa de tempos em tempos). Os outros titulos ganham so
+   o relevo de metal, em marfim dourado: eles podem ter emoji (nome de
+   evento, "🏆 Rank..."), e o recorte no texto apagaria o emoji. */
+.crest-wrap h1, .event-header h1, .calendario-titulo {
+  color: #F3E6C4;
+  text-shadow: 0 1px 0 #8A6A2C, 0 2px 0 #3D2C10, 0 3px 10px rgba(0, 0, 0, 0.65);
+}
+.home-crest h1 {
+  background:
+    linear-gradient(110deg, transparent 42%, rgba(255, 255, 255, 0.75) 50%, transparent 58%) 0 0 / 250% 100%,
+    linear-gradient(180deg, #FFF7E0 0%, #F0D58E 36%, #B8862E 52%, #E6C474 70%, #FFF1C9 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 2px 0 #3D2C10) drop-shadow(0 5px 12px rgba(0, 0, 0, 0.6));
+  animation: metal-brilho 7s ease-in-out infinite;
+}
+@keyframes metal-brilho {
+  0%, 65% { background-position: 130% 0, 0 0; }
+  100% { background-position: -130% 0, 0 0; }
+}
+
+/* ---- Capa do evento ---- */
+.evento-capa {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  margin-bottom: 16px;
+  padding: 18px 16px 14px;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-left: 3px solid var(--cor-tipo);
+  background-color: #141414;
+  background-size: cover;
+  background-position: center right;
+  box-shadow: var(--sombra-card);
+}
+/* O degrade que deixa o nome legivel por cima da arte: escuro a esquerda,
+   onde fica o texto, abrindo pra direita, onde a arte aparece. */
+.evento-capa::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(90deg, rgba(10, 10, 10, 0.94) 0%, rgba(10, 10, 10, 0.80) 50%, rgba(10, 10, 10, 0.40) 100%);
+}
+.evento-capa-origem {
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--cor-tipo); margin-bottom: 6px;
+}
+.evento-capa h1 { margin-bottom: 12px; }
+
+/* Contagem regressiva: "Faltam 3 dias", "É amanhã", "É hoje!". */
+.contagem {
+  display: inline-flex; align-items: center;
+  margin-right: 6px; padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  font-size: 11px; font-weight: 700; letter-spacing: 0.03em;
+  white-space: nowrap; vertical-align: middle;
+}
+.contagem-amanha { border-color: rgba(224, 178, 60, 0.7); background: rgba(224, 178, 60, 0.14); color: #F2D27A; }
+.contagem-hoje {
+  border-color: #FF8A6B; color: #fff;
+  background: linear-gradient(180deg, #F25C3D, #C23A20);
+  box-shadow: 0 0 12px rgba(242, 92, 61, 0.55);
+  animation: hoje-pulsa 1.6s ease-in-out infinite alternate;
+}
+@keyframes hoje-pulsa {
+  from { box-shadow: 0 0 6px rgba(242, 92, 61, 0.35); }
+  to { box-shadow: 0 0 16px rgba(242, 92, 61, 0.8); }
+}
+.contagem-encerrado { color: var(--text-muted); }
+.event-card-compacto .contagem { font-size: 9.5px; padding: 1px 7px; margin-right: 5px; }
+
+/* O anel do botao de confirmados. */
+.anel-confirmados { display: block; flex-shrink: 0; }
+
+/* Todo mundo respondeu: a pastilha verde salta e brilha quando aparece. */
+.todos-responderam {
+  display: inline-flex; align-items: center;
+  padding: 2px 10px; border-radius: 999px;
+  border: 1px solid rgba(95, 201, 141, 0.6);
+  background: rgba(95, 201, 141, 0.14);
+  color: #8BE0AE; font-size: 11.5px; font-weight: 700;
+}
+.todos-responderam.anima, .aviso-ok.anima { animation: saltar 0.5s var(--mola), aura-confirmado 1.1s ease-out; }
+
+/* ---- Barra fixa do topo (tela do evento e confirmados) ----
+   Presa no topo ao rolar. Parada, e so o "Voltar" de sempre; depois que a
+   capa sai da tela (body.rolou, ver app.js), vira uma faixa de vidro com
+   o nome do evento. */
+.barra-fixa {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex; align-items: center; gap: 12px;
+  margin: -8px -16px 10px;
+  padding: 8px 16px;
+  border-bottom: 1px solid transparent;
+  transition: background-color 0.25s ease, border-color 0.25s ease;
+}
+.barra-fixa .back-link { margin-bottom: 0; flex-shrink: 0; }
+.barra-fixa-nome {
+  min-width: 0; flex: 1;
+  font-family: 'Rye', serif; font-size: 14px; color: var(--white-strong);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  opacity: 0; transform: translateY(4px);
+  transition: opacity 0.25s ease, transform 0.25s var(--mola);
+}
+body.rolou .barra-fixa {
+  background-color: rgba(14, 14, 13, 0.72);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+  -webkit-backdrop-filter: blur(14px) saturate(130%);
+  backdrop-filter: blur(14px) saturate(130%);
+}
+body.rolou .barra-fixa-nome { opacity: 1; transform: none; }
+
+/* ---- Iniciais dos integrantes, com o anel na cor do grau ---- */
+.member-info:has(.iniciais) { align-items: center; }
+.iniciais {
+  --anel: rgba(255, 255, 255, 0.28);
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; flex-shrink: 0;
+  border-radius: 50%;
+  border: 1.5px solid var(--anel);
+  background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.03));
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.35), 0 0 8px -2px var(--anel);
+  color: var(--white-strong);
+  font-size: 10px; font-weight: 700; letter-spacing: 0.02em;
+}
+.iniciais-ouro { --anel: #E0B23C; }
+.iniciais-prata { --anel: #C8CCD4; }
+.iniciais-bronze { --anel: #C4804A; }
+.iniciais-base { box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.35); }
+
+/* ---- Telas vazias: o emblema esmaecido em cima da frase ---- */
+.empty::before {
+  content: '';
+  display: block;
+  width: 46px; height: 46px;
+  margin: 0 auto 12px;
+  background: url("../img/logo.webp") center / contain no-repeat;
+  opacity: 0.22;
+  filter: grayscale(1);
+}
+.empty b { color: var(--text); font-family: 'Rye', serif; font-weight: 400; font-size: 16px; }
+
+/* ---- Calendario: hoje brilha, dia com evento tem halo da cor do tipo ---- */
+.calendario-dia { border-radius: 8px; transition: transform 0.14s var(--mola); }
+.calendario-dia.tem-evento { box-shadow: inset 0 0 12px -4px var(--cor-dia), 0 0 10px -5px var(--cor-dia); }
+.calendario-dia-hoje { animation: hoje-brilha 2.4s ease-in-out infinite alternate; }
+@keyframes hoje-brilha {
+  from { box-shadow: 0 0 0 1px rgba(245, 243, 236, 0.5), 0 0 6px rgba(245, 243, 236, 0.15); }
+  to { box-shadow: 0 0 0 1px rgba(245, 243, 236, 0.9), 0 0 16px rgba(245, 243, 236, 0.45); }
+}
+.calendario-dia-clicavel:active { transform: scale(0.93); }
+
+@media (prefers-reduced-motion: reduce) {
+  .home-crest h1, .contagem-hoje, .todos-responderam.anima, .aviso-ok.anima, .calendario-dia-hoje { animation: none !important; }
+  .barra-fixa, .barra-fixa-nome { transition: none !important; }
+}
+
 /* ---- Papel: nada de vidro, sombra nem reflexo ---- */
 @media print {
   .card, .btn.secondary, .btn.danger {
@@ -1609,5 +1777,10 @@ body::before { animation: respirar 40s ease-in-out infinite alternate; transform
   .member-row.podio { background: none !important; }
   .medalha { animation: none !important; }
   #aviso-flutuante { display: none !important; }
+  .crest-wrap h1, .event-header h1, .calendario-titulo, .home-crest h1 {
+    color: #000 !important; background: none !important; text-shadow: none !important; filter: none !important;
+  }
+  .evento-capa { background: #fff !important; box-shadow: none !important; }
+  .evento-capa::before, .empty::before, .barra-fixa { display: none !important; }
   .tela-entrando > * { animation: none !important; }
 }

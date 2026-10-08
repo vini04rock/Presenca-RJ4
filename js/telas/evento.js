@@ -1,8 +1,9 @@
 // Tela de um evento e a lista de confirmados.
 
-import { FUNCOES } from '../nucleo/config.js';
+import { FUNCOES, corTipoEvento, emojiTipoEvento, escopoPorChave } from '../nucleo/config.js';
 import { getMemberStatus, state } from '../nucleo/estado.js';
-import { escapeHtml, formatDataBR, linkify, ordenarPorHierarquia } from '../nucleo/util.js';
+import { TIPO_HOME_IMAGEM } from '../nucleo/imagens.js';
+import { escapeHtml, formatDataBR, linkify, ordenarPorHierarquia, pastilhaQuando } from '../nucleo/util.js';
 import { resumoDoEvento } from '../dominio/convocacao.js';
 import { renderHome } from './home.js';
 import { renderConfirmadoRow, renderListaMembros, renderStatusBanner } from '../ui/comuns.js';
@@ -21,7 +22,9 @@ export function renderConfirmados(app) {
   const confirmados = ordenarPorHierarquia(members.filter(m => getMemberStatus(m.id).status === 'confirmado'));
 
   app.innerHTML = `
-    <div class="back-link on-photo" data-action="close-confirmados">‹ ${escapeHtml(ev.nome)}</div>
+    <div class="barra-fixa">
+      <div class="back-link on-photo" data-action="close-confirmados">‹ ${escapeHtml(ev.nome)}</div>
+    </div>
     <div class="event-header">
       <h1>✅ Confirmados</h1>
       <div class="count-box">${confirmados.length}/${members.length} CONFIRMADOS</div>
@@ -81,6 +84,47 @@ function renderInfoEvento(ev) {
   `;
 }
 
+// O anel pequeno do botao de confirmados: enche conforme o pessoal
+// confirma, a mesma ideia da rosca dos relatorios em miniatura.
+function anelConfirmados(feitos, total) {
+  const r = 7, C = 2 * Math.PI * r;
+  const frac = total ? feitos / total : 0;
+  return `
+    <svg class="anel-confirmados" width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+      <circle cx="9" cy="9" r="${r}" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="2.5"></circle>
+      <circle class="anel-confirmados-cheio" cx="9" cy="9" r="${r}" fill="none" stroke="var(--status-confirmado)" stroke-width="2.5"
+        stroke-linecap="round" stroke-dasharray="${(frac * C).toFixed(2)} ${C.toFixed(2)}" transform="rotate(-90 9 9)"></circle>
+    </svg>
+  `;
+}
+
+// A capa: a arte do tipo como faixa, com o nome por cima e um degrade pra
+// ler. Tipo sem arte fica com a cor dele, sem imagem.
+function renderCapaEvento(ev, members, confirmados) {
+  const arte = TIPO_HOME_IMAGEM[ev.tipo];
+  const cor = corTipoEvento(ev.tipo);
+  const aguardando = members.filter(m => getMemberStatus(m.id).status === 'aguardando').length;
+  // "Todos responderam" so depois de ler a planilha - antes disso todo
+  // mundo pareceria "aguardando" ou, pior, ninguem.
+  const todosResponderam = state.statusLoaded && members.length > 0 && aguardando === 0;
+  const origem = [ev.tipo ? `${emojiTipoEvento(ev.tipo)} ${escapeHtml(ev.tipo)}` : '', escapeHtml(escopoPorChave(ev.categoria).nome)]
+    .filter(Boolean).join(' · ');
+  return `
+    <div class="evento-capa event-header" style="--cor-tipo:${cor};${arte ? ` background-image:url('${arte}');` : ''}">
+      <div class="evento-capa-origem">${origem}</div>
+      <h1>${escapeHtml(ev.nome)}</h1>
+      <div class="event-header-row">
+        ${pastilhaQuando(ev)}
+        <div class="count-box">${members.length} MEMBROS</div>
+        <button class="confirm-toggle-btn" data-action="toggle-confirmados">
+          ${anelConfirmados(confirmados.length, members.length)} ${confirmados.length}/${members.length}
+        </button>
+        ${todosResponderam ? `<span class="todos-responderam" data-anima="todos:${ev.id}">✓ Todos responderam</span>` : ''}
+      </div>
+    </div>
+  `;
+}
+
 export function renderEvent(app) {
   const ev = state.events.find(e => e.id === state.currentEventId);
   if (!ev) { state.view = 'home'; return renderHome(app); }
@@ -90,17 +134,15 @@ export function renderEvent(app) {
 
   const confirmados = members.filter(m => getMemberStatus(m.id).status === 'confirmado');
 
+  // A barra do topo fica presa ao rolar (lista regional chega a 100 nomes),
+  // e o nome do evento aparece nela so depois que a capa sai da tela - ver
+  // a classe "rolou", posta pelo app.js.
   app.innerHTML = `
-    <div class="back-link on-photo" data-action="voltar-do-evento">‹ Todos os eventos</div>
-    <div class="event-header">
-      <h1>${escapeHtml(ev.nome)}</h1>
-      <div class="event-header-row">
-        <div class="count-box">${members.length} MEMBROS</div>
-        <button class="confirm-toggle-btn" data-action="toggle-confirmados">
-          ✅ ${confirmados.length}/${members.length}
-        </button>
-      </div>
+    <div class="barra-fixa">
+      <div class="back-link on-photo" data-action="voltar-do-evento">‹ Todos os eventos</div>
+      <div class="barra-fixa-nome">${escapeHtml(ev.nome)}</div>
     </div>
+    ${renderCapaEvento(ev, members, confirmados)}
     ${renderInfoEvento(ev)}
     ${renderStatusBanner()}
     <div class="card" style="padding: 4px 16px;">

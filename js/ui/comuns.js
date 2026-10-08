@@ -70,6 +70,21 @@ export function renderListaMembros(ev, members) {
   return ordenarPorHierarquia(members).map((m, i) => renderMemberRow(m, i)).join('');
 }
 
+// As iniciais do integrante num circulo, com o anel na cor do grau: ouro do
+// I ao V, prata no VI, bronze no VII e VIII, neutro no IX e X. Lembrando que
+// o grau mais alto e o de numero MENOR (ver GRAUS). Ajuda a achar o nome na
+// lista de relance, sem precisar ler.
+function iniciais(nome) {
+  const partes = String(nome || '').trim().split(/\s+/).filter(Boolean);
+  if (!partes.length) return '?';
+  const letras = partes.length > 1 ? partes[0][0] + partes[1][0] : partes[0].slice(0, 2);
+  return letras.toUpperCase();
+}
+const NIVEL_DO_GRAU = { I: 'ouro', II: 'ouro', III: 'ouro', IV: 'ouro', V: 'ouro', VI: 'prata', VII: 'bronze', VIII: 'bronze' };
+function selinhoIniciais(m) {
+  return `<span class="iniciais iniciais-${NIVEL_DO_GRAU[m.grau] || 'base'}" aria-hidden="true">${escapeHtml(iniciais(m.nome))}</span>`;
+}
+
 export function renderConfirmadoRow(m, i) {
   const st = getMemberStatus(m.id);
   return `
@@ -77,6 +92,7 @@ export function renderConfirmadoRow(m, i) {
       <div class="member-info-wrap">
         <div class="member-info">
           <span class="member-num">${String(i + 1).padStart(2, '0')}.</span>
+          ${selinhoIniciais(m)}
           <span class="member-name">${escapeHtml(m.nome)}</span>
           ${m.grau ? `<span class="grade-box">${escapeHtml(m.grau)}</span>` : ''}
           ${st.direto ? '<span title="Direto">🚀</span>' : ''}
@@ -134,6 +150,7 @@ function renderMemberRow(m, i) {
         <div class="member-info-wrap">
         <div class="member-info">
           <span class="member-num">${String(i + 1).padStart(2, '0')}.</span>
+          ${selinhoIniciais(m)}
           <span class="member-name">${escapeHtml(m.nome)}</span>
           ${m.grau ? `<span class="grade-box">${escapeHtml(m.grau)}</span>` : ''}
           ${st.direto ? '<span title="Direto">🚀</span>' : ''}

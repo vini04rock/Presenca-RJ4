@@ -12,7 +12,7 @@
 import { JANELA_DIAS, eventosProximos, semResposta } from '../dominio/pendencias.js';
 import { loadPresencasProximas } from '../dados/carregar.js';
 import { escopoPorChave, escoposAtivos } from '../nucleo/config.js';
-import { diaDaSemana, formatDataBR } from '../nucleo/util.js';
+import { diaDaSemana, formatDataBR, quando } from '../nucleo/util.js';
 import { state } from '../nucleo/estado.js';
 import { escapeHtml } from '../nucleo/util.js';
 import { render } from '../nucleo/render.js';
@@ -60,14 +60,6 @@ function cardSecao(s) {
   `;
 }
 
-// "e hoje" / "e amanha" / "faltam 3 dias" - o numero cru ("0 dias") nao diz
-// nada de imediato pra quem bate o olho.
-function quando(dias) {
-  if (dias === 0) return 'é hoje';
-  if (dias === 1) return 'é amanhã';
-  return `faltam ${dias} dias`;
-}
-
 // Um aviso do mural: o evento que esta chegando e quantos ainda nao
 // responderam. Uma linha, nao um card - na janela de 2 dias e comum ter
 // dois eventos seguidos, e como cards soltos eles empurravam as secoes pra
@@ -81,7 +73,9 @@ function linhaAviso({ ev, dias }) {
   const r = semResposta(ev);
   const pendente = r && r.faltam > 0;
   const cor = pendente ? '#D9573C' : '#4CAF6E';
-  const icone = pendente ? '⚠️' : '📅';
+  // Todo mundo respondeu: vira ✅, com um salto quando aparece (data-anima).
+  const todosOk = r !== null && !pendente;
+  const icone = pendente ? '⚠️' : todosOk ? '✅' : '📅';
   const detalhe = [diaDaSemana(ev.data), formatDataBR(ev.data), quando(dias)]
     .filter(Boolean).join(' · ');
   const contagem = r === null
@@ -89,7 +83,7 @@ function linhaAviso({ ev, dias }) {
     : (pendente ? `${r.faltam} de ${r.total} ainda não responderam` : 'todos responderam');
   return `
     <div class="aviso-linha" style="border-left-color:${cor};" data-action="open-event" data-id="${ev.id}">
-      <div class="aviso-icone${pendente ? ' pulsando' : ''}" style="border-color:${cor};">${icone}</div>
+      <div class="aviso-icone${pendente ? ' pulsando' : ''}${todosOk ? ' aviso-ok' : ''}" style="border-color:${cor};"${todosOk ? ` data-anima="mural-ok:${ev.id}"` : ''}>${icone}</div>
       <div class="aviso-texto">
         <div class="aviso-nome">${escapeHtml(ev.nome)}</div>
         <div class="aviso-meta">${escapeHtml(detalhe)}</div>

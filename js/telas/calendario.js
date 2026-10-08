@@ -59,7 +59,7 @@ export function renderCalendario(app) {
           const dataIso = `${state.calendarioAno}-${String(state.calendarioMes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
           const marcacao = marcacoesEscopo[dataIso];
           const tipo = marcacao && marcacao.tipo;
-          const estilo = tipo ? `border-color:${corTipoEvento(tipo)}; background:${hexParaRgba(corTipoEvento(tipo), 0.18)};` : '';
+          const estilo = tipo ? `border-color:${corTipoEvento(tipo)}; background:${hexParaRgba(corTipoEvento(tipo), 0.18)}; --cor-dia:${corTipoEvento(tipo)};` : '';
           // Mostra de onde o evento veio sempre que a origem for diferente
           // de quem esta olhando - no Regional, aparece o nome da divisao
           // (ex: "Barra"); numa divisao, um evento vindo do Regional
@@ -69,7 +69,7 @@ export function renderCalendario(app) {
             ? (marcacao.origem === 'regional' ? 'Regional' : escopoPorChave(marcacao.origem).nome.split(' - ')[0])
             : '';
           return `
-            <div class="calendario-dia${ehHoje(dia) ? ' calendario-dia-hoje' : ''}" style="${estilo}" title="${tipo ? escapeHtml(tipo + (nomeOrigem ? ' - ' + nomeOrigem : '')) : ''}">
+            <div class="calendario-dia${ehHoje(dia) ? ' calendario-dia-hoje' : ''}${tipo ? ' tem-evento' : ''}" style="${estilo}" title="${tipo ? escapeHtml(tipo + (nomeOrigem ? ' - ' + nomeOrigem : '')) : ''}">
               <span class="calendario-dia-numero">${dia}</span>
               ${tipo ? `<span class="calendario-dia-emoji">${emojiTipoEvento(tipo)}</span>` : ''}
               ${nomeOrigem ? `<span class="calendario-dia-origem">${escapeHtml(nomeOrigem)}</span>` : ''}
@@ -188,10 +188,10 @@ function conteudoCalendarioOrganizarEditar() {
           const dataIso = `${state.calendarioAno}-${String(state.calendarioMes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
           const evento = marcacoesProprias[dataIso];
           const tipo = evento && evento.tipo;
-          const estilo = tipo ? `border-color:${corTipoEvento(tipo)}; background:${hexParaRgba(corTipoEvento(tipo), 0.18)};` : '';
+          const estilo = tipo ? `border-color:${corTipoEvento(tipo)}; background:${hexParaRgba(corTipoEvento(tipo), 0.18)}; --cor-dia:${corTipoEvento(tipo)};` : '';
           const classes = ['calendario-dia'];
           if (ehHoje(dia)) classes.push('calendario-dia-hoje');
-          if (tipo) classes.push('calendario-dia-clicavel');
+          if (tipo) classes.push('calendario-dia-clicavel', 'tem-evento');
           if (dataIso === dataSelecionada) classes.push('calendario-dia-selecionado');
           // So aparece no Regional (unico escopo que edita evento de outra
           // origem) - pra saber de qual divisao e o evento antes de tocar.

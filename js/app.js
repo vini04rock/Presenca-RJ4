@@ -249,5 +249,12 @@ document.getElementById('app').addEventListener('click', async (e) => {
   return tratar(id, target, action, e);
 });
 
+// A barra fixa do topo do evento (.barra-fixa) mostra o nome so depois que
+// a capa sai da tela. Um ouvinte so, pro app inteiro: liga e desliga uma
+// classe no body, sem redesenhar nada.
+window.addEventListener('scroll', () => {
+  document.body.classList.toggle('rolou', window.scrollY > 150);
+}, { passive: true });
+
 definirRender(render);
 loadInitial();

@@ -3,7 +3,7 @@
 import { COR_TODOS_EVENTOS, TIPOS_EVENTO, TIPO_HOME_TAGLINE, classeTipoEvento, corTipoEvento, emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { IMG_CALENDARIO_HOME, IMG_HOME_EVENTOS, IMG_MODO_ORGANIZADOR, IMG_RANK_INSIGHTS, IMG_RANK_PRESENCA, LOGO_SRC, TIPO_HOME_IMAGEM } from '../nucleo/imagens.js';
-import { diaDaSemana, escapeHtml, formatDataCurta, hexParaRgba, hojeISO } from '../nucleo/util.js';
+import { diaDaSemana, escapeHtml, formatDataCurta, hexParaRgba, hojeISO, pastilhaQuando } from '../nucleo/util.js';
 import { renderCardEscopo } from '../ui/comuns.js';
 import { openEvent } from '../fluxos/evento.js';
 import { render } from '../nucleo/render.js';
@@ -64,7 +64,7 @@ function renderFaixaDestaque() {
         ${dataCurta ? `<div class="event-date-badge">${dataCurta}</div>` : ''}
         <div>
           <div class="name">${escapeHtml(ev.nome)}${ev.tipo ? ' ' + emojiTipoEvento(ev.tipo) : ''}</div>
-          <div class="meta">${detalhe}</div>
+          <div class="meta">${pastilhaQuando(ev)}${detalhe}</div>
         </div>
         <div class="arrow">›</div>
       </div>
@@ -211,6 +211,7 @@ function renderHomeEventos(app) {
     </div>
     ${activeEvents.length === 0 ? `
       <div class="empty">
+        <b>Estrada livre.</b><br>
         Nenhum evento ativo no momento.<br>
         ${state.roster.length === 0 ? 'Abra o modo organizador pra cadastrar membros e criar o primeiro evento.' : 'Abra o modo organizador pra criar um evento.'}
       </div>
