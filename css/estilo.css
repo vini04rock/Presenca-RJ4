@@ -1462,6 +1462,140 @@ body::before { animation: respirar 40s ease-in-out infinite alternate; transform
   .card, .btn, .tab, .chip-option, .picker-btn, .toggle-chip { transition: none !important; }
 }
 
+/* ---- Vida: o que se mexe depois de desenhado ----
+   Quem marca o que anima e o HTML (data-anima / data-muda) e quem decide
+   QUANDO e o app.js (animarNovidades): cada coisa uma vez por tela, nunca
+   a cada redesenho. Aqui so mora o movimento em si. */
+
+/* O selo de status salta quando o integrante muda a resposta. */
+.status-badge.saltou { animation: saltar 0.45s var(--mola); }
+.status-confirmado.saltou { animation: saltar 0.45s var(--mola), aura-confirmado 0.9s ease-out; }
+@keyframes saltar {
+  0% { transform: scale(0.7); }
+  55% { transform: scale(1.14); }
+  100% { transform: scale(1); }
+}
+@keyframes aura-confirmado {
+  0% { box-shadow: 0 0 0 0 rgba(95, 201, 141, 0.7); }
+  100% { box-shadow: 0 0 0 12px rgba(95, 201, 141, 0); }
+}
+
+/* A rosca se fecha ate o valor; a linha de tendencia se risca da esquerda
+   pra direita; as barras crescem a partir da base. */
+.donut-wrap.anima .donut-arco { animation: desenhar-arco 1s var(--mola) both; }
+@keyframes desenhar-arco { from { stroke-dasharray: 0 1000; } }
+.anima .linha-tendencia { stroke-dasharray: 1; animation: riscar-linha 1.2s 0.2s var(--mola) both; }
+@keyframes riscar-linha { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+.chart-row-fill.anima, .presenca-barra-fill.anima { transform-origin: left center; animation: crescer-barra 0.8s var(--mola) both; }
+@keyframes crescer-barra { from { transform: scaleX(0); } }
+
+/* Pódio dos ranks: a linha ganha a cor da medalha, fraca, sumindo pra
+   direita; a medalha tem um brilho que passa de tempos em tempos. */
+.member-row.podio { border-radius: 8px; margin: 0 -8px; padding-left: 8px; padding-right: 8px; }
+.podio-1 { background: linear-gradient(90deg, rgba(224, 178, 60, 0.20), transparent 70%); }
+.podio-2 { background: linear-gradient(90deg, rgba(200, 204, 212, 0.16), transparent 70%); }
+.podio-3 { background: linear-gradient(90deg, rgba(196, 128, 74, 0.18), transparent 70%); }
+.medalha { display: inline-block; margin-right: 6px; font-size: 1.1em; animation: medalha-brilho 3.2s ease-in-out infinite; }
+.medalha-2 { animation-delay: 0.4s; }
+.medalha-3 { animation-delay: 0.8s; }
+@keyframes medalha-brilho {
+  0%, 70%, 100% { filter: drop-shadow(0 0 0 transparent); transform: scale(1); }
+  80% { filter: drop-shadow(0 0 6px rgba(255, 220, 140, 0.9)); transform: scale(1.12); }
+}
+
+/* Mural: o aviso com gente sem responder tem um anel que pulsa pra fora,
+   na mesma cor da borda dele. */
+.aviso-icone.pulsando { position: relative; }
+.aviso-icone.pulsando::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  border: 2px solid;
+  border-color: inherit;
+  animation: anel-pulsando 1.8s ease-out infinite;
+  pointer-events: none;
+}
+@keyframes anel-pulsando {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+/* Proximo evento: um halo na cor do tipo (dourado no Pub, vermelho no Bate
+   e Volta...), respirando devagar. A cor vem do style (--brilho). */
+.destaque-brilho::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: 0 0 22px 1px var(--brilho, transparent);
+  animation: halo-respira 3s ease-in-out infinite alternate;
+}
+@keyframes halo-respira {
+  from { opacity: 0.25; }
+  to { opacity: 0.7; }
+}
+
+/* Aviso flutuante (mostrarAviso, em nucleo/util.js): pastilha de vidro no
+   pe da tela, sobe, espera e some. Fica fora do #app. */
+#aviso-flutuante {
+  position: fixed;
+  left: 50%;
+  bottom: calc(22px + env(safe-area-inset-bottom, 0px));
+  z-index: 50;
+  max-width: calc(100% - 32px);
+  padding: 11px 18px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(48, 47, 44, 0.86), rgba(20, 20, 19, 0.92));
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.10) inset, 0 12px 30px -6px rgba(0, 0, 0, 0.8);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  color: var(--white-strong);
+  font-size: 13.5px;
+  font-weight: 600;
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, 16px);
+  transition: opacity 0.25s ease, transform 0.35s var(--mola);
+}
+#aviso-flutuante.visivel { opacity: 1; transform: translate(-50%, 0); }
+
+/* Esqueleto da primeira carga: o contorno da tela inicial em vidro, com
+   um brilho passando. */
+.esqueleto-tela { display: flex; flex-direction: column; align-items: center; gap: 14px; padding-top: 8px; }
+.esqueleto {
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.07) 50%, transparent 70%) 0 0 / 250% 100%,
+    rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  animation: esqueleto-brilho 1.4s linear infinite;
+}
+@keyframes esqueleto-brilho {
+  from { background-position: 120% 0, 0 0; }
+  to { background-position: -120% 0, 0 0; }
+}
+.esqueleto-logo { width: 150px; height: 150px; border-radius: 50%; }
+.esqueleto-titulo { width: 78%; height: 30px; }
+.esqueleto-linha { width: 34%; height: 12px; margin-bottom: 8px; }
+.esqueleto-card { width: 100%; height: 58px; }
+.esqueleto-dupla { display: flex; gap: 10px; width: 100%; }
+.esqueleto-card-baixo { flex: 1; height: 48px; }
+.esqueleto-card-alto { width: 100%; height: 110px; }
+.esqueleto-tela .loading { padding: 6px 0 0; font-size: 12.5px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .status-badge.saltou, .donut-wrap.anima .donut-arco, .anima .linha-tendencia,
+  .chart-row-fill.anima, .presenca-barra-fill.anima, .medalha,
+  .aviso-icone.pulsando::after, .destaque-brilho::before, .esqueleto { animation: none !important; }
+  .anima .linha-tendencia { stroke-dasharray: none; }
+}
+
 /* ---- Papel: nada de vidro, sombra nem reflexo ---- */
 @media print {
   .card, .btn.secondary, .btn.danger {
@@ -1472,5 +1606,8 @@ body::before { animation: respirar 40s ease-in-out infinite alternate; transform
   }
   .status-confirmado { box-shadow: none !important; }
   .card::after, .btn::after, .card::before { display: none !important; }
+  .member-row.podio { background: none !important; }
+  .medalha { animation: none !important; }
+  #aviso-flutuante { display: none !important; }
   .tela-entrando > * { animation: none !important; }
 }

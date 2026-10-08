@@ -8,7 +8,7 @@ import { numerosInsightDivisao } from '../dominio/estatisticas.js';
 import { divisoesSemRegional } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { escapeHtml, formatDataBR } from '../nucleo/util.js';
-import { linhaFuncoes } from './comuns.js';
+import { linhaFuncoes, medalha, posicoesDoPodio } from './comuns.js';
 import { renderDonutChart, renderSparklineTendencia } from './graficos.js';
 
 // Media por rodada, com no maximo uma casa: "0,4", "7", "8,1". Inteiro sai
@@ -70,6 +70,7 @@ export function renderRankInsightsConteudo(d, historico) {
     const membros = d.membros
       .filter(m => m.divisao === e.nome)
       .sort((a, b) => (b.percentual ?? -1) - (a.percentual ?? -1) || a.nome.localeCompare(b.nome));
+    const lugares = posicoesDoPodio(membros.map(m => m.percentual));
     const aberto = state.insightRankExpandedDivisoes.has(e.chave);
     return `
       <div class="card" style="padding: 4px 16px;">
@@ -78,11 +79,11 @@ export function renderRankInsightsConteudo(d, historico) {
           <span class="division-counts">${membros.length} ${membros.length === 1 ? 'membro' : 'membros'}</span>
         </div>
         <div class="insight-rank-membros" style="display:${aberto ? 'block' : 'none'};">
-          ${membros.length === 0 ? '<div class="empty">Nenhum membro cadastrado.</div>' : membros.map(m => `
-            <div class="member-row">
+          ${membros.length === 0 ? '<div class="empty">Nenhum membro cadastrado.</div>' : membros.map((m, i) => `
+            <div class="member-row${lugares[i] ? ' podio podio-' + lugares[i] : ''}">
               <div class="member-head">
                 <div class="member-info">
-                  <span class="member-name">${escapeHtml(m.nome)}</span>
+                  <span class="member-name">${medalha(lugares[i])}${escapeHtml(m.nome)}</span>
                   ${m.grau ? `<span class="grade-box">${escapeHtml(m.grau)}</span>` : ''}
                 </div>
                 <span class="status-badge status-confirmado">${linhaPct(m.percentual)}</span>

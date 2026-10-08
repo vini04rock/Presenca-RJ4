@@ -5,7 +5,7 @@ import { historicoMembro } from '../dominio/estatisticas.js';
 import { COR_DIVISAO, COR_TODOS_EVENTOS, STATUS, STATUS_PICKER_KEYS, funcaoPorChave } from '../nucleo/config.js';
 import { getMemberStatus, state } from '../nucleo/estado.js';
 import { IMG_DIVISAO, IMG_REGIONAL } from '../nucleo/imagens.js';
-import { escapeHtml, formatDataBR, ordenarPorHierarquia } from '../nucleo/util.js';
+import { escapeHtml, formatDataBR, ordenarPorHierarquia, vibrar } from '../nucleo/util.js';
 import { renderDonutChart, renderSparklineTendencia, segmentosDonutStatus } from './graficos.js';
 import { loadEventStatus } from '../dados/carregar.js';
 import { gravarAgora, setMemberStatus } from '../fila/presenca.js';
@@ -142,7 +142,7 @@ function renderMemberRow(m, i) {
         </div>
         ${linhaFuncoes(m.funcoes)}
         </div>
-        <span class="status-badge status-${st.status}">${s.emoji} ${s.label}</span>
+        <span class="status-badge status-${st.status}"${travado ? '' : ` data-muda="${state.currentEventId}:${m.id}" data-valor="${st.status}"`}>${s.emoji} ${s.label}</span>
       </div>
       <div class="picker ${isOpen ? 'open' : ''}">
         <div class="picker-group">
@@ -228,11 +228,29 @@ function renderLinhaEstatisticaMembro(m) {
         <div class="presenca-contagem">${m.confirmacoes} de ${m.convites} eventos</div>
       </div>
       <div class="presenca-pct-wrap">
-        <div class="presenca-barra"><div class="presenca-barra-fill" style="width:${m.percentual}%"></div></div>
+        <div class="presenca-barra"><div class="presenca-barra-fill" style="width:${m.percentual}%" data-anima="barra:${m.percentual}"></div></div>
         <div class="presenca-pct">${m.percentual}%</div>
       </div>
     </div>
   `;
+}
+
+// O pódio dos ranks: 🥇🥈🥉 pros tres primeiros de uma lista ja ordenada do
+// maior % pro menor. Empate divide a medalha - dois com 90% sao os dois
+// ouro, e o seguinte e prata, nao bronze. Quem ainda nao tem % fica sem.
+// Devolve so a posicao (1 a 3, ou 0 fora do pódio), porque a linha tambem
+// muda de cor, nao so ganha a medalha.
+export function posicoesDoPodio(percentuais) {
+  const distintos = [...new Set(percentuais.filter(p => p !== null && p !== undefined))];
+  return percentuais.map(p => {
+    if (p === null || p === undefined) return 0;
+    const lugar = distintos.indexOf(p) + 1;
+    return lugar <= 3 ? lugar : 0;
+  });
+}
+const MEDALHAS = ['🥇', '🥈', '🥉'];
+export function medalha(lugar) {
+  return lugar ? `<span class="medalha medalha-${lugar}">${MEDALHAS[lugar - 1]}</span>` : '';
 }
 
 // "% de cada integrante" agrupada por divisao, com cabecalho recolhivel
@@ -308,17 +326,22 @@ export const acoes = {
     return render();
   },
   'set-status': async (id, target, action, e) => {
+    // Confirmar ganha uma vibracao dupla, de "feito"; o resto, um toque so.
+    vibrar(target.dataset.status === 'confirmado' ? [14, 50, 22] : 12);
     return setMemberStatus(id, { status: target.dataset.status });
   },
   'toggle-direto': async (id, target, action, e) => {
+    vibrar(8);
     const cur = getMemberStatus(id);
     return setMemberStatus(id, { direto: !cur.direto });
   },
   'toggle-destacado': async (id, target, action, e) => {
+    vibrar(8);
     const cur = getMemberStatus(id);
     return setMemberStatus(id, { destacado: !cur.destacado });
   },
   'toggle-acompanhado': async (id, target, action, e) => {
+    vibrar(8);
     const cur = getMemberStatus(id);
     return setMemberStatus(id, { acompanhado: !cur.acompanhado });
   },

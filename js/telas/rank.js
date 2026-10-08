@@ -3,6 +3,7 @@
 import { escoposEmOrdemDeExibicao } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { escapeHtml } from '../nucleo/util.js';
+import { medalha, posicoesDoPodio } from '../ui/comuns.js';
 import { carregarRank } from '../dados/carregar.js';
 import { render } from '../nucleo/render.js';
 
@@ -47,20 +48,28 @@ function renderRankConteudo(d) {
       <div class="member-row" style="border-bottom:none; padding:0;">
         <div class="member-head" style="cursor:default;">
           <span class="member-name" style="font-family:'Rye',serif; font-size:17px;">🏆 Rank Total Regional</span>
-          <span class="status-badge status-confirmado" style="font-size:15px; padding:7px 14px;">${linhaPct(totalPct)}</span>
+          <span class="status-badge status-confirmado" style="font-size:15px; padding:7px 14px;" data-anima="rank-total:${totalPct}"><span${totalPct === null ? '' : ` data-conta="${totalPct}" data-sufixo="%"`}>${linhaPct(totalPct)}</span></span>
         </div>
       </div>
     </div>
   `;
 
+  // Do maior % pro menor, com o pódio nos tres primeiros. Quem nao tem %
+  // (nenhum evento encerrado ainda) vai pro fim, na ordem de sempre.
+  const divisoesNoRank = escoposEmOrdemDeExibicao()
+    .map(e => {
+      const item = porChave(e.chave);
+      return { e, item, pct: item && item.percentual !== undefined ? item.percentual : null };
+    })
+    .sort((a, b) => (b.pct ?? -1) - (a.pct ?? -1));
+  const lugaresDivisoes = posicoesDoPodio(divisoesNoRank.map(x => x.pct));
   const blocoDivisoes = `
     <div class="card" style="padding: 4px 16px; margin-bottom:16px;">
-      ${escoposEmOrdemDeExibicao().map(e => {
-        const item = porChave(e.chave);
+      ${divisoesNoRank.map(({ e, item }, i) => {
         return `
-          <div class="member-row">
+          <div class="member-row${lugaresDivisoes[i] ? ' podio podio-' + lugaresDivisoes[i] : ''}">
             <div class="member-head">
-              <span class="member-name">${escapeHtml(e.nome)}</span>
+              <span class="member-name">${medalha(lugaresDivisoes[i])}${escapeHtml(e.nome)}</span>
               <span class="status-badge status-confirmado">${linhaPct(item && item.percentual)}</span>
             </div>
           </div>
@@ -72,7 +81,8 @@ function renderRankConteudo(d) {
   const blocoMembros = escoposEmOrdemDeExibicao().map(e => {
     const membros = d.membros
       .filter(m => m.divisao === e.nome)
-      .sort((a, b) => a.nome.localeCompare(b.nome));
+      .sort((a, b) => (b.percentual ?? -1) - (a.percentual ?? -1) || a.nome.localeCompare(b.nome));
+    const lugares = posicoesDoPodio(membros.map(m => m.percentual));
     const aberto = state.rankExpandedDivisoes.has(e.chave);
     return `
       <div class="card" style="padding: 4px 16px;">
@@ -80,10 +90,10 @@ function renderRankConteudo(d) {
           <span>${aberto ? '▾' : '▸'} ${escapeHtml(e.nome.toUpperCase())}</span>
           <span class="division-counts">${membros.length} ${membros.length === 1 ? 'membro' : 'membros'}</span>
         </div>
-        ${aberto ? (membros.length === 0 ? '<div class="empty">Nenhum membro cadastrado.</div>' : membros.map(m => `
-          <div class="member-row">
+        ${aberto ? (membros.length === 0 ? '<div class="empty">Nenhum membro cadastrado.</div>' : membros.map((m, i) => `
+          <div class="member-row${lugares[i] ? ' podio podio-' + lugares[i] : ''}">
             <div class="member-head">
-              <span class="member-name">${escapeHtml(m.nome)}</span>
+              <span class="member-name">${medalha(lugares[i])}${escapeHtml(m.nome)}</span>
               <span class="status-badge status-confirmado">${linhaPct(m.percentual)}</span>
             </div>
           </div>

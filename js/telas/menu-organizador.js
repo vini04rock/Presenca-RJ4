@@ -89,7 +89,7 @@ function linhaAviso({ ev, dias }) {
     : (pendente ? `${r.faltam} de ${r.total} ainda não responderam` : 'todos responderam');
   return `
     <div class="aviso-linha" style="border-left-color:${cor};" data-action="open-event" data-id="${ev.id}">
-      <div class="aviso-icone" style="border-color:${cor};">${icone}</div>
+      <div class="aviso-icone${pendente ? ' pulsando' : ''}" style="border-color:${cor};">${icone}</div>
       <div class="aviso-texto">
         <div class="aviso-nome">${escapeHtml(ev.nome)}</div>
         <div class="aviso-meta">${escapeHtml(detalhe)}</div>

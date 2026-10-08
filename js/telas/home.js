@@ -60,7 +60,7 @@ function renderFaixaDestaque() {
   return `
     <div class="home-destaque">
       <div class="rotulo-secao home-rotulo-destaque">Próximo evento</div>
-      <div class="card event-card event-card-compacto ${imagemFundo ? '' : classeTipoEvento(ev.tipo)}" style="${estiloFundo}" data-action="open-event" data-id="${ev.id}">
+      <div class="card event-card event-card-compacto destaque-brilho ${imagemFundo ? '' : classeTipoEvento(ev.tipo)}" style="${estiloFundo} --brilho:${cor};" data-action="open-event" data-id="${ev.id}">
         ${dataCurta ? `<div class="event-date-badge">${dataCurta}</div>` : ''}
         <div>
           <div class="name">${escapeHtml(ev.nome)}${ev.tipo ? ' ' + emojiTipoEvento(ev.tipo) : ''}</div>

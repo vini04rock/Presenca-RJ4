@@ -205,6 +205,12 @@ export async function emLotes(itens, tamanhoDoLote, tarefa) {
 // alguns navegadores/paginas embutidas, daí o fallback com textarea+
 // execCommand, que funciona bem mais amplamente.
 export async function copiarTexto(texto) {
+  const ok = await copiarSemAviso(texto);
+  mostrarAviso(ok ? '📋 Copiado — é só colar no WhatsApp' : 'Não consegui copiar. Tente de novo.');
+  return ok;
+}
+
+async function copiarSemAviso(texto) {
   try {
     await navigator.clipboard.writeText(texto);
     return true;
@@ -224,4 +230,30 @@ export async function copiarTexto(texto) {
       return false;
     }
   }
+}
+
+// O aviso flutuante: uma pastilha de vidro que sobe do pe da tela e some
+// sozinha. Vive fora do #app de proposito - o app redesenha o #app inteiro
+// a cada toque, e o aviso sumiria no meio da leitura.
+let fimDoAviso = null;
+export function mostrarAviso(texto) {
+  let el = document.getElementById('aviso-flutuante');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'aviso-flutuante';
+    el.setAttribute('role', 'status');
+    document.body.appendChild(el);
+  }
+  el.textContent = texto;
+  el.classList.remove('visivel');
+  void el.offsetWidth; // reinicia a subida quando um aviso chega em cima do outro
+  el.classList.add('visivel');
+  clearTimeout(fimDoAviso);
+  fimDoAviso = setTimeout(() => el.classList.remove('visivel'), 2400);
+}
+
+// Uma tremidinha no celular ao confirmar presenca. So o Android obedece: o
+// iPhone nao deixa site nenhum vibrar, e ali o retorno fica so na tela.
+export function vibrar(padrao) {
+  try { if (navigator.vibrate) navigator.vibrate(padrao); } catch (e) { /* sem vibracao, sem problema */ }
 }

@@ -57,7 +57,7 @@ export function renderAdminPresencas() {
             <div class="presenca-contagem">${m.confirmacoes} de ${m.convites} eventos</div>
           </div>
           <div class="presenca-pct-wrap">
-            <div class="presenca-barra"><div class="presenca-barra-fill" style="width:${m.percentual}%"></div></div>
+            <div class="presenca-barra"><div class="presenca-barra-fill" style="width:${m.percentual}%" data-anima="barra:${m.percentual}"></div></div>
             <div class="presenca-pct">${m.percentual}%</div>
           </div>
         </div>

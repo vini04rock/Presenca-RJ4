@@ -372,7 +372,7 @@ function barrasPorDivisao(grupos) {
     ${g.itens.map(({ ev, pct }) => `
       <div class="chart-row">
         <div class="chart-row-label" title="${escapeHtml(ev.nome)}">${escapeHtml(ev.nome)}</div>
-        <div class="chart-row-track"><div class="chart-row-fill" style="width:${pct || 0}%"></div></div>
+        <div class="chart-row-track"><div class="chart-row-fill" style="width:${pct || 0}%" data-anima="barra:${pct}"></div></div>
         <div class="chart-row-value">${pct === null ? '…' : pct + '%'}</div>
       </div>
     `).join('')}

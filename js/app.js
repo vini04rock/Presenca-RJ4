@@ -39,22 +39,95 @@ let telaAnterior = null;
 let fimDaEntrada = null;
 function marcarTrocaDeTela(app) {
   const tela = [state.loading, state.view, state.homeEventosAberto, state.homeEscopo,
-    state.homeTipo, state.adminTab, state.relatorioTab].join('|');
+    state.homeTipo, state.adminTab, state.relatorioTab, state.relatorioTipoDetalhe,
+    state.currentEventId].join('|');
   clearTimeout(fimDaEntrada);
   if (tela === telaAnterior) {
     app.classList.remove('tela-entrando');
     return;
   }
   telaAnterior = tela;
+  // Tela nova, memoria nova: os graficos dela se desenham de novo.
+  jaAnimados = new Set();
+  valoresVistos = new Map();
   app.classList.add('tela-entrando');
   fimDaEntrada = setTimeout(() => app.classList.remove('tela-entrando'), 800);
+}
+
+// O que se mexe depois de desenhado, marcado no HTML:
+//   data-anima="chave"  se desenha ao aparecer (rosca, barra, linha) e o
+//                       numero de dentro com data-conta sobe de 0 ate ele;
+//   data-muda="lugar" + data-valor  salta quando o valor daquele lugar muda
+//                       (o selo de status de um integrante).
+// Cada um so anima uma vez por tela. Sem esta memoria, cada toque - que
+// redesenha a tela inteira - desenharia todos os graficos de novo.
+let jaAnimados = new Set();
+let valoresVistos = new Map();
+
+function animarNovidades(app) {
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  // A mesma chave pode se repetir na tela (duas barras de 50%): a ordem de
+  // aparicao desempata.
+  const vezes = {};
+  app.querySelectorAll('[data-anima]').forEach(el => {
+    const base = el.dataset.anima;
+    vezes[base] = (vezes[base] || 0) + 1;
+    const chave = base + '#' + vezes[base];
+    if (jaAnimados.has(chave)) return;
+    jaAnimados.add(chave);
+    el.classList.add('anima');
+    el.querySelectorAll('[data-conta]').forEach(contarAte);
+  });
+  app.querySelectorAll('[data-muda]').forEach(el => {
+    const lugar = el.dataset.muda, valor = el.dataset.valor;
+    const antes = valoresVistos.get(lugar);
+    valoresVistos.set(lugar, valor);
+    if (antes !== undefined && antes !== valor) el.classList.add('saltou');
+  });
+}
+
+// O numero sobe de 0 ate o valor, freando no fim. O HTML ja nasce com o
+// valor final, entao se algo der errado aqui o que fica e o numero certo.
+function contarAte(el) {
+  const alvo = Number(el.dataset.conta);
+  const sufixo = el.dataset.sufixo || '';
+  const inicio = performance.now();
+  const passo = agora => {
+    const t = Math.min(1, (agora - inicio) / 700);
+    el.textContent = Math.round(alvo * (1 - Math.pow(1 - t, 3))) + sufixo;
+    if (t < 1) requestAnimationFrame(passo);
+  };
+  requestAnimationFrame(passo);
 }
 
 function render() {
   const app = document.getElementById('app');
   marcarTrocaDeTela(app);
+  desenhar(app);
+  animarNovidades(app);
+}
+
+// Enquanto a planilha nao responde: o contorno da tela inicial em vidro,
+// com um brilho passando, em vez de um texto solto. O conteudo de verdade
+// aparece no lugar dele, sem a tela pular.
+const ESQUELETO = `
+  <div class="esqueleto-tela" aria-busy="true">
+    <div class="esqueleto esqueleto-logo"></div>
+    <div class="esqueleto esqueleto-titulo"></div>
+    <div class="esqueleto esqueleto-linha"></div>
+    <div class="esqueleto esqueleto-card"></div>
+    <div class="esqueleto-dupla">
+      <div class="esqueleto esqueleto-card-baixo"></div>
+      <div class="esqueleto esqueleto-card-baixo"></div>
+    </div>
+    <div class="esqueleto esqueleto-card-alto"></div>
+    <div class="loading">Carregando…</div>
+  </div>
+`;
+
+function desenhar(app) {
   if (state.loading) {
-    app.innerHTML = '<div class="loading">Carregando…</div>';
+    app.innerHTML = ESQUELETO;
     return;
   }
   if (state.loadError) {

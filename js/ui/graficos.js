@@ -21,7 +21,7 @@ export function renderDonutChart(segments, centro, centroLabel, tamanho) {
   const arcos = total && comDados.length ? comDados.map(s => {
     const frac = s.value / total;
     const arco = `
-      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" style="stroke:${s.cor}" stroke-width="${espessura}"
+      <circle class="donut-arco" cx="${cx}" cy="${cy}" r="${r}" fill="none" style="stroke:${s.cor}" stroke-width="${espessura}"
         stroke-dasharray="${(frac * C).toFixed(2)} ${C.toFixed(2)}"
         stroke-dashoffset="${(-acumulado * C).toFixed(2)}"
         transform="rotate(-90 ${cx} ${cy})"></circle>
@@ -30,13 +30,17 @@ export function renderDonutChart(segments, centro, centroLabel, tamanho) {
     return arco;
   }).join('') : `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" style="stroke:var(--surface-alt)" stroke-width="${espessura}"></circle>`;
   const fonteCentro = Math.round(tamanho * 0.183), fonteLabel = Math.round(tamanho * 0.075);
+  // "56%" sobe de 0 ate 56 quando a rosca aparece (ver animarNovidades, no
+  // app.js); "—" e qualquer outro texto ficam parados.
+  const pctCentro = /^\d+%$/.test(String(centro)) ? ` data-conta="${parseInt(centro, 10)}" data-sufixo="%"` : '';
+  const chaveAnima = 'rosca:' + centro + ':' + segments.map(s => s.value).join(',');
 
   return `
-    <div class="donut-wrap">
+    <div class="donut-wrap" data-anima="${escapeHtml(chaveAnima)}">
       <div style="position:relative; width:${tamanho}px; height:${tamanho}px; flex-shrink:0;">
         <svg width="${tamanho}" height="${tamanho}" viewBox="0 0 ${tamanho} ${tamanho}">${arcos}</svg>
         <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column; text-align:center;">
-          <div style="font-size:${fonteCentro}px; font-weight:700; color:var(--white-strong); line-height:1;">${escapeHtml(String(centro))}</div>
+          <div style="font-size:${fonteCentro}px; font-weight:700; color:var(--white-strong); line-height:1;"${pctCentro}>${escapeHtml(String(centro))}</div>
           <div style="font-size:${fonteLabel}px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em; margin-top:3px;">${escapeHtml(centroLabel)}</div>
         </div>
       </div>
@@ -119,9 +123,9 @@ export function renderSparklineTendencia(itens) {
   `).join('');
 
   return `
-    <div style="margin-top:10px;">
+    <div style="margin-top:10px;" data-anima="linha:${validos.map(x => x.pct).join(',')}">
       <svg width="100%" height="${altura}" viewBox="0 0 ${largura} ${altura}" preserveAspectRatio="none" style="display:block;">
-        <path d="${caminho.trim()}" fill="none" stroke="var(--white-strong)" stroke-width="1.5"></path>
+        <path class="linha-tendencia" pathLength="1" d="${caminho.trim()}" fill="none" stroke="var(--white-strong)" stroke-width="1.5"></path>
         ${bolinhas}
       </svg>
       <div style="display:flex; justify-content:space-between; font-size:10.5px; color:var(--text-muted); margin-top:2px;">
