@@ -15,6 +15,7 @@ import { loadInsightStats } from '../dados/carregar.js';
 import { cancelarAjusteInsightRodada, confirmarInsightRodada, excluirInsightRodada, iniciarAjusteInsightRodada, reincluirMembroInsight, removerMembroInsight, salvarAjusteInsightRodada } from '../fluxos/insights.js';
 import { copyInsightReportToClipboard } from '../fluxos/relatorio.js';
 import { render } from '../nucleo/render.js';
+import { imagemRelatorioInsight, imagemRodadaInsight, mostrarPreviaImagem } from '../ui/imagem.js';
 
 // Painel de ajuste de uma rodada ja registrada (ver iniciarAjusteInsightRodada) -
 // troca de lugar com o bloco de "marcar rodada nova" enquanto uma rodada
@@ -223,6 +224,7 @@ export function renderAdminInsights() {
             ` : `
               <span class="row-gap">
                 <button class="btn ghost" style="padding:6px 10px; font-size:12px;" data-action="copy-insight-report" data-id="${r.id}">${state.copiedInsightRodadaId === r.id ? 'Copiado ✓' : '📋 Copiar relatório'}</button>
+                <button class="btn ghost" style="padding:6px 10px; font-size:12px;" data-action="imagem-rodada-insight" data-id="${r.id}">🖼️ Imagem</button>
                 <button class="btn ghost" style="padding:6px 10px; font-size:12px;" data-action="ajustar-insight-rodada" data-id="${r.id}">✏️ Ajustar</button>
                 <button class="btn ghost" style="padding:6px 10px; font-size:12px;" data-action="ask-delete-insight-rodada" data-id="${r.id}">Excluir</button>
               </span>
@@ -303,7 +305,10 @@ export function renderAdminInsights() {
     return `
       ${renderFiltroPeriodoInsight(filtrado)}
       <div class="print-only" style="margin:10px 0; font-size:12px; color:var(--text-muted);">Gerado em ${escapeHtml(new Date().toLocaleString('pt-BR'))}</div>
-      <button class="btn secondary block no-print" style="margin:0 0 14px;" data-action="imprimir-relatorio">🖨️ Imprimir / Exportar PDF</button>
+      <div class="row-gap no-print" style="margin:0 0 14px;">
+        <button class="btn secondary" style="flex:1;" data-action="imprimir-relatorio">🖨️ Imprimir / Exportar PDF</button>
+        <button class="btn secondary" style="flex:1;" data-action="imagem-relatorio-insight">🖼️ Imagem pro grupo</button>
+      </div>
       ${renderRankInsightsConteudo(dados, historico)}
     `;
   }
@@ -319,6 +324,25 @@ export function renderAdminInsights() {
 // Acoes das tres abas de Insights: marcar a rodada, confirmar, ajustar uma
 // ja registrada, e quem entra ou sai do insight.
 export const acoes = {
+  // Imagens pro grupo (ui/imagem.js), com previa antes de compartilhar.
+  'imagem-rodada-insight': async (id, target, action, e) => {
+    const r = (state.insightRodadasHistorico || []).find(x => x.id === id);
+    if (!r) return;
+    return mostrarPreviaImagem(() => imagemRodadaInsight(r), `insight-${r.data || 'rodada'}.png`);
+  },
+  'imagem-relatorio-insight': async (id, target, action, e) => {
+    const d = state.insightStats;
+    if (!d) return;
+    // O mesmo recorte que a aba desenha: com periodo, refaz a conta so com
+    // as rodadas dele (estatisticasInsightsPorPeriodo).
+    const inicio = state.insightFiltroDataInicio;
+    const fim = state.insightFiltroDataFim;
+    const dados = inicio || fim ? estatisticasInsightsPorPeriodo(d, state.insightRodadasHistorico, inicio, fim).stats : d;
+    const periodo = inicio || fim
+      ? `${inicio ? formatDataBR(inicio) : 'início'} a ${fim ? formatDataBR(fim) : 'hoje'}`
+      : 'Desde sempre';
+    return mostrarPreviaImagem(() => imagemRelatorioInsight(dados, periodo), 'rank-insights.png');
+  },
   'retry-insight-stats': async (id, target, action, e) => {
     return loadInsightStats();
   },

@@ -7,7 +7,7 @@
 // e imagens carregando). Gerando antes e compartilhando no toque do botao
 // da previa, o compartilhamento funciona em todo celular.
 
-import { emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao } from '../nucleo/config.js';
+import { divisoesSemRegional, emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao } from '../nucleo/config.js';
 import { IMG_FUNDO, LOGO_SRC } from '../nucleo/imagens.js';
 import { diaDaSemana, formatDataBR, mostrarAviso } from '../nucleo/util.js';
 import { posicoesDoPodio } from './comuns.js';
@@ -146,6 +146,78 @@ function rodape(ctx) {
   ctx.fillText('DISCIPLINA · RESPEITO · IRMANDADE · SEMPRE', L / 2, A - 38);
 }
 
+// A rosca: as fatias em ordem, comecando no topo, e o % grande no meio.
+// fatias = [[valor, cor], ...]; total = a soma de referencia.
+function rosca(ctx, cx, cy, r, fatias, total, textoCentro, rotulo) {
+  const espessura = Math.round(r * 0.25);
+  ctx.lineWidth = espessura;
+  ctx.strokeStyle = COR.trilho;
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+  let inicio = -Math.PI / 2;
+  fatias.forEach(([valor, cor]) => {
+    if (!valor || !total) return;
+    const fim = inicio + (valor / total) * Math.PI * 2;
+    ctx.strokeStyle = cor;
+    ctx.beginPath(); ctx.arc(cx, cy, r, inicio, fim); ctx.stroke();
+    inicio = fim;
+  });
+  fonte(ctx, Math.round(r * 0.58), 400, 'rye');
+  ctx.textAlign = 'center';
+  ctx.fillStyle = COR.marfim;
+  ctx.textBaseline = 'middle';
+  ctx.fillText(textoCentro, cx, cy - r * 0.05);
+  rotuloEspacado(ctx, rotulo, cy + r * 0.36, Math.max(16, Math.round(r * 0.12)), COR.apagado);
+  ctx.textBaseline = 'alphabetic';
+}
+
+// A lista com pódio dos ranks: posicao (ou medalha), nome, barra e %. Cada
+// linha e { nome, pct, detalhe } - detalhe e o "5 de 5" ao lado do nome.
+// Ja chega ordenada do maior % pro menor.
+function listaRanking(ctx, linhas, y, alturaLinha) {
+  const lugares = posicoesDoPodio(linhas.map(x => x.pct));
+  linhas.forEach((x, i) => {
+    const topo = y + i * alturaLinha;
+    const meio = topo + alturaLinha / 2;
+    if (lugares[i]) {
+      const brilho = ['rgba(224,178,60,0.22)', 'rgba(200,204,212,0.18)', 'rgba(196,128,74,0.20)'][lugares[i] - 1];
+      const g = ctx.createLinearGradient(110, 0, L - 110, 0);
+      g.addColorStop(0, brilho); g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); retangulo(ctx, 110, topo + 6, L - 220, alturaLinha - 12, 16); ctx.fill();
+    }
+    ctx.textBaseline = 'middle';
+    fonte(ctx, 34, 700);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = COR.apagado;
+    ctx.fillText(lugares[i] ? MEDALHAS[lugares[i] - 1] : `${i + 1}º`, 165, meio);
+    fonte(ctx, 31, 600);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = COR.texto;
+    ctx.fillText(x.nome, 215, meio - 13);
+    if (x.detalhe) {
+      const larguraNome = ctx.measureText(x.nome).width;
+      fonte(ctx, 22, 600);
+      ctx.fillStyle = COR.apagado;
+      ctx.fillText(x.detalhe, 215 + larguraNome + 14, meio - 12);
+    }
+    // A barra, embaixo do nome.
+    const bx = 215, bl = 600, by = meio + 17;
+    ctx.fillStyle = COR.trilho;
+    ctx.beginPath(); retangulo(ctx, bx, by - 5, bl, 10, 5); ctx.fill();
+    if (x.pct) {
+      ctx.fillStyle = lugares[i] === 1 ? COR.ouro : COR.marfim;
+      ctx.beginPath(); retangulo(ctx, bx, by - 5, Math.max(10, bl * x.pct / 100), 10, 5); ctx.fill();
+    }
+    fonte(ctx, 38, 400, 'rye');
+    ctx.textAlign = 'right';
+    ctx.fillStyle = COR.marfim;
+    ctx.fillText(x.pct === null || x.pct === undefined ? '—' : `${x.pct}%`, L - 130, meio);
+    ctx.textBaseline = 'alphabetic';
+  });
+  ctx.textAlign = 'center';
+  return y + linhas.length * alturaLinha;
+}
+
 // ---------------------------------------------------------------------------
 // Resultado de um evento encerrado. `contagem` e o computeCounts do evento.
 export async function imagemResultadoEvento(ev, contagem) {
@@ -177,27 +249,11 @@ export async function imagemResultadoEvento(ev, contagem) {
   // justificada), comecando no topo. Ocupa o espaco entre o texto de cima e
   // a contagem de baixo, que tem lugar fixo acima do rodape - assim nada
   // se sobrepoe, seja o nome curto ou longo.
-  const espessura = 48;
   const topoRosca = y + 30, baseRosca = A - 280;
-  const r = Math.max(110, Math.min(190, (baseRosca - topoRosca) / 2 - espessura / 2));
-  const cx = L / 2, cy = (topoRosca + baseRosca) / 2;
-  ctx.lineWidth = espessura;
-  ctx.strokeStyle = COR.trilho;
-  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
-  let inicio = -Math.PI / 2;
-  [[contagem.confirmado, COR.confirmado], [justificadas, COR.justificada], [naoJustificadas, COR.infracional]].forEach(([valor, cor]) => {
-    if (!valor || !total) return;
-    const fim = inicio + (valor / total) * Math.PI * 2;
-    ctx.strokeStyle = cor;
-    ctx.beginPath(); ctx.arc(cx, cy, r, inicio, fim); ctx.stroke();
-    inicio = fim;
-  });
-  fonte(ctx, Math.round(r * 0.58), 400, 'rye');
-  ctx.fillStyle = COR.marfim;
-  ctx.textBaseline = 'middle';
-  ctx.fillText(`${pct}%`, cx, cy - r * 0.05);
-  rotuloEspacado(ctx, 'PRESENÇA', cy + r * 0.33, 22, COR.apagado);
-  ctx.textBaseline = 'alphabetic';
+  const r = Math.max(110, Math.min(190, (baseRosca - topoRosca) / 2 - 24));
+  rosca(ctx, L / 2, (topoRosca + baseRosca) / 2, r,
+    [[contagem.confirmado, COR.confirmado], [justificadas, COR.justificada], [naoJustificadas, COR.infracional]],
+    total, `${pct}%`, 'PRESENÇA');
 
   y = A - 200;
   fonte(ctx, 40, 700);
@@ -224,7 +280,6 @@ export async function imagemRank(d, janela) {
   const linhas = escoposEmOrdemDeExibicao()
     .map(e => { const item = porChave(e.chave); return { nome: e.nome, pct: item && item.percentual !== undefined ? item.percentual : null }; })
     .sort((a, b) => (b.pct ?? -1) - (a.pct ?? -1));
-  const lugares = posicoesDoPodio(linhas.map(x => x.pct));
 
   emblema(ctx, logo, 50, 170);
   let y = tituloMetal(ctx, '🏆 Rank de Presença', 300, 66, 980);
@@ -244,43 +299,93 @@ export async function imagemRank(d, janela) {
   ctx.textAlign = 'right';
   ctx.fillText(totalPct === null ? '—' : `${totalPct}%`, L - 150, y + 74);
 
-  // Uma linha por divisao: posicao (ou medalha), nome, barra e %.
+  // Uma linha por divisao.
   y += 160;
-  const alturaLinha = Math.min(96, (A - 190 - y) / linhas.length);
-  linhas.forEach((x, i) => {
-    const topo = y + i * alturaLinha;
-    const meio = topo + alturaLinha / 2;
-    if (lugares[i]) {
-      const brilho = ['rgba(224,178,60,0.22)', 'rgba(200,204,212,0.18)', 'rgba(196,128,74,0.20)'][lugares[i] - 1];
-      const g = ctx.createLinearGradient(110, 0, L - 110, 0);
-      g.addColorStop(0, brilho); g.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = g;
-      ctx.beginPath(); retangulo(ctx, 110, topo + 6, L - 220, alturaLinha - 12, 16); ctx.fill();
-    }
-    ctx.textBaseline = 'middle';
-    fonte(ctx, 36, 700);
-    ctx.textAlign = 'center';
-    ctx.fillStyle = COR.apagado;
-    ctx.fillText(lugares[i] ? MEDALHAS[lugares[i] - 1] : `${i + 1}º`, 165, meio);
-    fonte(ctx, 32, 600);
-    ctx.textAlign = 'left';
+  listaRanking(ctx, linhas, y, Math.min(96, (A - 190 - y) / linhas.length));
+
+  rodape(ctx);
+  return canvas;
+}
+
+// ---------------------------------------------------------------------------
+// Uma rodada de Insight: quantos fizeram e o ranking das divisoes NAQUELA
+// rodada (o pódio e de quem foi melhor no dia). `r` e a rodada como vem do
+// historico - cada membro com a divisao e o "fez" do dia. Sem nomes de
+// quem nao fez: a imagem circula, e a cobranca individual e do texto.
+export async function imagemRodadaInsight(r) {
+  const { canvas, ctx, logo } = await novaTela();
+  const membros = r.membros || [];
+  const fizeram = membros.filter(m => m.fez).length;
+  const total = membros.length || r.totalElegiveis || 0;
+  const pct = total ? Math.round((fizeram / total) * 100) : 0;
+  const linhas = divisoesSemRegional()
+    .map(e => {
+      const daDivisao = membros.filter(m => m.divisao === e.nome);
+      const feitos = daDivisao.filter(m => m.fez).length;
+      return { nome: e.nome, total: daDivisao.length, pct: daDivisao.length ? Math.round((feitos / daDivisao.length) * 100) : null, detalhe: `${feitos} de ${daDivisao.length}` };
+    })
+    .filter(x => x.total > 0)
+    .sort((a, b) => (b.pct ?? -1) - (a.pct ?? -1));
+
+  emblema(ctx, logo, 50, 160);
+  let y = tituloMetal(ctx, '💡 Insight da Rodada', 290, 62, 980);
+  const dataTexto = [diaDaSemana(r.data), r.data ? formatDataBR(r.data) : ''].filter(Boolean).join(', ');
+  rotuloEspacado(ctx, dataTexto.toUpperCase(), y + 2, 24, COR.ouro);
+
+  const raio = 125;
+  const cy = y + 60 + raio;
+  rosca(ctx, L / 2, cy, raio, [[fizeram, COR.confirmado], [total - fizeram, COR.infracional]], total, `${pct}%`, 'FIZERAM');
+  y = cy + raio + 70;
+  fonte(ctx, 36, 700);
+  ctx.fillStyle = COR.texto;
+  ctx.fillText(`${fizeram} de ${total} fizeram`, L / 2, y);
+
+  y += 40;
+  listaRanking(ctx, linhas, y, Math.min(92, (A - 170 - y) / Math.max(1, linhas.length)));
+
+  rodape(ctx);
+  return canvas;
+}
+
+// ---------------------------------------------------------------------------
+// O relatorio completo do Insight no periodo: a media geral, o ranking das
+// divisoes e os destaques - quem mais fez. `d` e o mesmo objeto que a aba
+// "Relatorio completo" desenha (o do servidor, ou o refeito pro periodo).
+export async function imagemRelatorioInsight(d, rotuloPeriodo) {
+  const { canvas, ctx, logo } = await novaTela();
+  const totalMarcacoes = d.membros.reduce((s, m) => s + m.rodadas, 0);
+  const totalFez = d.membros.reduce((s, m) => s + m.confirmacoes, 0);
+  const pct = totalMarcacoes ? Math.round((totalFez / totalMarcacoes) * 100) : 0;
+  const porChave = chave => d.divisoes.find(x => x.chave === chave);
+  const linhas = divisoesSemRegional()
+    .map(e => { const item = porChave(e.chave); return { nome: e.nome, pct: item && item.percentual !== undefined ? item.percentual : null }; })
+    .sort((a, b) => (b.pct ?? -1) - (a.pct ?? -1));
+  // Destaques: quem mais fez, entre quem teve rodada no periodo. Empate no %
+  // desempata por quem fez mais rodadas.
+  const destaques = d.membros
+    .filter(m => m.rodadas > 0 && m.percentual !== null)
+    .sort((a, b) => b.percentual - a.percentual || b.confirmacoes - a.confirmacoes || a.nome.localeCompare(b.nome))
+    .slice(0, 5);
+
+  emblema(ctx, logo, 45, 150);
+  let y = tituloMetal(ctx, '💡 Rank de Insights', 275, 62, 980);
+  const rodadasTexto = `${d.rodadas} ${d.rodadas === 1 ? 'RODADA' : 'RODADAS'}`;
+  rotuloEspacado(ctx, `${rotuloPeriodo.toUpperCase()}  ·  ${rodadasTexto}`, y + 2, 22, COR.ouro);
+
+  const raio = 105;
+  const cy = y + 50 + raio;
+  rosca(ctx, L / 2, cy, raio, [[totalFez, COR.confirmado], [totalMarcacoes - totalFez, COR.infracional]], totalMarcacoes, `${pct}%`, 'MÉDIA');
+  y = cy + raio + 40;
+
+  const espacoDestaques = destaques.length ? 150 : 0;
+  y = listaRanking(ctx, linhas, y, Math.min(84, (A - 170 - espacoDestaques - y) / Math.max(1, linhas.length)));
+
+  if (destaques.length) {
+    rotuloEspacado(ctx, '⭐ DESTAQUES', y + 46, 24, COR.ouro);
+    fonte(ctx, 28, 600);
     ctx.fillStyle = COR.texto;
-    ctx.fillText(x.nome, 215, meio - 14);
-    // A barra, embaixo do nome.
-    const bx = 215, bl = 600, by = meio + 18;
-    ctx.fillStyle = COR.trilho;
-    ctx.beginPath(); retangulo(ctx, bx, by - 5, bl, 10, 5); ctx.fill();
-    if (x.pct) {
-      ctx.fillStyle = lugares[i] === 1 ? COR.ouro : COR.marfim;
-      ctx.beginPath(); retangulo(ctx, bx, by - 5, Math.max(10, bl * x.pct / 100), 10, 5); ctx.fill();
-    }
-    fonte(ctx, 40, 400, 'rye');
-    ctx.textAlign = 'right';
-    ctx.fillStyle = COR.marfim;
-    ctx.fillText(x.pct === null ? '—' : `${x.pct}%`, L - 130, meio);
-    ctx.textBaseline = 'alphabetic';
-  });
-  ctx.textAlign = 'center';
+    textoCentral(ctx, destaques.map(m => `${m.nome} ${m.percentual}%`).join('  ·  '), y + 92, 38, 940);
+  }
 
   rodape(ctx);
   return canvas;

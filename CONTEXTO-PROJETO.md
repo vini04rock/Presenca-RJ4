@@ -526,7 +526,10 @@ valem antes de mexer:
 - Quem pediu "reduzir movimento" no aparelho fica sem animação, e a
   impressão/PDF desliga vidro, sombra e enfeites (`@media print`).
 - **Imagens para o grupo** (`ui/imagem.js`): o resultado de um evento
-  encerrado (aba Encerrados do organizador) e o Rank de Presença, desenhados
+  encerrado (aba Encerrados do organizador), o Rank de Presença, cada rodada
+  de Insight (ranking das divisões naquela rodada) e o relatório completo do
+  Insight no período (com os destaques: quem mais fez). Nenhuma traz nome de
+  quem faltou ou não fez: a imagem circula, e a cobrança é do texto. Desenhadas
   num `<canvas>` com o fundo, o emblema e a Rye. Abrem numa prévia com
   Compartilhar/Baixar, e não direto: o celular só deixa compartilhar
   arquivo logo depois de um toque, e desenhar leva um instante. O título
