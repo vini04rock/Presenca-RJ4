@@ -246,6 +246,15 @@ linha em `Presencas`. Assim quem entrou no clube depois não é penalizado por
 evento antigo. A % pessoal de um membro só soma eventos da própria divisão
 dele; presença em evento regional conta para o Regional e não mistura.
 
+**Relatórios agrupados por divisão** — no Regional, com "Todas as
+divisões", a lista de eventos (o "Ver eventos" de cada card e as abas por
+tipo) sai em blocos, um por divisão, cada um com quantos eventos e o % do
+bloco. Sem isso, dois "Pub" de divisões diferentes ficavam lado a lado sem
+dar para saber de quem era cada um. A ordem dos blocos é a oficial do clube
+(`escoposNaOrdemOficial`, em `js/nucleo/config.js`), a mesma da lista do
+Bonde Regional. Numa divisão só, a lista é a de sempre, sem blocos. Nenhuma
+conta mudou, só a forma de mostrar.
+
 **Tipos de evento** — Pub 🍻, Bate e Volta 🏍️, Ação Social 🏥, Reunião 📊.
 Cada um com cor e arte próprias.
 

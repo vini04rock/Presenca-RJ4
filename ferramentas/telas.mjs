@@ -368,6 +368,15 @@ for (const aba of ['resumo','enviar','Pub','Bate e Volta','Reunião','Ação Soc
 }
 add('relatorios / resumo (so barra)', { isAdmin:true, adminEscopo:'barra',
   relatorioCategoriaAlvo:'barra', relatorioTab:'resumo' }, T.renderRelatorioShell);
+// "Ver eventos" do Presença total: no Regional com todas as divisões sai
+// agrupado por divisão; numa divisão só, a lista de sempre, sem títulos.
+// O período de 12 meses é fixo para o resultado não mudar com o calendário.
+add('relatorios / presença total (por divisão)', { isAdmin:true, adminEscopo:'regional',
+  relatorioCategoriaAlvo:'regional', relatorioTab:'resumo', relatorioFiltroDivisao:'todas',
+  relatorioTipoDetalhe:'total', relatorioPeriodoPorGrafico:{ total:12 } }, T.renderRelatorioShell);
+add('relatorios / presença total (so barra)', { isAdmin:true, adminEscopo:'barra',
+  relatorioCategoriaAlvo:'barra', relatorioTab:'resumo',
+  relatorioTipoDetalhe:'total', relatorioPeriodoPorGrafico:{ total:12 } }, T.renderRelatorioShell);
 // Revisao da convocacao colada - tem o campo de data do evento.
 add('relatorios / revisão do colado', { isAdmin:true, adminEscopo:'barra',
   relatorioTab:'enviar', relatorioColarStep:'revisao', relatorioCategoriaAlvo:'barra',

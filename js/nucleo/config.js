@@ -38,6 +38,17 @@ export function divisoesSemRegional() {
   return escoposEmOrdemDeExibicao().filter(e => e.chave !== 'regional');
 }
 
+// A ordem oficial do clube, a da chamada: Regional, Oeste, Recreio, Barra,
+// Curicica, Taquara, Gardenia. NAO e a do resto do app (Regional e depois
+// alfabetica). Usada onde a tela tem que bater com o que o clube ve no
+// grupo: a lista do Bonde Regional e os Relatorios agrupados por divisao.
+// Divisao nova que ainda nao entrou aqui vai pro fim, em vez de sumir.
+const ORDEM_OFICIAL = ['regional', 'oeste', 'recreio', 'barra', 'curicica', 'taquara', 'gardenia'];
+export function escoposNaOrdemOficial() {
+  const naOrdem = ORDEM_OFICIAL.map(chave => ESCOPOS.find(e => e.chave === chave)).filter(Boolean);
+  return naOrdem.concat(ESCOPOS.filter(e => !ORDEM_OFICIAL.includes(e.chave)));
+}
+
 // So Regional e Barra na tela de Relatorios (decisao do clube) - Modo
 // organizador e a tela inicial continuam com as 7 divisoes normalmente
 // (escoposEmOrdemDeExibicao). Nada e apagado no backend/planilha, e so

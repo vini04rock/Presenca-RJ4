@@ -21,7 +21,7 @@
 //
 // Este módulo só LÊ e devolve texto - não grava nada em lugar nenhum.
 
-import { emojiTipoEvento, escopoPorChave } from '../nucleo/config.js';
+import { emojiTipoEvento, escopoPorChave, escoposNaOrdemOficial } from '../nucleo/config.js';
 import { ordenarPorHierarquia } from '../nucleo/util.js';
 
 const SEPARADOR = '.'.repeat(44);
@@ -32,9 +32,6 @@ const MOTOS = [
   '     🏍️       🏍️       🏍️       🏍️',
 ];
 
-// Ordem das divisões na lista do Bonde Regional. É a da chamada oficial, e
-// NÃO a do resto do app (Regional e depois alfabética) - por isso fica aqui.
-const ORDEM_NA_CHAMADA = ['regional', 'oeste', 'recreio', 'barra', 'curicica', 'taquara', 'gardenia'];
 // Quantas linhas em branco cada bloco ganha na lista do Bonde Regional.
 const LINHAS_EM_BRANCO = { regional: 5, divisao: 3 };
 
@@ -396,9 +393,9 @@ function quadroRoteiro(c) {
 export function quadroMembros(ev, membros) {
   if (ehRegional(ev.categoria)) {
     const fora = ['👥 MEMBROS 👥', 'Colocar NOME e GRAU'];
-    ORDEM_NA_CHAMADA.forEach(chave => {
-      const e = escopoPorChave(chave);
-      const n = chave === 'regional' ? LINHAS_EM_BRANCO.regional : LINHAS_EM_BRANCO.divisao;
+    // A ordem dos blocos é a da chamada oficial (escoposNaOrdemOficial).
+    escoposNaOrdemOficial().forEach(e => {
+      const n = e.chave === 'regional' ? LINHAS_EM_BRANCO.regional : LINHAS_EM_BRANCO.divisao;
       fora.push('', tituloDoBloco(e));
       for (let i = 1; i <= n; i++) fora.push(`${i}.`);
     });

@@ -2,7 +2,7 @@
 
 import { estatisticasMembrosPorPeriodo, estatisticasMembrosPorTipo, eventosDoRelatorioEscopo, resumoDonutPeriodo } from '../dominio/estatisticas.js';
 import { computeCounts, statusEfetivo } from '../dominio/status.js';
-import { ABAS_COM_FILTRO_DIVISAO, RELATORIO_TABS, STATUS, STATUS_TOTAIS_LABEL, TIPOS_EVENTO, TIPOS_EVENTO_TABS_ORDEM, emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao } from '../nucleo/config.js';
+import { ABAS_COM_FILTRO_DIVISAO, RELATORIO_TABS, STATUS, STATUS_TOTAIS_LABEL, TIPOS_EVENTO, TIPOS_EVENTO_TABS_ORDEM, emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao, escoposNaOrdemOficial } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { dataCorteMeses, dataDoCampoOuAvisar, escapeHtml, formatDataBR } from '../nucleo/util.js';
 import { campoData, renderFichaMembro, renderListaEstatisticasPorDivisao } from '../ui/comuns.js';
@@ -339,6 +339,67 @@ function conteudoRelatorioResultado() {
   `;
 }
 
+// No Regional com "Todas as divisões", os eventos saem agrupados por
+// divisão, na ordem oficial do clube. Sem isso, dois "Pub" de divisões
+// diferentes ficavam lado a lado sem dar para saber de quem era cada um.
+// Com uma divisão só na tela, é um grupo só e sem título, igual antes.
+// Cada item é { ev, confirmado, total, pct }, já na ordem em que deve sair.
+function agruparEventosPorDivisao(itens) {
+  if (state.adminEscopo !== 'regional' || state.relatorioFiltroDivisao !== 'todas') {
+    return [{ titulo: null, itens }];
+  }
+  const escopos = escoposNaOrdemOficial();
+  const grupos = escopos.map(e => ({ titulo: e.nome, itens: itens.filter(i => i.ev.categoria === e.chave) }));
+  const semDivisao = itens.filter(i => !escopos.some(e => e.chave === i.ev.categoria));
+  if (semDivisao.length) grupos.push({ titulo: 'Sem divisão', itens: semDivisao });
+  return grupos.filter(g => g.itens.length);
+}
+
+// "3 eventos · 53%" no título do grupo. O % é a soma dos confirmados sobre
+// a dos convocados, a mesma conta do donut, e não a média dos %.
+function resumoDoGrupo(g) {
+  let confirmados = 0, convocados = 0;
+  g.itens.forEach(i => {
+    if (i.confirmado !== null && i.total) { confirmados += i.confirmado; convocados += i.total; }
+  });
+  const n = g.itens.length;
+  return `${n} evento${n === 1 ? '' : 's'}${convocados ? ' · ' + Math.round((confirmados / convocados) * 100) + '%' : ''}`;
+}
+
+function barrasPorDivisao(grupos) {
+  return grupos.map(g => `
+    ${g.titulo ? `<div class="relatorio-grupo-titulo"><span>${escapeHtml(g.titulo)}</span><span>${resumoDoGrupo(g)}</span></div>` : ''}
+    ${g.itens.map(({ ev, pct }) => `
+      <div class="chart-row">
+        <div class="chart-row-label" title="${escapeHtml(ev.nome)}">${escapeHtml(ev.nome)}</div>
+        <div class="chart-row-track"><div class="chart-row-fill" style="width:${pct || 0}%"></div></div>
+        <div class="chart-row-value">${pct === null ? '…' : pct + '%'}</div>
+      </div>
+    `).join('')}
+  `).join('');
+}
+
+function tabelaEventosPorDivisao(grupos) {
+  return `
+    <table class="relatorio-tabela">
+      <thead><tr><th>Evento</th><th>Data</th><th style="text-align:right;">Confirmados</th><th style="text-align:right;">%</th></tr></thead>
+      <tbody>
+        ${grupos.map(g => `
+          ${g.titulo ? `<tr class="relatorio-grupo"><td colspan="4"><span>${escapeHtml(g.titulo)}</span><span>${resumoDoGrupo(g)}</span></td></tr>` : ''}
+          ${g.itens.map(({ ev, pct, confirmado, total }) => `
+            <tr>
+              <td>${escapeHtml(ev.nome)}</td>
+              <td>${ev.data ? formatDataBR(ev.data) : '—'}</td>
+              <td class="num">${confirmado === null ? '…' : confirmado + '/' + total}</td>
+              <td class="num">${pct === null ? '…' : pct + '%'}</td>
+            </tr>
+          `).join('')}
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
 // Drill-down de um card (chave = 'total' ou um tipo): grafico de barras +
 // tabela dos eventos que entraram na janela escolhida naquele card.
 function conteudoRelatorioTipoDetalhe(encerrados, chave) {
@@ -346,32 +407,15 @@ function conteudoRelatorioTipoDetalhe(encerrados, chave) {
   const r = resumoDonutPeriodo(encerrados, chave, meses);
   const titulo = chave === 'total' ? 'Presença total' : chave;
   const emoji = chave === 'total' ? '🏁' : emojiTipoEvento(chave);
+  const grupos = agruparEventosPorDivisao(r.itens);
   return `
     <div class="card" style="margin-bottom:14px;">
       <div class="btn ghost" style="margin-bottom:10px;" data-action="fechar-relatorio-tipo-detalhe">‹ Voltar ao painel</div>
       <div style="font-weight:600; margin-bottom:8px;">${emoji} ${escapeHtml(titulo)}</div>
       ${!r.itens.length ? '<div class="empty">Nenhum evento encerrado nesse período.</div>' : `
-        ${r.itens.map(({ ev, pct }) => `
-          <div class="chart-row">
-            <div class="chart-row-label" title="${escapeHtml(ev.nome)}">${escapeHtml(ev.nome)}</div>
-            <div class="chart-row-track"><div class="chart-row-fill" style="width:${pct || 0}%"></div></div>
-            <div class="chart-row-value">${pct === null ? '…' : pct + '%'}</div>
-          </div>
-        `).join('')}
+        ${barrasPorDivisao(grupos)}
         <div style="overflow-x:auto; margin-top:10px;">
-          <table class="relatorio-tabela">
-            <thead><tr><th>Evento</th><th>Data</th><th style="text-align:right;">Confirmados</th><th style="text-align:right;">%</th></tr></thead>
-            <tbody>
-              ${r.itens.map(({ ev, pct, confirmado, total }) => `
-                <tr>
-                  <td>${escapeHtml(ev.nome)}</td>
-                  <td>${ev.data ? formatDataBR(ev.data) : '—'}</td>
-                  <td class="num">${confirmado === null ? '…' : confirmado + '/' + total}</td>
-                  <td class="num">${pct === null ? '…' : pct + '%'}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
+          ${tabelaEventosPorDivisao(grupos)}
         </div>
       `}
     </div>
@@ -400,19 +444,7 @@ function conteudoRelatorioTipoFixo(tipo) {
       <div style="font-weight:600; margin-bottom:8px;">${emojiTipoEvento(tipo)} Relatório ${escapeHtml(tipo)}</div>
       ${!eventosTipo.length ? `<div class="empty">Nenhum evento encerrado do tipo "${escapeHtml(tipo)}" ainda.</div>` : faltaCarregar ? '<div class="empty">Carregando…</div>' : `
         <div style="overflow-x:auto;">
-          <table class="relatorio-tabela">
-            <thead><tr><th>Evento</th><th>Data</th><th style="text-align:right;">Confirmados</th><th style="text-align:right;">%</th></tr></thead>
-            <tbody>
-              ${linhas.map(({ ev, confirmado, total, pct }) => `
-                <tr>
-                  <td>${escapeHtml(ev.nome)}</td>
-                  <td>${ev.data ? formatDataBR(ev.data) : '—'}</td>
-                  <td class="num">${confirmado === null ? '…' : confirmado + '/' + total}</td>
-                  <td class="num">${pct === null ? '…' : pct + '%'}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
+          ${tabelaEventosPorDivisao(agruparEventosPorDivisao(linhas))}
         </div>
       `}
     </div>
