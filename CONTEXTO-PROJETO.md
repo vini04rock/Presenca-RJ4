@@ -270,7 +270,7 @@ conta mudou, só a forma de mostrar.
 Cada um com cor e arte próprias.
 
 **Funções** — Sargento de Armas ⚔️, Caveira 💀, Combate Insanos 🥋,
-Batedor 🛡️. Acumuláveis, aparecem como selos ao lado do nome.
+Batedor 🛡️, Comunicação 📷. Acumuláveis, aparecem como selos ao lado do nome.
 
 **Graus** — I a X. Atenção: o **mais alto na hierarquia é o de número
 menor** — VI vem antes de VIII, que vem antes de X.

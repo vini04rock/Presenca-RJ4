@@ -138,6 +138,7 @@ export const FUNCOES = [
   { chave: 'caveira', label: 'Caveira', selo: '💀' },
   { chave: 'combate_insanos', label: 'Combate Insanos', selo: '🥋' },
   { chave: 'batedor', label: 'Batedor', selo: '🛡️' },
+  { chave: 'comunicacao', label: 'Comunicação', selo: '📷' },
 ];
 export function funcaoPorChave(chave) { return FUNCOES.find(f => f.chave === chave); }
 
