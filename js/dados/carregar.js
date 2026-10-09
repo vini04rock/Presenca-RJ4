@@ -69,9 +69,9 @@ export async function carregarRank() {
   render();
 }
 
-// Rank de Insights - publico, sem PIN, carrega sozinho ao abrir a tela (nao
-// tem botao "calcular" como o Rank de Presenca, porque insightEstatisticas
-// e leve o bastante pra nao precisar esperar o toque).
+// Rank de Insights - publico, sem PIN, carrega sozinho a cada vez que a tela
+// abre (insightEstatisticas e leve). O Rank de Presenca tambem abre
+// calculado, mas so na primeira vez - ver 'go-rank', em telas/rank.js.
 export async function carregarRankInsights() {
   state.insightRankLoading = true;
   state.insightRankError = null;

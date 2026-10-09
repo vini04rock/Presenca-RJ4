@@ -119,7 +119,7 @@ function iniciais(nome) {
 }
 const NIVEL_DO_GRAU = { I: 'ouro', II: 'ouro', III: 'ouro', IV: 'ouro', V: 'ouro', VI: 'prata', VII: 'bronze', VIII: 'bronze' };
 export function nivelDoGrau(grau) { return NIVEL_DO_GRAU[grau] || 'base'; }
-function selinhoIniciais(m) {
+export function selinhoIniciais(m) {
   return `<span class="iniciais iniciais-${nivelDoGrau(m.grau)}" aria-hidden="true">${escapeHtml(iniciais(m.nome))}</span>`;
 }
 
@@ -358,15 +358,6 @@ export function renderListaEstatisticasPorDivisao(lista) {
       ${aberto ? grupo.itens.map(renderLinhaEstatisticaMembro).join('') : ''}
     `;
   }).join('');
-}
-
-// Selos compactos de funcao, usados na lista de Membros (aba do organizador).
-export function selosFuncoes(funcoes) {
-  if (!funcoes || !funcoes.length) return '';
-  return funcoes.map(chave => {
-    const f = funcaoPorChave(chave);
-    return f ? `<span class="grade-box" title="${escapeHtml(f.label)}">${f.selo}</span>` : '';
-  }).join(' ');
 }
 
 // Linha propria de funcao, so com os selos - usada na lista de participantes

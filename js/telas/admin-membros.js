@@ -6,8 +6,8 @@
 import { membrosDoEscopo } from '../dominio/estatisticas.js';
 import { FUNCOES, GRAUS, cargosDoGrau, escopoPorChave } from '../nucleo/config.js';
 import { genId, state } from '../nucleo/estado.js';
-import { escapeHtml } from '../nucleo/util.js';
-import { selosFuncoes } from '../ui/comuns.js';
+import { escapeHtml, ordenarPorHierarquia } from '../nucleo/util.js';
+import { linhaFuncoes, selinhoIniciais } from '../ui/comuns.js';
 import { loadEstatisticas, salvarOuAvisar } from '../dados/carregar.js';
 import { render } from '../nucleo/render.js';
 
@@ -114,18 +114,50 @@ export function renderAdminMembros() {
         </div>
       ` : `<button class="btn block" data-action="add-member">+ Adicionar membro</button>`}
     </div>
-    ${membros.length === 0 ? '<div class="empty">Nenhum membro cadastrado ainda.</div>' : membros.map(m => `
-      <div class="card" style="display:flex; justify-content:space-between; align-items:center; padding: 12px 16px;">
-        <div>
-          <div style="font-weight:500; font-size:15px;">${escapeHtml(m.nome)} ${selosFuncoes(m.funcoes)}</div>
-          <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">${[m.grau, m.cargo, m.divisao].filter(Boolean).map(escapeHtml).join(' · ') || '—'}</div>
+    ${membros.length === 0 ? '<div class="empty">Nenhum membro cadastrado ainda.</div>' : blocosPorGrau(membros)}
+  `;
+}
+
+// A lista do cadastro, um card por grau, na ordem hierarquica (a mesma da
+// convocacao). A divisao nao aparece na linha: e a propria tela.
+function blocosPorGrau(membros) {
+  const grupos = [];
+  ordenarPorHierarquia(membros).forEach(m => {
+    const grau = m.grau || '';
+    const ultimo = grupos[grupos.length - 1];
+    if (ultimo && ultimo.grau === grau) ultimo.membros.push(m);
+    else grupos.push({ grau, membros: [m] });
+  });
+  return grupos.map(g => `
+    <div class="card lista-cadastro">
+      <div class="division-subheader">
+        <span>${g.grau ? `GRAU ${escapeHtml(g.grau)}` : 'SEM GRAU'}</span>
+        <span class="division-counts">${g.membros.length} ${g.membros.length === 1 ? 'membro' : 'membros'}</span>
+      </div>
+      ${g.membros.map(linhaCadastro).join('')}
+    </div>
+  `).join('');
+}
+
+function linhaCadastro(m) {
+  return `
+    <div class="member-row linha-cadastro${state.editingMemberId === m.id ? ' editando' : ''}">
+      <div class="member-head">
+        <div class="member-info-wrap">
+          <div class="member-info">
+            ${selinhoIniciais(m)}
+            <span class="member-name">${escapeHtml(m.nome)}</span>
+            ${m.grau ? `<span class="grade-box">${escapeHtml(m.grau)}</span>` : ''}
+          </div>
+          ${m.cargo ? `<div class="confirmado-divisao">${escapeHtml(m.cargo)}</div>` : ''}
+          ${linhaFuncoes(m.funcoes)}
         </div>
-        <div class="row-gap" style="margin-bottom:0;">
-          <button class="btn ghost" data-action="edit-member" data-id="${m.id}">Editar</button>
-          <button class="btn ghost" data-action="remove-member" data-id="${m.id}">Remover</button>
+        <div class="acoes-cadastro">
+          <button class="btn-mini" data-action="edit-member" data-id="${m.id}">✏️ Editar</button>
+          <button class="btn-mini perigo" data-action="remove-member" data-id="${m.id}">Remover</button>
         </div>
       </div>
-    `).join('')}
+    </div>
   `;
 }
 

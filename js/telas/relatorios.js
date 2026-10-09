@@ -6,7 +6,7 @@ import { ABAS_COM_FILTRO_DIVISAO, RELATORIO_TABS, STATUS, STATUS_TOTAIS_LABEL, T
 import { state } from '../nucleo/estado.js';
 import { dataCorteMeses, dataDoCampoOuAvisar, escapeHtml, formatDataBR } from '../nucleo/util.js';
 import { campoData, renderFichaMembro, renderListaEstatisticasPorDivisao } from '../ui/comuns.js';
-import { renderDonutCard, renderRankingFaltasInfracionais } from '../ui/graficos.js';
+import { esqueletoLista, renderDonutCard, renderRankingFaltasInfracionais } from '../ui/graficos.js';
 import { loadReportData } from '../dados/carregar.js';
 import { analisarConvocacao, confirmarEventoParseado, iniciarCorrecaoConvocacao } from '../fluxos/convocacao.js';
 import { render } from '../nucleo/render.js';
@@ -17,7 +17,7 @@ function renderRelatorioFiltroDivisao() {
   const nomeFiltroAtivo = opcoes.find(o => o.chave === state.relatorioFiltroDivisao).nome;
   return `
     <div class="card no-print" style="margin-bottom:14px;">
-      <div style="font-weight:600; margin-bottom:8px;">Filtrar por divisão</div>
+      <div class="painel-titulo">Filtrar por divisão</div>
       <div class="chip-grid wide">
         ${opcoes.map(o => `
           <button class="chip-option ${state.relatorioFiltroDivisao === o.chave ? 'active' : ''}" data-action="set-relatorio-filtro-divisao" data-value="${o.chave}">${escapeHtml(o.nome)}</button>
@@ -40,7 +40,7 @@ function renderRelatorioFiltroPeriodo() {
     : 'Desde sempre';
   return `
     <div class="card no-print" style="margin-bottom:14px;">
-      <div style="font-weight:600; margin-bottom:8px;">Filtrar por período</div>
+      <div class="painel-titulo">Filtrar por período</div>
       <div class="row-gap">
         ${campoData({ id: 'relatorio-filtro-data-inicio', rotulo: 'Data inicial', valor: state.relatorioFiltroDataInicio, estilo: 'margin-bottom:0; flex:1;' })}
         ${campoData({ id: 'relatorio-filtro-data-fim', rotulo: 'Data final', valor: state.relatorioFiltroDataFim, estilo: 'margin-bottom:0; flex:1;' })}
@@ -108,14 +108,23 @@ export function renderRelatorioShell(app) {
       <h1 style="font-size: 19px;">Relatórios</h1>
       <div class="sub">${escapeHtml(escopoPorChave(state.adminEscopo).nome)}</div>
     </div>
-    <div class="tabs tabs-wrap no-print">
-      ${RELATORIO_TABS.map(t => `<div class="tab ${state.relatorioTab === t.chave ? 'active' : ''}" data-action="relatorio-tab" data-tab="${t.chave}">${t.label}</div>`).join('')}
+    <div class="abas-grade no-print">
+      ${RELATORIO_TABS.map(t => `<div class="tab ${state.relatorioTab === t.chave ? 'active' : ''}" data-action="relatorio-tab" data-tab="${t.chave}">${rotuloAba(t.chave)}</div>`).join('')}
     </div>
     ${renderRelatorioFiltroDivisao()}
     ${renderRelatorioFiltroPeriodo()}
     ${conteudo}
   `;
 }
+
+// Rotulo curto, o emoji do tipo e o nome: "Relatorio" em todas as abas so
+// ocupava espaco e quebrava o texto em duas linhas.
+function rotuloAba(chave) {
+  if (chave === 'resumo') return '🏁 Resumo';
+  if (chave === 'enviar') return '📥 Enviar';
+  return `${emojiTipoEvento(chave)} ${escapeHtml(chave)}`;
+}
+
 
 function conteudoRelatorioColar() {
   if (state.relatorioColarStep === 'revisao') return conteudoRelatorioRevisao();
@@ -127,7 +136,7 @@ function conteudoRelatorioColar() {
   // Regional so existe uma opcao (a propria divisao), entao nao mostra nada.
   const seletorDivisao = state.adminEscopo === 'regional' && !state.relatorioEditandoEventoId ? `
     <div class="card" style="margin-bottom:14px;">
-      <div style="font-weight:600; margin-bottom:8px;">Essa convocação é de qual divisão?</div>
+      <div class="painel-titulo">Essa convocação é de qual divisão?</div>
       <div class="chip-grid wide">
         ${escoposEmOrdemDeExibicao().map(e => `
           <button class="chip-option ${state.relatorioCategoriaAlvo === e.chave ? 'active' : ''}" data-action="set-relatorio-categoria" data-value="${e.chave}">${escapeHtml(e.nome)}</button>
@@ -147,7 +156,7 @@ function conteudoRelatorioColar() {
     ${bannerCorrecao}
     ${seletorDivisao}
     <div class="card" style="margin-bottom:14px;">
-      <div style="font-weight:600; margin-bottom:8px;">Tipo de evento</div>
+      <div class="painel-titulo">Tipo de evento</div>
       <div class="chip-grid wide">
         ${TIPOS_EVENTO.map(t => `
           <button class="chip-option ${state.relatorioTipoEscolhido === t ? 'active' : ''}" data-action="set-relatorio-tipo" data-value="${escapeHtml(t)}">${emojiTipoEvento(t)} ${escapeHtml(t.toUpperCase())}</button>
@@ -242,7 +251,7 @@ function conteudoRelatorioRevisao() {
     ` : ''}
 
     <div class="card" style="margin-top:14px;">
-      <div style="font-weight:600; margin-bottom:6px;">Resumo</div>
+      <div class="painel-titulo">Resumo</div>
       ${Object.keys(STATUS_TOTAIS_LABEL).map(k => `<div class="info-line">${totais[k] || 0} ${STATUS_TOTAIS_LABEL[k]}</div>`).join('')}
     </div>
 
@@ -411,7 +420,7 @@ function conteudoRelatorioTipoDetalhe(encerrados, chave) {
   return `
     <div class="card" style="margin-bottom:14px;">
       <div class="btn ghost" style="margin-bottom:10px;" data-action="fechar-relatorio-tipo-detalhe">‹ Voltar ao painel</div>
-      <div style="font-weight:600; margin-bottom:8px;">${emoji} ${escapeHtml(titulo)}</div>
+      <div class="painel-titulo">${emoji} ${escapeHtml(titulo)}</div>
       ${!r.itens.length ? '<div class="empty">Nenhum evento encerrado nesse período.</div>' : `
         ${barrasPorDivisao(grupos)}
         <div style="overflow-x:auto; margin-top:10px;">
@@ -441,8 +450,8 @@ function conteudoRelatorioTipoFixo(tipo) {
 
   return `
     <div class="card" style="margin-bottom:14px;">
-      <div style="font-weight:600; margin-bottom:8px;">${emojiTipoEvento(tipo)} Relatório ${escapeHtml(tipo)}</div>
-      ${!eventosTipo.length ? `<div class="empty">Nenhum evento encerrado do tipo "${escapeHtml(tipo)}" ainda.</div>` : faltaCarregar ? '<div class="empty">Carregando…</div>' : `
+      <div class="painel-titulo">${emojiTipoEvento(tipo)} Relatório ${escapeHtml(tipo)}</div>
+      ${!eventosTipo.length ? `<div class="empty">Nenhum evento encerrado do tipo "${escapeHtml(tipo)}" ainda.</div>` : faltaCarregar ? esqueletoLista() : `
         <div style="overflow-x:auto;">
           ${tabelaEventosPorDivisao(agruparEventosPorDivisao(linhas))}
         </div>
@@ -450,8 +459,8 @@ function conteudoRelatorioTipoFixo(tipo) {
     </div>
 
     <div class="card">
-      <div style="font-weight:600; margin-bottom:6px;">% de cada integrante em ${escapeHtml(tipo)}</div>
-      ${faltaCarregar ? '<div class="empty">Carregando…</div>' : !membros.length ? '<div class="empty">Nenhum membro cadastrado ainda.</div>' : renderListaEstatisticasPorDivisao(membros)}
+      <div class="painel-titulo">% de cada integrante em ${escapeHtml(tipo)}</div>
+      ${faltaCarregar ? esqueletoLista() : !membros.length ? '<div class="empty">Nenhum membro cadastrado ainda.</div>' : renderListaEstatisticasPorDivisao(membros)}
     </div>
   `;
 }
@@ -491,8 +500,8 @@ function conteudoRelatorioPresenca() {
     ${corpoPrincipal}
 
     <div class="card" style="margin-top:14px;">
-      <div style="font-weight:600; margin-bottom:6px;">% de cada integrante <span style="color:var(--text-muted); font-weight:400; font-size:12px;">(últimos ${mesesLista === 1 ? 'mês' : mesesLista + ' meses'})</span></div>
-      ${!listaMembros ? '<div class="empty">Carregando…</div>' : !listaMembros.length ? '<div class="empty">Nenhum membro cadastrado ainda.</div>' : renderListaEstatisticasPorDivisao(listaMembros)}
+      <div class="painel-titulo">% de cada integrante <span style="color:var(--text-muted); font-weight:400; font-size:12px;">(últimos ${mesesLista === 1 ? 'mês' : mesesLista + ' meses'})</span></div>
+      ${!listaMembros ? esqueletoLista() : !listaMembros.length ? '<div class="empty">Nenhum membro cadastrado ainda.</div>' : renderListaEstatisticasPorDivisao(listaMembros)}
     </div>
   `;
 }

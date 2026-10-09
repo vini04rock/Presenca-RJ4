@@ -17,7 +17,7 @@ import { emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao, STATUS } fro
 import { state } from '../nucleo/estado.js';
 import { LOGO_SRC } from '../nucleo/imagens.js';
 import { copiarTexto, dataDoCampoOuAvisar, escapeHtml, formatDataBR, ordenarPorHierarquia } from '../nucleo/util.js';
-import { campoData, linhaFuncoes, nivelDoGrau } from '../ui/comuns.js';
+import { campoData, linhaFuncoes, nivelDoGrau, selinhoIniciais } from '../ui/comuns.js';
 import { renderDonutChart, renderSparklineTendencia, segmentosDonutStatus } from '../ui/graficos.js';
 import { loadRelatorioIndividual, loadRelatoriosIndividuaisVarios } from '../dados/carregar.js';
 import { render } from '../nucleo/render.js';
@@ -77,6 +77,7 @@ function linhaIntegrante(m) {
           ${selecionando ? `<input type="checkbox" class="relind-check" ${state.relIndMarcados.has(m.id) ? 'checked' : ''}>` : ''}
           <div class="member-info-wrap">
             <div class="member-info">
+              ${selinhoIniciais(m)}
               <span class="member-name">${escapeHtml(m.nome)}</span>
               ${m.grau ? `<span class="grade-box">${escapeHtml(m.grau)}</span>` : ''}
             </div>

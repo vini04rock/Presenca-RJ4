@@ -81,7 +81,7 @@ export function renderRankingFaltasInfracionais(encerrados) {
   if (!ranking.length) return '';
   return `
     <div class="card" style="margin-top:14px;">
-      <div style="font-weight:600; margin-bottom:2px;">⚠️ Mais faltas não justificadas</div>
+      <div class="painel-titulo" style="margin-bottom:2px;">⚠️ Mais faltas não justificadas</div>
       <div style="color:var(--text-muted); font-size:12px; margin-bottom:8px;">Últimos ${meses === 1 ? 'mês' : meses + ' meses'}</div>
       ${ranking.map(r => `
         <div class="info-line" style="display:flex; justify-content:space-between; align-items:center;">
@@ -136,20 +136,39 @@ export function renderSparklineTendencia(itens) {
   `;
 }
 
+// Enquanto as presencas dos eventos chegam: o formato da rosca e da
+// legenda em vidro, no lugar do "Carregando..." - a tela ja nasce com a
+// forma que vai ter, e nada pula quando os numeros chegam.
+export function esqueletoRosca(tamanho) {
+  return `
+    <div class="donut-wrap esqueleto-rosca" aria-busy="true">
+      <div class="esqueleto esqueleto-circulo" style="width:${tamanho}px; height:${tamanho}px;"></div>
+      <div class="donut-legend">
+        ${[0, 1, 2].map(() => '<div class="esqueleto esqueleto-texto"></div>').join('')}
+      </div>
+    </div>
+  `;
+}
+
+// O mesmo, pras listas (% de cada integrante, eventos de um tipo).
+export function esqueletoLista(linhas = 4) {
+  return `<div class="esqueleto-lista" aria-busy="true">${Array.from({ length: linhas }, () => '<div class="esqueleto esqueleto-texto-linha"></div>').join('')}</div>`;
+}
+
 export function renderDonutCard(titulo, chave, encerrados, destaque) {
   const meses = state.relatorioPeriodoPorGrafico[chave] || 3;
   const r = resumoDonutPeriodo(encerrados, chave, meses);
   const emoji = chave === 'total' ? '🏁' : emojiTipoEvento(chave);
   return `
     <div class="card donut-card${destaque ? ' donut-card-total' : ''}">
-      <div style="font-weight:600; margin-bottom:8px;">${emoji} ${escapeHtml(titulo)}</div>
-      <div class="chip-grid wide no-print" style="margin-bottom:10px;">
+      <div class="painel-titulo">${emoji} ${escapeHtml(titulo)}</div>
+      <div class="pilulas-periodo no-print">
         ${RELATORIO_PERIODOS.map(m => `
-          <button class="chip-option ${meses === m ? 'active' : ''}" data-action="set-relatorio-periodo-tipo" data-chave="${escapeHtml(chave)}" data-value="${m}">${m === 1 ? '1 mês' : m + ' meses'}</button>
+          <button class="pilula ${meses === m ? 'active' : ''}" data-action="set-relatorio-periodo-tipo" data-chave="${escapeHtml(chave)}" data-value="${m}">${m === 1 ? '1 mês' : m + ' meses'}</button>
         `).join('')}
       </div>
       <div class="print-only" style="margin-bottom:10px; font-size:12px; color:var(--text-muted);">Período: últimos ${meses === 1 ? 'mês' : meses + ' meses'}</div>
-      ${r.faltaCarregar ? '<div class="empty">Carregando…</div>' : renderDonutChart(segmentosDonutStatus(r.statusPeriodo), r.pct === null ? '—' : r.pct + '%', 'presença', destaque ? 150 : 110)}
+      ${r.faltaCarregar ? esqueletoRosca(destaque ? 150 : 110) : renderDonutChart(segmentosDonutStatus(r.statusPeriodo), r.pct === null ? '—' : r.pct + '%', 'presença', destaque ? 150 : 110)}
       <div class="info-line" style="padding:8px 0 0; color:var(--text-muted); font-size:12px;">
         ${r.eventosNoPeriodo} ${r.eventosNoPeriodo === 1 ? 'evento encerrado' : 'eventos encerrados'} nesse período
       </div>

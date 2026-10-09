@@ -29,7 +29,18 @@ export function renderRank(app) {
     <button class="btn block" data-action="calcular-rank" style="margin-bottom:16px;" ${state.rankLoading ? 'disabled' : ''}>
       ${state.rankLoading ? 'Calculando…' : (d ? '🔄 Atualizar' : '📊 Calcular rank')}
     </button>
-    ${d ? renderRankConteudo(d) : '<div class="empty">Toque em "Calcular rank" para ver a comparação entre as divisões.</div>'}
+    ${d ? renderRankConteudo(d) : (state.rankLoading ? esqueletoRank() : '')}
+  `;
+}
+
+// O formato do rank em vidro, enquanto a planilha calcula: o card do total
+// e as 7 divisoes. Mesmo esqueleto da primeira carga do app (.esqueleto).
+function esqueletoRank() {
+  return `
+    <div class="esqueleto-rank" aria-busy="true">
+      <div class="esqueleto esqueleto-card"></div>
+      ${Array.from({ length: 7 }, () => '<div class="esqueleto esqueleto-rank-linha"></div>').join('')}
+    </div>
   `;
 }
 
@@ -65,13 +76,13 @@ function renderRankConteudo(d) {
     .sort((a, b) => (b.pct ?? -1) - (a.pct ?? -1));
   const lugaresDivisoes = posicoesDoPodio(divisoesNoRank.map(x => x.pct));
   const blocoDivisoes = `
-    <div class="card" style="padding: 4px 16px; margin-bottom:16px;">
-      ${divisoesNoRank.map(({ e, item }, i) => {
+    <div class="card rank-divisoes" style="padding: 4px 16px; margin-bottom:16px;" data-anima="rank-divisoes:${state.rankJanela}">
+      ${divisoesNoRank.map(({ e, pct }, i) => {
         return `
           <div class="member-row${lugaresDivisoes[i] ? ' podio podio-' + lugaresDivisoes[i] : ''}">
             <div class="member-head">
               <span class="member-name">${medalha(lugaresDivisoes[i])}${escapeHtml(e.nome)}</span>
-              <span class="status-badge status-confirmado">${linhaPct(item && item.percentual)}</span>
+              <span class="status-badge status-confirmado"><span${pct === null ? '' : ` data-conta="${pct}" data-sufixo="%"`}>${linhaPct(pct)}</span></span>
             </div>
           </div>
         `;
@@ -116,8 +127,15 @@ export const acoes = {
     const janela = state.rankJanela;
     return mostrarPreviaImagem(() => imagemRank(state.rankData, janela), `rank-presenca-${janela === '6meses' ? '6-meses' : 'geral'}.png`);
   },
+  // Calcula sozinho na PRIMEIRA vez que a tela abre. Depois o resultado
+  // fica no state enquanto o app estiver aberto: sair e voltar nao chama a
+  // planilha de novo - pra numero fresco, o "Atualizar". Assim cada
+  // visita ao app custa no maximo uma conta, a mesma que o antigo botao
+  // "Calcular rank" ja custava.
   'go-rank': async (id, target, action, e) => {
-    state.view = 'rank'; return render();
+    state.view = 'rank';
+    if (!state.rankData && !state.rankLoading) return carregarRank();
+    return render();
   },
   'calcular-rank': async (id, target, action, e) => {
     return carregarRank();
@@ -125,7 +143,7 @@ export const acoes = {
   'set-rank-janela': async (id, target, action, e) => {
     state.rankJanela = target.dataset.value;
     // Se ja tinha calculado antes, recalcula na hora pra nova janela -
-    // senao so troca a selecao, esperando o toque em "Calcular rank".
+    // senao (a primeira conta falhou ou ainda nao voltou) so troca a selecao.
     return state.rankData ? carregarRank() : render();
   },
   'toggle-rank-divisao': async (id, target, action, e) => {

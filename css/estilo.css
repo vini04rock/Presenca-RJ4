@@ -615,11 +615,6 @@ label {
   cursor: pointer;
 }
 .tab.active { color: var(--white-strong); border-color: var(--white-strong); }
-/* So pra tela de Relatorios, que tem mais abas (7) do que cabe numa linha
-   so - quebra em varias linhas em vez de espremer o texto, sem mexer no
-   .tabs/.tab padrao (usado tambem pelo Modo organizador, com menos abas). */
-.tabs-wrap { flex-wrap: wrap; }
-.tabs-wrap .tab { flex: 1 1 30%; min-width: 90px; padding: 8px 6px; font-size: 12px; }
 .checkbox-row {
   display: flex;
   align-items: center;
@@ -1501,6 +1496,19 @@ body::before { animation: respirar 40s ease-in-out infinite alternate; transform
 .podio-1 { background: linear-gradient(90deg, rgba(224, 178, 60, 0.20), transparent 70%); }
 .podio-2 { background: linear-gradient(90deg, rgba(200, 204, 212, 0.16), transparent 70%); }
 .podio-3 { background: linear-gradient(90deg, rgba(196, 128, 74, 0.18), transparent 70%); }
+/* Quando o rank chega, as divisoes entram uma a uma, de cima pra baixo -
+   o podio primeiro. So uma vez por janela (data-anima, no app.js). */
+.rank-divisoes.anima .member-row { animation: rank-entra 0.45s cubic-bezier(.2,.8,.2,1) both; }
+.rank-divisoes.anima .member-row:nth-child(2) { animation-delay: 0.07s; }
+.rank-divisoes.anima .member-row:nth-child(3) { animation-delay: 0.14s; }
+.rank-divisoes.anima .member-row:nth-child(4) { animation-delay: 0.21s; }
+.rank-divisoes.anima .member-row:nth-child(5) { animation-delay: 0.28s; }
+.rank-divisoes.anima .member-row:nth-child(6) { animation-delay: 0.35s; }
+.rank-divisoes.anima .member-row:nth-child(7) { animation-delay: 0.42s; }
+@keyframes rank-entra {
+  from { opacity: 0; transform: translateX(-14px); }
+  to { opacity: 1; transform: none; }
+}
 .medalha { display: inline-block; margin-right: 6px; font-size: 1.1em; animation: medalha-brilho 3.2s ease-in-out infinite; }
 .medalha-2 { animation-delay: 0.4s; }
 .medalha-3 { animation-delay: 0.8s; }
@@ -1593,6 +1601,9 @@ body::before { animation: respirar 40s ease-in-out infinite alternate; transform
 .esqueleto-dupla { display: flex; gap: 10px; width: 100%; }
 .esqueleto-card-baixo { flex: 1; height: 48px; }
 .esqueleto-card-alto { width: 100%; height: 110px; }
+.esqueleto-rank { display: flex; flex-direction: column; gap: 8px; }
+.esqueleto-rank .esqueleto-card { margin-bottom: 6px; }
+.esqueleto-rank-linha { width: 100%; height: 40px; }
 .esqueleto-tela .loading { padding: 6px 0 0; font-size: 12.5px; }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1742,6 +1753,81 @@ body.rolou .barra-fixa-nome { opacity: 1; transform: none; }
 .iniciais-prata { --anel: #C8CCD4; }
 .iniciais-bronze { --anel: #C4804A; }
 .iniciais-base { box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.35); }
+
+/* As linhas de baixo (cargo, funcoes) comecam embaixo do nome, e nao
+   embaixo das iniciais - nas listas sem numero (cadastro, relatorio
+   individual). Na lista do evento o numero vem antes e fica como esta. */
+.member-info-wrap:has(> .member-info:first-child > .iniciais:first-child) > .confirmado-divisao,
+.member-info-wrap:has(> .member-info:first-child > .iniciais:first-child) > .member-funcoes { padding-left: 34px; }
+
+/* ---- Cadastro de membros: um card por grau, botoes pequenos ---- */
+.lista-cadastro { padding: 4px 16px; }
+.linha-cadastro .member-head { cursor: default; align-items: center; }
+.linha-cadastro.editando {
+  margin: 0 -16px; padding-left: 16px; padding-right: 16px;
+  background-color: rgba(224, 178, 60, 0.08);
+  box-shadow: inset 3px 0 0 #E0B23C;
+}
+.acoes-cadastro { display: flex; gap: 6px; flex-shrink: 0; }
+.btn-mini {
+  font: inherit; font-size: 12px; font-weight: 600;
+  padding: 6px 10px; border-radius: 8px; cursor: pointer;
+  color: var(--text);
+  background-color: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line-strong);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transition: transform 0.12s ease, background-color 0.15s ease;
+}
+.btn-mini:active { transform: scale(0.95); background-color: rgba(255, 255, 255, 0.12); }
+.btn-mini.perigo { color: var(--status-infracional); border-color: rgba(217, 99, 90, 0.45); }
+.btn-mini.perigo:active { background-color: rgba(217, 99, 90, 0.14); }
+
+/* ---- Relatorios: as 6 abas sempre a vista (3 por linha), pilulas de
+   periodo e titulos dos paineis ---- */
+.abas-grade {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px; margin-bottom: 18px;
+}
+.abas-grade .tab {
+  padding: 9px 4px; font-size: 12.5px; line-height: 1.2;
+  border-radius: 999px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+@media (max-width: 360px) { .abas-grade .tab { font-size: 11.5px; } }
+.painel-titulo {
+  font-weight: 700; font-size: 15px; letter-spacing: 0.01em;
+  color: var(--white-strong);
+  margin-bottom: 10px;
+}
+.donut-card-total .painel-titulo { font-size: 16px; }
+.pilulas-periodo {
+  display: flex; gap: 3px; padding: 3px;
+  margin-bottom: 12px;
+  border-radius: 999px;
+  background-color: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+.pilula {
+  flex: 1; font: inherit; font-size: 12px; font-weight: 600;
+  padding: 6px 4px; border: none; border-radius: 999px; cursor: pointer;
+  color: var(--text-muted); background-color: transparent;
+  transition: background-color 0.18s ease, color 0.18s ease, transform 0.12s ease;
+}
+.pilula.active {
+  color: #0A0A0A;
+  background-image: linear-gradient(180deg, #FFFFFF 0%, #EAE7DF 100%);
+  box-shadow: 0 1px 0 #fff inset, 0 3px 8px -3px rgba(0, 0, 0, 0.7);
+}
+.pilula:active { transform: scale(0.95); }
+.donut-card-total .pilulas-periodo { max-width: 340px; margin-left: auto; margin-right: auto; }
+.esqueleto-rosca { padding: 4px 0; }
+.esqueleto-circulo { border-radius: 50%; flex-shrink: 0; }
+.esqueleto-texto { height: 14px; border-radius: 6px; }
+.esqueleto-texto:nth-child(2) { width: 85%; }
+.esqueleto-texto:nth-child(3) { width: 70%; }
+.esqueleto-lista { display: flex; flex-direction: column; gap: 8px; padding: 6px 0; }
+.esqueleto-texto-linha { height: 34px; border-radius: 8px; }
 
 /* ---- Telas vazias: o emblema esmaecido em cima da frase ---- */
 .empty::before {
@@ -2137,4 +2223,5 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
   .carteirinha-nome, .carteirinha-pct b { color: #000 !important; text-shadow: none !important; }
   .carteirinha-pct { box-shadow: none !important; background: none !important; }
   .tela-entrando > * { animation: none !important; }
+  .acoes-cadastro { display: none !important; }
 }

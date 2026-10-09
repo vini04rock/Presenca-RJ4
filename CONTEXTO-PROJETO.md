@@ -523,6 +523,20 @@ valem antes de mexer:
   Presença ordena divisões e integrantes pelo %.
 - **Iniciais e carteirinha** usam a cor do grau (`nivelDoGrau`): ouro do I
   ao V, prata no VI, bronze no VII e VIII, neutro no IX e X.
+  As mesmas iniciais (`selinhoIniciais`) estão na lista do evento, no
+  cadastro de Membros (um card por grau, em ordem hierárquica) e na lista
+  do Relatório individual.
+- **O Rank de Presença abre calculado**, mas só na primeira vez que a tela
+  abre: o resultado fica no state enquanto o app está aberto, e o
+  "🔄 Atualizar" busca de novo. Assim cada visita ao app custa no máximo uma
+  conta na planilha, a mesma que o antigo botão "Calcular rank" custava.
+  Enquanto calcula, mostra o esqueleto em vidro, e as divisões entram em
+  cascata (`data-anima`, uma vez por janela).
+- **Relatórios**: as 6 abas sempre à vista (3 por linha, rótulo curto com o
+  emoji do tipo), período em pílula (`.pilulas-periodo`), títulos dos
+  painéis em `.painel-titulo`, e esqueleto da rosca e das listas
+  (`esqueletoRosca`/`esqueletoLista`, em `ui/graficos.js`) no lugar do
+  "Carregando…".
 - Quem pediu "reduzir movimento" no aparelho fica sem animação, e a
   impressão/PDF desliga vidro, sombra e enfeites (`@media print`).
 - **Imagens para o grupo** (`ui/imagem.js`): o resultado de um evento
