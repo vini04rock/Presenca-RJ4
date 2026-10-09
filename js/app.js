@@ -3,6 +3,7 @@
 
 import { loadInitial } from './dados/carregar.js';
 import { state } from './nucleo/estado.js';
+import { corTipoEvento } from './nucleo/config.js';
 import { LOGO_SRC } from './nucleo/imagens.js';
 import { definirRender } from './nucleo/render.js';
 import { escapeHtml, mascaraData } from './nucleo/util.js';
@@ -32,6 +33,14 @@ import { acoes as acoesCalendario } from './telas/calendario.js';
 import { acoes as acoesMenuOrganizador, renderMenuOrganizador } from './telas/menu-organizador.js';
 import { acoes as acoesRelatorioIndividual, renderRelatorioIndividual } from './telas/relatorio-individual.js';
 
+// Os acabamentos de luz e movimento (fim do estilo.css, "LUZ E VIDA"): cada
+// um e uma classe no <html>. Pra comparar com e sem, o endereco aceita
+// ?sem=reflexo,brasas - desliga so aqueles, so naquela aba.
+const ACABAMENTOS = ['reflexo', 'clima', 'brasas', 'divisores'];
+const semAcabamento = (new URLSearchParams(location.search).get('sem') || '').split(',');
+ACABAMENTOS.filter(a => !semAcabamento.includes(a))
+  .forEach(a => document.documentElement.classList.add('ac-' + a));
+
 // A tela nova entra deslizando (.tela-entrando, no fim do estilo.css). So na
 // TROCA de tela: o app redesenha a cada toque e a cada resposta da
 // planilha, e animar todo redesenho faria a tela piscar. Num redesenho da
@@ -44,10 +53,16 @@ function marcarTrocaDeTela(app) {
     state.currentEventId].join('|');
   clearTimeout(fimDaEntrada);
   if (tela === telaAnterior) {
-    app.classList.remove('tela-entrando');
+    app.classList.remove('tela-entrando', 'recem-chegada');
     return;
   }
   telaAnterior = tela;
+  // O reflexo que atravessa os cards de arte passa uma vez logo que a tela
+  // chega (no computador ele tambem passa com o mouse). A classe dura o
+  // bastante pro ultimo card terminar.
+  clearTimeout(fimDoReflexo);
+  app.classList.add('recem-chegada');
+  fimDoReflexo = setTimeout(() => app.classList.remove('recem-chegada'), 2600);
   // Tela nova, memoria nova: os graficos dela se desenham de novo.
   jaAnimados = new Set();
   valoresVistos = new Map();
@@ -59,6 +74,7 @@ function marcarTrocaDeTela(app) {
   fimDaEntrada = setTimeout(() => app.classList.remove('tela-entrando', 'entrando-volta'), 800);
 }
 let proximaDirecao = 'ida';
+let fimDoReflexo = null;
 
 // O que se mexe depois de desenhado, marcado no HTML:
 //   data-anima="chave"  se desenha ao aparecer (rosca, barra, linha) e o
@@ -116,7 +132,42 @@ function render() {
   // Na tela de evento, o "puxar pra baixo" e nosso: sem isto o Chrome do
   // Android recarregaria a pagina inteira no mesmo gesto.
   document.documentElement.classList.toggle('tela-evento', state.view === 'event');
+  atualizarClima();
+  atualizarBrasas();
 }
+
+// Luz ambiente: um halo no topo da tela, na cor do tipo do evento aberto
+// (ou do tipo escolhido na tela inicial). Fora disso, sem halo.
+function atualizarClima() {
+  let cor = '';
+  if (state.view === 'event' || state.view === 'confirmados') {
+    const ev = state.events.find(e => e.id === state.currentEventId);
+    if (ev && ev.tipo) cor = corTipoEvento(ev.tipo);
+  } else if (state.view === 'home' && state.homeTipo && state.homeTipo !== 'todos') {
+    cor = corTipoEvento(state.homeTipo);
+  }
+  const raiz = document.documentElement;
+  if (cor) raiz.style.setProperty('--clima', cor);
+  raiz.classList.toggle('com-clima', !!cor);
+}
+
+// Brasas subindo devagar no fundo, em todas as telas. Ficam fora do #app,
+// que e refeito a cada toque - senao recomecariam do chao a cada redesenho.
+// Sao criadas uma vez so, depois da primeira carga.
+function atualizarBrasas() {
+  if (state.loading || document.getElementById('brasas')) return;
+  const ninho = document.createElement('div');
+  ninho.id = 'brasas';
+  ninho.setAttribute('aria-hidden', 'true');
+  ninho.innerHTML = Array.from({ length: 16 }, () => {
+    const dur = 9 + Math.random() * 8;
+    return `<i style="left:${(Math.random() * 100).toFixed(1)}%; --tam:${(1.5 + Math.random() * 1.8).toFixed(1)}px;
+      --vai:${(Math.random() * 60 - 30).toFixed(0)}px; animation-duration:${dur.toFixed(1)}s;
+      animation-delay:-${(Math.random() * dur).toFixed(1)}s;"></i>`;
+  }).join('');
+  document.body.appendChild(ninho);
+}
+
 
 // "Salvando…" / "✅ Salvo na planilha" na tela de evento: uma pastilha que
 // flutua no pe da tela, fora do #app, em vez de uma faixa que empurrava a

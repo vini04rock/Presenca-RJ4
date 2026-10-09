@@ -2198,6 +2198,102 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
   #previa-imagem, .previa-caixa, .etapas-barra i { transition: none !important; }
 }
 
+/* ========================================================================
+   LUZ E VIDA (09/10/2026)
+   Cada acabamento e uma classe no <html> (ac-toque, ac-brasas...), ligada
+   pelo app.js. Pra comparar, o endereco aceita ?sem=reflexo,brasas.
+   Regra da casa: discreto - pouco, lento e raro.
+   ======================================================================== */
+
+/* ---- 6. Reflexo: passa uma vez nos cards de arte logo que a tela chega ----
+   Em toda tela: os cards de arte da inicial (que ja tinham o reflexo no
+   mouse) e todo .event-card das outras - listas de eventos, tipos, menu do
+   organizador. Um depois do outro, de cima pra baixo. O "Proximo evento"
+   fica de fora: o ::before dele e o halo. */
+.ac-reflexo .event-card:not(.destaque-brilho) { overflow: hidden; }
+.ac-reflexo .event-card:not(.destaque-brilho, .card-eventos-home, .card-rank-home, .card-admin-home,
+  .card-regional-home, .card-divisao-home, .home-btn-organizador)::before {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0; left: -60%;
+  width: 45%;
+  pointer-events: none;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.14), transparent);
+  transform: skewX(-18deg);
+  opacity: 0;
+}
+.ac-reflexo .recem-chegada :where(.event-card:not(.destaque-brilho))::before {
+  animation: brilho-passa 1.1s var(--mola) both;
+  animation-delay: 0.5s;
+}
+/* A escada: cada card um pouco depois do anterior (:where pra nao passar
+   por cima dos tempos da tela inicial, logo abaixo). */
+.ac-reflexo .recem-chegada :where(.event-card:nth-child(2))::before { animation-delay: 0.62s; }
+.ac-reflexo .recem-chegada :where(.event-card:nth-child(3))::before { animation-delay: 0.74s; }
+.ac-reflexo .recem-chegada :where(.event-card:nth-child(4))::before { animation-delay: 0.86s; }
+.ac-reflexo .recem-chegada :where(.event-card:nth-child(5))::before { animation-delay: 0.98s; }
+.ac-reflexo .recem-chegada :where(.event-card:nth-child(6))::before { animation-delay: 1.1s; }
+.ac-reflexo .recem-chegada :where(.event-card:nth-child(n+7))::before { animation-delay: 1.22s; }
+.ac-reflexo .recem-chegada .card-rank-insights-home::before { animation-delay: 0.65s; }
+.ac-reflexo .recem-chegada .card-eventos-home::before { animation-delay: 0.8s; }
+.ac-reflexo .recem-chegada .card-calendario-home::before { animation-delay: 0.95s; }
+.ac-reflexo .recem-chegada .home-btn-organizador::before { animation-delay: 1.1s; }
+
+/* ---- 7. Luz ambiente: halo no topo, na cor do tipo do evento ---- */
+.ac-clima body::after {
+  content: '';
+  position: fixed; left: 0; right: 0; top: 0; height: 60vh;
+  z-index: 0; pointer-events: none;
+  background: radial-gradient(ellipse 85% 65% at 50% 0%, var(--clima, transparent), transparent 72%);
+  opacity: 0;
+  transition: opacity 0.9s ease;
+}
+.ac-clima.com-clima body::after { opacity: 0.24; }
+
+/* ---- 8. Brasas: poucas faiscas subindo devagar, em todas as telas ---- */
+#brasas {
+  position: fixed; inset: 0; z-index: 0;
+  pointer-events: none; overflow: hidden;
+  opacity: 0; transition: opacity 0.8s ease;
+}
+.ac-brasas #brasas { opacity: 1; }
+#brasas i {
+  position: absolute; bottom: -10px;
+  width: var(--tam); height: var(--tam); border-radius: 50%;
+  background: #FFB25A;
+  box-shadow: 0 0 6px 1px rgba(255, 140, 50, 0.75);
+  animation: brasa-sobe linear infinite;
+  animation-play-state: paused;
+}
+.ac-brasas #brasas i { animation-play-state: running; }
+@keyframes brasa-sobe {
+  0% { transform: translate(0, 0); opacity: 0; }
+  12% { opacity: 0.7; }
+  70% { opacity: 0.45; }
+  100% { transform: translate(var(--vai), -75vh); opacity: 0; }
+}
+
+/* ---- 9. Divisores: filetes dourados que somem nas pontas ---- */
+.ac-divisores .rotulo-secao { display: flex; align-items: center; gap: 10px; }
+.ac-divisores .rotulo-secao::after {
+  content: ''; flex: 1; height: 1px;
+  background: linear-gradient(90deg, rgba(212, 162, 76, 0.45), transparent);
+}
+/* O "Proximo evento" e centralizado: filete dos dois lados. */
+.ac-divisores .home-rotulo-destaque::before {
+  content: ''; flex: 1; height: 1px;
+  background: linear-gradient(270deg, rgba(212, 162, 76, 0.45), transparent);
+}
+.ac-divisores .home-rodape {
+  border-top: 1px solid transparent;
+  border-image: linear-gradient(90deg, transparent, rgba(212, 162, 76, 0.5), transparent) 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #brasas { display: none !important; }
+  .recem-chegada *::before { animation: none !important; }
+}
+
 /* ---- Papel: nada de vidro, sombra nem reflexo ---- */
 @media print {
   .card, .btn.secondary, .btn.danger {
@@ -2224,4 +2320,5 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
   .carteirinha-pct { box-shadow: none !important; background: none !important; }
   .tela-entrando > * { animation: none !important; }
   .acoes-cadastro { display: none !important; }
+  #brasas, body::after { display: none !important; }
 }

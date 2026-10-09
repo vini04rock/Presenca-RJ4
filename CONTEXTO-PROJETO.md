@@ -565,6 +565,19 @@ valem antes de mexer:
   tempo** no relatório individual, **etapas** presas no topo do formulário
   de evento (atualizadas a cada letra sem redesenhar) e a **saudação** da
   tela inicial.
+- **Luz e vida** (fim do `estilo.css`, "LUZ E VIDA"), cada um uma classe
+  no `<html>` ligada pelo `app.js` (`ACABAMENTOS`); `?sem=reflexo,brasas`
+  no endereço desliga os citados, para comparar:
+  - **reflexo**: atravessa uma vez os cards de arte (`.event-card`) quando
+    a tela chega, um depois do outro (`.recem-chegada`, 2,6s);
+  - **clima**: halo no topo na cor do tipo do evento aberto
+    (`atualizarClima`);
+  - **brasas**: 16 faíscas subindo no fundo de todas as telas, fora do
+    `#app`, criadas uma vez (`atualizarBrasas`);
+  - **divisores**: filetes dourados nos rótulos de seção e no rodapé.
+
+  Testados e recusados em 09/10: brilho dourado no toque, e couro,
+  costura, moldura e rebites nos cards. Não trazer de volta.
 
 ## Antes de subir
 
