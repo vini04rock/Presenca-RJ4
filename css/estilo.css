@@ -720,10 +720,16 @@ label {
 .calendario-cabecalho { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; padding: 0 6px; }
 .calendario-cabecalho .btn.ghost { padding: 4px 14px; font-size: 16px; }
 .calendario-titulo { font-family: 'Rye', serif; font-size: 16px; color: var(--white-strong); }
-.calendario-grade { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+/* minmax(0, 1fr), e nao so 1fr: uma coluna 1fr nao encolhe abaixo do
+   conteudo, e com a letra aumentada no celular o nome da divisao (que nao
+   quebra linha) empurrava a grade pra fora do card - o domingo saia cortado.
+   Assim as 7 colunas dividem so a largura que existe, e o nome vira "…". */
+.calendario-grade { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
 .calendario-dia-semana { text-align: center; font-size: 11px; color: var(--text-muted); font-weight: 700; padding-bottom: 4px; }
 .calendario-dia {
   aspect-ratio: 1 / 1;
+  min-width: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
