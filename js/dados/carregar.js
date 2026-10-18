@@ -229,7 +229,9 @@ export async function carregarCaixinha() {
   try {
     const r = await api('caixinha', { divisao: escopo });
     if (state.adminEscopo !== escopo) return;
-    state.caixinhaDados = { meses: r.meses || [] };
+    // O controle financeiro vem na mesma resposta (ver lerCaixinha no
+    // Code.gs): uma ida a planilha so pra secao inteira.
+    state.caixinhaDados = { meses: r.meses || [], saldoInicial: r.saldoInicial || null, lancamentos: r.lancamentos || [] };
     state.caixinhaDadosEscopo = escopo;
   } catch (e) {
     if (state.adminEscopo !== escopo) return;

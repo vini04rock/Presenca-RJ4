@@ -37,7 +37,7 @@ const SECOES = [
   // temDoacoesECaixinha(), pra replicar pras outras num lugar so.
   { aba: 'doacoes', nome: 'Doações', desc: 'Quem levou alimento em cada evento e o rank', icone: '🥫', cor: '#4CAF6E',
     visivel: () => temDoacoesECaixinha(state.adminEscopo) },
-  { aba: 'caixinha', nome: 'Caixinha', desc: 'Quem pagou em cada mês e quem está em dia', icone: '💰', cor: '#C9A227',
+  { aba: 'caixinha', nome: 'Caixinha', desc: 'Quem pagou, quanto entrou e saiu, e o saldo do caixa', icone: '💰', cor: '#C9A227',
     visivel: () => temDoacoesECaixinha(state.adminEscopo) },
   // Nas 7: cada divisao ve o proprio livro, e o Regional o quadro de todas.
   { aba: 'movimentos', nome: 'Entrada/Saída', desc: 'Quem entrou, quem está afastado e quem saiu', icone: '🔄', cor: '#8FA3B8' },

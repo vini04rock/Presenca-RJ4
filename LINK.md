@@ -104,7 +104,14 @@ Abas em uso:
   verdade, gravado pelo app. Nasce sozinha no primeiro uso.
 - `Caixinha` — quem pagou a caixinha em cada mês (seção Caixinha do
   organizador). Uma linha por divisão × mês × integrante que devia pagar,
-  com Sim/Não. Nasce sozinha no primeiro uso.
+  com Sim/Não e o Valor pago. Nasce sozinha no primeiro uso. A coluna
+  Valor veio depois e é acrescentada sozinha; linha antiga com "Sim" e sem
+  valor vale R$ 30.
+- `CaixinhaFinanceiro` — o controle financeiro da caixinha: uma linha por
+  entrada ou saída lançada (data, categoria, descrição, valor) e uma linha
+  "Saldo inicial" por divisão. As mensalidades não entram aqui: o app soma
+  da aba `Caixinha`. É dado de verdade, gravado pelo app. Nasce sozinha no
+  primeiro uso.
 - `Movimentacoes` — o livro de Entrada/Saída de integrantes: entrada,
   afastamento, retorno e desligamento, com data e motivo. Gravado pelo app
   (cadastro de Membros). Nada é apagado dela. Nasce sozinha no primeiro uso.

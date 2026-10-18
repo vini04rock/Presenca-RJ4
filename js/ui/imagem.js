@@ -10,7 +10,7 @@
 import { divisoesSemRegional, emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao } from '../nucleo/config.js';
 import { IMG_FUNDO, LOGO_SRC } from '../nucleo/imagens.js';
 import { diaDaSemana, formatDataBR, mostrarAviso } from '../nucleo/util.js';
-import { nomeDoMes } from '../dominio/caixinha.js';
+import { formatReais, nomeDoMes } from '../dominio/caixinha.js';
 import { formatKg } from '../dominio/doacoes.js';
 import { posicoesDoPodio } from './comuns.js';
 
@@ -581,6 +581,113 @@ export async function imagemMesCaixinha(r, nomeDivisao) {
   const largura = (L - 80 * 2 - 30) / 2;
   colunaNomes(ctx, 80, topoLista, largura, alturaLinha, `✅ PAGARAM (${r.pagaram.length})`, COR.confirmado, '✅', r.pagaram);
   colunaNomes(ctx, 80 + largura + 30, topoLista, largura, alturaLinha, `❌ NÃO PAGARAM (${r.naoPagaram.length})`, COR.infracional, '❌', r.naoPagaram);
+
+  rodape(ctx, altura);
+  return canvas;
+}
+
+// ---------------------------------------------------------------------------
+// O relatorio de controle da Caixinha: o saldo grande, de onde veio e pra
+// onde foi, e com o que se gastou - categoria por categoria. Decisao do
+// clube (18/10/2026): a imagem vai pro grupo com as despesas e o saldo.
+// Nome de integrante nao entra (isso e do relatorio do mes). A imagem
+// cresce pra baixo quando ha muita categoria. `r` e o controleCaixinha.
+
+// Escolhe o maior tamanho de fonte (ate `inicial`) em que o texto cabe.
+function fonteQueCabe(ctx, texto, larguraMax, inicial, peso, familia) {
+  let t = inicial;
+  fonte(ctx, t, peso, familia);
+  while (t > 14 && ctx.measureText(texto).width > larguraMax) {
+    t -= 2;
+    fonte(ctx, t, peso, familia);
+  }
+  return t;
+}
+
+function placasControle(ctx, y, placas) {
+  const largura = 290, gap = 25, x0 = (L - (largura * 3 + gap * 2)) / 2;
+  placas.forEach(([rotulo, texto, cor], i) => {
+    const x = x0 + i * (largura + gap);
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    ctx.beginPath(); retangulo(ctx, x, y, largura, 150, 24); ctx.fill();
+    ctx.strokeStyle = cor;
+    ctx.globalAlpha = 0.55;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); retangulo(ctx, x, y, largura, 150, 24); ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.textAlign = 'center';
+    fonteQueCabe(ctx, texto, largura - 30, 40, 700);
+    ctx.fillStyle = COR.marfim;
+    ctx.fillText(texto, x + largura / 2, y + 80);
+    fonte(ctx, 21, 700);
+    ctx.fillStyle = cor;
+    ctx.fillText(rotulo, x + largura / 2, y + 122);
+  });
+  return y + 150;
+}
+
+export async function imagemControleCaixinha(r, nomeDivisao, rotuloPeriodo) {
+  const cats = r.saidas.porCategoria;
+  const alturaLinha = 78;
+  const topoCats = 870;
+  const altura = Math.max(A, topoCats + 60 + Math.max(1, cats.length) * alturaLinha + 200);
+  const { canvas, ctx, logo } = await novaTela(altura);
+
+  emblema(ctx, logo, 40, 140);
+  let y = tituloMetal(ctx, '💰 Caixinha', 255, 62, 980);
+  rotuloEspacado(ctx, `CONTROLE  ·  ${nomeDivisao.toUpperCase()}  ·  ${rotuloPeriodo.toUpperCase()}`, y + 2, 21, COR.ouro);
+
+  // O saldo, grande, no meio.
+  rotuloEspacado(ctx, 'SALDO', 420, 24, COR.apagado);
+  const saldo = formatReais(r.saldoFinal);
+  fonteQueCabe(ctx, saldo, 900, 110, 400, 'rye');
+  ctx.textAlign = 'center';
+  ctx.fillStyle = r.saldoFinal < 0 ? COR.infracional : COR.marfim;
+  ctx.fillText(saldo, L / 2, 535);
+
+  placasControle(ctx, 590, [
+    ['💼 NO INÍCIO', formatReais(r.saldoAnterior), COR.ouro],
+    ['🟢 ENTROU', formatReais(r.entradas.total), COR.confirmado],
+    ['🔴 SAIU', formatReais(r.saidas.total), COR.infracional],
+  ]);
+
+  // De onde veio o que entrou.
+  const origens = [];
+  if (r.entradas.mensalidades) origens.push(`Mensalidades ${formatReais(r.entradas.mensalidades)} (${r.entradas.pagamentos} ${r.entradas.pagamentos === 1 ? 'pagamento' : 'pagamentos'})`);
+  if (r.entradas.outras) origens.push(`Outras entradas ${formatReais(r.entradas.outras)}`);
+  if (origens.length) {
+    fonteQueCabe(ctx, origens.join('  ·  '), 960, 24, 600);
+    ctx.fillStyle = COR.apagado;
+    ctx.fillText(origens.join('  ·  '), L / 2, 795);
+  }
+
+  rotuloEspacado(ctx, '🔴 COM O QUE GASTAMOS', topoCats, 24, COR.ouro);
+  if (!cats.length) {
+    fonte(ctx, 28, 600);
+    ctx.fillStyle = COR.apagado;
+    ctx.fillText('Nenhuma saída no período', L / 2, topoCats + 80);
+  }
+  const maior = cats.length ? cats[0].valor : 1;
+  cats.forEach((c, i) => {
+    const meio = topoCats + 40 + i * alturaLinha + alturaLinha / 2;
+    const valor = formatReais(c.valor);
+    ctx.textBaseline = 'middle';
+    fonte(ctx, 30, 700);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = COR.marfim;
+    ctx.fillText(valor, L - 110, meio - 12);
+    const larguraValor = ctx.measureText(valor).width;
+    fonte(ctx, 28, 600);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = COR.texto;
+    ctx.fillText(caber(ctx, c.categoria, L - 220 - larguraValor - 30), 110, meio - 12);
+    ctx.fillStyle = COR.trilho;
+    ctx.beginPath(); retangulo(ctx, 110, meio + 14, L - 220, 10, 5); ctx.fill();
+    ctx.fillStyle = COR.infracional;
+    ctx.beginPath(); retangulo(ctx, 110, meio + 14, Math.max(10, (L - 220) * c.valor / maior), 10, 5); ctx.fill();
+    ctx.textBaseline = 'alphabetic';
+  });
+  ctx.textAlign = 'center';
 
   rodape(ctx, altura);
   return canvas;

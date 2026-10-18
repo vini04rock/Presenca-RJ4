@@ -27,7 +27,7 @@ Três modos de entrada, todos no mesmo link:
 - HTML + CSS + JavaScript puro, em **módulos ES nativos**. Sem framework,
   sem build step, sem dependências além das fontes do Google.
 - `index.html` é só o esqueleto; o visual em `css/estilo.css`; o código em
-  `js/`, repartido em 49 módulos.
+  `js/`, repartido em 51 módulos.
 - Hospedado no GitHub Pages (estático). Todo `git push` atualiza o site.
 - Backend: planilha do Google Sheets via Apps Script publicado como Web App.
   A URL fica em `API_URL`, em `js/nucleo/api.js`.
@@ -127,7 +127,8 @@ sem controlar o servidor.
 | `TextosChamada` | Regras do clube e Atenção personalizadas pelo Regional; sem linha = o padrão |
 | `Movimentacoes` | o livro de Entrada/Saída: uma linha por entrada, afastamento, retorno ou desligamento. Nada é apagado |
 | `Doacoes` | uma linha por evento × integrante que levou alimento, com os kg; sem linha = não levou |
-| `Caixinha` | uma linha por divisão × mês × integrante que devia pagar, com Sim/Não |
+| `Caixinha` | uma linha por divisão × mês × integrante que devia pagar, com Sim/Não e o **valor** pago |
+| `CaixinhaFinanceiro` | o controle financeiro da caixinha: uma linha por entrada ou saída lançada, e o saldo inicial de cada divisão |
 
 **Abas geradas do zero** a cada "Gerar relatório na planilha" (botão que só
 aparece dentro do organizador Regional). Editar nelas não tem efeito:
@@ -410,23 +411,73 @@ regra do clube é levar 1 kg de alimento em todo evento.
   cumprimento.
 
 **Caixinha** (`telas/admin-caixinha.js`, contas em `dominio/caixinha.js`).
-Só pagou ou não pagou, sem valores em dinheiro no app.
+Três abas: Mês a mês, Rank e Controle financeiro. Desde 18/10/2026 guarda
+**quanto** cada um pagou, e não só se pagou (antes disso a decisão era
+"sem valores em dinheiro no app"; o clube mudou para poder controlar o
+caixa).
 
 - **Mês a mês:** uma grade do mês que vem até um ano atrás. Um mês novo
   começa com a divisão inteira na lista e ninguém marcado; um mês já
   lançado abre com o que foi gravado, e salvar corrige em vez de duplicar.
   Dá para tirar alguém da lista daquele mês ou acrescentar, como no
   "Ajustar" do Insight.
+- **O valor de cada um:** o toque no nome (ou no **💵 R$ 30**) marca o
+  valor padrão, `VALOR_CAIXINHA_PADRAO` em `js/nucleo/config.js` (o
+  `Code.gs` tem o mesmo número). Quem pagou outro valor escreve na caixa
+  ao lado. Digitar ali **não redesenha a tela**, senão o teclado do
+  celular fecharia a cada número: `atualizarValorCaixinha` acerta só o selo
+  da linha e o total do mês. Valor que não é valor ("3o", R$ 50 mil) é
+  avisado ao salvar, em vez de virar zero calado.
+- **Os meses lançados antes do valor** só têm "Pagou: Sim/Não". Um "Sim"
+  sem valor vale R$ 30 (decisão do clube); corrigir uma exceção é reabrir
+  o mês. A aba `Caixinha` ganhou a coluna **Valor** no fim e continua
+  gravando o "Pagou", então nada que já lia a aba mudou.
 - **A lista de cada mês fica congelada** na planilha. É isso que impede
   quem entrou no clube depois de aparecer devendo mês antigo: ele não está
   na lista daquele mês.
 - **Rank:** % de meses pagos por integrante, os meses que cada um deve,
-  quantos pagaram em cada mês (barras) e o % da divisão.
+  quantos pagaram em cada mês (barras), o % da divisão e quanto cada um
+  pagou no período (e o total arrecadado).
 - **Relatório de cada mês:** cada mês lançado tem 🖼️ Relatório em imagem e
   📋 Relatório pro WhatsApp. Os dois mostram a pizza (ou o "X de Y") e os
   nomes dos dois lados: ✅ quem pagou e ❌ quem não pagou, os emojis da
   confirmação de presença. Saem do mesmo `relatorioMesCaixinha`, então
   nunca discordam. A imagem cresce para baixo quando a lista não cabe.
+  Esse é o **relatório de pagamentos**, e de propósito não leva quanto cada
+  um pagou: o de dinheiro é o de controle, abaixo.
+
+**Controle financeiro** (`telas/admin-caixinha-financeiro.js`, contas em
+`dominio/caixinha-financeiro.js`). O caixa da divisão: o saldo de hoje, o
+que entrou, o que saiu e com o que se gastou, no lugar da planilha de
+controle que a Barra mantinha à mão.
+
+- **As mensalidades não são lançadas de novo.** Elas entram no caixa
+  direto do Mês a mês, uma entrada por mês. Cada real tem um lugar só, e
+  corrigir um pagamento é corrigir o mês.
+- **Lançamentos:** 🔴 saída (data, uma das categorias de
+  `CATEGORIAS_SAIDA_CAIXINHA`, descrição e valor) e 🟢 entrada avulsa
+  (doação extra, rifa… numa categoria só, "Outras entradas"). Data em
+  branco é hoje, e nunca no futuro. Tocar num lançamento do extrato abre a
+  correção, com o excluir.
+- **O saldo inicial é de um mês, não de um dia:** "havia R$ X no caixa no
+  começo de outubro". Com um dia no meio do mês ficaria em aberto se a
+  mensalidade daquele mês já estava dentro do saldo, e a conta dobraria.
+  Tudo daquele mês em diante soma em cima dele; o que for de antes fica
+  fora da conta, e a tela diz quanto ficou. Sem saldo inicial, o caixa
+  conta do zero. É um por divisão: salvar de novo substitui.
+- **Relatório de controle:** período de 3, 6 ou 12 meses, tudo, ou um mês
+  só (o "📊 Controle financeiro do mês" de cada mês lançado abre direto
+  nele). Saldo no início, + mensalidades, + outras entradas, − saídas por
+  categoria (cada lançamento embaixo da sua) e saldo final. Sai em texto
+  pro WhatsApp, imagem pro grupo e PDF (a impressão do navegador), todos
+  de `controleCaixinha`, então nunca discordam.
+- **Pro grupo vão as despesas e o saldo** (decisão do clube, 18/10/2026),
+  mas nunca nome de integrante: isso é do relatório de pagamentos.
+- Tudo vem na mesma leitura da Caixinha (`lerCaixinha` devolve os meses,
+  o saldo inicial e os lançamentos), e grava pelas ações
+  `caixinhaLancamentoSalvar` e `caixinhaLancamentoRemover`, atrás do PIN e
+  conferidas contra a divisão da linha gravada: a Barra não corrige um
+  lançamento do Oeste dizendo que ele é da Barra.
 
 Regras que valem para as duas:
 
@@ -591,7 +642,7 @@ a cada mudança:
 | `servidor.py` | serve o app local com o cache desligado |
 | `estrutura.py` | 7 verificações: imports circulares, hierarquia de camadas, sintaxe, nome sem import, import sobrando, ações sem tratador |
 | `regras.mjs` | as regras do clube que, se quebrarem, saem erradas numa convocação sem ninguém perceber |
-| `telas.mjs` | desenha as 122 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
+| `telas.mjs` | desenha as 136 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
 | `planilha.mjs` | roda o `Code.gs` de verdade contra uma planilha de mentira: encerramento automático, PIN, relatório individual, responsável, textos, chamada do evento, doações, caixinha e entrada/saída |
 
 O `--html` do `telas.mjs` é a rede de proteção mais útil: captura o HTML de
@@ -717,14 +768,15 @@ ferramentas, acima):
 
     py ferramentas/estrutura.py     # imports, camadas, sintaxe, ações
     node ferramentas/regras.mjs     # ordem hierárquica e formato da convocação
-    node ferramentas/telas.mjs      # desenha as 122 telas e abas
+    node ferramentas/telas.mjs      # desenha as 136 telas e abas
     node ferramentas/planilha.mjs   # o encerramento automático, no Code.gs
 
 Eles dizem que o app **não quebrou**, não que está bonito: não cobrem
 aparência, impressão/PDF, o caminho de rede real nem o resto do `Code.gs` —
 o `planilha.mjs` só alcança o encerramento automático, a guarda de PIN, o
 relatório individual, o responsável, os textos da chamada, a chamada
-guardada no evento, as doações, a caixinha e a entrada/saída de integrantes.
+guardada no evento, as doações, a caixinha (com os valores e o controle
+financeiro) e a entrada/saída de integrantes.
 
 Se a mudança mexeu no `Code.gs`, ele precisa ser **republicado à parte** no
 Apps Script — não vai junto no `git push`. Confira depois chamando a URL do
@@ -741,7 +793,7 @@ Ideias registradas, nada pedido ainda:
   individual de cada integrante e nas abas de resumo da planilha; levar
   para as outras divisões (uma chave a mais em
   `DIVISOES_COM_DOACOES_E_CAIXINHA`); e uma visão do Regional com todas as
-  divisões juntas.
+  divisões juntas (inclusive o caixa de cada uma).
 
 - **Multi-divisão de verdade** (um jogo de abas por divisão na planilha) —
   ver [PLANO-MULTI-DIVISAO.md](PLANO-MULTI-DIVISAO.md). Combinado que fica

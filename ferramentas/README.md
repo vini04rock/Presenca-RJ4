@@ -60,7 +60,7 @@ O resultado também fica em `ferramentas/ultimo-regras.txt`.
 
 Monta um navegador de mentira, enche o app com dados falsos (6 membros em 4
 divisões, 4 eventos cobrindo os 4 tipos, presenças com os 6 status, 5 rodadas
-de insight) e **desenha as 122 telas e abas**, uma por uma. Avisa se alguma
+de insight) e **desenha as 136 telas e abas**, uma por uma. Avisa se alguma
 estoura ou sai vazia.
 
 O resultado também fica em `ferramentas/ultimo-teste.txt`.
@@ -122,7 +122,8 @@ O resultado também fica em `ferramentas/ultimo-planilha.txt`.
   de verdade - o `telas.mjs` desenha o HTML, não anima).
 - A planilha de verdade, a publicação do `Code.gs` e o resto dele: o
   `planilha.mjs` cobre o encerramento automático, a guarda de PIN, o
-  relatório individual, o responsável, os textos e a chamada do evento.
+  relatório individual, o responsável, os textos, a chamada do evento, as
+  doações, a caixinha (valores e controle financeiro) e a entrada/saída.
 - O caminho de rede de verdade — as chamadas são substituídas por promessas
   que nunca respondem, de propósito, para nada escrever na planilha.
 

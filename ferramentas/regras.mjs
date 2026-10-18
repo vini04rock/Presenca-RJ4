@@ -735,6 +735,8 @@ log('=== caixinha: meses, quem está em dia e quem deve ===');
   confere('quantos pagaram em cada mês', r.meses.map(m => `${m.pagaram}/${m.total}`), ['2/3', '1/3', '2/2']);
   confere('o % da divisão conta até quem saiu do clube (5 de 8)', [r.pagamentos, r.cobrancas, r.pct], [5, 8, 63]);
   confere('em dia e pendentes', [nomes(r.emDia), nomes(r.devendo)], [['Costa', 'Bravo'], ['Raposo']]);
+  // Dados sem valor (so "pagou"): cada pagamento vale o padrao.
+  confere('sem valor gravado, cada pagamento vale R$ 30', [r.arrecadado, porId.c1.valor], [150, 90]);
 
   const roster = [...membros];
   confere('quem não pagou, com quem saiu pelo nome gravado', nomes(quemNaoPagou(dados.meses[1], roster)), ['Raposo', 'Nome c9']);
@@ -751,6 +753,104 @@ log('=== caixinha: meses, quem está em dia e quem deve ===');
   confere('panorama: os meses do mais antigo pro mais novo', texto.filter(l => l.startsWith('• ')),
     ['• Julho/2026: 2 de 2 pagaram', '• Setembro/2026: 1 de 3 pagaram', '• Outubro/2026: 2 de 3 pagaram']);
   confere('panorama: pendentes com os meses', texto.filter(l => / — /.test(l)), ['1. Raposo (VI) — out/26, set/26']);
+}
+
+log('');
+log('=== caixinha: reais e o valor digitado ===');
+{
+  const { formatReais, lerValor, valorPago, somaReais } = await import(url('dominio/caixinha.js'));
+  confere('reais sempre com centavos', [formatReais(30), formatReais(1234.5), formatReais(0), formatReais(-10)],
+    ['R$ 30,00', 'R$ 1.234,50', 'R$ 0,00', '−R$ 10,00']);
+  confere('o valor digitado: número, vírgula, milhar e "R$"',
+    ['30', '35,50', '1.234,50', 'R$ 30', '30.5', '1.234', ' 40 '].map(t => lerValor(t)), [30, 35.5, 1234.5, 30, 30.5, 1234, 40]);
+  confere('vazio é 0 (não pagou)', lerValor(''), 0);
+  confere('o que não é valor, e o que passa de R$ 10 mil, é null', ['3o', '30,555', '-5', '50000'].map(t => lerValor(t)), [null, null, null, null]);
+  confere('saldo inicial aceita até R$ 1 milhão', lerValor('50000', 1000000), 50000);
+  confere('valor pago: o gravado, ou o padrão pra quem só tem "pagou"',
+    [valorPago({ pagou: true, valor: 35 }), valorPago({ pagou: true }), valorPago({ pagou: false })], [35, 30, 0]);
+  confere('soma sem sujeira de vírgula flutuante', somaReais([0.1, 0.2]), 0.3);
+}
+
+log('');
+log('=== caixinha: controle financeiro (saldo, entradas, saídas, período) ===');
+{
+  const { controleCaixinha, movimentosDoCaixa, textoControleCaixinha, rotuloDoPeriodoFinanceiro } = await import(url('dominio/caixinha-financeiro.js'));
+  const base = new Date(2026, 9, 18); // 18/10/2026
+  const pg = (id, valor) => ({ id, nome: 'N' + id, pagou: valor > 0, valor });
+  const lc = (id, tipo, data, categoria, descricao, valor) => ({ id, tipo, data, categoria, descricao, valor });
+  const dados = {
+    meses: [
+      { mes: '2026-10', membros: [pg('a', 30), pg('b', 35), pg('c', 0)] },
+      { mes: '2026-09', membros: [pg('a', 30), pg('b', 0)] },
+      // Antes do saldo inicial: fica de fora da conta.
+      { mes: '2026-07', membros: [pg('a', 30)] },
+    ],
+    saldoInicial: { mes: '2026-08', valor: 175 },
+    lancamentos: [
+      lc('l4', 'saida', '2026-10-07', 'Kit Churrasco / lanches', 'Pão', 15.5),
+      lc('l1', 'saida', '2026-10-05', 'Kit Churrasco / lanches', 'Carne', 100),
+      lc('l3', 'entrada', '2026-09-15', 'Outras entradas', 'Rifa', 50),
+      lc('l2', 'saida', '2026-09-10', 'Adesivos', '', 20),
+      lc('l5', 'saida', '2026-07-20', 'Adesivos', 'velho', 999),
+    ],
+  };
+
+  const caixa = movimentosDoCaixa(dados);
+  confere('as mensalidades viram uma entrada por mês, somadas do Mês a mês',
+    caixa.itens.filter(x => x.origem === 'mensalidade').map(x => [x.mes, x.valor, x.pagaram]), [['2026-10', 65, 2], ['2026-09', 30, 1]]);
+  confere('o que é de antes do saldo inicial fica de fora (e é contado)', caixa.antesDoInicio, 2);
+
+  const tudo = controleCaixinha(dados, 0, base);
+  confere('tudo: entradas (mensalidades + outras) e saídas',
+    [tudo.entradas.mensalidades, tudo.entradas.pagamentos, tudo.entradas.outras, tudo.entradas.total, tudo.saidas.total],
+    [95, 3, 50, 145, 135.5]);
+  confere('tudo: começa no saldo inicial e termina no saldo de hoje',
+    [tudo.saldoAnterior, tudo.saldoFinal, tudo.saldoAtual], [175, 184.5, 184.5]);
+  confere('saídas por categoria, da maior pra menor', tudo.saidas.porCategoria.map(c => [c.categoria, c.valor, c.itens.length]),
+    [['Kit Churrasco / lanches', 115.5, 2], ['Adesivos', 20, 1]]);
+  confere('mês a mês, do mais antigo pro mais novo', tudo.porMes, [
+    { mes: '2026-09', entradas: 80, saidas: 20 }, { mes: '2026-10', entradas: 65, saidas: 115.5 }]);
+  confere('o extrato do mais recente pro mais antigo', tudo.extrato.map(x => x.id || x.mes),
+    ['l4', 'l1', '2026-10', 'l3', 'l2', '2026-09']);
+
+  const outubro = controleCaixinha(dados, '2026-10', base);
+  confere('um mês: o saldo no início leva o que veio antes',
+    [outubro.saldoAnterior, outubro.entradas.total, outubro.saidas.total, outubro.saldoFinal], [235, 65, 115.5, 184.5]);
+  const setembro = controleCaixinha(dados, '2026-09', base);
+  confere('setembro termina onde outubro começa', [setembro.saldoAnterior, setembro.saldoFinal], [175, 235]);
+  confere('o saldo de hoje não depende do período', setembro.saldoAtual, 184.5);
+  const julho = controleCaixinha(dados, '2026-07', base);
+  confere('mês antes do saldo inicial: avisado e vazio', [julho.periodoAntesDoInicio, julho.extrato.length, julho.saldoFinal], [true, 0, 175]);
+  confere('3 meses em outubro (agosto a outubro) = tudo desde o saldo inicial', controleCaixinha(dados, 3, base).saldoFinal, 184.5);
+
+  const semSaldo = controleCaixinha({ ...dados, saldoInicial: null }, 0, base);
+  confere('sem saldo inicial: do zero, e tudo conta', [semSaldo.temSaldoInicial, semSaldo.antesDoInicio, semSaldo.saldoAtual], [false, 0, -959.5]);
+  confere('caixa vazio não quebra', controleCaixinha({ meses: [], saldoInicial: null, lancamentos: [] }, 0, base).saldoAtual, 0);
+
+  confere('o rótulo do período', [rotuloDoPeriodoFinanceiro('2026-10'), rotuloDoPeriodoFinanceiro(0), rotuloDoPeriodoFinanceiro(6)],
+    ['Outubro/2026', 'Desde sempre', 'Últimos 6 meses']);
+  confere('o relatório de controle pro WhatsApp', textoControleCaixinha(outubro, 'barra').split('\n'), [
+    '💰 *CAIXINHA · CONTROLE* 💰',
+    '*BARRA - RJ4* · Outubro/2026',
+    '',
+    '💼 Saldo no início: *R$ 235,00*',
+    '',
+    '🟢 *ENTRADAS: R$ 65,00*',
+    '• Mensalidades: R$ 65,00 (2 pagamentos)',
+    '',
+    '🔴 *SAÍDAS: R$ 115,50*',
+    '• Kit Churrasco / lanches: R$ 115,50',
+    '   ↳ 05/10 · Carne · R$ 100,00',
+    '   ↳ 07/10 · Pão · R$ 15,50',
+    '',
+    '💰 *SALDO: R$ 184,50*',
+  ]);
+  const texto9 = textoControleCaixinha(setembro, 'barra');
+  confere('outras entradas com a descrição, e saída sem descrição', [
+    texto9.includes('• Outras entradas: R$ 50,00\n   ↳ 15/09 · Rifa · R$ 50,00'),
+    texto9.includes('   ↳ 10/09 · R$ 20,00')], [true, true]);
+  confere('o texto não leva nome de integrante', /Na|Nb/.test(textoControleCaixinha(tudo, 'barra')), false);
+  confere('período sem nada diz que não houve', textoControleCaixinha(julho, 'barra').includes('• Nenhuma saída'), true);
 }
 
 log('');

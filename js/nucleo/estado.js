@@ -221,7 +221,8 @@ export let state = {
   doacoesPeriodo: 3,
 
   // Secao Caixinha do organizador. Mesma ideia: os meses lancados da
-  // divisao, e o mes aberto pra lancar ou corrigir.
+  // divisao (e o controle financeiro dela, que vem junto), e o mes aberto
+  // pra lancar ou corrigir.
   caixinhaDados: null,
   caixinhaDadosEscopo: null,
   caixinhaCarregando: false,
@@ -231,13 +232,33 @@ export let state = {
   // mes ja lancado; caixinhaInfo guarda nome/grau de quem ja saiu do clube.
   caixinhaMes: null,
   caixinhaMembroIds: [],
-  caixinhaMarcacoes: {},
+  // { idMembro: reais } de quem pagou no mes aberto. 0 ou sem chave = nao
+  // pagou; null = o que foi digitado nao e um valor (salvar avisa).
+  caixinhaValores: {},
+  // O texto de cada caixa de "outro valor", como foi digitado - a tela
+  // redesenha a cada toque, e sem isto o "35," pela metade virava "35".
+  caixinhaValoresTexto: {},
   caixinhaInfo: {},
   caixinhaMostrarAdicionar: false,
   caixinhaConfirmarRemover: false,
   caixinhaSalvando: false,
   caixinhaMsg: null,
   caixinhaPeriodo: 6,
+  // Aba "Controle financeiro". caixinhaFinForm e o formulario aberto:
+  // { tipo: 'entrada'|'saida', id?, data, categoria, descricao, valor } ou
+  // { tipo: 'saldoInicial', mes, valor } - os campos como foram digitados.
+  // null = nenhum aberto.
+  caixinhaFinForm: null,
+  caixinhaFinSalvando: false,
+  caixinhaFinMsg: null,
+  // O id do lancamento com a confirmacao de exclusao aberta.
+  caixinhaFinConfirmarRemover: null,
+  // Quantos itens do extrato aparecem (cresce no "Mostrar mais").
+  caixinhaFinQtdExtrato: 15,
+  // O relatorio de controle aberto, e o periodo dele: 0 = tudo, N = os
+  // ultimos N meses, 'yyyy-mm' = um mes so.
+  caixinhaFinRelatorio: false,
+  caixinhaFinPeriodo: 0,
 
   // Cadastro de membros: a data de entrada de um integrante novo (como foi
   // digitada, dd/mm/aaaa) e o painel de afastamento/retorno/desligamento

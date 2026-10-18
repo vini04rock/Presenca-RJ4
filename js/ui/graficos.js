@@ -59,7 +59,8 @@ export function renderDonutChart(segments, centro, centroLabel, tamanho) {
 
 // Pizza de verdade (fatias cheias, sem o furo da rosca), com a legenda ao
 // lado no mesmo formato da rosca: cor, rotulo, numero e %. segments =
-// [{ label, value, cor }]. Tudo zerado vira o circulo vazio com `vazio`
+// [{ label, value, cor, texto? }] - `texto`, quando vem, e o que a legenda
+// mostra no lugar do numero cru ("R$ 540,00"). Tudo zerado vira o circulo vazio com `vazio`
 // escrito, em vez de uma pizza que nao existe. Entra crescendo do centro
 // (data-anima), uma vez por tela.
 export function renderPizza(segments, tamanho, vazio) {
@@ -99,7 +100,7 @@ export function renderPizza(segments, tamanho, vazio) {
           <div class="donut-legend-item">
             <span class="donut-swatch" style="background:${s.cor};"></span>
             <span class="donut-legend-label">${escapeHtml(s.label)}</span>
-            <span class="donut-legend-value">${s.value}${total ? ' · ' + Math.round(s.value / total * 100) + '%' : ''}</span>
+            <span class="donut-legend-value">${s.texto !== undefined ? escapeHtml(s.texto) : s.value}${total ? ' · ' + Math.round(s.value / total * 100) + '%' : ''}</span>
           </div>
         `).join('')}
       </div>

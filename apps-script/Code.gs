@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-10-18-v-entrada-saida';
+var VERSAO = '2026-10-18-v-caixinha-financeiro';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -38,6 +38,7 @@ var ABA_RESPONSAVEIS = 'Responsaveis';
 var ABA_TEXTOS_CHAMADA = 'TextosChamada';
 var ABA_DOACOES = 'Doacoes';
 var ABA_CAIXINHA = 'Caixinha';
+var ABA_CAIXINHA_FINANCEIRO = 'CaixinhaFinanceiro';
 var ABA_MOVIMENTOS = 'Movimentacoes';
 
 // "Cargo" so faz sentido nos graus VI e V (ver CARGOS no js/nucleo/config.js):
@@ -91,7 +92,22 @@ var CAB_DOACOES = ['ID Evento', 'Evento', 'Divisao', 'ID Membro', 'Membro', 'Kg'
 // pagar naquele mes. A lista de quem devia e congelada quando o mes e
 // lancado - quem entra depois nao fica devendo mes antigo. "Mes" e
 // 'yyyy-mm', gravado como texto (ver salvarCaixinhaMes).
-var CAB_CAIXINHA = ['Divisao', 'Mes', 'ID Membro', 'Membro', 'Pagou', 'Atualizado em'];
+//
+// "Valor" (ultima coluna) e quanto o integrante pagou, em reais. Veio
+// depois: os meses lancados antes dela tem so o "Pagou", e um "Sim" sem
+// valor e lido como VALOR_CAIXINHA_PADRAO (ver valorDaLinhaCaixinha). O
+// "Pagou" continua sendo gravado (Sim quando ha valor), pra nada que ja le
+// a aba mudar.
+var CAB_CAIXINHA = ['Divisao', 'Mes', 'ID Membro', 'Membro', 'Pagou', 'Atualizado em', 'Valor'];
+// O mesmo valor do js/nucleo/config.js - mudou la, muda aqui.
+var VALOR_CAIXINHA_PADRAO = 30;
+// O controle financeiro da caixinha: o que entra fora das mensalidades e o
+// que sai, uma linha por lancamento, e o saldo inicial de cada divisao (uma
+// linha so, Tipo 'Saldo inicial', com o mes em "Data"). As mensalidades NAO
+// entram aqui: o app soma direto da aba Caixinha, pra cada real ter um
+// lugar so na planilha.
+var CAB_CAIXINHA_FINANCEIRO = ['ID', 'Divisao', 'Tipo', 'Data', 'Categoria', 'Descricao', 'Valor', 'Atualizado em'];
+var TIPOS_LANCAMENTO = { saldoInicial: 'Saldo inicial', entrada: 'Entrada', saida: 'Saida' };
 // O livro de Entrada/Saida de integrantes: uma linha por movimentacao, e
 // nada aqui e apagado. "Tipo" e Entrada, Afastamento, Retorno ou
 // Desligamento; "Divisao" e a chave ('barra'...) e "Membro"/"Grau" um
@@ -192,6 +208,7 @@ var ACOES_PROTEGIDAS = [
   // Doacoes e caixinha: ler tambem e protegido - quem deve a caixinha nao e
   // coisa pra qualquer um com a URL ver.
   'doacoes', 'doacoesSalvar', 'caixinha', 'caixinhaSalvar', 'caixinhaRemover',
+  'caixinhaLancamentoSalvar', 'caixinhaLancamentoRemover',
   // Entrada/Saida: o motivo de um afastamento pode ser assunto pessoal.
   'membroMovimentar', 'movimentos'
 ];
@@ -261,6 +278,8 @@ function executar(action, p) {
   if (action === 'caixinha') return lerCaixinha(String(p.divisao || ''), String(p.pin || ''));
   if (action === 'caixinhaSalvar') return comTrava(function () { return salvarCaixinhaMes(p); });
   if (action === 'caixinhaRemover') return comTrava(function () { return removerCaixinhaMes(p); });
+  if (action === 'caixinhaLancamentoSalvar') return comTrava(function () { return salvarLancamentoCaixinha(p); });
+  if (action === 'caixinhaLancamentoRemover') return comTrava(function () { return removerLancamentoCaixinha(p); });
   if (action === 'membroMovimentar') return comTrava(function () { return registrarMovimento(p); });
   if (action === 'movimentos') return lerMovimentos(String(p.divisao || ''), String(p.pin || ''));
   throw new Error('Acao desconhecida: ' + action);
@@ -1076,7 +1095,7 @@ function organizarAbas() {
   var ordem = [ABA_CALENDARIO].concat(ORDEM_EXIBICAO_ESCOPOS.map(function (chave) { return ESCOPOS_NOME[chave]; }))
     .concat([ABA_INSIGHT_RESUMO, 'Relatorio', 'Membros', 'Eventos', 'Presencas',
              ABA_INSIGHT_RODADAS, ABA_INSIGHT_PRESENCAS, ABA_INSIGHT_EXCLUIDOS,
-             ABA_DOACOES, ABA_CAIXINHA, ABA_MOVIMENTOS, 'KV']);
+             ABA_DOACOES, ABA_CAIXINHA, ABA_CAIXINHA_FINANCEIRO, ABA_MOVIMENTOS, 'KV']);
   ordem.forEach(function (nome, i) {
     var s = ss.getSheetByName(nome);
     if (!s) return;
@@ -1692,8 +1711,27 @@ function formatarMes(v) {
   return String(v || '');
 }
 
+// "30", "30,5" ou 30 -> numero com duas casas. Fora de 0 a `maximo`, ou
+// nao numero, vira 0 (= nao pagou / nao vale). R$ 10 mil de uma vez e erro
+// de digitacao, nao pagamento - a mesma ideia do kgValido.
+function valorValido(v, maximo) {
+  var n = Number(String(v === undefined || v === null ? '' : v).replace(',', '.'));
+  if (!isFinite(n) || n <= 0 || n > (maximo || 10000)) return 0;
+  return Math.round(n * 100) / 100;
+}
+
+// O valor de uma linha da aba Caixinha. Linha de antes da coluna Valor:
+// "Sim" vale o padrao (decisao do clube, 18/10/2026), "Nao" vale 0.
+function valorDaLinhaCaixinha(l) {
+  var v = valorValido(l[6]);
+  if (v) return v;
+  return ehSim(l[4]) ? VALOR_CAIXINHA_PADRAO : 0;
+}
+
 // Os meses lancados da divisao, do mais recente pro mais antigo, cada um
-// com a lista congelada de quem devia pagar e se pagou.
+// com a lista congelada de quem devia pagar, se pagou e quanto. Junto vem
+// o controle financeiro (saldo inicial e lancamentos): a tela precisa dos
+// dois ao entrar na secao, e cada ida a planilha custa de 2 a 4 segundos.
 function lerCaixinha(divisao, pin) {
   if (!podeNaDivisao(divisao, pin)) return SEM_PERMISSAO_DIVISAO;
   var porMes = {};
@@ -1701,17 +1739,49 @@ function lerCaixinha(divisao, pin) {
     if (String(l[0]) !== divisao || !l[2]) return;
     var mes = formatarMes(l[1]);
     if (!/^\d{4}-\d{2}$/.test(mes)) return;
-    (porMes[mes] = porMes[mes] || []).push({ id: String(l[2]), nome: String(l[3] || ''), pagou: ehSim(l[4]) });
+    var valor = valorDaLinhaCaixinha(l);
+    (porMes[mes] = porMes[mes] || []).push({ id: String(l[2]), nome: String(l[3] || ''), pagou: valor > 0, valor: valor });
   });
   var meses = Object.keys(porMes).sort().reverse().map(function (mes) {
     return { mes: mes, membros: porMes[mes] };
   });
-  return { ok: true, meses: meses };
+  var financeiro = lerFinanceiroCaixinha(divisao);
+  return { ok: true, meses: meses, saldoInicial: financeiro.saldoInicial, lancamentos: financeiro.lancamentos };
+}
+
+// O saldo inicial ({ mes, valor }, ou null se ainda nao foi definido) e os
+// lancamentos da divisao, do mais recente pro mais antigo.
+function lerFinanceiroCaixinha(divisao) {
+  var saldoInicial = null;
+  var lancamentos = [];
+  linhas(aba(ABA_CAIXINHA_FINANCEIRO, CAB_CAIXINHA_FINANCEIRO)).forEach(function (l) {
+    if (!l[0] || String(l[1]) !== divisao) return;
+    var tipo = String(l[2]);
+    if (tipo === TIPOS_LANCAMENTO.saldoInicial) {
+      var mes = formatarMes(l[3]);
+      var n = Number(String(l[6]).replace(',', '.'));
+      if (/^\d{4}-\d{2}$/.test(mes) && isFinite(n)) saldoInicial = { mes: mes, valor: Math.round(n * 100) / 100 };
+      return;
+    }
+    var chave = tipo === TIPOS_LANCAMENTO.entrada ? 'entrada' : tipo === TIPOS_LANCAMENTO.saida ? 'saida' : '';
+    var valor = valorValido(l[6]);
+    if (!chave || !valor) return;
+    lancamentos.push({
+      id: String(l[0]), tipo: chave, data: formatarData(l[3]),
+      categoria: String(l[4] || ''), descricao: String(l[5] || ''), valor: valor
+    });
+  });
+  lancamentos.sort(function (a, b) { return (b.data || '').localeCompare(a.data || ''); });
+  return { saldoInicial: saldoInicial, lancamentos: lancamentos };
 }
 
 // Lanca (ou corrige) um mes: membroIds e a lista de quem devia pagar,
-// marcacoes = { idMembro: true } pra quem pagou. O mes e reescrito
-// inteiro - lancar de novo um mes que ja existe corrige, nao duplica.
+// valores = { idMembro: reais } pra quem pagou. O mes e reescrito inteiro -
+// lancar de novo um mes que ja existe corrige, nao duplica.
+//
+// Sem "valores" (o app de antes desta versao, que so manda marcacoes =
+// { idMembro: true }), quem pagou vale o padrao - um app velho aberto num
+// celular continua gravando um numero que faz sentido.
 function salvarCaixinhaMes(p) {
   var divisao = String(p.divisao || '');
   if (!podeNaDivisao(divisao, String(p.pin || ''))) return SEM_PERMISSAO_DIVISAO;
@@ -1721,14 +1791,17 @@ function salvarCaixinhaMes(p) {
   // Confere ANTES de apagar: um mes salvo sem ninguem apagaria o que havia.
   if (!ids.length) throw new Error('O mes precisa ter pelo menos 1 integrante');
   var marcacoes = typeof p.marcacoes === 'string' ? parseOuVazio(p.marcacoes, {}) : (p.marcacoes || {});
+  var temValores = p.valores !== undefined && p.valores !== null && p.valores !== '';
+  var valores = typeof p.valores === 'string' ? parseOuVazio(p.valores, {}) : (p.valores || {});
   var nomes = {};
   lerMembros().forEach(function (m) { nomes[m.id] = m.nome; });
   var momento = agora();
   var pagaram = 0;
+  var totalValor = 0;
   var novas = ids.map(function (mid) {
-    var pagou = ehVerdadeiro(marcacoes[mid]);
-    if (pagou) pagaram++;
-    return [divisao, mes, mid, nomes[mid] || '', simNao(pagou), momento];
+    var valor = temValores ? valorValido(valores[mid]) : (ehVerdadeiro(marcacoes[mid]) ? VALOR_CAIXINHA_PADRAO : 0);
+    if (valor) { pagaram++; totalValor += valor; }
+    return [divisao, mes, mid, nomes[mid] || '', simNao(valor > 0), momento, valor || ''];
   });
 
   var s = aba(ABA_CAIXINHA, CAB_CAIXINHA);
@@ -1737,7 +1810,7 @@ function salvarCaixinhaMes(p) {
   var range = s.getRange(s.getLastRow() + 1, 1, novas.length, CAB_CAIXINHA.length);
   range.setNumberFormat('@');
   range.setValues(novas);
-  return { ok: true, mes: mes, pagaram: pagaram, total: novas.length };
+  return { ok: true, mes: mes, pagaram: pagaram, total: novas.length, totalValor: Math.round(totalValor * 100) / 100 };
 }
 
 function removerCaixinhaMes(p) {
@@ -1747,6 +1820,76 @@ function removerCaixinhaMes(p) {
   apagarLinhas(aba(ABA_CAIXINHA, CAB_CAIXINHA), function (l) {
     return String(l[0]) === divisao && formatarMes(l[1]) === mes;
   });
+  return { ok: true };
+}
+
+// Grava um lancamento do controle financeiro. tipo:
+//   'entrada' | 'saida' - com data ('yyyy-mm-dd', hoje se vier vazia),
+//     categoria, descricao e valor. Com `id`, corrige aquele lancamento.
+//   'saldoInicial' - o saldo da divisao no comeco de um mes ('yyyy-mm'),
+//     que pode ser zero. Ha um so por divisao: salvar de novo substitui.
+// A divisao conferida e a dos dados: na correcao, a da linha gravada - quem
+// entrou pela Barra nao corrige um lancamento do Oeste mandando divisao=barra.
+function salvarLancamentoCaixinha(p) {
+  var divisao = String(p.divisao || '');
+  var pin = String(p.pin || '');
+  if (!podeNaDivisao(divisao, pin)) return SEM_PERMISSAO_DIVISAO;
+  var tipo = String(p.tipo || '');
+  var s = aba(ABA_CAIXINHA_FINANCEIRO, CAB_CAIXINHA_FINANCEIRO);
+  var hoje = Utilities.formatDate(new Date(), fuso(), 'yyyy-MM-dd');
+
+  if (tipo === 'saldoInicial') {
+    var mes = String(p.mes || '');
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(mes)) throw new Error('Mes invalido');
+    if (mes > hoje.slice(0, 7)) throw new Error('O saldo inicial nao pode ser de um mes que ainda nao chegou');
+    var bruto = String(p.valor === undefined || p.valor === null ? '' : p.valor).replace(',', '.');
+    var saldo = bruto === '' ? NaN : Number(bruto);
+    if (!isFinite(saldo) || saldo < 0 || saldo > 1000000) throw new Error('Valor invalido');
+    apagarLinhas(s, function (l) { return String(l[1]) === divisao && String(l[2]) === TIPOS_LANCAMENTO.saldoInicial; });
+    gravarLancamento(s, s.getLastRow() + 1, [novoId(), divisao, TIPOS_LANCAMENTO.saldoInicial, mes, '', '', Math.round(saldo * 100) / 100, agora()]);
+    return { ok: true };
+  }
+
+  if (tipo !== 'entrada' && tipo !== 'saida') throw new Error('Tipo de lancamento desconhecido');
+  var data = dataOuHoje(p.data);
+  if (data > hoje) throw new Error('A data nao pode ser no futuro');
+  var valor = valorValido(p.valor);
+  if (!valor) throw new Error('Valor invalido');
+  var categoria = String(p.categoria || '').trim().slice(0, 60);
+  if (!categoria) throw new Error('Faltou a categoria');
+  var descricao = String(p.descricao || '').trim().slice(0, 200);
+
+  var id = String(p.id || '');
+  var linha;
+  if (id) {
+    var achado = acharLinha(s, function (l) { return String(l[0]) === id; });
+    if (!achado || String(achado.valores[2]) === TIPOS_LANCAMENTO.saldoInicial) throw new Error('Lancamento nao encontrado');
+    var divisaoDaLinha = String(achado.valores[1]);
+    if (divisaoDaLinha !== divisao || !podeNaDivisao(divisaoDaLinha, pin)) return SEM_PERMISSAO_DIVISAO;
+    linha = achado.indice;
+  } else {
+    id = novoId();
+    linha = s.getLastRow() + 1;
+  }
+  gravarLancamento(s, linha, [id, divisao, TIPOS_LANCAMENTO[tipo], data, categoria, descricao, valor, agora()]);
+  return { ok: true, id: id };
+}
+
+// Texto em tudo menos o valor: a data nao vira Date, e uma descricao que
+// comece com "=" nao vira formula. O valor fica numero, pra quem abrir a
+// planilha conseguir somar.
+function gravarLancamento(s, linha, valores) {
+  s.getRange(linha, 1, 1, 6).setNumberFormat('@');
+  s.getRange(linha, 1, 1, CAB_CAIXINHA_FINANCEIRO.length).setValues([valores]);
+}
+
+function removerLancamentoCaixinha(p) {
+  var s = aba(ABA_CAIXINHA_FINANCEIRO, CAB_CAIXINHA_FINANCEIRO);
+  var id = String(p.id || '');
+  var achado = acharLinha(s, function (l) { return String(l[0]) === id; });
+  if (!id || !achado || String(achado.valores[2]) === TIPOS_LANCAMENTO.saldoInicial) throw new Error('Lancamento nao encontrado');
+  if (!podeNaDivisao(String(achado.valores[1]), String(p.pin || ''))) return SEM_PERMISSAO_DIVISAO;
+  s.deleteRow(achado.indice);
   return { ok: true };
 }
 

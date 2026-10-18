@@ -455,10 +455,19 @@ const doacoesFalsas = { eventos: [
     convocados:['m1','m2'], confirmados:['m1','m2'], doacoes:{ m1:1 } },
 ], nomes:{ m1:'Costa', m3:'Almeida' } };
 const caixinhaFalsa = { meses: [
-  { mes:'2026-10', membros:[{ id:'m1', nome:'Costa', pagou:true }, { id:'m2', nome:'Bull', pagou:false }, { id:'m3', nome:'Almeida', pagou:true }] },
+  { mes:'2026-10', membros:[{ id:'m1', nome:'Costa', pagou:true, valor:30 }, { id:'m2', nome:'Bull', pagou:false, valor:0 }, { id:'m3', nome:'Almeida', pagou:true, valor:35.5 }] },
   // m9 saiu do clube: aparece pelo nome gravado no mes.
-  { mes:'2026-09', membros:[{ id:'m1', nome:'Costa', pagou:true }, { id:'m2', nome:'Bull', pagou:false }, { id:'m9', nome:'Antigo', pagou:false }] },
-] };
+  { mes:'2026-09', membros:[{ id:'m1', nome:'Costa', pagou:true, valor:30 }, { id:'m2', nome:'Bull', pagou:false, valor:0 }, { id:'m9', nome:'Antigo', pagou:false, valor:0 }] },
+  // Antes do saldo inicial: fica de fora da conta do caixa.
+  { mes:'2026-07', membros:[{ id:'m1', nome:'Costa', pagou:true, valor:30 }] },
+],
+  saldoInicial:{ mes:'2026-08', valor:175 },
+  lancamentos:[
+    { id:'l1', tipo:'saida', data:'2026-10-05', categoria:'Kit Churrasco / lanches', descricao:'Carne do pub', valor:120.5 },
+    { id:'l2', tipo:'entrada', data:'2026-09-15', categoria:'Outras entradas', descricao:'Rifa', valor:50 },
+    { id:'l3', tipo:'saida', data:'2026-09-10', categoria:'Adesivos', descricao:'', valor:20 },
+  ] };
+const caixaVazio = { meses:[], saldoInicial:null, lancamentos:[] };
 const dc = { isAdmin:true, adminEscopo:'barra', doacoesDados:doacoesFalsas, doacoesDadosEscopo:'barra',
   caixinhaDados:caixinhaFalsa, caixinhaDadosEscopo:'barra', doacoesPeriodo:0, caixinhaPeriodo:0 };
 add('doações / por evento',            { ...dc, adminTab:'doacoes' }, T.renderAdmin);
@@ -475,18 +484,38 @@ add('doações / dados de outra divisão', { ...dc, adminTab:'doacoes', doacoesD
 add('doações / erro',                  { ...dc, adminTab:'doacoes', doacoesErro:'A conexao demorou demais' }, T.renderAdmin);
 add('caixinha / mês a mês',            { ...dc, adminTab:'caixinha' }, T.renderAdmin);
 add('caixinha / corrigindo mês lançado', { ...dc, adminTab:'caixinha', caixinhaMes:'2026-09',
-  caixinhaMembroIds:['m1','m2','m9'], caixinhaMarcacoes:{ m1:true }, caixinhaInfo:{ m9:{ nome:'Antigo' } } }, T.renderAdmin);
+  caixinhaMembroIds:['m1','m2','m9'], caixinhaValores:{ m1:30 }, caixinhaInfo:{ m9:{ nome:'Antigo' } } }, T.renderAdmin);
+add('caixinha / valor diferente e valor errado', { ...dc, adminTab:'caixinha', caixinhaMes:'2026-10',
+  caixinhaMembroIds:['m1','m2','m3'], caixinhaValores:{ m1:30, m2:35.5, m3:null }, caixinhaValoresTexto:{ m2:'35,5', m3:'3o' },
+  caixinhaMsg:{ ok:false, texto:'O valor de Almeida não está certo. Escreva só o número, como 30 ou 35,50.' } }, T.renderAdmin);
 add('caixinha / mês novo',             { ...dc, adminTab:'caixinha', caixinhaMes:'2026-11', caixinhaMembroIds:['m1','m2','m3'] }, T.renderAdmin);
 add('caixinha / adicionar ao mês',     { ...dc, adminTab:'caixinha', caixinhaMes:'2026-09', caixinhaMostrarAdicionar:true,
-  caixinhaMembroIds:['m1','m2'], caixinhaMarcacoes:{ m1:true } }, T.renderAdmin);
+  caixinhaMembroIds:['m1','m2'], caixinhaValores:{ m1:30 } }, T.renderAdmin);
 add('caixinha / confirmar exclusão',   { ...dc, adminTab:'caixinha', caixinhaMes:'2026-10', caixinhaConfirmarRemover:true,
-  caixinhaMembroIds:['m1','m2','m3'], caixinhaMarcacoes:{ m1:true, m3:true } }, T.renderAdmin);
+  caixinhaMembroIds:['m1','m2','m3'], caixinhaValores:{ m1:30, m3:35.5 } }, T.renderAdmin);
 add('caixinha / mês sem ninguém',      { ...dc, adminTab:'caixinha', caixinhaMes:'2026-11', caixinhaMembroIds:[],
   caixinhaMsg:{ ok:false, texto:'O mês precisa ter pelo menos 1 integrante na lista.' } }, T.renderAdmin);
 add('caixinha / rank',                 { ...dc, adminTab:'caixinha-rank' }, T.renderAdmin);
 add('caixinha / rank sem meses',       { ...dc, adminTab:'caixinha-rank', caixinhaDados:{ meses:[] } }, T.renderAdmin);
 add('caixinha / sem meses lançados',   { ...dc, adminTab:'caixinha', caixinhaDados:{ meses:[] } }, T.renderAdmin);
 add('caixinha / erro',                 { ...dc, adminTab:'caixinha', caixinhaErro:'Sem permissao para os dados desta divisao' }, T.renderAdmin);
+const fin = { ...dc, adminTab:'caixinha-financeiro' };
+add('caixinha / controle financeiro',         fin, T.renderAdmin);
+add('caixinha / controle vazio, sem saldo inicial', { ...fin, caixinhaDados:caixaVazio }, T.renderAdmin);
+add('caixinha / controle no vermelho',        { ...fin, caixinhaDados:{ ...caixaVazio,
+  lancamentos:[{ id:'x', tipo:'saida', data:'2026-10-01', categoria:'Outros', descricao:'', valor:80 }] } }, T.renderAdmin);
+add('caixinha / controle carregando',         { ...fin, caixinhaDados:null }, T.renderAdmin);
+add('caixinha / lançar saída',                { ...fin, caixinhaFinForm:{ tipo:'saida', data:'', categoria:'Adesivos', descricao:'Adesivo novo', valor:'45' } }, T.renderAdmin);
+add('caixinha / lançar entrada',              { ...fin, caixinhaFinForm:{ tipo:'entrada', data:'15/10/2026', categoria:'', descricao:'', valor:'' } }, T.renderAdmin);
+add('caixinha / corrigir saída (excluir)',    { ...fin, caixinhaFinForm:{ tipo:'saida', id:'l1', data:'05/10/2026',
+  categoria:'Kit Churrasco / lanches', descricao:'Carne do pub', valor:'120,5' }, caixinhaFinConfirmarRemover:'l1' }, T.renderAdmin);
+add('caixinha / lançamento com erro',         { ...fin, caixinhaFinForm:{ tipo:'saida', data:'', categoria:'', descricao:'', valor:'10' },
+  caixinhaFinMsg:{ ok:false, texto:'Escolha a categoria da saída.' } }, T.renderAdmin);
+add('caixinha / saldo inicial',               { ...fin, caixinhaFinForm:{ tipo:'saldoInicial', mes:'2026-08', valor:'175' } }, T.renderAdmin);
+add('caixinha / relatório de controle (tudo)', { ...fin, caixinhaFinRelatorio:true, caixinhaFinPeriodo:0 }, T.renderAdmin);
+add('caixinha / relatório de um mês',         { ...fin, caixinhaFinRelatorio:true, caixinhaFinPeriodo:'2026-10' }, T.renderAdmin);
+add('caixinha / relatório antes do saldo inicial', { ...fin, caixinhaFinRelatorio:true, caixinhaFinPeriodo:'2026-07' }, T.renderAdmin);
+add('caixinha / relatório de caixa vazio',    { ...fin, caixinhaDados:caixaVazio, caixinhaFinRelatorio:true, caixinhaFinPeriodo:6 }, T.renderAdmin);
 
 // Entrada/Saida. No cadastro, Bull (m2) esta afastado; o painel de
 // movimentacao abre na linha do Costa (m1). Os movimentos tem data fixa e o
@@ -544,8 +573,10 @@ const LIMPO = {
   doacoesDados:null, doacoesDadosEscopo:null, doacoesErro:null, doacoesEventoId:null, doacoesMarcacoes:{},
   doacoesMsg:null, doacoesSalvando:false, doacoesQtdEncerrados:8, doacoesPeriodo:0,
   caixinhaDados:null, caixinhaDadosEscopo:null, caixinhaErro:null, caixinhaMes:null, caixinhaMembroIds:[],
-  caixinhaMarcacoes:{}, caixinhaInfo:{}, caixinhaMostrarAdicionar:false, caixinhaConfirmarRemover:false,
+  caixinhaValores:{}, caixinhaValoresTexto:{}, caixinhaInfo:{}, caixinhaMostrarAdicionar:false, caixinhaConfirmarRemover:false,
   caixinhaSalvando:false, caixinhaMsg:null, caixinhaPeriodo:0,
+  caixinhaFinForm:null, caixinhaFinSalvando:false, caixinhaFinMsg:null, caixinhaFinConfirmarRemover:null,
+  caixinhaFinQtdExtrato:15, caixinhaFinRelatorio:false, caixinhaFinPeriodo:0,
   roster:membros, newMemberEntrada:'', movMembroId:null, movTipo:null, movData:'', movMotivo:'', movSalvando:false, movErro:null,
   movimentosDados:null, movimentosDadosEscopo:null, movimentosErro:null, movimentosPeriodo:0, movimentosDivisaoAberta:null,
 };

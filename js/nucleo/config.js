@@ -65,6 +65,32 @@ export function escoposAtivos() {
 const DIVISOES_COM_DOACOES_E_CAIXINHA = ['barra'];
 export function temDoacoesECaixinha(chave) { return DIVISOES_COM_DOACOES_E_CAIXINHA.includes(chave); }
 
+// O valor comum da caixinha: o botao "💵 R$ 30" de cada integrante marca
+// este. Quem paga diferente digita na caixa ao lado. O Code.gs tem o mesmo
+// numero (VALOR_CAIXINHA_PADRAO), usado pros meses lancados antes de o app
+// guardar valor - mudou aqui, muda la tambem.
+export const VALOR_CAIXINHA_PADRAO = 30;
+
+// Com o que a caixinha gasta - as categorias da planilha de controle que a
+// Barra usava. "Outros" fica sempre por ultimo. Acrescentar uma e so um
+// item a mais aqui; o que ja foi lancado guarda o nome da categoria como
+// texto, entao renomear uma aqui nao muda os lancamentos antigos.
+export const CATEGORIAS_SAIDA_CAIXINHA = [
+  'Contribuição Caixinha Regional',
+  'Kit Churrasco / lanches',
+  'Adesivos',
+  'Ação Social Externa',
+  'Ação Social Interna',
+  'Auxílio mensalidade',
+  'Equipamentos / Utensílios',
+  'Pedágios',
+  'Ajuda custo Sede (Barbearia Insanos)',
+  'Outros',
+];
+// O que entra fora das mensalidades (doacao extra, rifa...) - uma categoria
+// so, e a descricao diz o que foi.
+export const CATEGORIA_ENTRADA_CAIXINHA = 'Outras entradas';
+
 export const STATUS = {
   aguardando: { emoji: '⚠️', label: 'Aguardando' },
   confirmado: { emoji: '✅', label: 'Confirmado' },

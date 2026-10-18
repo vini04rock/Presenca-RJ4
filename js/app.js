@@ -23,7 +23,8 @@ import { atualizarConfirmacoes } from './fluxos/evento.js';
 import { acoes as acoesAdminMembros } from './telas/admin-membros.js';
 import { acoes as acoesAdminInsights } from './telas/admin-insights.js';
 import { acoes as acoesAdminDoacoes } from './telas/admin-doacoes.js';
-import { acoes as acoesAdminCaixinha } from './telas/admin-caixinha.js';
+import { acoes as acoesAdminCaixinha, atualizarValorCaixinha } from './telas/admin-caixinha.js';
+import { acoes as acoesAdminCaixinhaFinanceiro } from './telas/admin-caixinha-financeiro.js';
 import { acoes as acoesAdminMovimentos } from './telas/admin-movimentos.js';
 import { acoes as acoesComuns, aplicarBusca } from './ui/comuns.js';
 import { acoes as acoesGraficos } from './ui/graficos.js';
@@ -277,10 +278,23 @@ document.getElementById('app').addEventListener('input', (e) => {
     // tela redesenha a cada toque num chip, e sem isso o digitado sumia.
     if (e.target.id === 'new-member-entrada') state.newMemberEntrada = e.target.value;
     if (e.target.id === 'mov-data') state.movData = e.target.value;
+    if (e.target.id === 'fin-data' && state.caixinhaFinForm) state.caixinhaFinForm.data = e.target.value;
     return;
   }
   if (e.target.id === 'mov-motivo') {
     state.movMotivo = e.target.value;
+    return;
+  }
+  // O valor pago na Caixinha: acerta o selo e o total sem redesenhar, senao
+  // o teclado do celular fecharia a cada numero.
+  if (e.target.classList && e.target.classList.contains('caixinha-valor')) {
+    atualizarValorCaixinha(e.target, document.getElementById('app'));
+    return;
+  }
+  // Os campos do lancamento do controle financeiro: so lembra. Um toque
+  // numa categoria redesenha a tela, e sem isto o digitado sumia.
+  if ((e.target.id === 'fin-descricao' || e.target.id === 'fin-valor') && state.caixinhaFinForm) {
+    state.caixinhaFinForm[e.target.id === 'fin-valor' ? 'valor' : 'descricao'] = e.target.value;
     return;
   }
   // A busca do evento filtra sem redesenhar - redesenhar fecharia o teclado.
@@ -322,6 +336,7 @@ for (const [area, mapa] of Object.entries({
   acoesAdminInsights,
   acoesAdminDoacoes,
   acoesAdminCaixinha,
+  acoesAdminCaixinhaFinanceiro,
   acoesAdminMovimentos,
   acoesComuns,
   acoesGraficos,

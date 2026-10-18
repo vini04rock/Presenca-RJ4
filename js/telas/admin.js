@@ -9,7 +9,7 @@ import { escopoPorChave, temDoacoesECaixinha } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { escapeHtml } from '../nucleo/util.js';
 import { carregarCaixinha, carregarDoacoes, carregarMovimentos, loadEstatisticas, loadInsightStats, loadReportData } from '../dados/carregar.js';
-import { fecharMesCaixinha } from '../fluxos/doacoes-caixinha.js';
+import { fecharFormFinanceiro, fecharMesCaixinha } from '../fluxos/doacoes-caixinha.js';
 import { fecharPainelMovimento } from '../fluxos/movimentos.js';
 import { render } from '../nucleo/render.js';
 import { renderAdminEventos, renderAdminRelatorio } from './admin-eventos.js';
@@ -62,6 +62,7 @@ export const SECOES_ORGANIZADOR = {
     abas: [
       { chave: 'caixinha', label: 'Mês a mês' },
       { chave: 'caixinha-rank', label: 'Rank' },
+      { chave: 'caixinha-financeiro', label: 'Controle financeiro' },
     ],
   },
   movimentos: {
@@ -141,6 +142,10 @@ export async function abrirAbaOrganizador(aba) {
   state.doacoesMsg = null;
   fecharMesCaixinha();
   state.caixinhaMsg = null;
+  fecharFormFinanceiro();
+  state.caixinhaFinMsg = null;
+  state.caixinhaFinRelatorio = false;
+  state.caixinhaFinQtdExtrato = 15;
   fecharPainelMovimento();
   state.movimentosDivisaoAberta = null;
   render();

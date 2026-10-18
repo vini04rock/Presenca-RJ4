@@ -2389,6 +2389,109 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
   .kg-valor.saltou, .barras-meses.anima .barra-mes-cheia { animation: none !important; }
 }
 
+/* O valor pago no mes: o botao do valor padrao e a caixa de outro valor,
+   embaixo do nome. O botao e grande de proposito - e o toque mais comum. */
+.valor-mes { color: var(--white-strong); font-weight: 700; }
+.caixinha-valor-linha { display: flex; align-items: center; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.btn-valor-padrao {
+  font: inherit; font-size: 12.5px; font-weight: 700;
+  padding: 6px 12px; border-radius: 999px; cursor: pointer;
+  color: var(--text-muted); background-color: transparent;
+  border: 1px dashed var(--line-strong);
+  transition: transform 0.12s ease, background-color 0.15s ease, color 0.15s ease;
+}
+.btn-valor-padrao:active { transform: scale(0.95); }
+.btn-valor-padrao.ativo {
+  color: #0A0A0A; background-color: var(--status-confirmado);
+  border: 1px solid var(--status-confirmado);
+}
+.caixinha-valor {
+  width: 108px; flex-shrink: 0; padding: 6px 10px; border-radius: 10px;
+  font: inherit; font-size: 13px; color: var(--white-strong);
+  background-color: rgba(255, 255, 255, 0.05); border: 1px solid var(--line-strong);
+}
+.caixinha-valor:focus { outline: none; border-color: var(--status-confirmado); }
+.caixinha-valor-linha .btn.ghost { margin-left: auto; }
+
+/* ---- Controle financeiro ---- */
+.fin-saldo { display: flex; flex-direction: column; align-items: center; gap: 2px; margin: 4px 0 12px; }
+.fin-saldo span { font-size: 11.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .08em; }
+.fin-saldo b { font-family: 'Rye', serif; font-weight: 400; font-size: 34px; color: var(--white-strong); line-height: 1.15; }
+.fin-saldo.negativo b, .fin-conta-linha.total.negativo b { color: var(--status-infracional); }
+.fin-placar { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.fin-placar-item {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 10px 4px; border-radius: 12px; text-align: center;
+  background-color: rgba(255, 255, 255, 0.04); border: 1px solid var(--line);
+}
+.fin-placar-item span { font-size: 11px; color: var(--text-muted); }
+.fin-placar-item b { font-size: 16px; color: var(--white-strong); }
+.fin-placar-item.entrada { border-color: rgba(95, 201, 141, 0.45); }
+.fin-placar-item.saida { border-color: rgba(217, 99, 90, 0.45); }
+.fin-nota { font-size: 12px; color: var(--text-muted); margin-top: 10px; text-align: center; }
+.fin-nota b { color: var(--white-strong); }
+.fin-explica { font-size: 12.5px; color: var(--text-muted); line-height: 1.45; margin: 6px 0 12px; }
+.fin-subtitulo { font-size: 12.5px; color: var(--text-muted); margin: -4px 0 10px; }
+.fin-ou-mes { font-size: 11.5px; color: var(--text-muted); margin: 10px 0 6px; }
+.fin-categorias { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Fora do trilho escuro das .pilulas-periodo, a pilula ganha contorno
+   proprio - sem ele as nao escolhidas pareciam texto solto, nao botao. */
+.fin-categorias .pilula {
+  flex: 0 1 auto; padding: 7px 11px;
+  border: 1px solid var(--line-strong); background-color: rgba(0, 0, 0, 0.25);
+}
+.fin-categorias .pilula.active { border-color: transparent; }
+.fin-form.fin-saida { border-left: 3px solid var(--status-infracional); }
+.fin-form.fin-entrada { border-left: 3px solid var(--status-confirmado); }
+
+/* A conta do relatorio: inicio, mais, menos, igual. */
+.fin-conta { margin-top: 14px; border-top: 1px solid var(--line); }
+.fin-conta-linha {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+  padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 13.5px;
+}
+.fin-conta-linha small { color: var(--text-muted); font-size: 11px; }
+.fin-conta-linha b { color: var(--white-strong); white-space: nowrap; }
+.fin-conta-linha.entrada b { color: var(--status-confirmado); }
+.fin-conta-linha.saida b { color: var(--status-infracional); }
+.fin-conta-linha.total { border-bottom: none; padding-top: 12px; font-weight: 700; }
+.fin-conta-linha.total b { font-family: 'Rye', serif; font-weight: 400; font-size: 22px; }
+
+/* Barras de entrada e saida, lado a lado em cada mes. */
+.fin-legenda { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text-muted); margin-bottom: 8px; }
+.fin-swatch { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.fin-swatch.saida { margin-left: 10px; }
+.fin-swatch.entrada, .fin-barra.entrada { background-color: var(--status-confirmado); }
+.fin-swatch.saida, .fin-barra.saida { background-color: var(--status-infracional); }
+.fin-barras { display: flex; align-items: flex-end; gap: 8px; height: 130px; }
+.fin-barra-mes { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.fin-barra-par { flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; gap: 3px; }
+.fin-barra { width: 12px; min-height: 2px; border-radius: 4px 4px 0 0; }
+.fin-barras.anima .fin-barra { transform-origin: bottom center; animation: crescer-coluna 0.8s var(--mola) both; }
+
+/* Com o que se gastou. */
+.fin-cat { padding: 8px 0; }
+.fin-cat + .fin-cat { border-top: 1px solid var(--line); }
+.fin-cat-linha { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
+.fin-cat-linha b { color: var(--white-strong); white-space: nowrap; }
+.fin-cat-trilho { height: 6px; margin-top: 6px; border-radius: 3px; background-color: rgba(255, 255, 255, 0.07); overflow: hidden; }
+.fin-cat-cheia { height: 100%; border-radius: 3px; background-color: var(--status-infracional); }
+.fin-cat-item { font-size: 11.5px; color: var(--text-muted); margin-top: 4px; padding-left: 4px; }
+
+/* O extrato. */
+.fin-emoji { font-size: 15px; flex-shrink: 0; }
+/* Nome comprido ("Ajuda custo Sede...") quebra dentro dele mesmo, ao lado
+   do emoji - sem isto o emoji ficava sozinho numa linha e o nome descia. */
+.fin-linha .member-info { flex-wrap: nowrap; align-items: flex-start; min-width: 0; }
+.fin-linha .member-name { min-width: 0; }
+.fin-valor { font-weight: 700; white-space: nowrap; flex-shrink: 0; }
+.fin-linha.fin-entrada .fin-valor { color: var(--status-confirmado); }
+.fin-linha.fin-saida .fin-valor { color: var(--status-infracional); }
+.fin-detalhe { font-size: 11.5px; color: var(--text-muted); margin-top: 3px; padding-left: 26px; }
+.fin-bloco { break-inside: avoid; }
+@media (prefers-reduced-motion: reduce) { .fin-barras.anima .fin-barra { animation: none !important; } }
+@media print { .caixinha-valor-linha { display: none !important; } }
+
 /* =====================================================================
    ENTRADA/SAIDA DE INTEGRANTES
    ===================================================================== */

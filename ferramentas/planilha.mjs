@@ -644,8 +644,10 @@ log('=== caixinha: um mês por vez, atrás do PIN da divisão ===');
   confere('a Barra lança setembro', [r.ok, r.pagaram, r.total], [true, 2, 3]);
   contexto.executar('caixinhaSalvar', { ...barra, mes: '2026-10', membroIds: ['m1', 'm2'], marcacoes: { m2: true } });
   confere('os meses vêm do mais recente pro mais antigo', ler().map(m => m.mes), ['2026-10', '2026-09']);
-  confere('com quem devia e quem pagou', ler()[1].membros,
-    [{ id: 'm1', nome: 'Costa', pagou: true }, { id: 'm2', nome: 'Bull', pagou: false }, { id: 'm3', nome: 'Raposo', pagou: true }]);
+  // Sem "valores" (o app de antes), quem pagou vale o padrao.
+  confere('com quem devia, quem pagou e quanto (app antigo: o padrão)', ler()[1].membros,
+    [{ id: 'm1', nome: 'Costa', pagou: true, valor: 30 }, { id: 'm2', nome: 'Bull', pagou: false, valor: 0 },
+     { id: 'm3', nome: 'Raposo', pagou: true, valor: 30 }]);
 
   // Corrigir setembro: m3 saiu da lista, m2 pagou.
   contexto.executar('caixinhaSalvar', { ...barra, mes: '2026-09', membroIds: 'm1,m2', marcacoes: { m1: true, m2: true } });
@@ -670,6 +672,111 @@ log('=== caixinha: um mês por vez, atrás do PIN da divisão ===');
     contexto.executar('caixinhaRemover', { ...barra, divisao: 'oeste', mes: '2026-09' }).ok, false);
   contexto.executar('caixinhaRemover', { ...barra, mes: '2026-09' });
   confere('remover apaga só aquele mês daquela divisão', [ler().map(m => m.mes), nLinhas()], [['2026-10'], 3]);
+}
+
+log('');
+log('=== caixinha: o valor de cada pagamento ===');
+{
+  const p = montaPlanilha([], []);
+  p.abas.Membros = novaAba('Membros', [['ID', 'Nome', 'Grau', 'Divisao', 'Funcoes', 'Cargo'],
+    ['m1', 'Costa', 'VI', 'Barra - RJ4', '', 'Diretor'], ['m2', 'Bull', 'X', 'Barra - RJ4', '', ''],
+    ['m3', 'Raposo', 'VI', 'Barra - RJ4', '', 'Social']]);
+  // A aba como ela esta hoje na planilha: 6 colunas, sem "Valor".
+  p.abas.Caixinha = novaAba('Caixinha', [['Divisao', 'Mes', 'ID Membro', 'Membro', 'Pagou', 'Atualizado em'],
+    ['barra', '2026-08', 'm1', 'Costa', 'Sim', '01/08/2026 10:00'], ['barra', '2026-08', 'm2', 'Bull', 'Nao', '01/08/2026 10:00']]);
+  const { contexto } = carregaCodeGs(p, { PIN_REGIONAL: '0418', PIN_BARRA: '1801' });
+  const barra = { escopo: 'barra', pin: '1801', divisao: 'barra' };
+  const mes = (m) => contexto.executar('caixinha', barra).meses.find(x => x.mes === m);
+
+  confere('mês de antes do valor: "Sim" vale R$ 30, "Nao" vale 0', mes('2026-08').membros.map(m => [m.id, m.pagou, m.valor]),
+    [['m1', true, 30], ['m2', false, 0]]);
+
+  const r = contexto.executar('caixinhaSalvar', { ...barra, mes: '2026-09', membroIds: 'm1,m2,m3',
+    valores: JSON.stringify({ m1: 30, m2: 35.5, m3: 0 }) });
+  confere('salvar com valores: quantos pagaram e o total', [r.pagaram, r.total, r.totalValor], [2, 3, 65.5]);
+  confere('a aba ganhou a coluna Valor sozinha', p.abas.Caixinha.dados[0][6], 'Valor');
+  const linhas = p.abas.Caixinha.dados.slice(1).filter(l => l[1] === '2026-09').map(l => [l[2], l[4], l[6]]);
+  confere('cada linha com Pagou e Valor', linhas, [['m1', 'Sim', 30], ['m2', 'Sim', 35.5], ['m3', 'Nao', '']]);
+  confere('e é lido de volta com o valor', mes('2026-09').membros.map(m => [m.id, m.pagou, m.valor]),
+    [['m1', true, 30], ['m2', true, 35.5], ['m3', false, 0]]);
+  contexto.executar('caixinhaSalvar', { ...barra, mes: '2026-09', membroIds: 'm1,m2', valores: { m1: '30,5', m2: 50000 } });
+  // O app manda as marcacoes junto, pro Code.gs antigo; aqui os valores mandam.
+  contexto.executar('caixinhaSalvar', { ...barra, mes: '2026-10', membroIds: 'm1,m2',
+    valores: JSON.stringify({ m2: 35 }), marcacoes: JSON.stringify({ m2: true }) });
+  confere('com valores e marcações juntos, valem os valores', mes('2026-10').membros.map(m => [m.id, m.pagou, m.valor]),
+    [['m1', false, 0], ['m2', true, 35]]);
+  confere('vírgula vale; R$ 50 mil é erro de digitação e não conta como pago',
+    mes('2026-09').membros.map(m => [m.id, m.pagou, m.valor]), [['m1', true, 30.5], ['m2', false, 0]]);
+}
+
+log('');
+log('=== caixinha: controle financeiro (saldo inicial, entradas e saídas) ===');
+{
+  const p = montaPlanilha([], []);
+  p.abas.Membros = novaAba('Membros', [['ID', 'Nome', 'Grau', 'Divisao', 'Funcoes', 'Cargo'],
+    ['m1', 'Costa', 'VI', 'Barra - RJ4', '', 'Diretor']]);
+  const { contexto } = carregaCodeGs(p, { PIN_REGIONAL: '0418', PIN_BARRA: '1801', PIN_OESTE: '1802' });
+  const barra = { escopo: 'barra', pin: '1801', divisao: 'barra' };
+  const ler = () => contexto.executar('caixinha', barra);
+  const lancar = (extra) => contexto.executar('caixinhaLancamentoSalvar', { ...barra, ...extra });
+  const tentar = (fn) => { try { const r = fn(); return r.ok === false ? r.erro : 'ok'; } catch (e) { return e.message; } };
+  const nLinhas = () => (p.abas.CaixinhaFinanceiro ? p.abas.CaixinhaFinanceiro.dados.length - 1 : 0);
+  const mesAtual = daquiA(0).slice(0, 7);
+
+  confere('lançar sem PIN é recusado', contexto.executar('caixinhaLancamentoSalvar', { divisao: 'barra', tipo: 'saida' }).ok, false);
+  confere('nada lançado: sem saldo inicial e sem lançamentos', [ler().saldoInicial, ler().lancamentos], [null, []]);
+
+  lancar({ tipo: 'saldoInicial', mes: '2026-09', valor: 175 });
+  confere('o saldo inicial', ler().saldoInicial, { mes: '2026-09', valor: 175 });
+  lancar({ tipo: 'saldoInicial', mes: '2026-08', valor: '200,5' });
+  confere('salvar de novo substitui, não acumula', [ler().saldoInicial, nLinhas()], [{ mes: '2026-08', valor: 200.5 }, 1]);
+  lancar({ tipo: 'saldoInicial', mes: '2026-08', valor: 0 });
+  confere('saldo inicial pode ser zero', ler().saldoInicial, { mes: '2026-08', valor: 0 });
+  confere('saldo inicial de um mês que não chegou é recusado',
+    tentar(() => lancar({ tipo: 'saldoInicial', mes: '2099-01', valor: 10 })), 'O saldo inicial nao pode ser de um mes que ainda nao chegou');
+  confere('saldo inicial negativo é recusado', tentar(() => lancar({ tipo: 'saldoInicial', mes: mesAtual, valor: -5 })), 'Valor invalido');
+  confere('saldo inicial sem valor é recusado', tentar(() => lancar({ tipo: 'saldoInicial', mes: mesAtual, valor: '' })), 'Valor invalido');
+
+  const saida = lancar({ tipo: 'saida', data: '2026-09-12', categoria: 'Kit Churrasco / lanches', descricao: 'Carne do pub', valor: '120,5' });
+  lancar({ tipo: 'entrada', data: '2026-09-20', categoria: 'Outras entradas', descricao: 'Rifa', valor: 60 });
+  confere('saída e entrada gravadas, a mais recente primeiro', ler().lancamentos.map(l => [l.tipo, l.data, l.categoria, l.descricao, l.valor]),
+    [['entrada', '2026-09-20', 'Outras entradas', 'Rifa', 60], ['saida', '2026-09-12', 'Kit Churrasco / lanches', 'Carne do pub', 120.5]]);
+  const semData = lancar({ tipo: 'saida', categoria: 'Adesivos', valor: 15 });
+  confere('sem data, vale hoje', ler().lancamentos.find(l => l.id === semData.id).data, daquiA(0));
+
+  confere('valor zero é recusado', tentar(() => lancar({ tipo: 'saida', categoria: 'Adesivos', valor: 0 })), 'Valor invalido');
+  confere('R$ 50 mil é recusado', tentar(() => lancar({ tipo: 'saida', categoria: 'Adesivos', valor: 50000 })), 'Valor invalido');
+  confere('data no futuro é recusada', tentar(() => lancar({ tipo: 'saida', categoria: 'Adesivos', valor: 5, data: daquiA(2) })), 'A data nao pode ser no futuro');
+  confere('saída sem categoria é recusada', tentar(() => lancar({ tipo: 'saida', valor: 5 })), 'Faltou a categoria');
+  confere('tipo desconhecido é recusado', tentar(() => lancar({ tipo: 'roubo', valor: 5 })), 'Tipo de lancamento desconhecido');
+
+  // Corrigir: mesmo id, a linha e reescrita no lugar.
+  const antes = nLinhas();
+  lancar({ id: saida.id, tipo: 'saida', data: '2026-09-13', categoria: 'Kit Churrasco / lanches', descricao: 'Carne e carvão', valor: 130 });
+  const corrigida = ler().lancamentos.find(l => l.id === saida.id);
+  confere('corrigir reescreve a mesma linha', [nLinhas(), corrigida.data, corrigida.descricao, corrigida.valor], [antes, '2026-09-13', 'Carne e carvão', 130]);
+  confere('corrigir um id que não existe é recusado', tentar(() => lancar({ id: 'nao-existe', tipo: 'saida', categoria: 'Adesivos', valor: 5 })), 'Lancamento nao encontrado');
+
+  // O Oeste tem o caixa dele; a Barra nao enxerga nem mexe.
+  const doOeste = contexto.executar('caixinhaLancamentoSalvar', { escopo: 'barra', pin: '0418', divisao: 'oeste', tipo: 'saida', categoria: 'Pedágios', valor: 40 });
+  confere('o Regional lança no Oeste', doOeste.ok, true);
+  confere('e a Barra não vê o lançamento do Oeste', ler().lancamentos.some(l => l.id === doOeste.id), false);
+  confere('a Barra NÃO lança no Oeste', lancar({ divisao: 'oeste', tipo: 'saida', categoria: 'Pedágios', valor: 1 }).ok, false);
+  confere('a Barra NÃO corrige o lançamento do Oeste dizendo que é da Barra',
+    lancar({ id: doOeste.id, tipo: 'saida', categoria: 'Pedágios', valor: 1 }).ok, false);
+  confere('a Barra NÃO exclui o lançamento do Oeste',
+    contexto.executar('caixinhaLancamentoRemover', { ...barra, id: doOeste.id }).ok, false);
+  confere('o lançamento do Oeste continua intacto',
+    p.abas.CaixinhaFinanceiro.dados.find(l => l[0] === doOeste.id)[6], 40);
+
+  const saldoId = p.abas.CaixinhaFinanceiro.dados.find(l => l[1] === 'barra' && l[2] === 'Saldo inicial')[0];
+  confere('o saldo inicial não se exclui como lançamento',
+    tentar(() => contexto.executar('caixinhaLancamentoRemover', { ...barra, id: saldoId })), 'Lancamento nao encontrado');
+  contexto.executar('caixinhaLancamentoRemover', { ...barra, id: saida.id });
+  confere('excluir apaga só aquele lançamento', ler().lancamentos.map(l => l.descricao).sort(), ['', 'Rifa']);
+
+  const linha = p.abas.CaixinhaFinanceiro.dados.find(l => l[0] === semData.id);
+  confere('a linha na planilha: tipo legível e valor como número', [linha[2], typeof linha[6]], ['Saida', 'number']);
 }
 
 log('');
