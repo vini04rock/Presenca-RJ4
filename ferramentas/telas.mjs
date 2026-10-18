@@ -511,7 +511,13 @@ add('caixinha / corrigir saída (excluir)',    { ...fin, caixinhaFinForm:{ tipo:
   categoria:'Kit Churrasco / lanches', descricao:'Carne do pub', valor:'120,5' }, caixinhaFinConfirmarRemover:'l1' }, T.renderAdmin);
 add('caixinha / lançamento com erro',         { ...fin, caixinhaFinForm:{ tipo:'saida', data:'', categoria:'', descricao:'', valor:'10' },
   caixinhaFinMsg:{ ok:false, texto:'Escolha a categoria da saída.' } }, T.renderAdmin);
-add('caixinha / saldo inicial',               { ...fin, caixinhaFinForm:{ tipo:'saldoInicial', mes:'2026-08', valor:'175' } }, T.renderAdmin);
+add('caixinha / corrigir saldo inicial',      { ...fin, caixinhaFinForm:{ tipo:'saldoInicial', valor:'175', pinRegional:'' } }, T.renderAdmin);
+add('caixinha / corrigir saldo (PIN errado)',  { ...fin, caixinhaFinForm:{ tipo:'saldoInicial', valor:'175', pinRegional:'1234' },
+  caixinhaFinMsg:{ ok:false, texto:'Não consegui salvar: O saldo inicial ja foi definido e esta travado. So o PIN do Regional corrige.' } }, T.renderAdmin);
+add('caixinha / definindo o saldo inicial',   { ...fin, caixinhaDados:caixaVazio, caixinhaFinSaldoTexto:'175,5' }, T.renderAdmin);
+add('caixinha / confirmando o saldo inicial', { ...fin, caixinhaDados:caixaVazio, caixinhaFinSaldoTexto:'175,5', caixinhaFinConfirmarSaldo:true }, T.renderAdmin);
+add('caixinha / saldo inicial em branco',     { ...fin, caixinhaDados:caixaVazio, caixinhaFinMsg:{ ok:false, texto:'Escreva quanto tem na caixinha (pode ser 0).' } }, T.renderAdmin);
+add('caixinha / saldo travado (com o dia)',   { ...fin, caixinhaDados:{ ...caixinhaFalsa, saldoInicial:{ mes:'2026-09', data:'2026-09-15', valor:175 } } }, T.renderAdmin);
 add('caixinha / relatório de controle (tudo)', { ...fin, caixinhaFinRelatorio:true, caixinhaFinPeriodo:0 }, T.renderAdmin);
 add('caixinha / relatório de um mês',         { ...fin, caixinhaFinRelatorio:true, caixinhaFinPeriodo:'2026-10' }, T.renderAdmin);
 add('caixinha / relatório antes do saldo inicial', { ...fin, caixinhaFinRelatorio:true, caixinhaFinPeriodo:'2026-07' }, T.renderAdmin);
@@ -578,6 +584,7 @@ const LIMPO = {
   caixinhaValores:{}, caixinhaValoresTexto:{}, caixinhaInfo:{}, caixinhaMostrarAdicionar:false, caixinhaConfirmarRemover:false,
   caixinhaSalvando:false, caixinhaMsg:null, caixinhaPeriodo:0,
   caixinhaFinForm:null, caixinhaFinSalvando:false, caixinhaFinMsg:null, caixinhaFinConfirmarRemover:null,
+  caixinhaFinSaldoTexto:'', caixinhaFinConfirmarSaldo:false,
   caixinhaFinQtdExtrato:15, caixinhaFinRelatorio:false, caixinhaFinPeriodo:0,
   roster:membros, newMemberEntrada:'', movMembroId:null, movTipo:null, movData:'', movMotivo:'', movSalvando:false, movErro:null,
   movimentosDados:null, movimentosDadosEscopo:null, movimentosErro:null, movimentosPeriodo:0, movimentosDivisaoAberta:null,

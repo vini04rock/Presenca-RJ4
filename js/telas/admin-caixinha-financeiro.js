@@ -8,10 +8,10 @@
 // sao os mesmos da secao inteira (state.caixinhaDados), buscados ao entrar
 // nela.
 
-import { formatReais, mesISO, mesesParaEscolher, nomeCurtoDoMes, nomeDoMes } from '../dominio/caixinha.js';
-import { CATEGORIA_MENSALIDADES, controleCaixinha, mesesDoPeriodoFinanceiro, periodoDeUmMes, rotuloDoPeriodoFinanceiro, textoControleCaixinha } from '../dominio/caixinha-financeiro.js';
+import { formatReais, mesesParaEscolher, nomeCurtoDoMes, nomeDoMes } from '../dominio/caixinha.js';
+import { CATEGORIA_MENSALIDADES, controleCaixinha, mesesDoPeriodoFinanceiro, periodoDeUmMes, quandoDoSaldoInicial, rotuloDoPeriodoFinanceiro, textoControleCaixinha } from '../dominio/caixinha-financeiro.js';
 import { PERIODOS, rotuloPilula } from '../dominio/doacoes.js';
-import { fecharFormFinanceiro, removerLancamentoFinanceiro, salvarLancamentoFinanceiro } from '../fluxos/doacoes-caixinha.js';
+import { conferirSaldoInicial, definirSaldoInicial, fecharFormFinanceiro, removerLancamentoFinanceiro, salvarLancamentoFinanceiro } from '../fluxos/doacoes-caixinha.js';
 import { CATEGORIAS_SAIDA_CAIXINHA, CATEGORIA_ENTRADA_CAIXINHA, escopoPorChave } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
@@ -121,15 +121,41 @@ function extrato(itens, { limite, titulo } = {}) {
   `;
 }
 
+// O saldo inicial e o ponto de partida: informado uma vez, e trava. Sem
+// ele, um card no topo do painel pede o valor, com uma confirmacao antes
+// de travar; com ele, uma linha com o cadeado e o "Corrigir" do Regional.
+function cardDefinirSaldo() {
+  const confirmando = state.caixinhaFinConfirmarSaldo;
+  const c = conferirSaldoInicial(state.caixinhaFinSaldoTexto);
+  return `
+    <div class="card fin-saldo-inicial">
+      <div class="painel-titulo">💼 Quanto tem na caixinha agora?</div>
+      <div class="fin-explica">É o ponto de partida do controle, informado <b>uma vez só</b>. O valor já inclui tudo deste mês: daqui pra frente o app soma as mensalidades a partir do mês que vem, e as entradas e saídas lançadas a partir de amanhã.</div>
+      ${confirmando && !c.erro ? `
+        <div class="alert" style="margin-bottom:10px;">
+          <div class="alert-msg">Confere: <b>${reais(c.valor)}</b> na caixinha hoje? Depois de salvo, o valor fica <b>travado</b> — só o PIN do Regional corrige.</div>
+        </div>
+        <div class="row-gap">
+          <button class="btn block" data-action="definir-saldo-inicial" ${state.caixinhaFinSalvando ? 'disabled' : ''}>${state.caixinhaFinSalvando ? 'Salvando…' : '🔒 Confirmar e travar'}</button>
+          <button class="btn secondary block" data-action="voltar-saldo-inicial" ${state.caixinhaFinSalvando ? 'disabled' : ''}>Voltar</button>
+        </div>
+      ` : `
+        <div class="field">
+          <label>Valor em caixa hoje (R$)</label>
+          <input type="text" inputmode="decimal" id="fin-saldo-valor" value="${escapeHtml(state.caixinhaFinSaldoTexto)}" placeholder="Ex.: 175,00" autocomplete="off">
+        </div>
+        <button class="btn block" data-action="pedir-confirmar-saldo">💾 Salvar</button>
+      `}
+    </div>
+  `;
+}
+
 function linhaSaldoInicial(d) {
-  if (!d.saldoInicial) {
-    return `
-      <div class="alert info" style="margin:12px 0 0;">
-        <div class="alert-msg">Ainda sem saldo inicial: o caixa está contando do zero. Toque em "💼 Saldo inicial" e diga quanto havia no caixa no começo de um mês.</div>
-      </div>
-    `;
-  }
-  return `<div class="fin-nota">💼 Saldo inicial: <b>${reais(d.saldoInicial.valor)}</b> no começo de ${escapeHtml(nomeDoMes(d.saldoInicial.mes))}</div>`;
+  if (!d.saldoInicial) return '<div class="fin-nota">Sem saldo inicial ainda: o caixa está contando do zero.</div>';
+  return `
+    <div class="fin-nota">🔒 Saldo inicial: <b>${reais(d.saldoInicial.valor)}</b> · ${escapeHtml(quandoDoSaldoInicial(d.saldoInicial))}</div>
+    <div class="fin-nota no-print" style="margin-top:4px;"><button class="btn ghost" style="padding:2px 8px; font-size:11px;" data-action="corrigir-saldo-inicial">🔓 Corrigir (PIN do Regional)</button></div>
+  `;
 }
 
 // ---------- o painel (a aba, sem relatorio aberto) ----------
@@ -138,6 +164,7 @@ function painel(d) {
   const r = controleCaixinha(d, 0);
   return `
     ${aviso()}
+    ${d.saldoInicial ? '' : cardDefinirSaldo()}
     <div class="card">
       <div class="painel-titulo">💼 Caixa da ${escapeHtml(escopoPorChave(state.adminEscopo).nome)}</div>
       <div class="fin-saldo${r.saldoAtual < 0 ? ' negativo' : ''}" data-anima="fin-saldo:${r.saldoAtual}">
@@ -156,10 +183,9 @@ function painel(d) {
         <button class="btn secondary" style="flex:1;" data-action="novo-lancamento-caixinha" data-value="entrada">🟢 Lançar entrada</button>
       </div>
       <div class="row-gap no-print" style="margin-top:8px;">
-        <button class="btn secondary" style="flex:1;" data-action="editar-saldo-inicial-caixinha">💼 Saldo inicial</button>
         <button class="btn" style="flex:1;" data-action="abrir-relatorio-financeiro">📊 Relatório de controle</button>
+        <button class="btn secondary" style="flex:1;" data-action="abrir-relatorio-financeiro">🖼️ Relatório em imagem</button>
       </div>
-      <button class="btn secondary block no-print" style="margin-top:8px;" data-action="abrir-relatorio-financeiro">🖼️ Relatório em imagem</button>
     </div>
     ${barrasPorMes(r.porMes)}
     ${saidasPorCategoria(r, false)}
@@ -188,27 +214,22 @@ function botoesForm(rotulo) {
   `;
 }
 
+// A correcao do saldo inicial: so o valor, e so com o PIN do Regional - o
+// dia em que ele foi definido continua o mesmo.
 function formSaldoInicial(f) {
-  // Ate o mes de hoje: saldo inicial de um mes que nao chegou nao existe.
-  const meses = mesesParaEscolher().filter(m => m <= mesISO(0));
+  const d = dadosCaixinha();
+  const atual = d && d.saldoInicial;
   return `
     <div class="btn ghost" style="margin-bottom:10px;" data-action="fechar-form-caixinha">‹ Voltar ao controle</div>
     <div class="card">
-      <div class="nome-evento-card">💼 Saldo inicial</div>
-      <div class="fin-explica">Quanto havia no caixa no <b>começo</b> do mês escolhido. Tudo daquele mês em diante — mensalidades, entradas e saídas — soma em cima dele; o que for de antes fica de fora da conta. Salvar de novo substitui o anterior.</div>
-      <div class="field">
-        <label>No começo de</label>
-        <div class="mes-grade">
-          ${meses.map(m => `
-            <button class="mes-chip${f.mes === m ? ' lancado' : ''}" data-action="fin-saldo-mes" data-value="${m}">
-              <span class="mes-chip-nome">${escapeHtml(nomeCurtoDoMes(m))}</span>
-              <span class="mes-chip-info">${f.mes === m ? '✓' : ''}</span>
-            </button>
-          `).join('')}
-        </div>
-      </div>
+      <div class="nome-evento-card">🔓 Corrigir saldo inicial</div>
+      <div class="fin-explica">O saldo inicial fica travado: só o <b>PIN do Regional</b> corrige. A correção muda só o valor${atual ? ` — continua ${escapeHtml(quandoDoSaldoInicial(atual))}` : ''}.</div>
       ${campoValor(f.valor, 'Ex.: 175,00')}
-      ${botoesForm('💾 Salvar saldo inicial')}
+      <div class="field">
+        <label>PIN do Regional</label>
+        <input type="password" inputmode="numeric" id="fin-pin-regional" value="${escapeHtml(f.pinRegional || '')}" autocomplete="off">
+      </div>
+      ${botoesForm('🔒 Salvar correção')}
     </div>
   `;
 }
@@ -368,11 +389,26 @@ export const acoes = {
     return abrirForm({ tipo: l.tipo, id: l.id, data: formatDataBR(l.data), categoria: l.categoria, descricao: l.descricao,
       valor: l.valor.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) });
   },
-  'editar-saldo-inicial-caixinha': async (id, target, action, e) => {
+  // O card de definir: primeiro confere o valor e mostra "depois trava";
+  // so o segundo toque grava.
+  'pedir-confirmar-saldo': async (id, target, action, e) => {
+    const c = conferirSaldoInicial(state.caixinhaFinSaldoTexto);
+    state.caixinhaFinMsg = c.erro ? { ok: false, texto: c.erro } : null;
+    state.caixinhaFinConfirmarSaldo = !c.erro;
+    return render();
+  },
+  'voltar-saldo-inicial': async (id, target, action, e) => {
+    state.caixinhaFinConfirmarSaldo = false;
+    return render();
+  },
+  'definir-saldo-inicial': async (id, target, action, e) => {
+    return definirSaldoInicial();
+  },
+  'corrigir-saldo-inicial': async (id, target, action, e) => {
     const d = dadosCaixinha();
     const s = d && d.saldoInicial;
-    return abrirForm({ tipo: 'saldoInicial', mes: s ? s.mes : mesISO(0),
-      valor: s ? s.valor.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) : '' });
+    if (!s) return;
+    return abrirForm({ tipo: 'saldoInicial', valor: s.valor.toLocaleString('pt-BR', { maximumFractionDigits: 2 }), pinRegional: '' });
   },
   'fechar-form-caixinha': async (id, target, action, e) => {
     fecharFormFinanceiro();
@@ -381,10 +417,6 @@ export const acoes = {
   },
   'fin-categoria': async (id, target, action, e) => {
     if (state.caixinhaFinForm) state.caixinhaFinForm.categoria = target.dataset.value;
-    return render();
-  },
-  'fin-saldo-mes': async (id, target, action, e) => {
-    if (state.caixinhaFinForm) state.caixinhaFinForm.mes = target.dataset.value;
     return render();
   },
   'salvar-lancamento-caixinha': async (id, target, action, e) => {

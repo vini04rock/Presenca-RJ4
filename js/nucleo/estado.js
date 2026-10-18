@@ -249,6 +249,10 @@ export let state = {
   // { tipo: 'saldoInicial', mes, valor } - os campos como foram digitados.
   // null = nenhum aberto.
   caixinhaFinForm: null,
+  // O card de definir o saldo inicial (so aparece enquanto nao ha um): o
+  // valor como foi digitado, e se a confirmacao "depois trava" esta aberta.
+  caixinhaFinSaldoTexto: '',
+  caixinhaFinConfirmarSaldo: false,
   caixinhaFinSalvando: false,
   caixinhaFinMsg: null,
   // O id do lancamento com a confirmacao de exclusao aberta.

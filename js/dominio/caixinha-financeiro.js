@@ -5,14 +5,20 @@
 //   - as mensalidades, somadas direto dos meses lancados no "Mes a mes" -
 //     nunca lancadas de novo aqui, pra cada real ter um lugar so;
 //   - os lancamentos de entrada (doacao extra, rifa...) e de saida;
-//   - o saldo inicial: quanto havia no caixa no COMECO de um mes.
+//   - o saldo inicial: o ponto de partida, definido uma vez so e travado.
 //
-// O saldo inicial e de um mes, e nao de um dia, de proposito: a mensalidade
-// e mensal, e um saldo "de 15/10" deixaria em aberto se o que foi pago em
-// outubro ja estava dentro dele ou nao - e dai a conta dobra. Tudo do mes
-// do saldo inicial em diante soma em cima dele; o que for de antes fica de
-// fora da conta (e a tela avisa quanto ficou).
+// O saldo inicial e "quanto tem na caixinha hoje", no dia em que foi
+// definido (saldoInicial.data). O mes dele ja esta dentro do valor - quem
+// ja pagou a caixinha deste mes, esse dinheiro ja esta no caixa. Por isso,
+// pra nada contar duas vezes (decisao do clube, 18/10/2026):
+//   - mensalidades contam do mes SEGUINTE em diante;
+//   - entradas e saidas contam do dia SEGUINTE em diante.
+// Quem ainda pagar a caixinha daquele mes depois, entra como entrada avulsa.
 //
+// Os saldos salvos antes disso tem so o mes (sem `data`) e valem do jeito
+// antigo: o que havia no COMECO daquele mes, e o mes inteiro conta.
+//
+// O que ficar de fora fica de fora da conta (e a tela avisa quanto ficou).
 // Sem saldo inicial definido, o caixa comeca do zero e tudo conta.
 
 import { CATEGORIA_ENTRADA_CAIXINHA, escopoPorChave } from '../nucleo/config.js';
@@ -27,7 +33,8 @@ export const CATEGORIA_MENSALIDADES = 'Mensalidades';
 //   categoria, descricao, valor } - a mensalidade traz tambem quantos
 // pagaram, e o lancamento o id (pra corrigir ou excluir).
 export function movimentosDoCaixa(dados) {
-  const inicio = dados && dados.saldoInicial ? dados.saldoInicial.mes : '';
+  const corte = corteDoSaldo(dados && dados.saldoInicial);
+  const inicio = corte ? corte.inicio : '';
   const todos = [];
   ((dados && dados.meses) || []).forEach(m => {
     const pagos = m.membros.filter(x => x.pagou);
@@ -42,7 +49,7 @@ export function movimentosDoCaixa(dados) {
   });
   // Mesmo dia: a mensalidade (dia 1) depois dos lancamentos daquele dia.
   todos.sort((a, b) => b.data.localeCompare(a.data) || (a.origem === 'mensalidade') - (b.origem === 'mensalidade'));
-  const dentro = todos.filter(x => !inicio || x.mes >= inicio);
+  const dentro = todos.filter(x => !corte || (x.origem === 'mensalidade' ? x.mes >= corte.mes : x.data >= corte.data));
   return {
     inicio,
     saldoInicial: dados && dados.saldoInicial ? dados.saldoInicial.valor : 0,
@@ -50,6 +57,26 @@ export function movimentosDoCaixa(dados) {
     // O que ficou de fora por ser de antes do saldo inicial.
     antesDoInicio: todos.length - dentro.length,
   };
+}
+
+// A partir de quando as coisas contam, pelo saldo inicial: o primeiro mes
+// de mensalidade, o primeiro dia de lancamento, e o mes em que o caixa
+// comeca (o periodo do relatorio nunca comeca antes dele). null = sem
+// saldo inicial, tudo conta.
+function corteDoSaldo(s) {
+  if (!s) return null;
+  if (s.data) {
+    const [a, m, d] = s.data.split('-').map(Number);
+    const amanha = new Date(a, m - 1, d + 1);
+    const iso = `${amanha.getFullYear()}-${String(amanha.getMonth() + 1).padStart(2, '0')}-${String(amanha.getDate()).padStart(2, '0')}`;
+    return { mes: mesSeguinte(s.data.slice(0, 7)), data: iso, inicio: s.data.slice(0, 7) };
+  }
+  return { mes: s.mes, data: s.mes + '-01', inicio: s.mes };
+}
+
+// "definido em 18/10/2026", ou "no começo de Outubro/2026" pro saldo antigo.
+export function quandoDoSaldoInicial(s) {
+  return s.data ? `definido em ${formatDataBR(s.data)}` : `no começo de ${nomeDoMes(s.mes)}`;
 }
 
 const comSinal = x => (x.tipo === 'saida' ? -x.valor : x.valor);

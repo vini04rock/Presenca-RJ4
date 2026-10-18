@@ -459,17 +459,28 @@ controle que a Barra mantinha à mão.
   (doação extra, rifa… numa categoria só, "Outras entradas"). Data em
   branco é hoje, e nunca no futuro. Tocar num lançamento do extrato abre a
   correção, com o excluir.
-- **O saldo inicial é de um mês, não de um dia:** "havia R$ X no caixa no
-  começo de outubro". Com um dia no meio do mês ficaria em aberto se a
-  mensalidade daquele mês já estava dentro do saldo, e a conta dobraria.
-  Tudo daquele mês em diante soma em cima dele; o que for de antes fica
-  fora da conta, e a tela diz quanto ficou. Sem saldo inicial, o caixa
-  conta do zero. É um por divisão: salvar de novo substitui.
+- **O saldo inicial é o ponto de partida, informado uma vez e travado**
+  (decisão do clube, 18/10/2026). Enquanto não existe, um card no topo do
+  painel pergunta "quanto tem na caixinha agora?", com uma confirmação
+  ("depois trava") antes de gravar. Ele guarda o **dia** em que foi
+  definido, e o mês desse dia já está dentro do valor: quem já pagou a
+  caixinha daquele mês, o dinheiro já está no caixa. Por isso, para nada
+  contar duas vezes, as **mensalidades contam do mês seguinte** e as
+  **entradas e saídas do dia seguinte** (`corteDoSaldo`, em
+  `dominio/caixinha-financeiro.js`). Quem pagar a caixinha daquele mês
+  depois entra como entrada avulsa. O que fica de fora fica de fora da
+  conta, e a tela diz quanto ficou. Sem saldo inicial, o caixa conta do
+  zero.
+- **A trava é na planilha também:** o `Code.gs` recusa um segundo saldo
+  inicial. Corrigir é só com o **PIN do Regional**, digitado no próprio
+  formulário de correção (o da divisão não destrava, e entrar na Barra com
+  a chave-mestra não basta, de propósito). A correção muda só o valor; o
+  dia continua o mesmo. Saldo salvo antes da trava tem só o mês e vale do
+  jeito antigo, "no começo daquele mês", com o mês inteiro contando.
 - **Relatório de controle:** período de 3, 6 ou 12 meses, tudo, ou **de
   um mês a outro**, nos seletores De/Até (o "📊 Controle financeiro do
   mês" de cada mês lançado abre direto num mês só). O período é por mês, e
-  não por dia, pelo mesmo motivo do saldo inicial: a mensalidade é
-  mensal. Saldo no início, + mensalidades, + outras entradas, − saídas por
+  não por dia, porque a mensalidade é mensal. Saldo no início, + mensalidades, + outras entradas, − saídas por
   categoria (cada lançamento embaixo da sua) e saldo final. Sai em texto
   pro WhatsApp, imagem pro grupo e PDF (a impressão do navegador), todos
   de `controleCaixinha`, então nunca discordam.
@@ -655,7 +666,7 @@ a cada mudança:
 | `servidor.py` | serve o app local com o cache desligado |
 | `estrutura.py` | 7 verificações: imports circulares, hierarquia de camadas, sintaxe, nome sem import, import sobrando, ações sem tratador |
 | `regras.mjs` | as regras do clube que, se quebrarem, saem erradas numa convocação sem ninguém perceber |
-| `telas.mjs` | desenha as 138 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
+| `telas.mjs` | desenha as 143 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
 | `planilha.mjs` | roda o `Code.gs` de verdade contra uma planilha de mentira: encerramento automático, PIN, relatório individual, responsável, textos, chamada do evento, doações, caixinha e entrada/saída |
 
 O `--html` do `telas.mjs` é a rede de proteção mais útil: captura o HTML de
@@ -781,7 +792,7 @@ ferramentas, acima):
 
     py ferramentas/estrutura.py     # imports, camadas, sintaxe, ações
     node ferramentas/regras.mjs     # ordem hierárquica e formato da convocação
-    node ferramentas/telas.mjs      # desenha as 138 telas e abas
+    node ferramentas/telas.mjs      # desenha as 143 telas e abas
     node ferramentas/planilha.mjs   # o encerramento automático, no Code.gs
 
 Eles dizem que o app **não quebrou**, não que está bonito: não cobrem

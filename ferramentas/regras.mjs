@@ -870,6 +870,27 @@ log('=== caixinha: controle financeiro (saldo, entradas, saídas, período) ==='
     ['Agosto/2026 a Outubro/2026', 'Outubro/2026']);
   confere('os meses que os seletores mostram', [mesesDoPeriodoFinanceiro(6, base), mesesDoPeriodoFinanceiro(0, base), mesesDoPeriodoFinanceiro('2026-09', base)],
     [{ de: '2026-05', ate: '2026-10' }, { de: '', ate: '2026-10' }, { de: '2026-09', ate: '2026-09' }]);
+  // O saldo inicial de hoje (com o dia): o mes dele ja esta dentro do valor.
+  const { quandoDoSaldoInicial } = await import(url('dominio/caixinha-financeiro.js'));
+  const comDia = {
+    meses: [{ mes: '2026-09', membros: [pg('a', 30)] }, { mes: '2026-10', membros: [pg('a', 30), pg('b', 35)] }],
+    saldoInicial: { mes: '2026-09', data: '2026-09-15', valor: 100 },
+    lancamentos: [
+      lc('d1', 'saida', '2026-09-15', 'Adesivos', 'no mesmo dia', 10),
+      lc('d2', 'saida', '2026-09-16', 'Adesivos', 'no dia seguinte', 20),
+      lc('d3', 'entrada', '2026-09-30', 'Outras entradas', 'pagou setembro atrasado', 30),
+    ],
+  };
+  const cd = controleCaixinha(comDia, 0, base);
+  confere('saldo de hoje: a mensalidade do mês dele fica de fora, a do mês seguinte conta',
+    cd.extrato.filter(x => x.origem === 'mensalidade').map(x => x.mes), ['2026-10']);
+  confere('saldo de hoje: lançamento do mesmo dia fica de fora, do dia seguinte conta',
+    cd.extrato.filter(x => x.origem === 'lancamento').map(x => x.id), ['d3', 'd2']);
+  confere('saldo de hoje: a conta', [cd.antesDoInicio, cd.saldoAtual], [2, 100 - 20 + 30 + 65]);
+  confere('o relatório de setembro começa no saldo e leva só o depois dele',
+    [controleCaixinha(comDia, '2026-09', base).saldoAnterior, controleCaixinha(comDia, '2026-09', base).saldoFinal], [100, 110]);
+  confere('como o saldo inicial é descrito', [quandoDoSaldoInicial(comDia.saldoInicial), quandoDoSaldoInicial({ mes: '2026-08', valor: 1 })],
+    ['definido em 15/09/2026', 'no começo de Agosto/2026']);
   confere('o que é período de um mês só', [periodoDeUmMes('2026-10'), periodoDeUmMes({ de: '2026-10', ate: '2026-10' }), periodoDeUmMes({ de: '2026-09', ate: '2026-10' }), periodoDeUmMes(6)],
     [true, true, false, false]);
 }

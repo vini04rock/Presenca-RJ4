@@ -726,16 +726,33 @@ log('=== caixinha: controle financeiro (saldo inicial, entradas e saídas) ===')
   confere('lançar sem PIN é recusado', contexto.executar('caixinhaLancamentoSalvar', { divisao: 'barra', tipo: 'saida' }).ok, false);
   confere('nada lançado: sem saldo inicial e sem lançamentos', [ler().saldoInicial, ler().lancamentos], [null, []]);
 
-  lancar({ tipo: 'saldoInicial', mes: '2026-09', valor: 175 });
-  confere('o saldo inicial', ler().saldoInicial, { mes: '2026-09', valor: 175 });
-  lancar({ tipo: 'saldoInicial', mes: '2026-08', valor: '200,5' });
-  confere('salvar de novo substitui, não acumula', [ler().saldoInicial, nLinhas()], [{ mes: '2026-08', valor: 200.5 }, 1]);
-  lancar({ tipo: 'saldoInicial', mes: '2026-08', valor: 0 });
-  confere('saldo inicial pode ser zero', ler().saldoInicial, { mes: '2026-08', valor: 0 });
-  confere('saldo inicial de um mês que não chegou é recusado',
-    tentar(() => lancar({ tipo: 'saldoInicial', mes: '2099-01', valor: 10 })), 'O saldo inicial nao pode ser de um mes que ainda nao chegou');
-  confere('saldo inicial negativo é recusado', tentar(() => lancar({ tipo: 'saldoInicial', mes: mesAtual, valor: -5 })), 'Valor invalido');
-  confere('saldo inicial sem valor é recusado', tentar(() => lancar({ tipo: 'saldoInicial', mes: mesAtual, valor: '' })), 'Valor invalido');
+  // O saldo inicial: o ponto de partida, uma vez so, e trava.
+  confere('saldo inicial negativo é recusado', tentar(() => lancar({ tipo: 'saldoInicial', valor: -5 })), 'Valor invalido');
+  confere('saldo inicial sem valor é recusado', tentar(() => lancar({ tipo: 'saldoInicial', valor: '' })), 'Valor invalido');
+  confere('e nada foi gravado', nLinhas(), 0);
+  const definido = lancar({ tipo: 'saldoInicial', valor: '175,5' });
+  confere('o saldo inicial guarda o valor e o dia de hoje', [definido.data, ler().saldoInicial],
+    [daquiA(0), { mes: mesAtual, data: daquiA(0), valor: 175.5 }]);
+  const TRAVADO = 'O saldo inicial ja foi definido e esta travado. So o PIN do Regional corrige';
+  confere('definido, trava: salvar de novo é recusado', tentar(() => lancar({ tipo: 'saldoInicial', valor: 999 })), TRAVADO);
+  confere('o PIN da Barra no lugar do PIN do Regional não destrava',
+    tentar(() => lancar({ tipo: 'saldoInicial', valor: 999, pinRegional: '1801' })), TRAVADO);
+  confere('entrar com a chave-mestra não basta: o PIN do Regional é digitado de novo',
+    tentar(() => contexto.executar('caixinhaLancamentoSalvar', { escopo: 'barra', pin: '0418', divisao: 'barra', tipo: 'saldoInicial', valor: 999 })), TRAVADO);
+  confere('o valor travado continua o mesmo', [ler().saldoInicial.valor, nLinhas()], [175.5, 1]);
+  // A correcao muda so o valor: o dia em que foi definido fica.
+  p.abas.CaixinhaFinanceiro.dados.find(l => l[2] === 'Saldo inicial')[3] = '2026-09-15';
+  lancar({ tipo: 'saldoInicial', valor: 0, pinRegional: '0418' });
+  confere('o PIN do Regional corrige só o valor (pode ser zero), e o dia fica',
+    [ler().saldoInicial, nLinhas()], [{ mes: '2026-09', data: '2026-09-15', valor: 0 }, 1]);
+
+  // O saldo salvo do jeito antigo (so o mes) continua valendo, e ja travado.
+  p.abas.CaixinhaFinanceiro.dados.push(['antigo', 'oeste', 'Saldo inicial', '2026-08', '', '', 300, '01/08/2026 10:00']);
+  const regionalNoOeste = { escopo: 'barra', pin: '0418', divisao: 'oeste' };
+  confere('o saldo antigo é lido com o mês, sem dia', contexto.executar('caixinha', regionalNoOeste).saldoInicial,
+    { mes: '2026-08', data: '', valor: 300 });
+  confere('e também fica travado', tentar(() => contexto.executar('caixinhaLancamentoSalvar', { ...regionalNoOeste, tipo: 'saldoInicial', valor: 1 })), TRAVADO);
+  p.abas.CaixinhaFinanceiro.dados.pop();
 
   const saida = lancar({ tipo: 'saida', data: '2026-09-12', categoria: 'Kit Churrasco / lanches', descricao: 'Carne do pub', valor: '120,5' });
   lancar({ tipo: 'entrada', data: '2026-09-20', categoria: 'Outras entradas', descricao: 'Rifa', valor: 60 });

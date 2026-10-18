@@ -117,17 +117,28 @@ export function fecharMesCaixinha() {
 export function fecharFormFinanceiro() {
   state.caixinhaFinForm = null;
   state.caixinhaFinConfirmarRemover = null;
+  state.caixinhaFinConfirmarSaldo = false;
 }
 
 // Confere o formulario aberto e devolve o que vai pra planilha, ou o texto
 // do problema. O Code.gs confere tudo de novo - isto so evita a viagem.
+// O valor do saldo inicial, como foi digitado. Pode ser zero, mas nao
+// vazio: em branco nao e "zero", e "esqueci".
+export function conferirSaldoInicial(texto) {
+  if (!String(texto || '').trim()) return { erro: 'Escreva quanto tem na caixinha (pode ser 0).' };
+  const valor = lerValor(texto, 1000000);
+  if (valor === null) return { erro: 'O valor não está certo. Escreva só o número, como 175 ou 175,50.' };
+  return { valor };
+}
+
 function conferirLancamento(f) {
+  // Com o formulario aberto, o saldo inicial e sempre CORRECAO - definir
+  // pela primeira vez e o card do painel (definirSaldoInicial).
   if (f.tipo === 'saldoInicial') {
-    if (!f.mes) return { erro: 'Escolha o mês.' };
-    if (!String(f.valor || '').trim()) return { erro: 'Escreva o valor que havia no caixa (pode ser 0).' };
-    const valor = lerValor(f.valor, 1000000);
-    if (valor === null) return { erro: 'O valor não está certo. Escreva só o número, como 175 ou 175,50.' };
-    return { params: { tipo: 'saldoInicial', mes: f.mes, valor } };
+    const c = conferirSaldoInicial(f.valor);
+    if (c.erro) return c;
+    if (!String(f.pinRegional || '').trim()) return { erro: 'Digite o PIN do Regional: só ele corrige o saldo inicial.' };
+    return { params: { tipo: 'saldoInicial', valor: c.valor, pinRegional: String(f.pinRegional).trim() } };
   }
   const valor = lerValor(f.valor);
   if (!valor) return { erro: 'Escreva o valor, como 30 ou 120,50.' };
@@ -140,7 +151,44 @@ function conferirLancamento(f) {
   return { params: { tipo: f.tipo, id: f.id || '', data, categoria, descricao: String(f.descricao || '').trim(), valor } };
 }
 
-const AVISO_SALVO = { saldoInicial: '💼 Saldo inicial salvo', entrada: '🟢 Entrada lançada', saida: '🔴 Saída lançada' };
+const AVISO_SALVO = { saldoInicial: '🔒 Saldo inicial corrigido', entrada: '🟢 Entrada lançada', saida: '🔴 Saída lançada' };
+
+// O Code.gs de antes do saldo travado pede o mes do saldo ("Mes invalido"),
+// e o de antes do controle financeiro nem conhece a acao. Nos dois casos o
+// que falta e republicar - diz isso, em vez do erro cru.
+function textoDoErro(e, verbo) {
+  if (/Acao desconhecida|Mes invalido/.test(e.message)) {
+    return 'A planilha ainda está com o Code.gs antigo. Publique a versão nova no Apps Script e tente de novo.';
+  }
+  return `Não consegui ${verbo}: ${e.message}.`;
+}
+
+// Define o saldo inicial pela primeira vez, pelo card do painel - depois de
+// confirmado, trava (ver salvarLancamentoCaixinha no Code.gs).
+export async function definirSaldoInicial() {
+  const c = conferirSaldoInicial(state.caixinhaFinSaldoTexto);
+  if (c.erro) {
+    state.caixinhaFinConfirmarSaldo = false;
+    state.caixinhaFinMsg = { ok: false, texto: c.erro };
+    return render();
+  }
+  state.caixinhaFinSalvando = true;
+  state.caixinhaFinMsg = null;
+  render();
+  try {
+    await api('caixinhaLancamentoSalvar', { divisao: state.adminEscopo, tipo: 'saldoInicial', valor: c.valor });
+    mostrarAviso('🔒 Saldo inicial salvo e travado');
+    state.caixinhaFinSaldoTexto = '';
+    state.caixinhaFinConfirmarSaldo = false;
+    state.caixinhaFinSalvando = false;
+    return carregarCaixinha();
+  } catch (e) {
+    state.caixinhaFinConfirmarSaldo = false;
+    state.caixinhaFinMsg = { ok: false, texto: textoDoErro(e, 'salvar') };
+  }
+  state.caixinhaFinSalvando = false;
+  render();
+}
 
 export async function salvarLancamentoFinanceiro() {
   const f = state.caixinhaFinForm;
@@ -161,9 +209,7 @@ export async function salvarLancamentoFinanceiro() {
     return carregarCaixinha();
   } catch (e) {
     // O formulario fica aberto como estava: a pessoa tenta de novo.
-    state.caixinhaFinMsg = { ok: false, texto: /Acao desconhecida/.test(e.message)
-      ? 'A planilha ainda está com o Code.gs antigo. Publique a versão nova no Apps Script e tente de novo.'
-      : 'Não consegui salvar: ' + e.message + '.' };
+    state.caixinhaFinMsg = { ok: false, texto: textoDoErro(e, 'salvar') };
   }
   state.caixinhaFinSalvando = false;
   render();

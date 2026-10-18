@@ -297,6 +297,16 @@ document.getElementById('app').addEventListener('input', (e) => {
     escolherMesDoPeriodo(e.target);
     return;
   }
+  // O valor do saldo inicial (o card do painel) e o PIN do Regional da
+  // correcao: so lembra, sem redesenhar.
+  if (e.target.id === 'fin-saldo-valor') {
+    state.caixinhaFinSaldoTexto = e.target.value;
+    return;
+  }
+  if (e.target.id === 'fin-pin-regional' && state.caixinhaFinForm) {
+    state.caixinhaFinForm.pinRegional = e.target.value;
+    return;
+  }
   // Os campos do lancamento do controle financeiro: so lembra. Um toque
   // numa categoria redesenha a tela, e sem isto o digitado sumia.
   if ((e.target.id === 'fin-descricao' || e.target.id === 'fin-valor') && state.caixinhaFinForm) {

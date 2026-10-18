@@ -111,7 +111,9 @@ Abas em uso:
   entrada ou saída lançada (data, categoria, descrição, valor) e uma linha
   "Saldo inicial" por divisão. As mensalidades não entram aqui: o app soma
   da aba `Caixinha`. É dado de verdade, gravado pelo app. Nasce sozinha no
-  primeiro uso.
+  primeiro uso. O saldo inicial é travado: pelo app, só o PIN do Regional
+  corrige. Se for preciso começar de novo, apagar a linha "Saldo inicial"
+  da divisão aqui faz o app pedir o valor outra vez.
 - `Movimentacoes` — o livro de Entrada/Saída de integrantes: entrada,
   afastamento, retorno e desligamento, com data e motivo. Gravado pelo app
   (cadastro de Membros). Nada é apagado dela. Nasce sozinha no primeiro uso.

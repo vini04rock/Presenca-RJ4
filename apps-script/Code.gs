@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-10-18-v-caixinha-financeiro';
+var VERSAO = '2026-10-18-v-saldo-travado';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -103,9 +103,13 @@ var CAB_CAIXINHA = ['Divisao', 'Mes', 'ID Membro', 'Membro', 'Pagou', 'Atualizad
 var VALOR_CAIXINHA_PADRAO = 30;
 // O controle financeiro da caixinha: o que entra fora das mensalidades e o
 // que sai, uma linha por lancamento, e o saldo inicial de cada divisao (uma
-// linha so, Tipo 'Saldo inicial', com o mes em "Data"). As mensalidades NAO
-// entram aqui: o app soma direto da aba Caixinha, pra cada real ter um
-// lugar so na planilha.
+// linha so, Tipo 'Saldo inicial'). As mensalidades NAO entram aqui: o app
+// soma direto da aba Caixinha, pra cada real ter um lugar so na planilha.
+//
+// O "Data" do saldo inicial e o DIA em que ele foi definido ('yyyy-mm-dd'):
+// o valor e o que havia no caixa naquele dia, com o mes dele ja dentro. Os
+// saldos salvos antes disso tem so o mes ('yyyy-mm') e valem do jeito antigo
+// - o que havia no COMECO daquele mes. Ver movimentosDoCaixa no app.
 var CAB_CAIXINHA_FINANCEIRO = ['ID', 'Divisao', 'Tipo', 'Data', 'Categoria', 'Descricao', 'Valor', 'Atualizado em'];
 var TIPOS_LANCAMENTO = { saldoInicial: 'Saldo inicial', entrada: 'Entrada', saida: 'Saida' };
 // O livro de Entrada/Saida de integrantes: uma linha por movimentacao, e
@@ -1758,9 +1762,14 @@ function lerFinanceiroCaixinha(divisao) {
     if (!l[0] || String(l[1]) !== divisao) return;
     var tipo = String(l[2]);
     if (tipo === TIPOS_LANCAMENTO.saldoInicial) {
-      var mes = formatarMes(l[3]);
+      // Dia ('yyyy-mm-dd', o de hoje) ou so o mes (o antigo). Uma celula
+      // editada a mao pode voltar como Date - ai vira o dia.
+      var bruto = ehData(l[3]) ? formatarData(l[3]) : String(l[3] || '');
       var n = Number(String(l[6]).replace(',', '.'));
-      if (/^\d{4}-\d{2}$/.test(mes) && isFinite(n)) saldoInicial = { mes: mes, valor: Math.round(n * 100) / 100 };
+      if (!isFinite(n)) return;
+      var valor = Math.round(n * 100) / 100;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(bruto)) saldoInicial = { mes: bruto.slice(0, 7), data: bruto, valor: valor };
+      else if (/^\d{4}-\d{2}$/.test(bruto)) saldoInicial = { mes: bruto, data: '', valor: valor };
       return;
     }
     var chave = tipo === TIPOS_LANCAMENTO.entrada ? 'entrada' : tipo === TIPOS_LANCAMENTO.saida ? 'saida' : '';
@@ -1826,8 +1835,11 @@ function removerCaixinhaMes(p) {
 // Grava um lancamento do controle financeiro. tipo:
 //   'entrada' | 'saida' - com data ('yyyy-mm-dd', hoje se vier vazia),
 //     categoria, descricao e valor. Com `id`, corrige aquele lancamento.
-//   'saldoInicial' - o saldo da divisao no comeco de um mes ('yyyy-mm'),
-//     que pode ser zero. Ha um so por divisao: salvar de novo substitui.
+//   'saldoInicial' - quanto havia no caixa HOJE (pode ser zero). E o ponto
+//     de partida: definido uma vez, trava. Corrigir o valor depois so com o
+//     PIN do Regional, em `pinRegional` - o da divisao nao destrava, nem o do
+//     Regional usado pra entrar (quem entra pela Barra com a chave-mestra
+//     digita de novo, de proposito). A correcao muda so o valor; o dia fica.
 // A divisao conferida e a dos dados: na correcao, a da linha gravada - quem
 // entrou pela Barra nao corrige um lancamento do Oeste mandando divisao=barra.
 function salvarLancamentoCaixinha(p) {
@@ -1839,15 +1851,20 @@ function salvarLancamentoCaixinha(p) {
   var hoje = Utilities.formatDate(new Date(), fuso(), 'yyyy-MM-dd');
 
   if (tipo === 'saldoInicial') {
-    var mes = String(p.mes || '');
-    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(mes)) throw new Error('Mes invalido');
-    if (mes > hoje.slice(0, 7)) throw new Error('O saldo inicial nao pode ser de um mes que ainda nao chegou');
     var bruto = String(p.valor === undefined || p.valor === null ? '' : p.valor).replace(',', '.');
     var saldo = bruto === '' ? NaN : Number(bruto);
     if (!isFinite(saldo) || saldo < 0 || saldo > 1000000) throw new Error('Valor invalido');
-    apagarLinhas(s, function (l) { return String(l[1]) === divisao && String(l[2]) === TIPOS_LANCAMENTO.saldoInicial; });
-    gravarLancamento(s, s.getLastRow() + 1, [novoId(), divisao, TIPOS_LANCAMENTO.saldoInicial, mes, '', '', Math.round(saldo * 100) / 100, agora()]);
-    return { ok: true };
+    saldo = Math.round(saldo * 100) / 100;
+    var existente = acharLinha(s, function (l) { return String(l[1]) === divisao && String(l[2]) === TIPOS_LANCAMENTO.saldoInicial; });
+    if (existente) {
+      if (!verificarPin('regional', String(p.pinRegional || '')).valido) {
+        throw new Error('O saldo inicial ja foi definido e esta travado. So o PIN do Regional corrige');
+      }
+      s.getRange(existente.indice, 7, 1, 2).setValues([[saldo, agora()]]);
+      return { ok: true, corrigido: true };
+    }
+    gravarLancamento(s, s.getLastRow() + 1, [novoId(), divisao, TIPOS_LANCAMENTO.saldoInicial, hoje, '', '', saldo, agora()]);
+    return { ok: true, data: hoje };
   }
 
   if (tipo !== 'entrada' && tipo !== 'saida') throw new Error('Tipo de lancamento desconhecido');
