@@ -703,7 +703,7 @@ log('');
 log('=== caixinha: meses, quem está em dia e quem deve ===');
 {
   const { rankCaixinha, mesISO, nomeDoMes, nomeCurtoDoMes, mesesParaEscolher, mesesDoPeriodo, quemNaoPagou,
-    textoCaixinha, textoCobrancaCaixinha } = await import(url('dominio/caixinha.js'));
+    textoCaixinha, relatorioMesCaixinha, textoRelatorioMesCaixinha } = await import(url('dominio/caixinha.js'));
   const base = new Date(2026, 9, 18); // 18/10/2026
   confere('o mês de hoje e os vizinhos', [mesISO(0, base), mesISO(-1, base), mesISO(1, base), mesISO(-10, base)],
     ['2026-10', '2026-09', '2026-11', '2025-12']);
@@ -738,8 +738,15 @@ log('=== caixinha: meses, quem está em dia e quem deve ===');
 
   const roster = [...membros];
   confere('quem não pagou, com quem saiu pelo nome gravado', nomes(quemNaoPagou(dados.meses[1], roster)), ['Raposo', 'Nome c9']);
-  const cobranca = textoCobrancaCaixinha(dados.meses[0], roster, 'barra').split('\n');
-  confere('cobrança do mês', cobranca.slice(1), ['*BARRA - RJ4* · Outubro/2026', '', '1. Raposo (VI)']);
+  // Relatorio do mes: os dois lados, com nome, na ordem hierarquica.
+  const rel = relatorioMesCaixinha(dados.meses[1], roster);
+  confere('relatório do mês: quem pagou e quem não pagou', [nomes(rel.pagaram), nomes(rel.naoPagaram), rel.pct],
+    [['Costa'], ['Raposo', 'Nome c9'], 33]);
+  const relTexto = textoRelatorioMesCaixinha(dados.meses[0], roster, 'barra').split('\n');
+  confere('relatório do mês pro WhatsApp', relTexto.slice(1), ['*BARRA - RJ4* · Outubro/2026', '', '*2 de 3* pagaram (67%)',
+    '', '✅ *PAGARAM (2)*', '✅ Costa (VI)', '✅ Bravo (X)', '', '❌ *NÃO PAGARAM (1)*', '❌ Raposo (VI)']);
+  const todosPagaram = textoRelatorioMesCaixinha(dados.meses[2], roster, 'barra');
+  confere('mês em que todos pagaram não tem a lista de quem não pagou', /NÃO PAGARAM/.test(todosPagaram), false);
   const texto = textoCaixinha(r, 'barra', 0).split('\n');
   confere('panorama: os meses do mais antigo pro mais novo', texto.filter(l => l.startsWith('• ')),
     ['• Julho/2026: 2 de 2 pagaram', '• Setembro/2026: 1 de 3 pagaram', '• Outubro/2026: 2 de 3 pagaram']);

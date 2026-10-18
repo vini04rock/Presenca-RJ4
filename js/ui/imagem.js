@@ -42,23 +42,26 @@ async function prepararFontes() {
   } catch (e) { /* sem a fonte, sai na do sistema - melhor que nao sair */ }
 }
 
-async function novaTela() {
+// `altura`: 4:5 (A) por padrao. O relatorio do mes da Caixinha pede mais
+// quando a lista de nomes nao cabe - a imagem cresce pra baixo, em vez de
+// espremer os nomes ate ninguem ler.
+async function novaTela(altura = A) {
   await prepararFontes();
   const [fundo, logo] = await Promise.all([carregarImagem(IMG_FUNDO), carregarImagem(LOGO_SRC)]);
   const canvas = document.createElement('canvas');
   canvas.width = L;
-  canvas.height = A;
+  canvas.height = altura;
   const ctx = canvas.getContext('2d');
   // A foto cobrindo tudo, escurecida por cima pra o texto ler bem.
-  const escala = Math.max(L / fundo.width, A / fundo.height);
+  const escala = Math.max(L / fundo.width, altura / fundo.height);
   const fw = fundo.width * escala, fh = fundo.height * escala;
-  ctx.drawImage(fundo, (L - fw) / 2, (A - fh) * 0.35, fw, fh);
-  const veu = ctx.createLinearGradient(0, 0, 0, A);
+  ctx.drawImage(fundo, (L - fw) / 2, (altura - fh) * 0.35, fw, fh);
+  const veu = ctx.createLinearGradient(0, 0, 0, altura);
   veu.addColorStop(0, 'rgba(10,10,10,0.78)');
   veu.addColorStop(0.45, 'rgba(10,10,10,0.70)');
   veu.addColorStop(1, 'rgba(10,10,10,0.92)');
   ctx.fillStyle = veu;
-  ctx.fillRect(0, 0, L, A);
+  ctx.fillRect(0, 0, L, altura);
   return { canvas, ctx, logo };
 }
 
@@ -117,12 +120,13 @@ function tituloMetal(ctx, texto, y, tamanho, larguraMax) {
   return textoCentral(ctx, texto, y, tamanho * 1.18, larguraMax);
 }
 
-function rotuloEspacado(ctx, texto, y, tamanho, cor) {
+// Centralizado na imagem, ou em `x` quando vier.
+function rotuloEspacado(ctx, texto, y, tamanho, cor, x = L / 2) {
   fonte(ctx, tamanho, 700);
   ctx.textAlign = 'center';
   ctx.fillStyle = cor;
   if ('letterSpacing' in ctx) ctx.letterSpacing = `${Math.round(tamanho * 0.22)}px`;
-  ctx.fillText(texto, L / 2, y);
+  ctx.fillText(texto, x, y);
   if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
 }
 
@@ -135,17 +139,17 @@ function emblema(ctx, logo, y, tamanho) {
   ctx.restore();
 }
 
-function rodape(ctx) {
+function rodape(ctx, altura = A) {
   ctx.strokeStyle = 'rgba(212,162,76,0.35)';
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(L / 2 - 180, A - 120);
-  ctx.lineTo(L / 2 + 180, A - 120);
+  ctx.moveTo(L / 2 - 180, altura - 120);
+  ctx.lineTo(L / 2 + 180, altura - 120);
   ctx.stroke();
-  rotuloEspacado(ctx, 'INSANOS MC  ·  REGIONAL RJ4', A - 72, 26, COR.ouro);
+  rotuloEspacado(ctx, 'INSANOS MC  ·  REGIONAL RJ4', altura - 72, 26, COR.ouro);
   fonte(ctx, 20, 600);
   ctx.fillStyle = COR.apagado;
-  ctx.fillText('DISCIPLINA · RESPEITO · IRMANDADE · SEMPRE', L / 2, A - 38);
+  ctx.fillText('DISCIPLINA · RESPEITO · IRMANDADE · SEMPRE', L / 2, altura - 38);
 }
 
 // A rosca: as fatias em ordem, comecando no topo, e o % grande no meio.
@@ -464,6 +468,121 @@ export async function imagemCaixinha(r, nomeDivisao, rotuloPeriodo) {
   }
 
   rodape(ctx);
+  return canvas;
+}
+
+// ---------------------------------------------------------------------------
+// O relatorio de UM mes da Caixinha: a pizza de quem pagou e quem nao pagou,
+// e as duas listas de nomes - ✅ quem pagou, ❌ quem nao pagou, os emojis da
+// confirmacao de presenca. Diferente das outras imagens, esta leva o nome de
+// quem nao pagou: decisao do clube (18/10/2026), so pra este relatorio.
+// `r` e o relatorioMesCaixinha.
+
+// Corta o nome com "…" quando nao cabe na coluna (com a fonte ja escolhida).
+function caber(ctx, texto, larguraMax) {
+  if (ctx.measureText(texto).width <= larguraMax) return texto;
+  let t = texto;
+  while (t.length > 1 && ctx.measureText(t + '…').width > larguraMax) t = t.slice(0, -1);
+  return t + '…';
+}
+
+// Pizza de verdade (fatias cheias), com uma linha escura separando as fatias.
+function pizza(ctx, cx, cy, raio, fatias) {
+  const total = fatias.reduce((s, [v]) => s + v, 0);
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.6)';
+  ctx.shadowBlur = 28;
+  ctx.shadowOffsetY = 8;
+  ctx.fillStyle = COR.trilho;
+  ctx.beginPath(); ctx.arc(cx, cy, raio, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  if (!total) return;
+  let inicio = -Math.PI / 2;
+  fatias.forEach(([valor, cor]) => {
+    if (!valor) return;
+    const fim = inicio + (valor / total) * Math.PI * 2;
+    ctx.fillStyle = cor;
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, raio, inicio, fim); ctx.closePath(); ctx.fill();
+    inicio = fim;
+  });
+  // A divisa entre as fatias (so quando ha duas) e o aro dourado em volta.
+  if (fatias.filter(([v]) => v).length > 1) {
+    ctx.strokeStyle = 'rgba(10,10,10,0.85)';
+    ctx.lineWidth = 5;
+    let a = -Math.PI / 2;
+    fatias.forEach(([valor]) => {
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + raio * Math.cos(a), cy + raio * Math.sin(a)); ctx.stroke();
+      a += (valor / total) * Math.PI * 2;
+    });
+  }
+  ctx.strokeStyle = 'rgba(212,162,76,0.55)';
+  ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(cx, cy, raio + 2, 0, Math.PI * 2); ctx.stroke();
+}
+
+// Uma coluna da lista: o painel de vidro, o titulo colorido e um nome por
+// linha, cada um com o emoji do lado.
+function colunaNomes(ctx, x, y, largura, alturaLinha, titulo, cor, emoji, membros) {
+  const altura = 70 + Math.max(1, membros.length) * alturaLinha + 18;
+  ctx.fillStyle = 'rgba(255,255,255,0.05)';
+  ctx.beginPath(); retangulo(ctx, x, y, largura, altura, 22); ctx.fill();
+  ctx.strokeStyle = cor;
+  ctx.globalAlpha = 0.45;
+  ctx.lineWidth = 2;
+  ctx.beginPath(); retangulo(ctx, x, y, largura, altura, 22); ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  fonte(ctx, 26, 700);
+  ctx.fillStyle = cor;
+  ctx.fillText(titulo, x + 26, y + 38);
+
+  fonte(ctx, 28, 600);
+  ctx.fillStyle = COR.texto;
+  if (!membros.length) {
+    ctx.fillStyle = COR.apagado;
+    ctx.fillText('Ninguém', x + 26, y + 70 + alturaLinha / 2);
+  }
+  membros.forEach((m, i) => {
+    const nome = m.nome + (m.grau ? ` (${m.grau})` : '');
+    ctx.fillText(`${emoji} ${caber(ctx, nome, largura - 90)}`, x + 26, y + 70 + i * alturaLinha + alturaLinha / 2);
+  });
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  return y + altura;
+}
+
+export async function imagemMesCaixinha(r, nomeDivisao) {
+  const alturaLinha = 46;
+  const topoLista = 800;
+  const maisLonga = Math.max(1, r.pagaram.length, r.naoPagaram.length);
+  const altura = Math.max(A, topoLista + 70 + maisLonga * alturaLinha + 18 + 190);
+  const { canvas, ctx, logo } = await novaTela(altura);
+
+  emblema(ctx, logo, 40, 140);
+  let y = tituloMetal(ctx, '💰 Caixinha', 255, 62, 980);
+  rotuloEspacado(ctx, `${nomeDivisao.toUpperCase()}  ·  ${nomeDoMes(r.mes).toUpperCase()}`, y + 2, 24, COR.ouro);
+
+  // A pizza a esquerda, o numero grande a direita.
+  const cy = 560;
+  pizza(ctx, 300, cy, 170, [[r.pagaram.length, COR.confirmado], [r.naoPagaram.length, COR.infracional]]);
+  ctx.textAlign = 'center';
+  fonte(ctx, 120, 400, 'rye');
+  ctx.fillStyle = COR.marfim;
+  ctx.fillText(r.pct === null ? '—' : `${r.pct}%`, 760, cy - 20);
+  rotuloEspacado(ctx, 'PAGARAM', cy + 30, 24, COR.apagado, 760);
+  fonte(ctx, 32, 700);
+  ctx.fillStyle = COR.confirmado;
+  ctx.fillText(`✅ ${r.pagaram.length} ${r.pagaram.length === 1 ? 'pagou' : 'pagaram'}`, 760, cy + 95);
+  ctx.fillStyle = COR.infracional;
+  ctx.fillText(`❌ ${r.naoPagaram.length} não ${r.naoPagaram.length === 1 ? 'pagou' : 'pagaram'}`, 760, cy + 145);
+
+  const largura = (L - 80 * 2 - 30) / 2;
+  colunaNomes(ctx, 80, topoLista, largura, alturaLinha, `✅ PAGARAM (${r.pagaram.length})`, COR.confirmado, '✅', r.pagaram);
+  colunaNomes(ctx, 80 + largura + 30, topoLista, largura, alturaLinha, `❌ NÃO PAGARAM (${r.naoPagaram.length})`, COR.infracional, '❌', r.naoPagaram);
+
+  rodape(ctx, altura);
   return canvas;
 }
 

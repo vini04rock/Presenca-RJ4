@@ -93,12 +93,25 @@ export function rankCaixinha(dados, membros, janela, base = new Date()) {
   };
 }
 
-// Quem deve um mes, na ordem hierarquica, com o grau do cadastro. Quem ja
-// saiu do clube entra pelo nome que ficou gravado no mes.
+// Os integrantes de um mes, na ordem hierarquica, com o grau do cadastro.
+// Quem ja saiu do clube entra pelo nome que ficou gravado no mes.
+function integrantesDoMes(mesLancado, roster, pagou) {
+  return ordenarPorHierarquia((mesLancado.membros || []).filter(m => m.pagou === pagou)
+    .map(m => roster.find(r => r.id === m.id) || { id: m.id, nome: m.nome }));
+}
+
 export function quemNaoPagou(mesLancado, roster) {
-  const faltam = (mesLancado.membros || []).filter(m => !m.pagou)
-    .map(m => roster.find(r => r.id === m.id) || { id: m.id, nome: m.nome });
-  return ordenarPorHierarquia(faltam);
+  return integrantesDoMes(mesLancado, roster, false);
+}
+
+// O relatorio de um mes: quem pagou, quem nao pagou e o %. E o que a imagem
+// e o texto do mes mostram - os dois saem daqui pra nunca discordarem.
+export function relatorioMesCaixinha(mesLancado, roster) {
+  const pagaram = integrantesDoMes(mesLancado, roster, true);
+  const naoPagaram = integrantesDoMes(mesLancado, roster, false);
+  const total = pagaram.length + naoPagaram.length;
+  return { mes: mesLancado.mes, pagaram, naoPagaram, total,
+    pct: total ? Math.round((pagaram.length / total) * 100) : null };
 }
 
 const linhaNome = m => `${m.nome}${m.grau ? ` (${m.grau})` : ''}`;
@@ -125,13 +138,19 @@ export function textoCaixinha(rank, escopo, janela) {
   return partes.join('\n');
 }
 
-// A cobranca de um mes so, no mesmo espirito do "📋 Cobrar" dos eventos.
-export function textoCobrancaCaixinha(mesLancado, roster, escopo) {
-  const faltam = quemNaoPagou(mesLancado, roster);
-  return [
-    '💰 *CAIXINHA — FALTA PAGAR* 💰',
-    `*${escopoPorChave(escopo).nome.toUpperCase()}* · ${nomeDoMes(mesLancado.mes)}`,
+// O relatorio de um mes pro WhatsApp: ✅ quem pagou e ❌ quem nao pagou,
+// os mesmos emojis da confirmacao de presenca. Por decisao do clube
+// (18/10/2026), o relatorio do mes leva os nomes dos dois lados - na
+// imagem tambem.
+export function textoRelatorioMesCaixinha(mesLancado, roster, escopo) {
+  const r = relatorioMesCaixinha(mesLancado, roster);
+  const partes = [
+    '💰 *CAIXINHA* 💰',
+    `*${escopoPorChave(escopo).nome.toUpperCase()}* · ${nomeDoMes(r.mes)}`,
     '',
-    ...faltam.map((m, i) => `${i + 1}. ${linhaNome(m)}`),
-  ].join('\n');
+    `*${r.pagaram.length} de ${r.total}* pagaram${r.pct === null ? '' : ` (${r.pct}%)`}`,
+  ];
+  if (r.pagaram.length) partes.push('', `✅ *PAGARAM (${r.pagaram.length})*`, ...r.pagaram.map(m => `✅ ${linhaNome(m)}`));
+  if (r.naoPagaram.length) partes.push('', `❌ *NÃO PAGARAM (${r.naoPagaram.length})*`, ...r.naoPagaram.map(m => `❌ ${linhaNome(m)}`));
+  return partes.join('\n');
 }

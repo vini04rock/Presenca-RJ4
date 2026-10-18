@@ -6,7 +6,7 @@
 // So aparece nas divisoes de temDoacoesECaixinha (ver config.js).
 
 import { carregarCaixinha } from '../dados/carregar.js';
-import { mesesParaEscolher, nomeCurtoDoMes, nomeDoMes, quemNaoPagou, rankCaixinha, textoCaixinha, textoCobrancaCaixinha } from '../dominio/caixinha.js';
+import { mesesParaEscolher, nomeCurtoDoMes, nomeDoMes, rankCaixinha, relatorioMesCaixinha, textoCaixinha, textoRelatorioMesCaixinha } from '../dominio/caixinha.js';
 import { PERIODOS, nomeDoPeriodo, rotuloPilula } from '../dominio/doacoes.js';
 import { membrosDoEscopo } from '../dominio/estatisticas.js';
 import { fecharMesCaixinha, removerMesCaixinha, salvarCaixinha } from '../fluxos/doacoes-caixinha.js';
@@ -16,7 +16,7 @@ import { render } from '../nucleo/render.js';
 import { copiarTexto, escapeHtml, ordenarPorHierarquia } from '../nucleo/util.js';
 import { anelConfirmados, medalha, posicoesDoPodio, selinhoIniciais } from '../ui/comuns.js';
 import { esqueletoLista, renderDonutChart } from '../ui/graficos.js';
-import { imagemCaixinha, mostrarPreviaImagem } from '../ui/imagem.js';
+import { imagemCaixinha, imagemMesCaixinha, mostrarPreviaImagem } from '../ui/imagem.js';
 
 function dados() {
   return state.caixinhaDadosEscopo === state.adminEscopo ? state.caixinhaDados : null;
@@ -78,11 +78,10 @@ function cardMesLancado(l) {
         </div>
         <span style="color:var(--text-muted); font-size:20px;">›</span>
       </div>
-      ${faltam ? `
-        <div class="row-gap" style="margin-top:10px;">
-          <button class="btn secondary" style="flex:1;" data-action="cobrar-caixinha" data-value="${l.mes}">📋 Cobrar quem falta (${faltam})</button>
-        </div>
-      ` : ''}
+      <div class="row-gap" style="margin-top:10px;">
+        <button class="btn secondary" style="flex:1;" data-action="imagem-mes-caixinha" data-value="${l.mes}">🖼️ Relatório em imagem</button>
+        <button class="btn secondary" style="flex:1;" data-action="texto-mes-caixinha" data-value="${l.mes}">📋 Relatório pro WhatsApp</button>
+      </div>
     </div>
   `;
 }
@@ -321,10 +320,17 @@ export const acoes = {
   'remover-mes-caixinha': async (id, target, action, e) => {
     return removerMesCaixinha();
   },
-  'cobrar-caixinha': async (id, target, action, e) => {
+  // O relatorio de um mes: quem pagou e quem nao pagou, com os nomes.
+  'imagem-mes-caixinha': async (id, target, action, e) => {
     const l = mesLancado(target.dataset.value);
-    if (!l || !quemNaoPagou(l, state.roster).length) return;
-    return copiarTexto(textoCobrancaCaixinha(l, state.roster, state.adminEscopo));
+    if (!l) return;
+    const r = relatorioMesCaixinha(l, state.roster);
+    return mostrarPreviaImagem(() => imagemMesCaixinha(r, escopoPorChave(state.adminEscopo).nome), `caixinha-${l.mes}.png`);
+  },
+  'texto-mes-caixinha': async (id, target, action, e) => {
+    const l = mesLancado(target.dataset.value);
+    if (!l) return;
+    return copiarTexto(textoRelatorioMesCaixinha(l, state.roster, state.adminEscopo));
   },
   'caixinha-periodo': async (id, target, action, e) => {
     state.caixinhaPeriodo = Number(target.dataset.value);

@@ -366,6 +366,11 @@ Só pagou ou não pagou, sem valores em dinheiro no app.
   na lista daquele mês.
 - **Rank:** % de meses pagos por integrante, os meses que cada um deve,
   quantos pagaram em cada mês (barras) e o % da divisão.
+- **Relatório de cada mês:** cada mês lançado tem 🖼️ Relatório em imagem e
+  📋 Relatório pro WhatsApp. Os dois mostram a pizza (ou o "X de Y") e os
+  nomes dos dois lados: ✅ quem pagou e ❌ quem não pagou, os emojis da
+  confirmação de presença. Saem do mesmo `relatorioMesCaixinha`, então
+  nunca discordam. A imagem cresce para baixo quando a lista não cabe.
 
 Regras que valem para as duas:
 
@@ -381,10 +386,11 @@ Regras que valem para as duas:
   no total da divisão e nos meses. O nome dele fica gravado em cada linha,
   igual em `Presencas`.
 - **A imagem pro grupo não leva nome de quem falhou**, a regra de sempre.
-  Na de Doações vai o pódio de quem mais levou; na da Caixinha, só os
-  números do grupo, sem nome nenhum. Os nomes de quem não levou ou está
-  devendo ficam no **texto** (📋 Copiar pro WhatsApp e 📋 Cobrar), que é
-  o que serve para cobrar.
+  Na de Doações vai o pódio de quem mais levou; na do Rank da Caixinha, só
+  os números do grupo. Os nomes de quem não levou ficam no **texto**, que é
+  o que serve para cobrar. **A exceção é o relatório de um mês da
+  Caixinha**, que mostra quem não pagou também na imagem: decisão do clube,
+  em 18/10/2026.
 - Os dados são buscados ao **entrar** na seção, não a cada troca de aba:
   "Por evento" e "Rank" são o mesmo dado visto de dois jeitos.
 - Remover um evento apaga as doações dele.
