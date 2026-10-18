@@ -362,6 +362,18 @@ O que cada um faz (`registrarMovimento`, no `Code.gs`):
   de 30 lugares leem o cadastro) parar de enxergá-lo sem mexer em nenhum
   deles. Ele continua existindo no livro e nas linhas antigas de
   `Presencas`.
+- **Remover** (o botão do cadastro) é o oposto: cadastro feito errado, que
+  some **de tudo**, como se nunca tivesse existido. Desde 19/10/2026 apaga
+  o integrante do cadastro, das presenças, do livro de Entrada/Saída, das
+  doações, da caixinha e do Insight (`removerMembro`, no `Code.gs`), e
+  pede confirmação na própria linha antes, dizendo isso. Antes ele
+  esquecia o livro, e um integrante de teste removido continuava contando
+  como "entrou". Para os removidos antes da correção, o livro não conta
+  quem **não está no cadastro e nunca teve desligamento** (`lerMovimentos`):
+  o desligado também saiu do cadastro, mas tem o Desligamento registrado.
+  Essa conferência vale só no livro. Nas doações e na caixinha, quem saiu
+  do clube antes do livro existir tem o mesmo jeito de removido, e não
+  pode sumir.
 
 **O relatório** é o card **🔄 Entrada/Saída** do menu do organizador
 (`telas/admin-movimentos.js`, contas em `dominio/movimentos.js`):
@@ -693,7 +705,7 @@ a cada mudança:
 | `servidor.py` | serve o app local com o cache desligado |
 | `estrutura.py` | 7 verificações: imports circulares, hierarquia de camadas, sintaxe, nome sem import, import sobrando, ações sem tratador |
 | `regras.mjs` | as regras do clube que, se quebrarem, saem erradas numa convocação sem ninguém perceber |
-| `telas.mjs` | desenha as 149 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
+| `telas.mjs` | desenha as 150 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
 | `planilha.mjs` | roda o `Code.gs` de verdade contra uma planilha de mentira: encerramento automático, PIN, relatório individual, responsável, textos, chamada do evento, doações, caixinha e entrada/saída |
 
 O `--html` do `telas.mjs` é a rede de proteção mais útil: captura o HTML de
@@ -819,7 +831,7 @@ ferramentas, acima):
 
     py ferramentas/estrutura.py     # imports, camadas, sintaxe, ações
     node ferramentas/regras.mjs     # ordem hierárquica e formato da convocação
-    node ferramentas/telas.mjs      # desenha as 149 telas e abas
+    node ferramentas/telas.mjs      # desenha as 150 telas e abas
     node ferramentas/planilha.mjs   # o encerramento automático, no Code.gs
 
 Eles dizem que o app **não quebrou**, não que está bonito: não cobrem

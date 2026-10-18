@@ -549,6 +549,7 @@ add('membros / cadastro com afastado',   { isAdmin:true, adminEscopo:'barra', ad
 add('membros / afastando (painel)',      { isAdmin:true, adminEscopo:'barra', adminTab:'membros', movMembroId:'m1', movTipo:'afastamento' }, T.renderAdmin);
 add('membros / retorno (painel)',        { isAdmin:true, adminEscopo:'barra', adminTab:'membros', roster:rosterComAfastado,
   movMembroId:'m2', movTipo:'retorno', movData:'18/10/2026' }, T.renderAdmin);
+add('membros / confirmando remover',     { isAdmin:true, adminEscopo:'barra', adminTab:'membros', removerMembroId:'m1' }, T.renderAdmin);
 add('membros / desligando (com erro)',   { isAdmin:true, adminEscopo:'barra', adminTab:'membros', movMembroId:'m3', movTipo:'desligamento',
   movMotivo:'Pediu pra sair', movErro:'Não consegui registrar: Falha de conexao.' }, T.renderAdmin);
 const mvs = { isAdmin:true, adminTab:'movimentos', roster:rosterComAfastado, movimentosDados:movimentosFalsos, movimentosPeriodo:0 };
@@ -597,7 +598,7 @@ const LIMPO = {
   caixinhaFinForm:null, caixinhaFinSalvando:false, caixinhaFinMsg:null, caixinhaFinConfirmarRemover:null,
   caixinhaFinSaldoTexto:'', caixinhaFinConfirmarSaldo:false,
   caixinhaFinQtdExtrato:15, caixinhaFinRelatorio:false, caixinhaFinPeriodo:0,
-  roster:membros, newMemberEntrada:'', movMembroId:null, movTipo:null, movData:'', movMotivo:'', movSalvando:false, movErro:null,
+  roster:membros, newMemberEntrada:'', movMembroId:null, movTipo:null, movData:'', movMotivo:'', movSalvando:false, movErro:null, removerMembroId:null,
   movimentosDados:null, movimentosDadosEscopo:null, movimentosErro:null, movimentosPeriodo:0, movimentosDivisaoAberta:null,
 };
 log('');

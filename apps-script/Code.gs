@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-10-19-v-estoque-doacoes';
+var VERSAO = '2026-10-19-v-remover-de-tudo';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -1264,9 +1264,21 @@ function salvarTextoChamada(p) {
   return { ok: true };
 }
 
+// Remover e pra cadastro feito errado: o integrante some de TODO lugar,
+// como se nunca tivesse existido - presencas, livro de Entrada/Saida,
+// doacoes, caixinha e Insight (decisao do clube, 19/10/2026). Quem saiu do
+// clube de verdade e Desligamento (registrarMovimento), que guarda tudo.
 function removerMembro(id) {
-  apagarLinhas(aba(ABA_MEMBROS, CAB_MEMBROS), function (l) { return String(l[0]) === String(id); });
-  apagarLinhas(aba(ABA_PRESENCAS, CAB_PRESENCAS), function (l) { return String(l[2]) === String(id); });
+  var mid = String(id);
+  apagarLinhas(aba(ABA_MEMBROS, CAB_MEMBROS), function (l) { return String(l[0]) === mid; });
+  apagarLinhas(aba(ABA_PRESENCAS, CAB_PRESENCAS), function (l) { return String(l[2]) === mid; });
+  // [aba, coluna do ID do membro]. So nas abas que existem - remover nao
+  // cria aba nenhuma.
+  [[ABA_MOVIMENTOS, 3], [ABA_DOACOES, 3], [ABA_CAIXINHA, 2],
+   [ABA_INSIGHT_PRESENCAS, 1], [ABA_INSIGHT_EXCLUIDOS, 0]].forEach(function (par) {
+    var s = planilha().getSheetByName(par[0]);
+    if (s) apagarLinhas(s, function (l) { return String(l[par[1]]) === mid; });
+  });
   return { ok: true };
 }
 
@@ -2052,11 +2064,20 @@ function registrarMovimento(p) {
 // O livro de uma divisao, do mais recente pro mais antigo. Pelo Regional
 // (divisao = 'regional') vem o livro inteiro, de todas as divisoes - e o
 // quadro comparativo; por isso ali so o PIN do Regional vale.
+//
+// Quem foi REMOVIDO (cadastro feito errado) nao conta: o Remover ja apaga o
+// livro dele, e esta conferencia pega quem foi removido antes disso. Removido
+// e quem nao esta mais em Membros e nunca teve desligamento - o desligado
+// tambem saiu de Membros, mas tem o Desligamento no livro, e continua.
 function lerMovimentos(divisao, pin) {
   if (!podeNaDivisao(divisao, pin)) return SEM_PERMISSAO_DIVISAO;
   var todas = divisao === 'regional';
-  var movimentos = linhas(aba(ABA_MOVIMENTOS, CAB_MOVIMENTOS))
-    .filter(function (l) { return l[0] && (todas || String(l[2]) === divisao); })
+  var livro = linhas(aba(ABA_MOVIMENTOS, CAB_MOVIMENTOS));
+  var existe = {};
+  linhas(aba(ABA_MEMBROS, CAB_MEMBROS)).forEach(function (l) { if (l[0]) existe[String(l[0])] = true; });
+  livro.forEach(function (l) { if (String(l[6]) === TIPOS_MOVIMENTO.desligamento) existe[String(l[3])] = true; });
+  var movimentos = livro
+    .filter(function (l) { return l[0] && (todas || String(l[2]) === divisao) && existe[String(l[3])]; })
     .map(function (l) {
       var tipo = '';
       Object.keys(TIPOS_MOVIMENTO).forEach(function (k) { if (TIPOS_MOVIMENTO[k] === String(l[6])) tipo = k; });

@@ -196,6 +196,22 @@ function painelMovimento(m) {
   `;
 }
 
+// A confirmacao do Remover, na linha, no mesmo formato dos paineis de
+// movimentacao. Remover apaga TUDO do integrante (cadastro feito errado);
+// quem saiu do clube e Desligamento, que guarda o historico.
+function painelRemover(m) {
+  return `
+    <div class="mov-painel mov-desligamento">
+      <div class="mov-titulo">🗑️ Remover ${escapeHtml(m.nome)}?</div>
+      <div class="mov-explica">É pra cadastro feito errado: apaga o cadastro e todo o histórico dele — presenças, Entrada/Saída, doações, caixinha e Insight —, como se nunca tivesse existido. Não dá pra desfazer. Se ele saiu do clube, use 🚪 Desligamento, que guarda o histórico.</div>
+      <div class="row-gap">
+        <button class="btn danger" style="flex:1;" data-action="confirmar-remover-membro" data-id="${m.id}">Remover</button>
+        <button class="btn secondary" style="flex:1;" data-action="cancelar-remover-membro">Cancelar</button>
+      </div>
+    </div>
+  `;
+}
+
 function linhaCadastro(m) {
   const afastado = estaAfastado(m);
   return `
@@ -218,6 +234,7 @@ function linhaCadastro(m) {
         </div>
       </div>
       ${state.movMembroId === m.id ? painelMovimento(m) : ''}
+      ${state.removerMembroId === m.id ? painelRemover(m) : ''}
     </div>
   `;
 }
@@ -338,8 +355,23 @@ export const acoes = {
     await salvarOuAvisar('membroSalvar', { ...member, funcoes: member.funcoes.join(',') });
   },
 
+  // O "Remover" so abre a confirmacao na linha; tocar de novo fecha.
   'remove-member': async (id, target, action, e) => {
+    const mesmo = state.removerMembroId === id;
+    fecharPainelMovimento();
+    if (!mesmo) state.removerMembroId = id;
+    return render();
+  },
+  'cancelar-remover-membro': async (id, target, action, e) => {
+    state.removerMembroId = null;
+    return render();
+  },
+  'confirmar-remover-membro': async (id, target, action, e) => {
+    state.removerMembroId = null;
     state.roster = state.roster.filter(m => m.id !== id);
+    // O livro de Entrada/Saida em memoria ainda tem a entrada dele: busca de
+    // novo na proxima vez que a aba abrir.
+    state.movimentosDados = null;
     render();
     await salvarOuAvisar('membroRemover', { id });
   },

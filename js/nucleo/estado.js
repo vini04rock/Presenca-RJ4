@@ -281,6 +281,8 @@ export let state = {
   movMotivo: '',
   movSalvando: false,
   movErro: null,
+  // O integrante com a confirmacao do "Remover" aberta na linha dele.
+  removerMembroId: null,
 
   // Secao Entrada/Saida do organizador: o livro de movimentacoes da divisao
   // (ou de todas, no Regional) e o periodo. No Regional, a divisao aberta

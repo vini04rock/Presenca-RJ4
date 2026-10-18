@@ -912,6 +912,39 @@ log('=== entrada/saída: afastamento, retorno e desligamento ===');
 }
 
 log('');
+log('=== remover: cadastro feito errado some de tudo ===');
+{
+  const p = montaPlanilha([ev('b1', '2026-09-05', 'encerrado')], [pr('b1', 'm1', 'Confirmado'), pr('b1', 'm2', 'Confirmado')]);
+  p.abas.Membros = novaAba('Membros', [['ID', 'Nome', 'Grau', 'Divisao', 'Funcoes', 'Cargo', 'Situacao', 'Situacao Desde', 'Entrada'],
+    ['m1', 'Teste', 'X', 'Barra - RJ4', '', '', '', '', '2026-10-18'], ['m2', 'Bull', 'X', 'Barra - RJ4', '', '', '', '', '']]);
+  const mv = (id, mid, nome, tipo) => [id, '2026-10-01', 'barra', mid, nome, 'X', tipo, '', '01/10/2026 10:00'];
+  p.abas.Movimentacoes = novaAba('Movimentacoes', [['ID', 'Data', 'Divisao', 'ID Membro', 'Membro', 'Grau', 'Tipo', 'Motivo', 'Registrado em'],
+    mv('v1', 'm1', 'Teste', 'Entrada'), mv('v2', 'm2', 'Bull', 'Entrada'),
+    // Removido ANTES desta correcao: a entrada ficou orfa no livro.
+    mv('v3', 'mx', 'Antigo teste', 'Entrada'),
+    // Desligado: saiu do cadastro, mas o livro dele continua valendo.
+    mv('v4', 'md', 'Saiu', 'Entrada'), mv('v5', 'md', 'Saiu', 'Desligamento')]);
+  p.abas.Doacoes = novaAba('Doacoes', [['ID Evento', 'Evento', 'Divisao', 'ID Membro', 'Membro', 'Kg', 'Atualizado em'],
+    ['b1', 'Evento b1', 'barra', 'm1', 'Teste', 1, ''], ['b1', 'Evento b1', 'barra', 'm2', 'Bull', 1, '']]);
+  p.abas.Caixinha = novaAba('Caixinha', [['Divisao', 'Mes', 'ID Membro', 'Membro', 'Pagou', 'Atualizado em', 'Valor'],
+    ['barra', '2026-10', 'm1', 'Teste', 'Sim', '', 30], ['barra', '2026-10', 'm2', 'Bull', 'Nao', '', '']]);
+  p.abas.InsightPresencas = novaAba('InsightPresencas', [['ID Rodada', 'ID Membro', 'Membro', 'Divisao', 'Fez'],
+    ['r1', 'm1', 'Teste', 'Barra - RJ4', 'Sim'], ['r1', 'm2', 'Bull', 'Barra - RJ4', 'Nao']]);
+  const { contexto } = carregaCodeGs(p, { PIN_REGIONAL: '0418', PIN_BARRA: '1801' });
+  const barra = { escopo: 'barra', pin: '1801' };
+  const livro = () => contexto.executar('movimentos', { ...barra, divisao: 'barra' }).movimentos.map(m => m.id).sort();
+  const ids = (nome, col) => p.abas[nome].dados.slice(1).map(l => l[col]);
+
+  confere('quem foi removido antes da correção some do livro; o desligado fica', livro(), ['v1', 'v2', 'v4', 'v5']);
+  confere('remover sem PIN é recusado', contexto.executar('membroRemover', { id: 'm1' }).ok, false);
+  contexto.executar('membroRemover', { ...barra, id: 'm1' });
+  confere('some do cadastro e das presenças', [ids('Membros', 0), ids('Presencas', 2)], [['m2'], ['m2']]);
+  confere('some do livro de Entrada/Saída', [ids('Movimentacoes', 3).filter(x => x === 'm1'), livro()], [[], ['v2', 'v4', 'v5']]);
+  confere('some das doações, da caixinha e do Insight', [ids('Doacoes', 3), ids('Caixinha', 2), ids('InsightPresencas', 1)], [['m2'], ['m2'], ['m2']]);
+  confere('e remover não cria aba que não existia', p.abas.InsightExcluidos, undefined);
+}
+
+log('');
 log(falhas === 0 ? 'TUDO OK' : `${falhas} FALHA(S) — veja acima`);
 fs.writeFileSync(SAIDA, linhas.join('\n'), 'utf8');
 process.exit(falhas === 0 ? 0 : 1);

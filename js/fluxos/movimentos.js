@@ -18,6 +18,8 @@ export function fecharPainelMovimento() {
   state.movData = '';
   state.movMotivo = '';
   state.movErro = null;
+  // A confirmacao do Remover mora na mesma linha: abrir um fecha o outro.
+  state.removerMembroId = null;
 }
 
 export async function confirmarMovimento() {
