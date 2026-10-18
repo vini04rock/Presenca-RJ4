@@ -6,7 +6,7 @@ import { TIPO_HOME_IMAGEM } from '../nucleo/imagens.js';
 import { escapeHtml, formatDataBR, linkify, ordenarPorHierarquia, pastilhaQuando } from '../nucleo/util.js';
 import { resumoDoEvento } from '../dominio/convocacao.js';
 import { renderHome } from './home.js';
-import { anelConfirmados, renderConfirmadoRow, renderListaMembros, renderStatusBanner } from '../ui/comuns.js';
+import { anelConfirmados, renderConfirmadoRow, renderListaMembros, renderStatusBanner, subtituloDoEvento } from '../ui/comuns.js';
 import { render } from '../nucleo/render.js';
 import { atualizarConfirmacoes } from '../fluxos/evento.js';
 
@@ -102,7 +102,7 @@ function renderCapaEvento(ev, members, confirmados) {
   return `
     <div class="evento-capa event-header" style="--cor-tipo:${cor};${arte ? ` background-image:url('${arte}');` : ''}">
       <div class="evento-capa-origem">${origem}</div>
-      <h1>${escapeHtml(ev.nome)}</h1>
+      <h1>${escapeHtml(ev.nome)}${subtituloDoEvento(ev)}</h1>
       <div class="event-header-row">
         ${pastilhaQuando(ev)}
         <div class="count-box">${members.length} MEMBROS</div>

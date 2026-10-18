@@ -12,7 +12,7 @@ import { genId, state } from '../nucleo/estado.js';
 import { TIPO_HOME_IMAGEM } from '../nucleo/imagens.js';
 import { dataDoCampoOuAvisar, escapeHtml, formatDataBR, formatDataCurta, hexParaRgba, pastilhaQuando } from '../nucleo/util.js';
 import { camposDoEvento, chamadaParaGuardar, enderecoDoEvento, peVazio } from '../dominio/convocacao.js';
-import { campoData, seloConfirmados } from '../ui/comuns.js';
+import { campoData, seloConfirmados, subtituloDoEvento } from '../ui/comuns.js';
 import { caixa, guardarDigitado, quadro, quadroRoteiro, quadroTipo } from '../ui/quadros-chamada.js';
 import { renderDonutChart, segmentosDonutStatus } from '../ui/graficos.js';
 import { salvarOuAvisar } from '../dados/carregar.js';
@@ -96,7 +96,7 @@ export function renderAdminEventos() {
           <div style="display:flex; align-items:center; gap:14px;">
             ${ev.tipo ? `<div class="tipo-home-icone" style="border-color:${cor}; flex-shrink:0;">${emojiTipoEvento(ev.tipo)}</div>` : ''}
             <div style="min-width:0;">
-              <div class="nome-evento-card">${escapeHtml(ev.nome)}</div>
+              <div class="nome-evento-card">${escapeHtml(ev.nome)}${subtituloDoEvento(ev)}</div>
               <div class="meta-card-evento">
                 ${pastilhaQuando(ev)}
                 ${seloConfirmados(ev)}
@@ -303,7 +303,7 @@ export function renderAdminRelatorio() {
       <div class="card">
         <div class="member-head" ${carregado ? `data-action="toggle-report-event" data-id="${ev.id}"` : ''}>
           <div style="min-width:0;">
-            <div class="nome-evento-card">${escapeHtml(ev.nome)}</div>
+            <div class="nome-evento-card">${escapeHtml(ev.nome)}${subtituloDoEvento(ev)}</div>
             <div style="color:var(--text-muted); font-size:12px; margin-top:5px;">${total} membros aptos${percentual !== null ? ` · <b style="color:var(--white-strong);">${percentual}% de presença</b>` : ''}</div>
           </div>
           ${dataDoCard(ev, true)}

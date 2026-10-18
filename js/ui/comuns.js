@@ -123,6 +123,15 @@ export function selinhoIniciais(m) {
   return `<span class="iniciais iniciais-${nivelDoGrau(m.grau)}" aria-hidden="true">${escapeHtml(iniciais(m.nome))}</span>`;
 }
 
+// O subtitulo do evento (quadro 1 da chamada, "Aniversariantes do mês"),
+// logo depois do nome nos cards, em letra menor. Ele mora na chamada
+// guardada no evento (ev.chamada.subtitulo, ver camposDoEvento); evento sem
+// chamada ou sem subtitulo nao ganha nada, e o card fica como sempre foi.
+export function subtituloDoEvento(ev) {
+  const sub = ev && ev.chamada && typeof ev.chamada.subtitulo === 'string' ? ev.chamada.subtitulo.trim() : '';
+  return sub ? `<span class="subtitulo-evento">${escapeHtml(sub)}</span>` : '';
+}
+
 // O anel pequeno de confirmados: enche conforme o pessoal confirma, a
 // mesma ideia da rosca dos relatorios em miniatura. Na capa do evento e nos
 // cards de evento do organizador.

@@ -517,6 +517,11 @@ do endereço e do "Outros".
 > a mandam, e o `Code.gs` mantém a que já estava, do mesmo jeito que faz
 > com o texto original.
 
+**O subtítulo aparece nos cards.** O subtítulo do quadro 1 ("Aniversariantes
+do mês") vai logo depois do nome do evento, em letra menor, nos cards do
+organizador, na tela inicial, na capa do evento e na folha do Calendário
+(`subtituloDoEvento`, em `ui/comuns.js`). Evento sem subtítulo fica igual.
+
 **A tela do membro mostra a chamada enxuta.** Num evento com chamada
 salva, o cartão de informações vira data e horário, o 🏁 destino com o
 endereço e um "Abrir no mapa", e uma linha curta por P.E. com os horários.

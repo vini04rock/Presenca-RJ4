@@ -6,7 +6,7 @@ import { DIAS_SEMANA_LETRA, NOMES_MESES, TIPOS_EVENTO, corTipoEvento, emojiTipoE
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
 import { dataDoCampoOuAvisar, diaDaSemana, escapeHtml, formatDataBR, hexParaRgba, pastilhaQuando } from '../nucleo/util.js';
-import { renderEscolhaDivisao, renderTelaPin } from '../ui/comuns.js';
+import { renderEscolhaDivisao, renderTelaPin, subtituloDoEvento } from '../ui/comuns.js';
 import { loadInitial, salvarOuAvisar } from '../dados/carregar.js';
 import { conferirPin } from '../dados/pin.js';
 import { paramsDeEvento } from '../fila/presenca.js';
@@ -108,7 +108,7 @@ function folhaDoDia(marcacoes) {
       <div class="folha-data">${escapeHtml(diaDaSemana(dataIso))}, ${dia} de ${NOMES_MESES[mes - 1].toLowerCase()} de ${ano}</div>
       <div class="folha-evento">
         <div class="folha-tipo">${ev.tipo ? `${emojiTipoEvento(ev.tipo)} ${escapeHtml(ev.tipo)}` : 'Evento'}</div>
-        <div class="folha-nome">${escapeHtml(ev.nome)}</div>
+        <div class="folha-nome">${escapeHtml(ev.nome)}${subtituloDoEvento(ev)}</div>
         <div class="folha-meta">${pastilhaQuando(ev)}${detalhe}</div>
       </div>
       <div class="row-gap">
