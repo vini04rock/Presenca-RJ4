@@ -4,9 +4,11 @@
 // Mesma gente vista dos dois lados, entao moram no mesmo arquivo.
 
 import { membrosDoEscopo } from '../dominio/estatisticas.js';
+import { TIPOS_MOVIMENTO, estaAfastado } from '../dominio/movimentos.js';
+import { confirmarMovimento, fecharPainelMovimento } from '../fluxos/movimentos.js';
 import { FUNCOES, GRAUS, cargosDoGrau, escopoPorChave } from '../nucleo/config.js';
 import { genId, state } from '../nucleo/estado.js';
-import { escapeHtml, ordenarPorHierarquia } from '../nucleo/util.js';
+import { dataISOdeBR, escapeHtml, formatDataBR, hojeISO, ordenarPorHierarquia } from '../nucleo/util.js';
 import { linhaFuncoes, selinhoIniciais } from '../ui/comuns.js';
 import { loadEstatisticas, salvarOuAvisar } from '../dados/carregar.js';
 import { render } from '../nucleo/render.js';
@@ -112,7 +114,14 @@ export function renderAdminMembros() {
           <button class="btn" data-action="save-member-edit">Salvar alterações</button>
           <button class="btn secondary" data-action="cancel-member-edit">Cancelar</button>
         </div>
-      ` : `<button class="btn block" data-action="add-member">+ Adicionar membro</button>`}
+      ` : `
+        <div class="field">
+          <label>Data de entrada no clube</label>
+          <input type="text" inputmode="numeric" maxlength="10" class="campo-data" id="new-member-entrada"
+                 value="${escapeHtml(state.newMemberEntrada || formatDataBR(hojeISO()))}" placeholder="dd/mm/aaaa" autocomplete="off">
+        </div>
+        <button class="btn block" data-action="add-member">+ Adicionar membro</button>
+      `}
     </div>
     ${membros.length === 0 ? '<div class="empty">Nenhum membro cadastrado ainda.</div>' : blocosPorGrau(membros)}
   `;
@@ -139,24 +148,76 @@ function blocosPorGrau(membros) {
   `).join('');
 }
 
-function linhaCadastro(m) {
+// Os botoes de movimentacao, logo depois do grau: Afastamento (ou Retorno,
+// pra quem ja esta afastado) e Desligamento.
+function botoesMovimento(m) {
+  const afastado = estaAfastado(m);
   return `
-    <div class="member-row linha-cadastro${state.editingMemberId === m.id ? ' editando' : ''}">
+    <span class="acoes-movimento">
+      ${afastado
+        ? `<button class="btn-mov" data-action="abrir-movimento" data-id="${m.id}" data-value="retorno">▶️ Retorno</button>`
+        : `<button class="btn-mov" data-action="abrir-movimento" data-id="${m.id}" data-value="afastamento">⏸️ Afastamento</button>`}
+      <button class="btn-mov perigo" data-action="abrir-movimento" data-id="${m.id}" data-value="desligamento">🚪 Desligamento</button>
+    </span>
+  `;
+}
+
+// O painel que abre embaixo da linha: data (hoje, se nada for escrito),
+// motivo opcional e o que vai acontecer, dito antes de confirmar.
+const EXPLICA_MOVIMENTO = {
+  afastamento: 'Enquanto afastado, não entra em evento novo, na caixinha de mês novo nem no Insight. Sai dos eventos ainda abertos, pra não levar falta. O histórico fica como está.',
+  retorno: 'Volta a entrar nos eventos novos, na caixinha e no Insight. Os eventos já abertos não recebem ele de volta sozinhos — inclua pelo Editar do evento, se for o caso.',
+  desligamento: 'Sai do cadastro e dos eventos ainda abertos. As presenças dos eventos encerrados continuam valendo, então os percentuais antigos não mudam. Fica registrado no Entrada/Saída.',
+};
+function painelMovimento(m) {
+  const t = TIPOS_MOVIMENTO[state.movTipo];
+  const verbo = { afastamento: 'Afastar', retorno: 'Registrar o retorno de', desligamento: 'Desligar' }[state.movTipo];
+  return `
+    <div class="mov-painel mov-${state.movTipo}">
+      <div class="mov-titulo">${t.emoji} ${escapeHtml(verbo)} ${escapeHtml(m.nome)}</div>
+      <div class="mov-explica">${escapeHtml(EXPLICA_MOVIMENTO[state.movTipo])}</div>
+      <div class="field" style="margin-bottom:10px;">
+        <label>Data</label>
+        <input type="text" inputmode="numeric" maxlength="10" class="campo-data" id="mov-data"
+               value="${escapeHtml(state.movData || formatDataBR(hojeISO()))}" placeholder="dd/mm/aaaa" autocomplete="off">
+      </div>
+      <div class="field" style="margin-bottom:10px;">
+        <label>Motivo (opcional — só aparece aqui no app)</label>
+        <input type="text" id="mov-motivo" maxlength="300" value="${escapeHtml(state.movMotivo)}" placeholder="Ex: trabalho fora do estado" autocomplete="off">
+      </div>
+      ${state.movErro ? `<div class="alert" style="margin-bottom:10px;"><div class="alert-msg">${escapeHtml(state.movErro)}</div></div>` : ''}
+      <div class="row-gap">
+        <button class="btn ${state.movTipo === 'desligamento' ? 'danger' : ''}" style="flex:1;" data-action="confirmar-movimento" ${state.movSalvando ? 'disabled' : ''}>
+          ${state.movSalvando ? 'Registrando…' : `Confirmar ${t.label.toLowerCase()}`}
+        </button>
+        <button class="btn secondary" style="flex:1;" data-action="cancelar-movimento" ${state.movSalvando ? 'disabled' : ''}>Cancelar</button>
+      </div>
+    </div>
+  `;
+}
+
+function linhaCadastro(m) {
+  const afastado = estaAfastado(m);
+  return `
+    <div class="member-row linha-cadastro${state.editingMemberId === m.id ? ' editando' : ''}${afastado ? ' afastado' : ''}">
       <div class="member-head">
         <div class="member-info-wrap">
           <div class="member-info">
             ${selinhoIniciais(m)}
             <span class="member-name">${escapeHtml(m.nome)}</span>
             ${m.grau ? `<span class="grade-box">${escapeHtml(m.grau)}</span>` : ''}
+            ${botoesMovimento(m)}
           </div>
+          ${afastado ? `<div class="selo-afastado">⏸️ Afastado${m.situacaoDesde ? ` desde ${escapeHtml(formatDataBR(m.situacaoDesde))}` : ''}</div>` : ''}
           ${m.cargo ? `<div class="confirmado-divisao">${escapeHtml(m.cargo)}</div>` : ''}
           ${linhaFuncoes(m.funcoes)}
         </div>
         <div class="acoes-cadastro">
           <button class="btn-mini" data-action="edit-member" data-id="${m.id}">✏️ Editar</button>
-          <button class="btn-mini perigo" data-action="remove-member" data-id="${m.id}">Remover</button>
+          <button class="btn-mini perigo" data-action="remove-member" data-id="${m.id}" title="Para cadastro feito errado: apaga também o histórico. Quem saiu do clube é Desligamento.">Remover</button>
         </div>
       </div>
+      ${state.movMembroId === m.id ? painelMovimento(m) : ''}
     </div>
   `;
 }
@@ -191,19 +252,50 @@ export const acoes = {
   'add-member': async (id, target, action, e) => {
     const nome = (document.getElementById('new-member-nome').value || '').trim();
     if (!nome) return;
+    // A data de entrada: vazia = hoje; escrita, tem que ser uma data de
+    // verdade e nao pode ser no futuro. E ela que conta no Entrada/Saida.
+    const brutoEntrada = (state.newMemberEntrada || '').trim();
+    const entrada = brutoEntrada ? dataISOdeBR(brutoEntrada) : hojeISO();
+    if (!entrada || entrada > hojeISO()) {
+      alert(entrada ? 'A data de entrada não pode ser no futuro.' : `"${brutoEntrada}" não é uma data válida - escreva como 18/10/2026.`);
+      return;
+    }
     // O membro herda a divisao de onde o organizador entrou - inclusive
     // Regional, que tem os proprios membros (mesa regional).
     const member = {
       id: genId(), nome, grau: state.newMemberGrau || '', divisao: escopoPorChave(state.adminEscopo).nome,
-      funcoes: Array.from(state.newMemberFuncoes), cargo: state.newMemberCargo || ''
+      funcoes: Array.from(state.newMemberFuncoes), cargo: state.newMemberCargo || '',
+      situacao: '', situacaoDesde: '', entrada,
     };
     state.roster = [...state.roster, member];
     state.newMemberGrau = null;
     state.newMemberCargo = null;
     state.newMemberFuncoes = new Set();
     state.newMemberNome = '';
+    state.newMemberEntrada = '';
+    state.movimentosDados = null;
     render();
     await salvarOuAvisar('membroSalvar', { ...member, funcoes: member.funcoes.join(',') });
+  },
+
+  // O painel de afastamento/retorno/desligamento, na linha do integrante.
+  // Tocar de novo no mesmo botao fecha.
+  'abrir-movimento': async (id, target, action, e) => {
+    const tipo = target.dataset.value;
+    const mesmo = state.movMembroId === id && state.movTipo === tipo;
+    fecharPainelMovimento();
+    if (!mesmo) {
+      state.movMembroId = id;
+      state.movTipo = tipo;
+    }
+    return render();
+  },
+  'cancelar-movimento': async (id, target, action, e) => {
+    fecharPainelMovimento();
+    return render();
+  },
+  'confirmar-movimento': async (id, target, action, e) => {
+    return confirmarMovimento();
   },
 
   'edit-member': async (id, target, action, e) => {

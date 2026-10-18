@@ -8,14 +8,16 @@
 import { escopoPorChave, temDoacoesECaixinha } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { escapeHtml } from '../nucleo/util.js';
-import { carregarCaixinha, carregarDoacoes, loadEstatisticas, loadInsightStats, loadReportData } from '../dados/carregar.js';
+import { carregarCaixinha, carregarDoacoes, carregarMovimentos, loadEstatisticas, loadInsightStats, loadReportData } from '../dados/carregar.js';
 import { fecharMesCaixinha } from '../fluxos/doacoes-caixinha.js';
+import { fecharPainelMovimento } from '../fluxos/movimentos.js';
 import { render } from '../nucleo/render.js';
 import { renderAdminEventos, renderAdminRelatorio } from './admin-eventos.js';
 import { renderAdminMembros, renderAdminPresencas } from './admin-membros.js';
 import { renderAdminInsights } from './admin-insights.js';
 import { renderAdminDoacoes } from './admin-doacoes.js';
 import { renderAdminCaixinha } from './admin-caixinha.js';
+import { renderAdminMovimentos } from './admin-movimentos.js';
 
 // As secoes do organizador. Cada card do menu abre uma secao, e a barra de
 // abas mostra so as abas daquela secao - antes era uma barra unica com as
@@ -62,6 +64,10 @@ export const SECOES_ORGANIZADOR = {
       { chave: 'caixinha-rank', label: 'Rank' },
     ],
   },
+  movimentos: {
+    titulo: 'Entrada/Saída',
+    abas: [{ chave: 'movimentos', label: 'Entrada/Saída' }],
+  },
 };
 
 // De qual secao e uma aba. Evita guardar "em que secao estou" no state:
@@ -101,6 +107,8 @@ export function renderAdmin(app) {
     content.innerHTML = renderAdminDoacoes();
   } else if (state.adminTab.startsWith('caixinha') && temDoacoesECaixinha(state.adminEscopo)) {
     content.innerHTML = renderAdminCaixinha();
+  } else if (state.adminTab === 'movimentos') {
+    content.innerHTML = renderAdminMovimentos();
   } else {
     content.innerHTML = renderAdminMembros();
   }
@@ -133,12 +141,17 @@ export async function abrirAbaOrganizador(aba) {
   state.doacoesMsg = null;
   fecharMesCaixinha();
   state.caixinhaMsg = null;
+  fecharPainelMovimento();
+  state.movimentosDivisaoAberta = null;
   render();
   if (aba === 'encerrados') await loadReportData();
   if (aba === 'presencas') await loadEstatisticas();
   if (aba.startsWith('insights')) await loadInsightStats();
   if (aba.startsWith('doacoes') && entrandoNaSecao) await carregarDoacoes();
   if (aba.startsWith('caixinha') && entrandoNaSecao) await carregarCaixinha();
+  // O livro tambem fica velho quando se movimenta alguem no cadastro (o
+  // fluxo zera movimentosDados) - por isso busca tambem quando nao ha nada.
+  if (aba === 'movimentos' && (entrandoNaSecao || !state.movimentosDados)) await carregarMovimentos();
 }
 
 // A unica acao do esqueleto: trocar de aba. Todas as outras moram no arquivo

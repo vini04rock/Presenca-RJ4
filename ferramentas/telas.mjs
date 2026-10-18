@@ -488,6 +488,30 @@ add('caixinha / rank sem meses',       { ...dc, adminTab:'caixinha-rank', caixin
 add('caixinha / sem meses lançados',   { ...dc, adminTab:'caixinha', caixinhaDados:{ meses:[] } }, T.renderAdmin);
 add('caixinha / erro',                 { ...dc, adminTab:'caixinha', caixinhaErro:'Sem permissao para os dados desta divisao' }, T.renderAdmin);
 
+// Entrada/Saida. No cadastro, Bull (m2) esta afastado; o painel de
+// movimentacao abre na linha do Costa (m1). Os movimentos tem data fixa e o
+// periodo e "desde sempre" (0), pra saida nao mudar com o calendario.
+const rosterComAfastado = membros.map(m => m.id === 'm2' ? { ...m, situacao:'afastado', situacaoDesde:'2026-09-01' } : m);
+const movimentosFalsos = [
+  { id:'v1', data:'2026-10-01', divisao:'barra', membroId:'m3', nome:'Almeida', grau:'V', tipo:'entrada', motivo:'' },
+  { id:'v2', data:'2026-09-01', divisao:'barra', membroId:'m2', nome:'Bull', grau:'VIII', tipo:'afastamento', motivo:'Trabalho fora do estado' },
+  { id:'v3', data:'2026-08-15', divisao:'barra', membroId:'mx', nome:'Antigo', grau:'X', tipo:'desligamento', motivo:'' },
+  { id:'v4', data:'2026-08-10', divisao:'recreio', membroId:'m4', nome:'Tigre', grau:'III', tipo:'entrada', motivo:'' },
+];
+add('membros / cadastro com afastado',   { isAdmin:true, adminEscopo:'barra', adminTab:'membros', roster:rosterComAfastado }, T.renderAdmin);
+add('membros / afastando (painel)',      { isAdmin:true, adminEscopo:'barra', adminTab:'membros', movMembroId:'m1', movTipo:'afastamento' }, T.renderAdmin);
+add('membros / retorno (painel)',        { isAdmin:true, adminEscopo:'barra', adminTab:'membros', roster:rosterComAfastado,
+  movMembroId:'m2', movTipo:'retorno', movData:'18/10/2026' }, T.renderAdmin);
+add('membros / desligando (com erro)',   { isAdmin:true, adminEscopo:'barra', adminTab:'membros', movMembroId:'m3', movTipo:'desligamento',
+  movMotivo:'Pediu pra sair', movErro:'Não consegui registrar: Falha de conexao.' }, T.renderAdmin);
+const mvs = { isAdmin:true, adminTab:'movimentos', roster:rosterComAfastado, movimentosDados:movimentosFalsos, movimentosPeriodo:0 };
+add('entrada/saída / divisão',           { ...mvs, adminEscopo:'barra', movimentosDadosEscopo:'barra' }, T.renderAdmin);
+add('entrada/saída / divisão vazia',     { ...mvs, adminEscopo:'oeste', movimentosDadosEscopo:'oeste', movimentosDados:[] }, T.renderAdmin);
+add('entrada/saída / quadro regional',   { ...mvs, adminEscopo:'regional', movimentosDadosEscopo:'regional' }, T.renderAdmin);
+add('entrada/saída / regional abriu barra', { ...mvs, adminEscopo:'regional', movimentosDadosEscopo:'regional', movimentosDivisaoAberta:'barra' }, T.renderAdmin);
+add('entrada/saída / carregando',        { ...mvs, adminEscopo:'barra', movimentosDados:null }, T.renderAdmin);
+add('entrada/saída / erro',              { ...mvs, adminEscopo:'barra', movimentosErro:'Sem permissao para os dados desta divisao' }, T.renderAdmin);
+
 const LIMPO = {
   // A lista de eventos volta ao padrao entre um caso e outro: o card de
   // "proximo evento" depende dela, e um caso que a troca nao pode vazar
@@ -522,6 +546,8 @@ const LIMPO = {
   caixinhaDados:null, caixinhaDadosEscopo:null, caixinhaErro:null, caixinhaMes:null, caixinhaMembroIds:[],
   caixinhaMarcacoes:{}, caixinhaInfo:{}, caixinhaMostrarAdicionar:false, caixinhaConfirmarRemover:false,
   caixinhaSalvando:false, caixinhaMsg:null, caixinhaPeriodo:0,
+  roster:membros, newMemberEntrada:'', movMembroId:null, movTipo:null, movData:'', movMotivo:'', movSalvando:false, movErro:null,
+  movimentosDados:null, movimentosDadosEscopo:null, movimentosErro:null, movimentosPeriodo:0, movimentosDivisaoAberta:null,
 };
 log('');
 log('=== 2. desenhar cada tela e aba ===');

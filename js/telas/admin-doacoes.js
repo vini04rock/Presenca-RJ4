@@ -7,6 +7,7 @@
 import { carregarDoacoes } from '../dados/carregar.js';
 import { PERIODOS, dataDoEvento, formatKg, membrosParaMarcar, nomeDoPeriodo, rankDoacoes, rotuloPilula, somaKg, textoDoacoes } from '../dominio/doacoes.js';
 import { membrosDoEscopo } from '../dominio/estatisticas.js';
+import { soAtivos } from '../dominio/movimentos.js';
 import { salvarDoacoes } from '../fluxos/doacoes-caixinha.js';
 import { corTipoEvento, emojiTipoEvento, escopoPorChave } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
@@ -107,7 +108,7 @@ function linhaMarcar(m, ev) {
 }
 
 function painelMarcar(ev) {
-  const membros = membrosParaMarcar(ev, membrosDoEscopo(), state.roster);
+  const membros = membrosParaMarcar(ev, soAtivos(membrosDoEscopo()), state.roster);
   const kgs = Object.values(state.doacoesMarcacoes).filter(Boolean);
   const total = kgs.reduce((s, k) => s + k, 0);
   return `

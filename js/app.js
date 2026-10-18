@@ -24,6 +24,7 @@ import { acoes as acoesAdminMembros } from './telas/admin-membros.js';
 import { acoes as acoesAdminInsights } from './telas/admin-insights.js';
 import { acoes as acoesAdminDoacoes } from './telas/admin-doacoes.js';
 import { acoes as acoesAdminCaixinha } from './telas/admin-caixinha.js';
+import { acoes as acoesAdminMovimentos } from './telas/admin-movimentos.js';
 import { acoes as acoesComuns, aplicarBusca } from './ui/comuns.js';
 import { acoes as acoesGraficos } from './ui/graficos.js';
 import { acoes as acoesHome } from './telas/home.js';
@@ -272,6 +273,14 @@ document.getElementById('app').addEventListener('input', (e) => {
     if (cursorNoFim) e.target.setSelectionRange(e.target.value.length, e.target.value.length);
     // A data do formulario de evento tambem vai pro state (ja com as barras).
     if (aoDigitarNoFormulario(e.target)) atualizarEtapasDoFormulario(document.getElementById('app'));
+    // Idem a entrada de um integrante novo e a data de um afastamento: a
+    // tela redesenha a cada toque num chip, e sem isso o digitado sumia.
+    if (e.target.id === 'new-member-entrada') state.newMemberEntrada = e.target.value;
+    if (e.target.id === 'mov-data') state.movData = e.target.value;
+    return;
+  }
+  if (e.target.id === 'mov-motivo') {
+    state.movMotivo = e.target.value;
     return;
   }
   // A busca do evento filtra sem redesenhar - redesenhar fecharia o teclado.
@@ -313,6 +322,7 @@ for (const [area, mapa] of Object.entries({
   acoesAdminInsights,
   acoesAdminDoacoes,
   acoesAdminCaixinha,
+  acoesAdminMovimentos,
   acoesComuns,
   acoesGraficos,
   acoesHome,

@@ -2388,3 +2388,78 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 @media (prefers-reduced-motion: reduce) {
   .kg-valor.saltou, .barras-meses.anima .barra-mes-cheia { animation: none !important; }
 }
+
+/* =====================================================================
+   ENTRADA/SAIDA DE INTEGRANTES
+   ===================================================================== */
+/* Os botoes de movimentacao, logo depois do grau no cadastro. Menores que
+   Editar/Remover: sao acoes raras, nao podem competir com o nome. */
+.acoes-movimento { display: inline-flex; gap: 5px; flex-wrap: wrap; }
+.btn-mov {
+  font: inherit; font-size: 10.5px; font-weight: 600;
+  padding: 3px 7px; border-radius: 999px; cursor: pointer;
+  color: var(--text-muted); background-color: transparent;
+  border: 1px solid var(--line-strong);
+  transition: transform 0.12s ease, background-color 0.15s ease;
+}
+.btn-mov:active { transform: scale(0.95); background-color: rgba(255, 255, 255, 0.1); }
+.btn-mov.perigo { color: #C9A29C; border-color: var(--danger-line); }
+.linha-cadastro.afastado .member-name { color: var(--text-muted); }
+.selo-afastado { font-size: 11.5px; font-weight: 600; color: #E0B24D; padding-left: 34px; }
+
+/* O painel que abre embaixo da linha, na cor do que vai acontecer. */
+.mov-painel {
+  margin: 10px 0 4px; padding: 12px; border-radius: 12px;
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line-strong); border-left-width: 3px;
+}
+.mov-painel.mov-afastamento { border-left-color: #E0B24D; }
+.mov-painel.mov-retorno { border-left-color: var(--status-confirmado); }
+.mov-painel.mov-desligamento { border-left-color: var(--status-infracional); }
+.mov-titulo { font-weight: 700; color: var(--white-strong); margin-bottom: 4px; }
+.mov-explica { font-size: 12px; color: var(--text-muted); line-height: 1.45; margin-bottom: 10px; }
+
+/* Os tres numeros do relatorio. */
+.mov-placar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.mov-placar-item {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 12px 4px; border-radius: 12px; text-align: center;
+  background-color: rgba(255, 255, 255, 0.04); border: 1px solid var(--line);
+}
+.mov-placar-item b { font-family: 'Rye', serif; font-weight: 400; font-size: 30px; color: var(--white-strong); line-height: 1; }
+.mov-placar-item span { font-size: 11px; color: var(--text-muted); }
+.mov-placar-item.mov-entrada { border-color: rgba(95, 201, 141, 0.45); }
+.mov-placar-item.mov-afastamento { border-color: rgba(224, 178, 77, 0.45); }
+.mov-placar-item.mov-desligamento { border-color: rgba(217, 99, 90, 0.45); }
+
+/* Linha do tempo e quadro do Regional. */
+.mov-emoji { font-size: 15px; }
+.mov-data { font-size: 12px; color: var(--text-muted); white-space: nowrap; flex-shrink: 0; }
+.mov-tipo { font-size: 11.5px; color: var(--text-muted); margin-top: 3px; padding-left: 26px; }
+.mov-linha.mov-entrada .mov-tipo { color: var(--status-confirmado); }
+.mov-linha.mov-afastamento .mov-tipo { color: #E0B24D; }
+.mov-linha.mov-desligamento .mov-tipo { color: var(--status-infracional); }
+.mov-motivo { color: var(--text-muted); font-style: italic; }
+.mov-quadro-linha { cursor: pointer; }
+.mov-quadro-linha:active { opacity: 0.7; }
+.mov-quadro-numeros { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.mov-num { font-size: 12.5px; font-weight: 700; min-width: 36px; text-align: right; }
+.mov-num.mov-entrada { color: var(--status-confirmado); }
+.mov-num.mov-afastamento { color: #E0B24D; }
+.mov-num.mov-desligamento { color: var(--status-infracional); }
+.mov-num.zero { color: var(--text-muted); font-weight: 500; opacity: 0.7; }
+.mov-quadro-numeros .arrow { color: var(--text-muted); font-size: 18px; }
+@media print { .acoes-movimento, .mov-painel { display: none !important; } }
+
+/* A pizza (renderPizza): fatias cheias, com sombra, crescendo do centro. */
+.pizza-wrap { margin-top: 14px; }
+.pizza { position: relative; flex-shrink: 0; filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.55)); }
+.pizza svg { display: block; }
+.pizza-vazia {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  text-align: center; padding: 18px; font-size: 11.5px; color: var(--text-muted);
+}
+.pizza-wrap .donut-legend-item { cursor: default; }
+.pizza-wrap.anima .pizza svg { transform-origin: center; animation: crescer-pizza 0.7s var(--mola) both; }
+@keyframes crescer-pizza { from { transform: scale(0.2) rotate(-60deg); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .pizza-wrap.anima .pizza svg { animation: none !important; } }

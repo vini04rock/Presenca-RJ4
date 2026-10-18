@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-10-18-v-doacoes-caixinha';
+var VERSAO = '2026-10-18-v-entrada-saida';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -38,12 +38,18 @@ var ABA_RESPONSAVEIS = 'Responsaveis';
 var ABA_TEXTOS_CHAMADA = 'TextosChamada';
 var ABA_DOACOES = 'Doacoes';
 var ABA_CAIXINHA = 'Caixinha';
+var ABA_MOVIMENTOS = 'Movimentacoes';
 
 // "Cargo" so faz sentido nos graus VI e V (ver CARGOS no js/nucleo/config.js):
 // sao os graus em que varios integrantes dividem o mesmo grau ocupando
 // funcoes diferentes, e a ordem entre eles e a ordem do cargo. Nos demais
 // graus a coluna fica vazia.
-var CAB_MEMBROS = ['ID', 'Nome', 'Grau', 'Divisao', 'Funcoes', 'Cargo'];
+//
+// "Situacao" e "Situacao Desde": vazia = ativo; 'Afastado' = afastado desde
+// a data ao lado (ver registrarMovimento). Desligado nao tem situacao: sai
+// da aba de vez. "Entrada" e a data de entrada no clube, gravada no
+// cadastro de um integrante novo - os cadastrados antes dela ficam vazios.
+var CAB_MEMBROS = ['ID', 'Nome', 'Grau', 'Divisao', 'Funcoes', 'Cargo', 'Situacao', 'Situacao Desde', 'Entrada'];
 // "Texto Original" (ultima coluna) so existe pra eventos criados via colar
 // convocacao (ver criarEventoDeTexto) - eventos criados pelo Modo
 // organizador manual ficam com essa coluna vazia, e lerEventos() ja trata
@@ -86,6 +92,14 @@ var CAB_DOACOES = ['ID Evento', 'Evento', 'Divisao', 'ID Membro', 'Membro', 'Kg'
 // lancado - quem entra depois nao fica devendo mes antigo. "Mes" e
 // 'yyyy-mm', gravado como texto (ver salvarCaixinhaMes).
 var CAB_CAIXINHA = ['Divisao', 'Mes', 'ID Membro', 'Membro', 'Pagou', 'Atualizado em'];
+// O livro de Entrada/Saida de integrantes: uma linha por movimentacao, e
+// nada aqui e apagado. "Tipo" e Entrada, Afastamento, Retorno ou
+// Desligamento; "Divisao" e a chave ('barra'...) e "Membro"/"Grau" um
+// retrato de quando foi registrado - o desligado nao existe mais em Membros,
+// e e por aqui que ele continua aparecendo no relatorio.
+var CAB_MOVIMENTOS = ['ID', 'Data', 'Divisao', 'ID Membro', 'Membro', 'Grau', 'Tipo', 'Motivo', 'Registrado em'];
+var TIPOS_MOVIMENTO = { entrada: 'Entrada', afastamento: 'Afastamento', retorno: 'Retorno', desligamento: 'Desligamento' };
+var SITUACAO_AFASTADO = 'Afastado';
 
 // Na planilha fica o rotulo legivel; o app continua falando em chaves.
 var STATUS_ROTULO = {
@@ -177,7 +191,9 @@ var ACOES_PROTEGIDAS = [
   'responsavel', 'responsavelSalvar', 'textoChamadaSalvar',
   // Doacoes e caixinha: ler tambem e protegido - quem deve a caixinha nao e
   // coisa pra qualquer um com a URL ver.
-  'doacoes', 'doacoesSalvar', 'caixinha', 'caixinhaSalvar', 'caixinhaRemover'
+  'doacoes', 'doacoesSalvar', 'caixinha', 'caixinhaSalvar', 'caixinhaRemover',
+  // Entrada/Saida: o motivo de um afastamento pode ser assunto pessoal.
+  'membroMovimentar', 'movimentos'
 ];
 
 function executar(action, p) {
@@ -245,6 +261,8 @@ function executar(action, p) {
   if (action === 'caixinha') return lerCaixinha(String(p.divisao || ''), String(p.pin || ''));
   if (action === 'caixinhaSalvar') return comTrava(function () { return salvarCaixinhaMes(p); });
   if (action === 'caixinhaRemover') return comTrava(function () { return removerCaixinhaMes(p); });
+  if (action === 'membroMovimentar') return comTrava(function () { return registrarMovimento(p); });
+  if (action === 'movimentos') return lerMovimentos(String(p.divisao || ''), String(p.pin || ''));
   throw new Error('Acao desconhecida: ' + action);
 }
 
@@ -351,7 +369,12 @@ function lerMembros() {
         // participantes de um evento - cresce sem precisar de coluna nova
         // a cada funcao que o app ganhar no futuro.
         funcoes: String(l[4] || '').split(',').map(function (f) { return f.trim(); }).filter(Boolean),
-        cargo: String(l[5] || '')
+        cargo: String(l[5] || ''),
+        // 'afastado' ou '' (ativo). O app tira o afastado das listas novas
+        // (eventos, caixinha); o Insight ja vem filtrado daqui do Code.gs.
+        situacao: estaAfastado(l) ? 'afastado' : '',
+        situacaoDesde: estaAfastado(l) ? formatarData(l[7]) : '',
+        entrada: formatarData(l[8])
       };
     });
 }
@@ -1053,7 +1076,7 @@ function organizarAbas() {
   var ordem = [ABA_CALENDARIO].concat(ORDEM_EXIBICAO_ESCOPOS.map(function (chave) { return ESCOPOS_NOME[chave]; }))
     .concat([ABA_INSIGHT_RESUMO, 'Relatorio', 'Membros', 'Eventos', 'Presencas',
              ABA_INSIGHT_RODADAS, ABA_INSIGHT_PRESENCAS, ABA_INSIGHT_EXCLUIDOS,
-             ABA_DOACOES, ABA_CAIXINHA, 'KV']);
+             ABA_DOACOES, ABA_CAIXINHA, ABA_MOVIMENTOS, 'KV']);
   ordem.forEach(function (nome, i) {
     var s = ss.getSheetByName(nome);
     if (!s) return;
@@ -1136,8 +1159,19 @@ function salvarMembro(p) {
   var id = p.id || novoId();
   var linha = [id, p.nome, p.grau || '', p.divisao || '', p.funcoes || '', p.cargo || ''];
   var achado = acharLinha(s, function (l) { return String(l[0]) === String(id); });
+  // Editar regrava so as 6 primeiras colunas: a situacao (afastado) e a
+  // entrada nao passam pelo formulario e nao podem ser apagadas por ele.
   if (achado) s.getRange(achado.indice, 1, 1, linha.length).setValues([linha]);
-  else s.appendRow(linha);
+  else {
+    // Integrante novo: a data de entrada vai pro cadastro e pro livro de
+    // Entrada/Saida. Sem data valida, vale hoje.
+    var entrada = dataOuHoje(p.entrada);
+    var range = s.getRange(s.getLastRow() + 1, 1, 1, CAB_MEMBROS.length);
+    range.setNumberFormat('@');
+    range.setValues([linha.concat(['', '', entrada])]);
+    var chave = CHAVE_POR_NOME_DIVISAO[String(p.divisao || '')];
+    if (chave) anotarMovimento(entrada, chave, id, p.nome, p.grau || '', 'entrada', '');
+  }
   renomearEmPresencas(2, id, p.nome);
   return { ok: true, id: id };
 }
@@ -1716,6 +1750,110 @@ function removerCaixinhaMes(p) {
   return { ok: true };
 }
 
+// ---------- ENTRADA/SAIDA DE INTEGRANTES ----------
+// Afastamento, retorno e desligamento, registrados pelo cadastro de membros
+// do organizador; a entrada, pelo cadastro de um integrante novo (ver
+// salvarMembro). Tudo vira uma linha no livro (aba Movimentacoes).
+
+function estaAfastado(linhaMembro) {
+  return String(linhaMembro[6] || '').trim().toLowerCase() === SITUACAO_AFASTADO.toLowerCase();
+}
+
+// 'yyyy-mm-dd' de verdade, ou hoje.
+function dataOuHoje(v) {
+  var t = String(v || '');
+  return /^\d{4}-\d{2}-\d{2}$/.test(t) ? t : Utilities.formatDate(new Date(), fuso(), 'yyyy-MM-dd');
+}
+
+function anotarMovimento(data, divisao, membroId, nome, grau, tipo, motivo) {
+  var s = aba(ABA_MOVIMENTOS, CAB_MOVIMENTOS);
+  var range = s.getRange(s.getLastRow() + 1, 1, 1, CAB_MOVIMENTOS.length);
+  // Texto: a data nao vira Date, e um motivo que comece com "=" nao vira formula.
+  range.setNumberFormat('@');
+  range.setValues([[novoId(), data, divisao, membroId, nome, grau, TIPOS_MOVIMENTO[tipo], motivo, agora()]]);
+}
+
+// Tira o integrante dos eventos que ainda nao encerraram. Sem isso, quem
+// se afastou (ou saiu) ficaria "Aguardando" num evento aberto e levaria falta
+// nao justificada no encerramento. Os eventos encerrados ficam como estao:
+// sao historico, e os % deles nao podem mudar.
+function tirarDosEventosAbertos(membroId) {
+  var abertos = {};
+  linhas(aba(ABA_EVENTOS, CAB_EVENTOS)).forEach(function (l) {
+    if (l[0] && String(l[6]) !== 'encerrado') abertos[String(l[0])] = true;
+  });
+  var tirados = 0;
+  apagarLinhas(aba(ABA_PRESENCAS, CAB_PRESENCAS), function (l) {
+    var sai = String(l[2]) === String(membroId) && abertos[String(l[0])];
+    if (sai) tirados++;
+    return sai;
+  });
+  return tirados;
+}
+
+// tipo: 'afastamento' | 'retorno' | 'desligamento'. A divisao e a do
+// cadastro do integrante, e o PIN e conferido contra ela: quem entrou pela
+// Barra nao afasta nem desliga ninguem do Oeste.
+function registrarMovimento(p) {
+  var tipo = String(p.tipo || '');
+  if (['afastamento', 'retorno', 'desligamento'].indexOf(tipo) === -1) throw new Error('Movimentacao desconhecida');
+  var s = aba(ABA_MEMBROS, CAB_MEMBROS);
+  var achado = acharLinha(s, function (l) { return String(l[0]) === String(p.membroId || ''); });
+  if (!achado) throw new Error('Integrante nao encontrado');
+  var l = achado.valores;
+  var divisao = CHAVE_POR_NOME_DIVISAO[String(l[3] || '')];
+  if (!divisao) throw new Error('Integrante sem divisao no cadastro');
+  if (!podeNaDivisao(divisao, String(p.pin || ''))) return SEM_PERMISSAO_DIVISAO;
+
+  var afastado = estaAfastado(l);
+  if (tipo === 'afastamento' && afastado) throw new Error('Este integrante ja esta afastado');
+  if (tipo === 'retorno' && !afastado) throw new Error('Este integrante nao esta afastado');
+
+  var data = dataOuHoje(p.data);
+  var motivo = String(p.motivo || '').trim().slice(0, 300);
+  var mid = String(l[0]), nome = String(l[1] || ''), grau = String(l[2] || '');
+  var tirados = 0;
+
+  if (tipo === 'afastamento') {
+    var faixa = s.getRange(achado.indice, 7, 1, 2);
+    faixa.setNumberFormat('@');
+    faixa.setValues([[SITUACAO_AFASTADO, data]]);
+    tirados = tirarDosEventosAbertos(mid);
+  } else if (tipo === 'retorno') {
+    s.getRange(achado.indice, 7, 1, 2).setValues([['', '']]);
+  } else {
+    // Desligar sai do cadastro, mas NAO apaga as presencas dos eventos
+    // encerrados (o "Remover" apaga - e para cadastro feito errado). Assim os
+    // % antigos nao mudam, e o nome dele continua nos relatorios desses eventos.
+    tirados = tirarDosEventosAbertos(mid);
+    s.deleteRow(achado.indice);
+  }
+  anotarMovimento(data, divisao, mid, nome, grau, tipo, motivo);
+  return { ok: true, tipo: tipo, data: data, eventosAbertosTirados: tirados };
+}
+
+// O livro de uma divisao, do mais recente pro mais antigo. Pelo Regional
+// (divisao = 'regional') vem o livro inteiro, de todas as divisoes - e o
+// quadro comparativo; por isso ali so o PIN do Regional vale.
+function lerMovimentos(divisao, pin) {
+  if (!podeNaDivisao(divisao, pin)) return SEM_PERMISSAO_DIVISAO;
+  var todas = divisao === 'regional';
+  var movimentos = linhas(aba(ABA_MOVIMENTOS, CAB_MOVIMENTOS))
+    .filter(function (l) { return l[0] && (todas || String(l[2]) === divisao); })
+    .map(function (l) {
+      var tipo = '';
+      Object.keys(TIPOS_MOVIMENTO).forEach(function (k) { if (TIPOS_MOVIMENTO[k] === String(l[6])) tipo = k; });
+      return {
+        id: String(l[0]), data: formatarData(l[1]), divisao: String(l[2] || ''),
+        membroId: String(l[3] || ''), nome: String(l[4] || ''), grau: String(l[5] || ''),
+        tipo: tipo, motivo: String(l[7] || '')
+      };
+    })
+    .filter(function (m) { return m.tipo; })
+    .sort(function (a, b) { return (b.data || '').localeCompare(a.data || ''); });
+  return { ok: true, movimentos: movimentos };
+}
+
 // ---------- RELATORIO ----------
 
 // Visao so de leitura, agrupada por evento e por situacao. E gerada do zero a
@@ -1950,8 +2088,9 @@ function membrosElegiveisInsight() {
     if (l[0]) excluidos[String(l[0])] = true;
   });
   var nomeRegional = ESCOPOS_NOME.regional;
+  // Afastado nao entra em rodada nova; volta sozinho no Retorno.
   return lerMembros().filter(function (m) {
-    return m.divisao !== nomeRegional && !excluidos[m.id];
+    return m.divisao !== nomeRegional && !excluidos[m.id] && m.situacao !== 'afastado';
   });
 }
 
@@ -2110,7 +2249,9 @@ function reincluirMembroNoInsight(id) {
 // em media, marcam presenca a cada rodada.
 function calcularEstatisticasInsights() {
   var nomeRegional = ESCOPOS_NOME.regional;
-  var membrosAtuais = lerMembros().filter(function (m) { return m.divisao !== nomeRegional; });
+  // Afastado fica fora da lista de marcacao e do rank enquanto durar - a
+  // mesma regra de membrosElegiveisInsight. O historico dele nao muda.
+  var membrosAtuais = lerMembros().filter(function (m) { return m.divisao !== nomeRegional && m.situacao !== 'afastado'; });
   var excluidos = {};
   linhas(aba(ABA_INSIGHT_EXCLUIDOS, CAB_INSIGHT_EXCLUIDOS)).forEach(function (l) {
     if (l[0]) excluidos[String(l[0])] = { nome: String(l[1] || '') };
@@ -2446,7 +2587,7 @@ function gerarDadosFakeTeste() {
       var nome = PREFIXO_TESTE + nomeDivisao.split(' ')[0] + ' ' + sorteia(nomesFake) + ' ' + (i + 1);
       // Colunas na ordem de CAB_MEMBROS - inclusive as vazias (Funcoes,
       // Cargo). setValues() recusa linha mais estreita que o range.
-      novosMembros.push([id, nome, '', nomeDivisao, '', '']);
+      novosMembros.push([id, nome, '', nomeDivisao, '', '', '', '', '']);
       membrosPorChave[chave].push({ id: id, nome: nome, divisao: nomeDivisao });
     }
   });

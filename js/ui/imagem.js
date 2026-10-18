@@ -587,6 +587,114 @@ export async function imagemMesCaixinha(r, nomeDivisao) {
 }
 
 // ---------------------------------------------------------------------------
+// Entrada/Saida de integrantes. Os tres numeros em placas lado a lado, e
+// embaixo os nomes. Sem o motivo de ninguem: pode ser assunto pessoal (ver
+// dominio/movimentos.js).
+const COR_MOV = { entrada: '#5FC98D', afastamento: '#E0B24D', desligamento: '#D9635A' };
+
+function placasMovimento(ctx, y, entradas, afastados, desligamentos) {
+  const placas = [
+    ['🟢 ENTRARAM', entradas, COR_MOV.entrada],
+    ['⏸️ AFASTADOS', afastados, COR_MOV.afastamento],
+    ['🚪 DESLIGADOS', desligamentos, COR_MOV.desligamento],
+  ];
+  const largura = 290, gap = 25, x0 = (L - (largura * 3 + gap * 2)) / 2;
+  placas.forEach(([rotulo, n, cor], i) => {
+    const x = x0 + i * (largura + gap);
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    ctx.beginPath(); retangulo(ctx, x, y, largura, 180, 24); ctx.fill();
+    ctx.strokeStyle = cor;
+    ctx.globalAlpha = 0.55;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); retangulo(ctx, x, y, largura, 180, 24); ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.textAlign = 'center';
+    fonte(ctx, 86, 400, 'rye');
+    ctx.fillStyle = COR.marfim;
+    ctx.fillText(String(n), x + largura / 2, y + 108);
+    fonte(ctx, 22, 700);
+    ctx.fillStyle = cor;
+    ctx.fillText(rotulo, x + largura / 2, y + 152);
+  });
+  return y + 180;
+}
+
+export async function imagemMovimentos(r, nomeDivisao, rotuloPeriodo) {
+  const alturaLinha = 46;
+  const comData = (m, data, prefixo = '') => ({ nome: `${m.nome}${m.grau ? ` (${m.grau})` : ''}${data ? ` · ${prefixo}${formatDataBR(data)}` : ''}`, grau: '' });
+  const secoes = [
+    [`🟢 ENTRARAM (${r.entradas.length})`, COR_MOV.entrada, '🟢', r.entradas.map(m => comData(m, m.data))],
+    [`⏸️ AFASTADOS AGORA (${r.afastadosAgora.length})`, COR_MOV.afastamento, '⏸️', r.afastadosAgora.map(m => comData(m, m.situacaoDesde, 'desde '))],
+    [`🚪 DESLIGADOS (${r.desligamentos.length})`, COR_MOV.desligamento, '🚪', r.desligamentos.map(m => comData(m, m.data))],
+  ].filter(s => s[3].length);
+  const topoListas = 690;
+  const alturaListas = secoes.reduce((s, sec) => s + 70 + sec[3].length * alturaLinha + 18 + 24, 0);
+  const altura = Math.max(A, topoListas + alturaListas + 190);
+  const { canvas, ctx, logo } = await novaTela(altura);
+
+  emblema(ctx, logo, 40, 140);
+  const y = tituloMetal(ctx, '🔄 Entrada e Saída', 255, 58, 980);
+  rotuloEspacado(ctx, `${nomeDivisao.toUpperCase()}  ·  ${rotuloPeriodo.toUpperCase()}`, y + 2, 24, COR.ouro);
+  placasMovimento(ctx, 440, r.entradas.length, r.afastadosAgora.length, r.desligamentos.length);
+
+  let yl = topoListas;
+  if (!secoes.length) {
+    fonte(ctx, 30, 600);
+    ctx.fillStyle = COR.apagado;
+    ctx.textAlign = 'center';
+    ctx.fillText('Nenhuma movimentação no período', L / 2, yl + 60);
+  }
+  secoes.forEach(([titulo, cor, emoji, membros]) => {
+    yl = colunaNomes(ctx, 80, yl, L - 160, alturaLinha, titulo, cor, emoji, membros) + 24;
+  });
+
+  rodape(ctx, altura);
+  return canvas;
+}
+
+// O quadro do Regional: uma linha por divisao com os tres numeros, e o
+// total da RJ4 nas placas de cima. So numeros.
+export async function imagemQuadroMovimentos(q, rotuloPeriodo) {
+  const { canvas, ctx, logo } = await novaTela();
+  emblema(ctx, logo, 40, 140);
+  const y = tituloMetal(ctx, '🔄 Entrada e Saída', 255, 58, 980);
+  rotuloEspacado(ctx, `REGIONAL RJ4  ·  ${rotuloPeriodo.toUpperCase()}`, y + 2, 24, COR.ouro);
+  placasMovimento(ctx, 420, q.total.entradas, q.total.afastados, q.total.desligamentos);
+
+  const colunas = [640, 790, 940];
+  let yl = 660;
+  ctx.textBaseline = 'middle';
+  fonte(ctx, 22, 700);
+  ctx.fillStyle = COR.apagado;
+  ctx.textAlign = 'left';
+  ctx.fillText('DIVISÃO', 110, yl);
+  ctx.textAlign = 'center';
+  ['🟢', '⏸️', '🚪'].forEach((e, i) => ctx.fillText(e, colunas[i], yl));
+  yl += 34;
+  const alturaLinha = Math.min(64, (A - 190 - yl) / q.linhas.length);
+  q.linhas.forEach((l, i) => {
+    const meio = yl + i * alturaLinha + alturaLinha / 2;
+    if (i % 2 === 0) {
+      ctx.fillStyle = 'rgba(255,255,255,0.04)';
+      ctx.beginPath(); retangulo(ctx, 80, meio - alturaLinha / 2 + 3, L - 160, alturaLinha - 6, 14); ctx.fill();
+    }
+    fonte(ctx, 30, 600);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = COR.texto;
+    ctx.fillText(l.e.nome, 110, meio);
+    fonte(ctx, 36, 400, 'rye');
+    ctx.textAlign = 'center';
+    [[l.entradas, COR_MOV.entrada], [l.afastados, COR_MOV.afastamento], [l.desligamentos, COR_MOV.desligamento]].forEach(([n, cor], k) => {
+      ctx.fillStyle = n ? cor : COR.apagado;
+      ctx.fillText(String(n), colunas[k], meio + 2);
+    });
+  });
+  ctx.textBaseline = 'alphabetic';
+  rodape(ctx);
+  return canvas;
+}
+
+// ---------------------------------------------------------------------------
 // A previa: a imagem grande, com Compartilhar (onde o celular deixa),
 // Baixar e Fechar. Fica fora do #app, que e redesenhado a cada toque.
 export async function mostrarPreviaImagem(gerar, nomeArquivo) {

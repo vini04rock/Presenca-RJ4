@@ -1,5 +1,6 @@
 // Contas de presenca, percentuais, filtros de evento e grade do calendario.
 
+import { soAtivos } from './movimentos.js';
 import { normalizarNome } from './parser.js';
 import { computeCounts, statusEfetivo } from './status.js';
 import { TIPOS_EVENTO, escopoPorChave } from '../nucleo/config.js';
@@ -70,10 +71,12 @@ export function eventosCalendarioVisiveis(chaveEscopo) {
 // Membros convidados quando um evento nasce da tela "Organizar" do
 // Calendario - mesmo criterio de membrosElegiveisEvento() (Modo
 // organizador): Regional convida todo mundo, uma divisao so os proprios.
+// Afastado fica de fora (soAtivos): evento novo nao convoca quem esta
+// afastado.
 export function membrosElegiveisCalendario(chaveEscopo) {
-  if (chaveEscopo === 'regional') return state.roster;
+  if (chaveEscopo === 'regional') return soAtivos(state.roster);
   const nomeDivisao = escopoPorChave(chaveEscopo).nome;
-  return state.roster.filter(m => m.divisao === nomeDivisao);
+  return soAtivos(state.roster.filter(m => m.divisao === nomeDivisao));
 }
 
 // Mapa 'yyyy-mm-dd' -> { tipo, origem, id } pra desenhar a grade do
@@ -286,8 +289,9 @@ export function eventosDoEscopo() {
 
 // Evento regional convida gente de todas as divisoes (Regional incluso);
 // evento de uma divisao especifica so pode convidar os proprios membros.
+// Afastado fica de fora enquanto durar (ver dominio/movimentos.js).
 export function membrosElegiveisEvento() {
-  return state.adminEscopo === 'regional' ? state.roster : membrosDoEscopo();
+  return soAtivos(state.adminEscopo === 'regional' ? state.roster : membrosDoEscopo());
 }
 
 // So os membros da divisao (ou Regional) que o organizador esta gerenciando

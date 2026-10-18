@@ -239,6 +239,26 @@ export async function carregarCaixinha() {
   render();
 }
 
+// O livro de Entrada/Saida. Pelo Regional vem o de todas as divisoes (ver
+// lerMovimentos no Code.gs).
+export async function carregarMovimentos() {
+  const escopo = state.adminEscopo;
+  state.movimentosCarregando = true;
+  state.movimentosErro = null;
+  render();
+  try {
+    const r = await api('movimentos', { divisao: escopo });
+    if (state.adminEscopo !== escopo) return;
+    state.movimentosDados = r.movimentos || [];
+    state.movimentosDadosEscopo = escopo;
+  } catch (e) {
+    if (state.adminEscopo !== escopo) return;
+    state.movimentosErro = e.message;
+  }
+  state.movimentosCarregando = false;
+  render();
+}
+
 // Carrega as estatisticas (% de cada um + medias por divisao) e o historico
 // curto de rodadas juntos. As marcacoes comecam tudo zerado (ninguem fez) -
 // o administrador so marca quem fez, que costuma ser menos toque que marcar

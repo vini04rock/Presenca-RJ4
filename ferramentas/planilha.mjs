@@ -673,6 +673,80 @@ log('=== caixinha: um mês por vez, atrás do PIN da divisão ===');
 }
 
 log('');
+log('=== entrada/saída: afastamento, retorno e desligamento ===');
+{
+  // 'velho' ja encerrou, 'aberto' ainda vai acontecer. m1 e m2 sao da
+  // Barra, o9 do Oeste.
+  const p = montaPlanilha([ev('velho', '2026-09-05', 'encerrado'), ev('aberto', daquiA(3), 'ativo')], [
+    pr('velho', 'm1', 'Confirmado'), pr('aberto', 'm1', 'Aguardando'),
+    pr('velho', 'm2', 'Confirmado'), pr('aberto', 'm2', 'Confirmado'),
+    pr('aberto', 'o9', 'Aguardando'),
+  ]);
+  // A aba como esta hoje na planilha: 6 colunas, sem Situacao nem Entrada.
+  p.abas.Membros = novaAba('Membros', [['ID', 'Nome', 'Grau', 'Divisao', 'Funcoes', 'Cargo'],
+    ['m1', 'Costa', 'VI', 'Barra - RJ4', '', 'Diretor'], ['m2', 'Bull', 'X', 'Barra - RJ4', '', ''],
+    ['o9', 'Fabiano', 'IX', 'Oeste - RJ4', '', '']]);
+  const PINS = { PIN_REGIONAL: '0418', PIN_BARRA: '1801', PIN_OESTE: '1802' };
+  const { contexto } = carregaCodeGs(p, PINS);
+  const barra = { escopo: 'barra', pin: '1801' };
+  const membro = (id) => contexto.executar('dados', {}).membros.find(m => m.id === id);
+  const presencasDe = (mid) => p.abas.Presencas.dados.slice(1).filter(l => l[2] === mid).map(l => l[0]);
+  const livro = () => (p.abas.Movimentacoes ? p.abas.Movimentacoes.dados.slice(1) : []).map(l => [l[2], l[3], l[6]]);
+  const mover = (extra) => contexto.executar('membroMovimentar', { ...barra, ...extra });
+
+  confere('sem PIN, movimentar é recusado', contexto.executar('membroMovimentar', { membroId: 'm1', tipo: 'afastamento' }).ok, false);
+  confere('ler o livro sem PIN é recusado', contexto.executar('movimentos', { divisao: 'barra' }).ok, false);
+
+  // Integrante novo: entrada no cadastro e no livro.
+  contexto.executar('membroSalvar', { ...barra, id: 'm3', nome: 'Raposo', grau: 'VI', divisao: 'Barra - RJ4', funcoes: '', cargo: 'Social', entrada: '2026-10-01' });
+  confere('integrante novo grava a data de entrada', membro('m3').entrada, '2026-10-01');
+  confere('e entra no livro como Entrada', livro(), [['barra', 'm3', 'Entrada']]);
+  contexto.executar('membroSalvar', { ...barra, id: 'm4', nome: 'Alfa', divisao: 'Barra - RJ4' });
+  confere('sem data de entrada, vale hoje', membro('m4').entrada, daquiA(0));
+
+  const r = mover({ membroId: 'm1', tipo: 'afastamento', data: '2026-10-10', motivo: 'Trabalho fora do estado' });
+  confere('a Barra afasta o dela', [r.ok, r.eventosAbertosTirados], [true, 1]);
+  confere('o afastado aparece assim no cadastro', [membro('m1').situacao, membro('m1').situacaoDesde], ['afastado', '2026-10-10']);
+  confere('sai do evento aberto, fica no encerrado', presencasDe('m1'), ['velho']);
+  // Editar pelo formulario (nome/grau) nao pode desfazer o afastamento.
+  contexto.executar('membroSalvar', { ...barra, id: 'm1', nome: 'Costa Jr', grau: 'VI', divisao: 'Barra - RJ4', cargo: 'Diretor' });
+  confere('editar o cadastro não tira o afastamento', [membro('m1').nome, membro('m1').situacao], ['Costa Jr', 'afastado']);
+  let erro = null;
+  try { mover({ membroId: 'm1', tipo: 'afastamento' }); } catch (e) { erro = e.message; }
+  confere('afastar de novo é recusado', erro, 'Este integrante ja esta afastado');
+  erro = null;
+  try { mover({ membroId: 'm2', tipo: 'retorno' }); } catch (e) { erro = e.message; }
+  confere('retorno de quem não está afastado é recusado', erro, 'Este integrante nao esta afastado');
+
+  // O Insight deixa o afastado de fora enquanto durar.
+  confere('afastado fica fora do Insight', contexto.executar('insightEstatisticas', {}).membros.map(m => m.id).includes('m1'), false);
+
+  mover({ membroId: 'm1', tipo: 'retorno', data: '2026-10-20' });
+  confere('retorno volta a ativo', [membro('m1').situacao, membro('m1').situacaoDesde], ['', '']);
+  confere('e volta pro Insight', contexto.executar('insightEstatisticas', {}).membros.map(m => m.id).includes('m1'), true);
+
+  const desl = mover({ membroId: 'm2', tipo: 'desligamento', data: '2026-10-21', motivo: 'Pediu pra sair' });
+  confere('desligar tira do cadastro', [desl.ok, membro('m2')], [true, undefined]);
+  // A diferenca pro "Remover": o historico dos eventos encerrados fica.
+  confere('o histórico do evento encerrado fica, o aberto sai', presencasDe('m2'), ['velho']);
+
+  const invasao = mover({ membroId: 'o9', tipo: 'afastamento' });
+  confere('a Barra NÃO afasta ninguém do Oeste', [invasao.ok, membro('o9').situacao], [false, '']);
+  confere('o Regional afasta em qualquer divisão',
+    contexto.executar('membroMovimentar', { escopo: 'barra', pin: '0418', membroId: 'o9', tipo: 'afastamento' }).ok, true);
+
+  confere('o livro guarda tudo, na ordem', livro(), [['barra', 'm3', 'Entrada'], ['barra', 'm4', 'Entrada'],
+    ['barra', 'm1', 'Afastamento'], ['barra', 'm1', 'Retorno'], ['barra', 'm2', 'Desligamento'], ['oeste', 'o9', 'Afastamento']]);
+  const daBarra = contexto.executar('movimentos', { ...barra, divisao: 'barra' }).movimentos;
+  confere('a Barra lê só o livro dela', daBarra.every(m => m.divisao === 'barra') && daBarra.length, 5);
+  confere('do mais recente pro mais antigo, com tipo e motivo', [daBarra[0].tipo, daBarra[0].nome, daBarra[0].motivo],
+    ['desligamento', 'Bull', 'Pediu pra sair']);
+  confere('a Barra NÃO lê o livro do Regional (todas as divisões)', contexto.executar('movimentos', { ...barra, divisao: 'regional' }).ok, false);
+  confere('o Regional lê o livro inteiro',
+    contexto.executar('movimentos', { escopo: 'regional', pin: '0418', divisao: 'regional' }).movimentos.length, 6);
+}
+
+log('');
 log(falhas === 0 ? 'TUDO OK' : `${falhas} FALHA(S) — veja acima`);
 fs.writeFileSync(SAIDA, linhas.join('\n'), 'utf8');
 process.exit(falhas === 0 ? 0 : 1);

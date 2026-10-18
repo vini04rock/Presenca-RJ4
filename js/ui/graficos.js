@@ -57,6 +57,56 @@ export function renderDonutChart(segments, centro, centroLabel, tamanho) {
   `;
 }
 
+// Pizza de verdade (fatias cheias, sem o furo da rosca), com a legenda ao
+// lado no mesmo formato da rosca: cor, rotulo, numero e %. segments =
+// [{ label, value, cor }]. Tudo zerado vira o circulo vazio com `vazio`
+// escrito, em vez de uma pizza que nao existe. Entra crescendo do centro
+// (data-anima), uma vez por tela.
+export function renderPizza(segments, tamanho, vazio) {
+  tamanho = tamanho || 130;
+  const total = segments.reduce((s, x) => s + x.value, 0);
+  const c = tamanho / 2, r = c - 3;
+  const comDados = segments.filter(s => s.value > 0);
+  let fatias;
+  if (!total) {
+    fatias = `<circle cx="${c}" cy="${c}" r="${r}" fill="var(--surface-alt)" stroke="var(--line-strong)" stroke-width="1"></circle>`;
+  } else if (comDados.length === 1) {
+    // Uma fatia so e o circulo inteiro - o arco de 360 graus nao se desenha.
+    fatias = `<circle cx="${c}" cy="${c}" r="${r}" style="fill:${comDados[0].cor}"></circle>`;
+  } else {
+    let angulo = -Math.PI / 2;
+    fatias = comDados.map(s => {
+      const fim = angulo + (s.value / total) * Math.PI * 2;
+      const x1 = c + r * Math.cos(angulo), y1 = c + r * Math.sin(angulo);
+      const x2 = c + r * Math.cos(fim), y2 = c + r * Math.sin(fim);
+      const grande = fim - angulo > Math.PI ? 1 : 0;
+      angulo = fim;
+      return `<path d="M${c} ${c} L${x1.toFixed(2)} ${y1.toFixed(2)} A${r} ${r} 0 ${grande} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z"
+        style="fill:${s.cor}" stroke="rgba(10,10,10,0.85)" stroke-width="2"></path>`;
+    }).join('');
+  }
+  return `
+    <div class="donut-wrap pizza-wrap" data-anima="${escapeHtml('pizza:' + segments.map(s => s.value).join(','))}">
+      <div class="pizza" style="width:${tamanho}px; height:${tamanho}px;">
+        <svg width="${tamanho}" height="${tamanho}" viewBox="0 0 ${tamanho} ${tamanho}">
+          ${fatias}
+          <circle cx="${c}" cy="${c}" r="${r + 1}" fill="none" stroke="rgba(212,162,76,0.5)" stroke-width="1.5"></circle>
+        </svg>
+        ${total ? '' : `<div class="pizza-vazia">${escapeHtml(vazio || 'Nada')}</div>`}
+      </div>
+      <div class="donut-legend">
+        ${segments.map(s => `
+          <div class="donut-legend-item">
+            <span class="donut-swatch" style="background:${s.cor};"></span>
+            <span class="donut-legend-label">${escapeHtml(s.label)}</span>
+            <span class="donut-legend-value">${s.value}${total ? ' · ' + Math.round(s.value / total * 100) + '%' : ''}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
 // Status agrupado em 4 fatias (confirmado/aguardando/faltas justificadas/
 // faltas infracionais) para o donut - familia+trabalho+justificada viram
 // uma unica fatia, igual ao que buildReportText ja agrupa.

@@ -754,6 +754,45 @@ log('=== caixinha: meses, quem está em dia e quem deve ===');
 }
 
 log('');
+log('=== entrada/saída: o relatório de cada divisão e o quadro do Regional ===');
+{
+  const { resumoMovimentos, quadroRegional, textoMovimentos, textoQuadroRegional, soAtivos, movimentosDoPeriodo } = await import(url('dominio/movimentos.js'));
+  const roster = [
+    { id: 'a1', nome: 'Costa', grau: 'VI', cargo: 'Diretor', divisao: 'Barra - RJ4', situacao: 'afastado', situacaoDesde: '2026-08-01' },
+    { id: 'a2', nome: 'Bravo', grau: 'X', divisao: 'Barra - RJ4', situacao: '' },
+    { id: 'a3', nome: 'Tigre', grau: 'X', divisao: 'Oeste - RJ4', situacao: 'afastado', situacaoDesde: '2026-10-01' },
+  ];
+  const mv = (data, divisao, nome, tipo, motivo) => ({ id: nome + tipo, data, divisao, membroId: nome, nome, grau: 'X', tipo, motivo: motivo || '' });
+  const movimentos = [
+    mv(emDias(-5), 'barra', 'Novo', 'entrada'),
+    mv(emDias(-10), 'barra', 'Saiu', 'desligamento', 'Mudou de cidade'),
+    mv('2000-01-01', 'barra', 'Antigo', 'entrada'),
+    mv(emDias(-3), 'oeste', 'Outro', 'entrada'),
+  ];
+  confere('afastado fica fora das listas novas', nomes(soAtivos(roster)), ['Bravo']);
+  const r = resumoMovimentos(movimentos, roster, 'barra', 6);
+  confere('no período: só os da divisão e da janela', [nomes(r.entradas), nomes(r.desligamentos)], [['Novo'], ['Saiu']]);
+  // Afastado e estado, nao acontecimento: Costa se afastou antes da janela
+  // e ainda conta.
+  confere('afastados agora contam fora da janela', nomes(r.afastadosAgora), ['Costa']);
+  confere('linha do tempo do mais recente pro mais antigo', nomes(r.linhaDoTempo), ['Novo', 'Saiu']);
+  confere('desde sempre pega tudo', resumoMovimentos(movimentos, roster, 'barra', 0).entradas.length, 2);
+  confere('evento sem data só entra em desde sempre', movimentosDoPeriodo([mv('', 'barra', 'X', 'entrada')], 3).length, 0);
+
+  const texto = textoMovimentos(r, 6);
+  confere('o texto leva nome e data', /🟢 Novo \(X\) — /.test(texto) && /⏸️ Costa \(VI\) — desde 01\/08\/2026/.test(texto), true);
+  confere('o texto NÃO leva o motivo', texto.includes('Mudou de cidade'), false);
+
+  const q = quadroRegional(movimentos, roster, 6);
+  confere('o quadro vem na ordem oficial', q.linhas.map(l => l.e.chave), ['regional', 'oeste', 'recreio', 'barra', 'curicica', 'taquara', 'gardenia']);
+  const linha = c => { const l = q.linhas.find(x => x.e.chave === c); return [l.entradas, l.afastados, l.desligamentos]; };
+  confere('números da Barra e do Oeste', [linha('barra'), linha('oeste')], [[1, 1, 1], [1, 1, 0]]);
+  confere('total da RJ4', q.total, { entradas: 2, afastados: 2, desligamentos: 1 });
+  confere('texto do quadro com o total', textoQuadroRegional(q, 6).split('\n').slice(-1),
+    ['*TOTAL RJ4*: 🟢 2 entraram · ⏸️ 2 afastados · 🚪 1 desligados']);
+}
+
+log('');
 log(falhas === 0 ? 'TUDO OK' : `${falhas} FALHA(S) — veja acima`);
 fs.writeFileSync(SAIDA, linhas.join('\n'), 'utf8');
 process.exit(falhas === 0 ? 0 : 1);

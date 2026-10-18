@@ -1,0 +1,73 @@
+// Registrar afastamento, retorno ou desligamento de um integrante, pelo
+// painel que abre na linha dele no cadastro de membros.
+//
+// Diferente do resto do cadastro (que grava otimista e so avisa se der
+// errado), aqui a tela espera a planilha confirmar: desligar tira a pessoa
+// do cadastro, e um "sumiu e voltou" por erro de rede seria pior que um
+// segundo de espera.
+
+import { TIPOS_MOVIMENTO } from '../dominio/movimentos.js';
+import { api } from '../nucleo/api.js';
+import { state } from '../nucleo/estado.js';
+import { render } from '../nucleo/render.js';
+import { dataISOdeBR, hojeISO, mostrarAviso } from '../nucleo/util.js';
+
+export function fecharPainelMovimento() {
+  state.movMembroId = null;
+  state.movTipo = null;
+  state.movData = '';
+  state.movMotivo = '';
+  state.movErro = null;
+}
+
+export async function confirmarMovimento() {
+  const membroId = state.movMembroId, tipo = state.movTipo;
+  if (!membroId || !tipo) return;
+  // Vazio = hoje. Preenchido, tem que ser uma data de verdade.
+  const bruto = (state.movData || '').trim();
+  const data = bruto ? dataISOdeBR(bruto) : hojeISO();
+  if (!data) {
+    state.movErro = `"${bruto}" não é uma data válida - escreva como 18/10/2026`;
+    return render();
+  }
+  if (data > hojeISO()) {
+    state.movErro = 'A data não pode ser no futuro.';
+    return render();
+  }
+  state.movSalvando = true;
+  state.movErro = null;
+  render();
+  try {
+    await api('membroMovimentar', { membroId, tipo, data, motivo: (state.movMotivo || '').trim() });
+    aplicarNaMemoria(membroId, tipo, data);
+    const m = state.roster.find(x => x.id === membroId);
+    mostrarAviso(`${TIPOS_MOVIMENTO[tipo].emoji} ${TIPOS_MOVIMENTO[tipo].label} registrado${m ? ` — ${m.nome}` : ''}`);
+    fecharPainelMovimento();
+    // O livro na memoria ficou velho; a secao Entrada/Saida busca de novo.
+    state.movimentosDados = null;
+  } catch (e) {
+    state.movErro = 'Não consegui registrar: ' + e.message + '.';
+  }
+  state.movSalvando = false;
+  render();
+}
+
+// O mesmo que o Code.gs fez, na memoria do app, pra tela nao precisar
+// recarregar tudo: a situacao no cadastro e, no afastamento e no
+// desligamento, a saida dos eventos ainda abertos.
+function aplicarNaMemoria(membroId, tipo, data) {
+  if (tipo === 'afastamento' || tipo === 'desligamento') {
+    state.events = state.events.map(ev => ev.status === 'encerrado' || !(ev.memberIds || []).includes(membroId)
+      ? ev
+      : { ...ev, memberIds: ev.memberIds.filter(id => id !== membroId) });
+  }
+  if (tipo === 'desligamento') {
+    state.roster = state.roster.filter(m => m.id !== membroId);
+    return;
+  }
+  state.roster = state.roster.map(m => m.id !== membroId ? m : {
+    ...m,
+    situacao: tipo === 'afastamento' ? 'afastado' : '',
+    situacaoDesde: tipo === 'afastamento' ? data : '',
+  });
+}

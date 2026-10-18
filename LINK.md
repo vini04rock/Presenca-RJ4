@@ -105,6 +105,11 @@ Abas em uso:
 - `Caixinha` — quem pagou a caixinha em cada mês (seção Caixinha do
   organizador). Uma linha por divisão × mês × integrante que devia pagar,
   com Sim/Não. Nasce sozinha no primeiro uso.
+- `Movimentacoes` — o livro de Entrada/Saída de integrantes: entrada,
+  afastamento, retorno e desligamento, com data e motivo. Gravado pelo app
+  (cadastro de Membros). Nada é apagado dela. Nasce sozinha no primeiro uso.
+  A aba `Membros` também ganhou as colunas Situação, Situação Desde e
+  Entrada, acrescentadas sozinhas.
 - `KV` — formato antigo, mantido apenas como backup da migração inicial.
 
 Todas as abas de resumo (`Calendário`, `Insight RJ4`, `Regional RJ4` e as

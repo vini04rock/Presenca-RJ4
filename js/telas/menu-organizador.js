@@ -39,6 +39,8 @@ const SECOES = [
     visivel: () => temDoacoesECaixinha(state.adminEscopo) },
   { aba: 'caixinha', nome: 'Caixinha', desc: 'Quem pagou em cada mês e quem está em dia', icone: '💰', cor: '#C9A227',
     visivel: () => temDoacoesECaixinha(state.adminEscopo) },
+  // Nas 7: cada divisao ve o proprio livro, e o Regional o quadro de todas.
+  { aba: 'movimentos', nome: 'Entrada/Saída', desc: 'Quem entrou, quem está afastado e quem saiu', icone: '🔄', cor: '#8FA3B8' },
   // Os Relatorios seguem so no Regional e na Barra - decisao do clube, que
   // mora em escoposAtivos() para nao ficar repetida aqui. Como a divisao e
   // o PIN ja vieram do organizador, nao ha PIN de novo.

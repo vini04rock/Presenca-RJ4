@@ -27,7 +27,7 @@ Três modos de entrada, todos no mesmo link:
 - HTML + CSS + JavaScript puro, em **módulos ES nativos**. Sem framework,
   sem build step, sem dependências além das fontes do Google.
 - `index.html` é só o esqueleto; o visual em `css/estilo.css`; o código em
-  `js/`, repartido em 46 módulos.
+  `js/`, repartido em 49 módulos.
 - Hospedado no GitHub Pages (estático). Todo `git push` atualiza o site.
 - Backend: planilha do Google Sheets via Apps Script publicado como Web App.
   A URL fica em `API_URL`, em `js/nucleo/api.js`.
@@ -117,7 +117,7 @@ sem controlar o servidor.
 
 | Aba | O que guarda |
 |---|---|
-| `Membros` | id, nome, grau, divisão, funções, **cargo** |
+| `Membros` | id, nome, grau, divisão, funções, **cargo**, situação (afastado), data de entrada |
 | `Eventos` | id, nome, data, horário, endereço, outros, status, categoria, tipo, texto original, **chamada** (JSON) |
 | `Presencas` | uma linha por evento × membro, com status e as flags Direto/Destacado/Acompanhado |
 | `InsightRodadas` | uma linha por rodada |
@@ -125,6 +125,7 @@ sem controlar o servidor.
 | `InsightExcluidos` | só quem foi tirado do Insight; sem linha = participa |
 | `Responsaveis` | quem assina a chamada, uma linha por divisão e uma pelo Regional |
 | `TextosChamada` | Regras do clube e Atenção personalizadas pelo Regional; sem linha = o padrão |
+| `Movimentacoes` | o livro de Entrada/Saída: uma linha por entrada, afastamento, retorno ou desligamento. Nada é apagado |
 | `Doacoes` | uma linha por evento × integrante que levou alimento, com os kg; sem linha = não levou |
 | `Caixinha` | uma linha por divisão × mês × integrante que devia pagar, com Sim/Não |
 
@@ -326,6 +327,61 @@ de período.
   sai completo, numa página nova. Os marcados vêm numa chamada só
   (`relatorioIndividualVarios`), que lê as abas uma vez e monta cada um com
   a mesma função do relatório de um, então os dois nunca discordam.
+
+## Entrada/Saída de integrantes
+
+Criado em 18/10/2026, em todas as divisões e no Regional. Registra quem
+entra, quem se afasta e quem sai do clube, e transforma isso em relatório.
+
+**O registro fica no cadastro de Membros.** Ao lado do grau de cada
+integrante há **⏸️ Afastamento** (ou **▶️ Retorno**, para quem já está
+afastado) e **🚪 Desligamento**. Cada um abre um painel na própria linha,
+com a data (hoje, se nada for escrito; nunca no futuro), o motivo
+(opcional) e o que vai acontecer, dito antes de confirmar. A **entrada** é
+registrada pelo próprio cadastro: o formulário de integrante novo tem
+"Data de entrada", e salvar já anota no livro. Quem foi cadastrado antes
+disso não conta como entrada.
+
+O que cada um faz (`registrarMovimento`, no `Code.gs`):
+
+- **Afastamento:** a aba `Membros` ganha "Afastado" na coluna Situação. O
+  afastado **sai dos eventos ainda abertos**, para não levar falta não
+  justificada no encerramento, e fica fora das **listas novas** enquanto
+  durar: evento novo (formulário e Calendário, via `soAtivos` em
+  `dominio/movimentos.js`), mês novo da Caixinha e Insight (filtrado no
+  próprio `Code.gs`). O histórico de antes não muda.
+- **Retorno:** a situação volta a vazia e ele volta às listas novas. Os
+  eventos já abertos não recebem ele de volta sozinhos; o organizador
+  inclui pelo Editar do evento, se quiser.
+- **Desligamento:** sai da aba `Membros` e dos eventos abertos, mas **as
+  presenças dos eventos encerrados ficam**. É a diferença para o
+  **Remover**, que apaga o histórico e existe só para cadastro feito
+  errado. Tirar o desligado da aba `Membros` faz todo o resto do app (mais
+  de 30 lugares leem o cadastro) parar de enxergá-lo sem mexer em nenhum
+  deles. Ele continua existindo no livro e nas linhas antigas de
+  `Presencas`.
+
+**O relatório** é o card **🔄 Entrada/Saída** do menu do organizador
+(`telas/admin-movimentos.js`, contas em `dominio/movimentos.js`):
+
+- Numa divisão: três números (entraram, afastados agora, desligados), os
+  afastados de hoje e a linha do tempo, com período de 3, 6 ou 12 meses ou
+  tudo. **Entraram e desligados contam no período; afastados contam
+  agora**, porque afastamento é um estado e não um acontecimento.
+- Os três números também viram uma **pizza** (`renderPizza`, em
+  `ui/graficos.js`), entre o placar e os botões: no Regional, a soma de
+  todas as divisões; numa divisão, só a dela.
+- No Regional: o quadro de todas as divisões na ordem oficial, com o total
+  da RJ4. Tocar numa divisão abre a linha do tempo dela. O Regional lê o
+  livro inteiro; uma divisão lê só o dela (`lerMovimentos`).
+- **O motivo só aparece dentro do app.** O texto pro WhatsApp e a imagem
+  levam nome e data, nunca o motivo: pode ser assunto pessoal, e o que
+  vai pro grupo circula.
+- Registrar e ler pedem PIN, e o `Code.gs` confere contra a divisão do
+  integrante (`podeNaDivisao`). A Barra não afasta ninguém do Oeste.
+
+Ainda não registrado: a troca de divisão (feita pelo Editar, sem entrar no
+livro).
 
 ## Doações e Caixinha
 
@@ -530,8 +586,8 @@ a cada mudança:
 | `servidor.py` | serve o app local com o cache desligado |
 | `estrutura.py` | 7 verificações: imports circulares, hierarquia de camadas, sintaxe, nome sem import, import sobrando, ações sem tratador |
 | `regras.mjs` | as regras do clube que, se quebrarem, saem erradas numa convocação sem ninguém perceber |
-| `telas.mjs` | desenha as 112 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
-| `planilha.mjs` | roda o `Code.gs` de verdade contra uma planilha de mentira: encerramento automático, PIN, relatório individual, responsável, textos, chamada do evento, doações e caixinha |
+| `telas.mjs` | desenha as 122 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
+| `planilha.mjs` | roda o `Code.gs` de verdade contra uma planilha de mentira: encerramento automático, PIN, relatório individual, responsável, textos, chamada do evento, doações, caixinha e entrada/saída |
 
 O `--html` do `telas.mjs` é a rede de proteção mais útil: captura o HTML de
 todas as telas, você mexe, captura de novo e compara. Diferença que aparecer
@@ -656,14 +712,14 @@ ferramentas, acima):
 
     py ferramentas/estrutura.py     # imports, camadas, sintaxe, ações
     node ferramentas/regras.mjs     # ordem hierárquica e formato da convocação
-    node ferramentas/telas.mjs      # desenha as 112 telas e abas
+    node ferramentas/telas.mjs      # desenha as 122 telas e abas
     node ferramentas/planilha.mjs   # o encerramento automático, no Code.gs
 
 Eles dizem que o app **não quebrou**, não que está bonito: não cobrem
 aparência, impressão/PDF, o caminho de rede real nem o resto do `Code.gs` —
 o `planilha.mjs` só alcança o encerramento automático, a guarda de PIN, o
 relatório individual, o responsável, os textos da chamada, a chamada
-guardada no evento, as doações e a caixinha.
+guardada no evento, as doações, a caixinha e a entrada/saída de integrantes.
 
 Se a mudança mexeu no `Code.gs`, ele precisa ser **republicado à parte** no
 Apps Script — não vai junto no `git push`. Confira depois chamando a URL do

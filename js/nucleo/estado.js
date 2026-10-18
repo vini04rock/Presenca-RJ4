@@ -239,6 +239,27 @@ export let state = {
   caixinhaMsg: null,
   caixinhaPeriodo: 6,
 
+  // Cadastro de membros: a data de entrada de um integrante novo (como foi
+  // digitada, dd/mm/aaaa) e o painel de afastamento/retorno/desligamento
+  // aberto numa linha. movTipo: 'afastamento' | 'retorno' | 'desligamento'.
+  newMemberEntrada: '',
+  movMembroId: null,
+  movTipo: null,
+  movData: '',
+  movMotivo: '',
+  movSalvando: false,
+  movErro: null,
+
+  // Secao Entrada/Saida do organizador: o livro de movimentacoes da divisao
+  // (ou de todas, no Regional) e o periodo. No Regional, a divisao aberta
+  // mostra a linha do tempo dela; null = o quadro de todas.
+  movimentosDados: null,
+  movimentosDadosEscopo: null,
+  movimentosCarregando: false,
+  movimentosErro: null,
+  movimentosPeriodo: 6,
+  movimentosDivisaoAberta: null,
+
   // Tela "Calendario" - divisao/regional escolhida e o mes/ano exibido
   // (null = usa o mes atual, preenchido na primeira renderizacao). Sem PIN,
   // igual a tela de Eventos.

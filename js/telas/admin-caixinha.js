@@ -9,6 +9,7 @@ import { carregarCaixinha } from '../dados/carregar.js';
 import { mesesParaEscolher, nomeCurtoDoMes, nomeDoMes, rankCaixinha, relatorioMesCaixinha, textoCaixinha, textoRelatorioMesCaixinha } from '../dominio/caixinha.js';
 import { PERIODOS, nomeDoPeriodo, rotuloPilula } from '../dominio/doacoes.js';
 import { membrosDoEscopo } from '../dominio/estatisticas.js';
+import { soAtivos } from '../dominio/movimentos.js';
 import { fecharMesCaixinha, removerMesCaixinha, salvarCaixinha } from '../fluxos/doacoes-caixinha.js';
 import { escopoPorChave } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
@@ -107,7 +108,7 @@ function painelMes() {
     <div class="btn ghost" style="margin-bottom:10px;" data-action="fechar-mes-caixinha">‹ Voltar aos meses</div>
     <div class="card">
       <div class="nome-evento-card">💰 ${escapeHtml(nomeDoMes(mes))}</div>
-      <div style="color:var(--text-muted); font-size:12.5px; margin-top:5px;">${jaLancado ? 'Mês já lançado — salvar corrige.' : 'Mês novo — a lista começa com a divisão inteira.'}</div>
+      <div style="color:var(--text-muted); font-size:12.5px; margin-top:5px;">${jaLancado ? 'Mês já lançado — salvar corrige.' : 'Mês novo — a lista começa com a divisão inteira, menos os afastados.'}</div>
       <div class="doacao-total"><b>${pagaram} de ${lista.length}</b> pagaram</div>
     </div>
     ${state.caixinhaMsg && !state.caixinhaMsg.ok ? aviso() : ''}
@@ -278,7 +279,9 @@ export const acoes = {
         state.caixinhaInfo[m.id] = { nome: m.nome };
       });
     } else {
-      state.caixinhaMembroIds = membrosDoEscopo().map(m => m.id);
+      // Afastado nao entra num mes novo; se pagar mesmo assim, o
+      // "Adicionar" poe ele na lista.
+      state.caixinhaMembroIds = soAtivos(membrosDoEscopo()).map(m => m.id);
     }
     state.caixinhaMsg = null;
     window.scrollTo(0, 0);
