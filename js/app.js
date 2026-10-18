@@ -22,6 +22,8 @@ import { acoes as acoesAdminEventos, aoDigitarNoFormulario, atualizarEtapasDoFor
 import { atualizarConfirmacoes } from './fluxos/evento.js';
 import { acoes as acoesAdminMembros } from './telas/admin-membros.js';
 import { acoes as acoesAdminInsights } from './telas/admin-insights.js';
+import { acoes as acoesAdminDoacoes } from './telas/admin-doacoes.js';
+import { acoes as acoesAdminCaixinha } from './telas/admin-caixinha.js';
 import { acoes as acoesComuns, aplicarBusca } from './ui/comuns.js';
 import { acoes as acoesGraficos } from './ui/graficos.js';
 import { acoes as acoesHome } from './telas/home.js';
@@ -309,6 +311,8 @@ for (const [area, mapa] of Object.entries({
   acoesAdminEventos,
   acoesAdminMembros,
   acoesAdminInsights,
+  acoesAdminDoacoes,
+  acoesAdminCaixinha,
   acoesComuns,
   acoesGraficos,
   acoesHome,

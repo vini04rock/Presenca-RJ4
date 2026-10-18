@@ -10,6 +10,8 @@
 import { divisoesSemRegional, emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao } from '../nucleo/config.js';
 import { IMG_FUNDO, LOGO_SRC } from '../nucleo/imagens.js';
 import { diaDaSemana, formatDataBR, mostrarAviso } from '../nucleo/util.js';
+import { nomeDoMes } from '../dominio/caixinha.js';
+import { formatKg } from '../dominio/doacoes.js';
 import { posicoesDoPodio } from './comuns.js';
 
 const L = 1080, A = 1350; // retrato 4:5, o formato que o WhatsApp mostra maior
@@ -173,8 +175,13 @@ function rosca(ctx, cx, cy, r, fatias, total, textoCentro, rotulo) {
 // A lista com pódio dos ranks: posicao (ou medalha), nome, barra e %. Cada
 // linha e { nome, pct, detalhe } - detalhe e o "5 de 5" ao lado do nome.
 // Ja chega ordenada do maior % pro menor.
-function listaRanking(ctx, linhas, y, alturaLinha) {
-  const lugares = posicoesDoPodio(linhas.map(x => x.pct));
+//
+// Quando o numero nao e um % (os kg das Doacoes), a linha traz tambem
+// `texto` (o que vai a direita, "3 kg") e `pct` vira so o tamanho da barra
+// e a ordem do pódio. `semPodio` desenha so a posicao, sem medalha nem
+// brilho - pra uma lista que nao e disputa (os meses da Caixinha).
+function listaRanking(ctx, linhas, y, alturaLinha, { semPodio } = {}) {
+  const lugares = semPodio ? linhas.map(() => 0) : posicoesDoPodio(linhas.map(x => x.pct));
   linhas.forEach((x, i) => {
     const topo = y + i * alturaLinha;
     const meio = topo + alturaLinha / 2;
@@ -189,7 +196,7 @@ function listaRanking(ctx, linhas, y, alturaLinha) {
     fonte(ctx, 34, 700);
     ctx.textAlign = 'center';
     ctx.fillStyle = COR.apagado;
-    ctx.fillText(lugares[i] ? MEDALHAS[lugares[i] - 1] : `${i + 1}º`, 165, meio);
+    ctx.fillText(lugares[i] ? MEDALHAS[lugares[i] - 1] : (semPodio ? '•' : `${i + 1}º`), 165, meio);
     fonte(ctx, 31, 600);
     ctx.textAlign = 'left';
     ctx.fillStyle = COR.texto;
@@ -211,7 +218,7 @@ function listaRanking(ctx, linhas, y, alturaLinha) {
     fonte(ctx, 38, 400, 'rye');
     ctx.textAlign = 'right';
     ctx.fillStyle = COR.marfim;
-    ctx.fillText(x.pct === null || x.pct === undefined ? '—' : `${x.pct}%`, L - 130, meio);
+    ctx.fillText(x.texto !== undefined ? x.texto : (x.pct === null || x.pct === undefined ? '—' : `${x.pct}%`), L - 130, meio);
     ctx.textBaseline = 'alphabetic';
   });
   ctx.textAlign = 'center';
@@ -385,6 +392,75 @@ export async function imagemRelatorioInsight(d, rotuloPeriodo) {
     fonte(ctx, 28, 600);
     ctx.fillStyle = COR.texto;
     textoCentral(ctx, destaques.map(m => `${m.nome} ${m.percentual}%`).join('  ·  '), y + 92, 38, 940);
+  }
+
+  rodape(ctx);
+  return canvas;
+}
+
+// ---------------------------------------------------------------------------
+// Doacoes de alimento no periodo: o cumprimento da divisao (dos que foram,
+// quantos levaram), o total arrecadado e quem mais levou. Como as outras,
+// sem nome de quem nao levou - isso e do texto. `r` e o rankDoacoes.
+export async function imagemDoacoes(r, nomeDivisao, rotuloPeriodo) {
+  const { canvas, ctx, logo } = await novaTela();
+  const pct = r.cumprimento === null ? 0 : r.cumprimento;
+  const doaram = r.membros.filter(m => m.kg > 0).slice(0, 5);
+  const maior = doaram.length ? doaram[0].kg : 0;
+  const linhas = doaram.map(m => ({ nome: m.nome, pct: maior ? Math.round((m.kg / maior) * 100) : 0,
+    texto: formatKg(m.kg), detalhe: m.grau || '' }));
+
+  emblema(ctx, logo, 45, 150);
+  let y = tituloMetal(ctx, '🥫 Doações de Alimento', 275, 58, 980);
+  rotuloEspacado(ctx, `${nomeDivisao.toUpperCase()}  ·  ${rotuloPeriodo.toUpperCase()}`, y + 2, 22, COR.ouro);
+
+  const raio = 105;
+  const cy = y + 50 + raio;
+  rosca(ctx, L / 2, cy, raio, [[r.presencasComDoacao, COR.confirmado], [r.presencas - r.presencasComDoacao, COR.infracional]],
+    r.presencas, r.cumprimento === null ? '—' : `${pct}%`, 'CUMPRIMENTO');
+  y = cy + raio + 62;
+  fonte(ctx, 40, 700);
+  ctx.fillStyle = COR.texto;
+  ctx.fillText(`${formatKg(r.totalKg)} arrecadados`, L / 2, y);
+  fonte(ctx, 24, 600);
+  ctx.fillStyle = COR.apagado;
+  ctx.fillText(`em ${r.eventosComDoacao} ${r.eventosComDoacao === 1 ? 'evento' : 'eventos'}  ·  regra: 1 kg por evento`, L / 2, y + 38);
+
+  if (linhas.length) {
+    y += 100;
+    rotuloEspacado(ctx, '🏆 QUEM MAIS LEVOU', y, 24, COR.ouro);
+    listaRanking(ctx, linhas, y + 14, Math.min(88, (A - 170 - y) / linhas.length));
+  }
+
+  rodape(ctx);
+  return canvas;
+}
+
+// ---------------------------------------------------------------------------
+// Caixinha no periodo: o % em dia da divisao e quantos pagaram em cada mes.
+// Sem nome nenhum - nem de quem deve, nem de quem pagou: na caixinha o
+// numero do grupo e o que interessa mostrar. `r` e o rankCaixinha.
+export async function imagemCaixinha(r, nomeDivisao, rotuloPeriodo) {
+  const { canvas, ctx, logo } = await novaTela();
+  const meses = r.meses.slice(0, 6).reverse();
+  const linhas = meses.map(m => ({ nome: nomeDoMes(m.mes), pct: m.pct, detalhe: `${m.pagaram} de ${m.total}` }));
+
+  emblema(ctx, logo, 45, 150);
+  let y = tituloMetal(ctx, '💰 Caixinha', 275, 62, 980);
+  rotuloEspacado(ctx, `${nomeDivisao.toUpperCase()}  ·  ${rotuloPeriodo.toUpperCase()}`, y + 2, 22, COR.ouro);
+
+  const raio = 115;
+  const cy = y + 55 + raio;
+  rosca(ctx, L / 2, cy, raio, [[r.pagamentos, COR.confirmado], [r.cobrancas - r.pagamentos, COR.infracional]],
+    r.cobrancas, r.pct === null ? '—' : `${r.pct}%`, 'EM DIA');
+  y = cy + raio + 62;
+  fonte(ctx, 36, 700);
+  ctx.fillStyle = COR.texto;
+  ctx.fillText(`${r.emDia.length} ${r.emDia.length === 1 ? 'integrante' : 'integrantes'} com tudo em dia`, L / 2, y);
+
+  if (linhas.length) {
+    y += 46;
+    listaRanking(ctx, linhas, y, Math.min(90, (A - 170 - y) / linhas.length), { semPodio: true });
   }
 
   rodape(ctx);

@@ -644,6 +644,109 @@ log('=== cobrar quem falta ===');
 }
 
 log('');
+log('=== doações: kg, cumprimento e quem foi e não levou ===');
+{
+  const { rankDoacoes, membrosParaMarcar, textoDoacoes, formatKg, eventosDoPeriodo } = await import(url('dominio/doacoes.js'));
+  const membros = [
+    { id: 'd1', nome: 'Costa', grau: 'VI', cargo: 'Diretor' },
+    { id: 'd2', nome: 'Raposo', grau: 'VI', cargo: 'Social' },
+    { id: 'd3', nome: 'Bravo', grau: 'X' },
+  ];
+  const evD = (id, data, status, confirmados, doacoes, convocados) => ({ id, nome: id, data, tipo: 'Pub', status,
+    convocados: convocados || ['d1', 'd2', 'd3'], confirmados, doacoes });
+  const dados = { eventos: [
+    // Costa foi nos 3 encerrados e levou em 2; Raposo foi em 2 e levou em 2
+    // (2 kg num deles); Bravo foi em 1 e nao levou.
+    evD('e1', '2026-08-01', 'encerrado', ['d1', 'd2'], { d1: 1, d2: 2 }),
+    evD('e2', '2026-08-15', 'encerrado', ['d1', 'd2', 'd3'], { d1: 1, d2: 1 }),
+    evD('e3', '2026-09-01', 'encerrado', ['d1'], {}),
+    // Evento aberto: o kg conta, o cumprimento nao (ainda pode mudar).
+    evD('e4', '2099-01-01', 'ativo', [], { d3: 1.5 }),
+    // Quem levou sem estar Confirmado: soma kg, nao conta no cumprimento.
+    evD('e5', '2026-09-10', 'encerrado', [], { d1: 1 }),
+    // Quem saiu do clube (d9) soma no total da divisao, mas nao aparece na lista.
+    evD('e6', '2026-09-20', 'encerrado', ['d9'], { d9: 1 }),
+  ] };
+  const r = rankDoacoes(dados, membros, 0);
+  const porId = Object.fromEntries(r.membros.map(m => [m.id, m]));
+  confere('kg de cada um, somando evento aberto e sem confirmação', [porId.d1.kg, porId.d2.kg, porId.d3.kg], [3, 3, 1.5]);
+  confere('cumprimento só conta evento encerrado em que estava Confirmado',
+    [porId.d1.cumprimento, porId.d2.cumprimento, porId.d3.cumprimento], [67, 100, 0]);
+  confere('empate em kg: quem cumpre mais vem antes', r.membros.map(m => m.nome), ['Raposo', 'Costa', 'Bravo']);
+  confere('o total da divisão inclui quem saiu do clube', r.totalKg, 8.5);
+  confere('cumprimento da divisão (4 de 6 presenças)', [r.presencasComDoacao, r.presencas, r.cumprimento], [4, 6, 67]);
+  confere('quem foi e não levou, quem deixou mais primeiro', r.melhorar.map(m => m.nome), ['Bravo', 'Costa']);
+  confere('ninguém que não foi aparece pra melhorar', r.melhorar.some(m => m.nome === 'Raposo'), false);
+  // Do mais recente pro mais antigo: e6, e5 (ninguem confirmado), e3, e2, e1.
+  confere('a tendência é por evento encerrado', r.porEvento.map(x => x.pct), [100, null, 0, 67, 100]);
+  confere('kg em português', [formatKg(2.5), formatKg(3), formatKg(0)], ['2,5 kg', '3 kg', '0 kg']);
+  confere('o período corta pela data do evento', eventosDoPeriodo([{ data: '2000-01-01' }, { data: '' }], 3).length, 0);
+
+  // Marcar: os confirmados primeiro, cada grupo na ordem hierárquica.
+  const roster = [...membros, { id: 'd4', nome: 'Alfa', grau: 'X' }];
+  confere('marcar: confirmados primeiro, depois a hierarquia',
+    nomes(membrosParaMarcar(evD('x', '', 'ativo', ['d3'], {}, ['d1', 'd2', 'd3']), roster, roster)), ['Bravo', 'Costa', 'Raposo']);
+  confere('marcar: quem já doou entra mesmo sem convocação',
+    nomes(membrosParaMarcar(evD('x', '', 'ativo', [], { d4: 1 }, ['d1']), roster, roster)), ['Costa', 'Alfa']);
+  confere('marcar: evento sem convocados mostra a divisão inteira',
+    membrosParaMarcar(evD('x', '', 'ativo', [], {}, []), membros, roster).length, 3);
+
+  const texto = textoDoacoes(r, 'barra', 0).split('\n');
+  confere('texto: o rank só com quem levou', texto.filter(l => /^\d+\. .* kg$/.test(l)),
+    ['1. Raposo (VI) — 3 kg', '2. Costa (VI) — 3 kg', '3. Bravo (X) — 1,5 kg']);
+  confere('texto: quem foi e não levou, com a conta', texto.filter(l => /levou em/.test(l)),
+    ['1. Bravo (X) — levou em 0 de 1 evento', '2. Costa (VI) — levou em 2 de 3 eventos']);
+  confere('texto: termina lembrando a regra', texto[texto.length - 1], 'Regra do clube: *1 kg de alimento em todo evento.*');
+}
+
+log('');
+log('=== caixinha: meses, quem está em dia e quem deve ===');
+{
+  const { rankCaixinha, mesISO, nomeDoMes, nomeCurtoDoMes, mesesParaEscolher, mesesDoPeriodo, quemNaoPagou,
+    textoCaixinha, textoCobrancaCaixinha } = await import(url('dominio/caixinha.js'));
+  const base = new Date(2026, 9, 18); // 18/10/2026
+  confere('o mês de hoje e os vizinhos', [mesISO(0, base), mesISO(-1, base), mesISO(1, base), mesISO(-10, base)],
+    ['2026-10', '2026-09', '2026-11', '2025-12']);
+  confere('nome do mês', [nomeDoMes('2026-10'), nomeCurtoDoMes('2026-03')], ['Outubro/2026', 'mar/26']);
+  const escolha = mesesParaEscolher(base);
+  confere('dá pra lançar do mês que vem até um ano atrás', [escolha[0], escolha[1], escolha[escolha.length - 1]],
+    ['2026-11', '2026-10', '2025-10']);
+
+  const membros = [
+    { id: 'c1', nome: 'Costa', grau: 'VI', cargo: 'Diretor' },
+    { id: 'c2', nome: 'Raposo', grau: 'VI', cargo: 'Social' },
+    { id: 'c3', nome: 'Bravo', grau: 'X' },
+  ];
+  const mes = (m, pagos, ids) => ({ mes: m, membros: ids.map(id => ({ id, nome: 'Nome ' + id, pagou: pagos.includes(id) })) });
+  const dados = { meses: [
+    // Bravo (c3) entrou em outubro: setembro e julho nao contam pra ele.
+    mes('2026-10', ['c1', 'c3'], ['c1', 'c2', 'c3']),
+    mes('2026-09', ['c1'], ['c1', 'c2', 'c9']),
+    mes('2026-07', ['c1', 'c2'], ['c1', 'c2']),
+  ] };
+  confere('janela de 3 meses em outubro: agosto a outubro', mesesDoPeriodo(dados.meses, 3, base).map(m => m.mes), ['2026-10', '2026-09']);
+
+  const r = rankCaixinha(dados, membros, 0, base);
+  const porId = Object.fromEntries(r.membros.map(m => [m.id, m]));
+  confere('quem entrou depois não deve mês antigo', [porId.c3.devia, porId.c3.pct], [1, 100]);
+  confere('o % de cada um', [porId.c1.pct, porId.c2.pct], [100, 33]);
+  confere('os meses que cada um deve', porId.c2.devendo, ['2026-10', '2026-09']);
+  confere('ordem: % maior primeiro, empate por quem pagou mais', r.membros.map(m => m.nome), ['Costa', 'Bravo', 'Raposo']);
+  confere('quantos pagaram em cada mês', r.meses.map(m => `${m.pagaram}/${m.total}`), ['2/3', '1/3', '2/2']);
+  confere('o % da divisão conta até quem saiu do clube (5 de 8)', [r.pagamentos, r.cobrancas, r.pct], [5, 8, 63]);
+  confere('em dia e pendentes', [nomes(r.emDia), nomes(r.devendo)], [['Costa', 'Bravo'], ['Raposo']]);
+
+  const roster = [...membros];
+  confere('quem não pagou, com quem saiu pelo nome gravado', nomes(quemNaoPagou(dados.meses[1], roster)), ['Raposo', 'Nome c9']);
+  const cobranca = textoCobrancaCaixinha(dados.meses[0], roster, 'barra').split('\n');
+  confere('cobrança do mês', cobranca.slice(1), ['*BARRA - RJ4* · Outubro/2026', '', '1. Raposo (VI)']);
+  const texto = textoCaixinha(r, 'barra', 0).split('\n');
+  confere('panorama: os meses do mais antigo pro mais novo', texto.filter(l => l.startsWith('• ')),
+    ['• Julho/2026: 2 de 2 pagaram', '• Setembro/2026: 1 de 3 pagaram', '• Outubro/2026: 2 de 3 pagaram']);
+  confere('panorama: pendentes com os meses', texto.filter(l => / — /.test(l)), ['1. Raposo (VI) — out/26, set/26']);
+}
+
+log('');
 log(falhas === 0 ? 'TUDO OK' : `${falhas} FALHA(S) — veja acima`);
 fs.writeFileSync(SAIDA, linhas.join('\n'), 'utf8');
 process.exit(falhas === 0 ? 0 : 1);

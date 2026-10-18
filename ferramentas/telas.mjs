@@ -443,6 +443,51 @@ add('relatório individual / folha de vários',   { ...org, adminEscopo:'regiona
 add('relatório individual / folha vazia',       { ...org, adminEscopo:'barra', relIndSelecionando:true,
   relIndMarcados:new Set(['sumiu']), relIndVarios:[] }, T.renderRelatorioIndividual);
 
+// Doacoes e Caixinha (so na Barra). Os dados imitam o que o Code.gs devolve
+// (lerDoacoes / lerCaixinha). Periodo "desde sempre" (0) nos ranks, pra
+// saida nao depender do dia em que o teste roda.
+const doacoesFalsas = { eventos: [
+  { id:'e1', nome:'Pub do mes', data:'2026-09-05', tipo:'Pub', status:'encerrado',
+    convocados:['m1','m2','m3'], confirmados:['m1','m3'], doacoes:{ m1:1, m3:2 } },
+  { id:'e2', nome:'Bate e Volta Serra', data:'2026-09-12', tipo:'Bate e Volta', status:'ativo',
+    convocados:['m1','m2','m3'], confirmados:['m2'], doacoes:{} },
+  { id:'e4', nome:'Acao Social', data:'2026-07-10', tipo:'Ação Social', status:'encerrado',
+    convocados:['m1','m2'], confirmados:['m1','m2'], doacoes:{ m1:1 } },
+], nomes:{ m1:'Costa', m3:'Almeida' } };
+const caixinhaFalsa = { meses: [
+  { mes:'2026-10', membros:[{ id:'m1', nome:'Costa', pagou:true }, { id:'m2', nome:'Bull', pagou:false }, { id:'m3', nome:'Almeida', pagou:true }] },
+  // m9 saiu do clube: aparece pelo nome gravado no mes.
+  { mes:'2026-09', membros:[{ id:'m1', nome:'Costa', pagou:true }, { id:'m2', nome:'Bull', pagou:false }, { id:'m9', nome:'Antigo', pagou:false }] },
+] };
+const dc = { isAdmin:true, adminEscopo:'barra', doacoesDados:doacoesFalsas, doacoesDadosEscopo:'barra',
+  caixinhaDados:caixinhaFalsa, caixinhaDadosEscopo:'barra', doacoesPeriodo:0, caixinhaPeriodo:0 };
+add('doações / por evento',            { ...dc, adminTab:'doacoes' }, T.renderAdmin);
+add('doações / por evento (salvo)',    { ...dc, adminTab:'doacoes', doacoesMsg:{ ok:true, texto:'✅ Pub do mes: 2 integrantes levaram 3 kg.' } }, T.renderAdmin);
+add('doações / marcando um evento',    { ...dc, adminTab:'doacoes', doacoesEventoId:'e1', doacoesMarcacoes:{ m1:1, m3:2 } }, T.renderAdmin);
+add('doações / marcando (erro ao salvar)', { ...dc, adminTab:'doacoes', doacoesEventoId:'e2', doacoesMarcacoes:{},
+  doacoesMsg:{ ok:false, texto:'Não consegui salvar: Falha de conexao.' } }, T.renderAdmin);
+add('doações / rank',                  { ...dc, adminTab:'doacoes-rank' }, T.renderAdmin);
+add('doações / rank sem nada',         { ...dc, adminTab:'doacoes-rank', doacoesDados:{ eventos:[], nomes:{} } }, T.renderAdmin);
+add('doações / sem eventos',           { ...dc, adminTab:'doacoes', doacoesDados:{ eventos:[], nomes:{} } }, T.renderAdmin);
+add('doações / carregando',            { ...dc, adminTab:'doacoes', doacoesDados:null }, T.renderAdmin);
+// Dados de outra divisao na memoria: nao podem aparecer dentro da Barra.
+add('doações / dados de outra divisão', { ...dc, adminTab:'doacoes', doacoesDadosEscopo:'oeste' }, T.renderAdmin);
+add('doações / erro',                  { ...dc, adminTab:'doacoes', doacoesErro:'A conexao demorou demais' }, T.renderAdmin);
+add('caixinha / mês a mês',            { ...dc, adminTab:'caixinha' }, T.renderAdmin);
+add('caixinha / corrigindo mês lançado', { ...dc, adminTab:'caixinha', caixinhaMes:'2026-09',
+  caixinhaMembroIds:['m1','m2','m9'], caixinhaMarcacoes:{ m1:true }, caixinhaInfo:{ m9:{ nome:'Antigo' } } }, T.renderAdmin);
+add('caixinha / mês novo',             { ...dc, adminTab:'caixinha', caixinhaMes:'2026-11', caixinhaMembroIds:['m1','m2','m3'] }, T.renderAdmin);
+add('caixinha / adicionar ao mês',     { ...dc, adminTab:'caixinha', caixinhaMes:'2026-09', caixinhaMostrarAdicionar:true,
+  caixinhaMembroIds:['m1','m2'], caixinhaMarcacoes:{ m1:true } }, T.renderAdmin);
+add('caixinha / confirmar exclusão',   { ...dc, adminTab:'caixinha', caixinhaMes:'2026-10', caixinhaConfirmarRemover:true,
+  caixinhaMembroIds:['m1','m2','m3'], caixinhaMarcacoes:{ m1:true, m3:true } }, T.renderAdmin);
+add('caixinha / mês sem ninguém',      { ...dc, adminTab:'caixinha', caixinhaMes:'2026-11', caixinhaMembroIds:[],
+  caixinhaMsg:{ ok:false, texto:'O mês precisa ter pelo menos 1 integrante na lista.' } }, T.renderAdmin);
+add('caixinha / rank',                 { ...dc, adminTab:'caixinha-rank' }, T.renderAdmin);
+add('caixinha / rank sem meses',       { ...dc, adminTab:'caixinha-rank', caixinhaDados:{ meses:[] } }, T.renderAdmin);
+add('caixinha / sem meses lançados',   { ...dc, adminTab:'caixinha', caixinhaDados:{ meses:[] } }, T.renderAdmin);
+add('caixinha / erro',                 { ...dc, adminTab:'caixinha', caixinhaErro:'Sem permissao para os dados desta divisao' }, T.renderAdmin);
+
 const LIMPO = {
   // A lista de eventos volta ao padrao entre um caso e outro: o card de
   // "proximo evento" depende dela, e um caso que a troca nao pode vazar
@@ -472,6 +517,11 @@ const LIMPO = {
   relIndFiltroInicio:'', relIndFiltroFim:'', relIndDivisoesAbertas:new Set(),
   relIndCopiado:false, relIndSelecionando:false, relIndMarcados:new Set(), relIndVarios:null,
   relIndVariosCarregando:false, relIndVariosErro:null,
+  doacoesDados:null, doacoesDadosEscopo:null, doacoesErro:null, doacoesEventoId:null, doacoesMarcacoes:{},
+  doacoesMsg:null, doacoesSalvando:false, doacoesQtdEncerrados:8, doacoesPeriodo:0,
+  caixinhaDados:null, caixinhaDadosEscopo:null, caixinhaErro:null, caixinhaMes:null, caixinhaMembroIds:[],
+  caixinhaMarcacoes:{}, caixinhaInfo:{}, caixinhaMostrarAdicionar:false, caixinhaConfirmarRemover:false,
+  caixinhaSalvando:false, caixinhaMsg:null, caixinhaPeriodo:0,
 };
 log('');
 log('=== 2. desenhar cada tela e aba ===');

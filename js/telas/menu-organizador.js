@@ -11,7 +11,7 @@
 
 import { JANELA_DIAS, eventosProximos, semResposta } from '../dominio/pendencias.js';
 import { carregarTextosChamada, loadPresencasProximas } from '../dados/carregar.js';
-import { escopoPorChave, escoposAtivos } from '../nucleo/config.js';
+import { escopoPorChave, escoposAtivos, temDoacoesECaixinha } from '../nucleo/config.js';
 import { diaDaSemana, formatDataBR, quando } from '../nucleo/util.js';
 import { state } from '../nucleo/estado.js';
 import { escapeHtml } from '../nucleo/util.js';
@@ -33,6 +33,12 @@ const SECOES = [
   { acao: 'abrir-relatorio-individual', nome: 'Relatório individual', desc: 'Presença e Insight de cada integrante', icone: '📄', cor: '#D4A24C' },
   // Insight e rodada do Regional - nao existe no nivel da divisao.
   { aba: 'insights', nome: 'Insights', desc: 'Rodadas de Insight', icone: '💡', cor: '#B57EDC', visivel: () => state.adminEscopo === 'regional' },
+  // Doacoes e Caixinha so nas divisoes liberadas - decisao que mora em
+  // temDoacoesECaixinha(), pra replicar pras outras num lugar so.
+  { aba: 'doacoes', nome: 'Doações', desc: 'Quem levou alimento em cada evento e o rank', icone: '🥫', cor: '#4CAF6E',
+    visivel: () => temDoacoesECaixinha(state.adminEscopo) },
+  { aba: 'caixinha', nome: 'Caixinha', desc: 'Quem pagou em cada mês e quem está em dia', icone: '💰', cor: '#C9A227',
+    visivel: () => temDoacoesECaixinha(state.adminEscopo) },
   // Os Relatorios seguem so no Regional e na Barra - decisao do clube, que
   // mora em escoposAtivos() para nao ficar repetida aqui. Como a divisao e
   // o PIN ja vieram do organizador, nao ha PIN de novo.

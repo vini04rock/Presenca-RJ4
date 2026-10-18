@@ -201,6 +201,44 @@ export let state = {
   insightConfirmDeleteRodadaId: null,
   insightMostrarExcluidos: false,
 
+  // Secao Doacoes do organizador (so nas divisoes de temDoacoesECaixinha).
+  // doacoesDados e o que o Code.gs devolve (lerDoacoes), de uma divisao -
+  // doacoesDadosEscopo diz qual, pra nao mostrar a Barra dentro do Oeste.
+  doacoesDados: null,
+  doacoesDadosEscopo: null,
+  doacoesCarregando: false,
+  doacoesErro: null,
+  // O evento aberto pra marcar quem levou, e a marcacao ainda nao salva:
+  // { idMembro: kg }. Sem kg (ou 0) = nao levou.
+  doacoesEventoId: null,
+  doacoesMarcacoes: {},
+  doacoesSalvando: false,
+  // { ok, texto } - o aviso depois de salvar, na lista de eventos.
+  doacoesMsg: null,
+  // Quantos encerrados aparecem na lista (cresce no "Mostrar mais antigos").
+  doacoesQtdEncerrados: 8,
+  // Janela do rank, em meses (0 = desde sempre). Ver PERIODOS.
+  doacoesPeriodo: 3,
+
+  // Secao Caixinha do organizador. Mesma ideia: os meses lancados da
+  // divisao, e o mes aberto pra lancar ou corrigir.
+  caixinhaDados: null,
+  caixinhaDadosEscopo: null,
+  caixinhaCarregando: false,
+  caixinhaErro: null,
+  // 'yyyy-mm' do mes aberto. A lista de quem devia pagar (caixinhaMembroIds)
+  // comeca com a divisao inteira num mes novo, ou com a lista gravada num
+  // mes ja lancado; caixinhaInfo guarda nome/grau de quem ja saiu do clube.
+  caixinhaMes: null,
+  caixinhaMembroIds: [],
+  caixinhaMarcacoes: {},
+  caixinhaInfo: {},
+  caixinhaMostrarAdicionar: false,
+  caixinhaConfirmarRemover: false,
+  caixinhaSalvando: false,
+  caixinhaMsg: null,
+  caixinhaPeriodo: 6,
+
   // Tela "Calendario" - divisao/regional escolhida e o mes/ano exibido
   // (null = usa o mes atual, preenchido na primeira renderizacao). Sem PIN,
   // igual a tela de Eventos.

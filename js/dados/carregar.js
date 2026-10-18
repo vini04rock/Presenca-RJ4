@@ -199,6 +199,46 @@ export async function loadEstatisticas() {
   render();
 }
 
+// Doacoes e caixinha da divisao em que o organizador entrou. Busca de novo
+// a cada entrada na secao (ver abrirAbaOrganizador): outro organizador pode
+// ter marcado alguma coisa desde a ultima vez. Se a pessoa trocar de
+// divisao antes da resposta chegar, a resposta velha e jogada fora.
+export async function carregarDoacoes() {
+  const escopo = state.adminEscopo;
+  state.doacoesCarregando = true;
+  state.doacoesErro = null;
+  render();
+  try {
+    const r = await api('doacoes', { divisao: escopo });
+    if (state.adminEscopo !== escopo) return;
+    state.doacoesDados = { eventos: r.eventos || [], nomes: r.nomes || {} };
+    state.doacoesDadosEscopo = escopo;
+  } catch (e) {
+    if (state.adminEscopo !== escopo) return;
+    state.doacoesErro = e.message;
+  }
+  state.doacoesCarregando = false;
+  render();
+}
+
+export async function carregarCaixinha() {
+  const escopo = state.adminEscopo;
+  state.caixinhaCarregando = true;
+  state.caixinhaErro = null;
+  render();
+  try {
+    const r = await api('caixinha', { divisao: escopo });
+    if (state.adminEscopo !== escopo) return;
+    state.caixinhaDados = { meses: r.meses || [] };
+    state.caixinhaDadosEscopo = escopo;
+  } catch (e) {
+    if (state.adminEscopo !== escopo) return;
+    state.caixinhaErro = e.message;
+  }
+  state.caixinhaCarregando = false;
+  render();
+}
+
 // Carrega as estatisticas (% de cada um + medias por divisao) e o historico
 // curto de rodadas juntos. As marcacoes comecam tudo zerado (ninguem fez) -
 // o administrador so marca quem fez, que costuma ser menos toque que marcar

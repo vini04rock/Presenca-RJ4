@@ -57,6 +57,14 @@ export function escoposAtivos() {
   return escoposEmOrdemDeExibicao().filter(e => e.chave === 'regional' || e.chave === 'barra');
 }
 
+// Doacoes e Caixinha, no menu do organizador: liberadas so nas divisoes
+// desta lista. Comecam pela Barra, a unica em uso; replicar pra outra e
+// acrescentar a chave dela aqui, e mais nada - telas, planilha e PIN ja
+// funcionam pra qualquer divisao. O Regional nao entra enquanto nao tiver
+// uma visao propria (o quadro de todas as divisoes juntas).
+const DIVISOES_COM_DOACOES_E_CAIXINHA = ['barra'];
+export function temDoacoesECaixinha(chave) { return DIVISOES_COM_DOACOES_E_CAIXINHA.includes(chave); }
+
 export const STATUS = {
   aguardando: { emoji: '⚠️', label: 'Aguardando' },
   confirmado: { emoji: '✅', label: 'Confirmado' },

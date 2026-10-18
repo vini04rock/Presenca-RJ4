@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-10-06-v-relatorio-individual-varios';
+var VERSAO = '2026-10-18-v-doacoes-caixinha';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -36,6 +36,8 @@ var ABA_INSIGHT_PRESENCAS = 'InsightPresencas';
 var ABA_INSIGHT_EXCLUIDOS = 'InsightExcluidos';
 var ABA_RESPONSAVEIS = 'Responsaveis';
 var ABA_TEXTOS_CHAMADA = 'TextosChamada';
+var ABA_DOACOES = 'Doacoes';
+var ABA_CAIXINHA = 'Caixinha';
 
 // "Cargo" so faz sentido nos graus VI e V (ver CARGOS no js/nucleo/config.js):
 // sao os graus em que varios integrantes dividem o mesmo grau ocupando
@@ -73,6 +75,17 @@ var CAB_RESPONSAVEIS = ['Escopo', 'Nome', 'Cargo', 'Telefone', 'Atualizado em'];
 // o app usa o padrao que esta no codigo dele.
 var CAB_TEXTOS_CHAMADA = ['Chave', 'Texto', 'Atualizado em'];
 var CHAVES_TEXTO_CHAMADA = ['regras', 'atencao'];
+// Doacoes de alimento (regra do clube: 1 kg em todo evento). Uma linha por
+// evento x integrante que levou alguma coisa - quem nao levou nao tem
+// linha. "Divisao" e a chave ('barra'...) da categoria do evento, e
+// "Membro" um retrato do nome, igual em Presencas: o historico sobrevive a
+// um integrante que sai do clube.
+var CAB_DOACOES = ['ID Evento', 'Evento', 'Divisao', 'ID Membro', 'Membro', 'Kg', 'Atualizado em'];
+// Caixinha mensal: uma linha por divisao x mes x integrante que devia
+// pagar naquele mes. A lista de quem devia e congelada quando o mes e
+// lancado - quem entra depois nao fica devendo mes antigo. "Mes" e
+// 'yyyy-mm', gravado como texto (ver salvarCaixinhaMes).
+var CAB_CAIXINHA = ['Divisao', 'Mes', 'ID Membro', 'Membro', 'Pagou', 'Atualizado em'];
 
 // Na planilha fica o rotulo legivel; o app continua falando em chaves.
 var STATUS_ROTULO = {
@@ -161,7 +174,10 @@ var ACOES_PROTEGIDAS = [
   'insightSalvar', 'insightRodadaAjustar', 'insightRodadaRemover',
   'insightMembroRemover', 'insightMembroReincluir',
   // Leitura, mas protegida: devolve telefone.
-  'responsavel', 'responsavelSalvar', 'textoChamadaSalvar'
+  'responsavel', 'responsavelSalvar', 'textoChamadaSalvar',
+  // Doacoes e caixinha: ler tambem e protegido - quem deve a caixinha nao e
+  // coisa pra qualquer um com a URL ver.
+  'doacoes', 'doacoesSalvar', 'caixinha', 'caixinhaSalvar', 'caixinhaRemover'
 ];
 
 function executar(action, p) {
@@ -219,6 +235,16 @@ function executar(action, p) {
   if (action === 'responsavel') return { ok: true, responsavel: lerResponsavel(String(p.categoria || '')), textos: lerTextosChamada() };
   if (action === 'textoChamadaSalvar') return comTrava(function () { return salvarTextoChamada(p); });
   if (action === 'responsavelSalvar') return comTrava(function () { return salvarResponsavel(p); });
+  // A divisao dos dados vem em "divisao", e nao em "escopo": o app
+  // sobrescreve "escopo" com a divisao em que o organizador entrou (ver
+  // comCredencial em js/nucleo/api.js). Cada funcao confere o PIN de novo
+  // contra a divisao dos dados - quem entrou pela Barra nao le nem grava a
+  // caixinha do Oeste.
+  if (action === 'doacoes') return lerDoacoes(String(p.divisao || ''), String(p.pin || ''));
+  if (action === 'doacoesSalvar') return comTrava(function () { return salvarDoacoesEvento(p); });
+  if (action === 'caixinha') return lerCaixinha(String(p.divisao || ''), String(p.pin || ''));
+  if (action === 'caixinhaSalvar') return comTrava(function () { return salvarCaixinhaMes(p); });
+  if (action === 'caixinhaRemover') return comTrava(function () { return removerCaixinhaMes(p); });
   throw new Error('Acao desconhecida: ' + action);
 }
 
@@ -1026,7 +1052,8 @@ function organizarAbas() {
   var ss = planilha();
   var ordem = [ABA_CALENDARIO].concat(ORDEM_EXIBICAO_ESCOPOS.map(function (chave) { return ESCOPOS_NOME[chave]; }))
     .concat([ABA_INSIGHT_RESUMO, 'Relatorio', 'Membros', 'Eventos', 'Presencas',
-             ABA_INSIGHT_RODADAS, ABA_INSIGHT_PRESENCAS, ABA_INSIGHT_EXCLUIDOS, 'KV']);
+             ABA_INSIGHT_RODADAS, ABA_INSIGHT_PRESENCAS, ABA_INSIGHT_EXCLUIDOS,
+             ABA_DOACOES, ABA_CAIXINHA, 'KV']);
   ordem.forEach(function (nome, i) {
     var s = ss.getSheetByName(nome);
     if (!s) return;
@@ -1349,6 +1376,9 @@ function instalarGatilhoDeEncerramentoManual() {
 function removerEvento(id) {
   apagarLinhas(aba(ABA_EVENTOS, CAB_EVENTOS), function (l) { return String(l[0]) === String(id); });
   apagarLinhas(aba(ABA_PRESENCAS, CAB_PRESENCAS), function (l) { return String(l[0]) === String(id); });
+  // Sem o evento, a doacao dele nao tem a que se referir: sairia no rank
+  // como quilos de um evento que nao existe mais.
+  apagarLinhas(aba(ABA_DOACOES, CAB_DOACOES), function (l) { return String(l[0]) === String(id); });
   return { ok: true };
 }
 
@@ -1520,6 +1550,170 @@ function apagarLinhas(s, teste) {
 
 function novoId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+// ---------- DOACOES E CAIXINHA ----------
+// As duas secoes do organizador de cada divisao (por enquanto so a Barra -
+// ver DIVISOES_COM_DOACOES_E_CAIXINHA no js/nucleo/config.js). Aqui nao ha
+// lista de divisoes liberadas: quem decide o que aparece e o app, e quem
+// decide quem pode e o PIN, conferido contra a divisao dos dados.
+
+// A guarda geral (ACOES_PROTEGIDAS) so conferiu o PIN contra a divisao em
+// que a pessoa entrou. Esta confere contra a divisao dos dados - mesma ideia
+// do salvarResponsavel. O PIN do Regional, chave-mestra, passa sempre.
+function podeNaDivisao(divisao, pin) {
+  if (ESCOPOS_VALIDOS.indexOf(divisao) === -1) throw new Error('Divisao desconhecida');
+  return verificarPin(divisao, pin).valido;
+}
+var SEM_PERMISSAO_DIVISAO = { ok: false, erro: 'Sem permissao para os dados desta divisao' };
+
+// A mesma regra de lerEventos: linha antiga, sem categoria, e da Barra.
+function categoriaDaLinha(l) {
+  var raw = String(l[8] || '');
+  return (raw === '' || raw === 'divisao') ? 'barra' : raw;
+}
+
+// "2", "1,5" ou 2 -> numero com uma casa. Fora de 0 a 100, ou nao numero,
+// vira 0 (= nao levou). 100 kg de uma vez e erro de digitacao, nao doacao.
+function kgValido(v) {
+  var n = Number(String(v === undefined || v === null ? '' : v).replace(',', '.'));
+  if (!isFinite(n) || n <= 0 || n > 100) return 0;
+  return Math.round(n * 10) / 10;
+}
+
+// Os eventos da divisao, cada um com quem foi convocado, quem confirmou e o
+// que cada um levou. Os eventos vem com nome/data/tipo/status pra tela nao
+// depender do que ja estava carregado; o rank e o cumprimento sao contados
+// no app (js/dominio/doacoes.js), que e quem sabe o periodo escolhido.
+// Uma leitura de cada aba - lerEventos() releria Presencas uma vez por evento.
+function lerDoacoes(divisao, pin) {
+  if (!podeNaDivisao(divisao, pin)) return SEM_PERMISSAO_DIVISAO;
+  var eventos = linhas(aba(ABA_EVENTOS, CAB_EVENTOS))
+    .filter(function (l) { return l[0] && categoriaDaLinha(l) === divisao; })
+    .map(function (l) {
+      return {
+        id: String(l[0]), nome: String(l[1]), data: formatarData(l[2]),
+        tipo: String(l[9] || ''), status: String(l[6] || 'ativo'),
+        convocados: [], confirmados: [], doacoes: {}
+      };
+    });
+  var porId = {};
+  eventos.forEach(function (e) { porId[e.id] = e; });
+
+  linhas(aba(ABA_PRESENCAS, CAB_PRESENCAS)).forEach(function (l) {
+    var e = porId[String(l[0])];
+    if (!e || !l[2]) return;
+    e.convocados.push(String(l[2]));
+    if (statusParaChave(l[4]) === 'confirmado') e.confirmados.push(String(l[2]));
+  });
+
+  // O nome gravado na doacao, pra quem ja saiu do cadastro continuar com
+  // nome no historico.
+  var nomes = {};
+  linhas(aba(ABA_DOACOES, CAB_DOACOES)).forEach(function (l) {
+    var e = porId[String(l[0])];
+    var kg = kgValido(l[5]);
+    if (!e || !l[3] || !kg) return;
+    e.doacoes[String(l[3])] = kg;
+    nomes[String(l[3])] = String(l[4] || '');
+  });
+  return { ok: true, eventos: eventos, nomes: nomes };
+}
+
+// Grava as doacoes de UM evento de uma vez: kgs = { idMembro: kg }. Quem
+// nao esta na lista (ou esta com 0) fica sem linha - e assim que se desmarca.
+// Trocar tudo do evento, em vez de linha a linha, deixa o "salvar" do app
+// igual ao que esta na tela, sem sobra de uma marcacao antiga.
+function salvarDoacoesEvento(p) {
+  var eventoId = String(p.eventoId || '');
+  if (!eventoId) throw new Error('Faltou o evento');
+  var ev = acharLinha(aba(ABA_EVENTOS, CAB_EVENTOS), function (l) { return String(l[0]) === eventoId; });
+  if (!ev) throw new Error('Evento nao encontrado');
+  var divisao = categoriaDaLinha(ev.valores);
+  if (!podeNaDivisao(divisao, String(p.pin || ''))) return SEM_PERMISSAO_DIVISAO;
+
+  var kgs = typeof p.kgs === 'string' ? parseOuVazio(p.kgs, {}) : (p.kgs || {});
+  var nomes = {};
+  lerMembros().forEach(function (m) { nomes[m.id] = m.nome; });
+  var momento = agora();
+  var novas = [];
+  var totalKg = 0;
+  Object.keys(kgs).forEach(function (mid) {
+    var kg = kgValido(kgs[mid]);
+    if (!kg) return;
+    totalKg += kg;
+    novas.push([eventoId, String(ev.valores[1] || ''), divisao, mid, nomes[mid] || '', kg, momento]);
+  });
+
+  var s = aba(ABA_DOACOES, CAB_DOACOES);
+  apagarLinhas(s, function (l) { return String(l[0]) === eventoId; });
+  if (novas.length) s.getRange(s.getLastRow() + 1, 1, novas.length, CAB_DOACOES.length).setValues(novas);
+  return { ok: true, doadores: novas.length, totalKg: Math.round(totalKg * 10) / 10 };
+}
+
+// A celula do mes pode voltar como Date se alguem editar a planilha a mao
+// (o Sheets converte "2026-10" sozinho). O app sempre fala em 'yyyy-mm'.
+function formatarMes(v) {
+  if (ehData(v)) return Utilities.formatDate(v, fuso(), 'yyyy-MM');
+  return String(v || '');
+}
+
+// Os meses lancados da divisao, do mais recente pro mais antigo, cada um
+// com a lista congelada de quem devia pagar e se pagou.
+function lerCaixinha(divisao, pin) {
+  if (!podeNaDivisao(divisao, pin)) return SEM_PERMISSAO_DIVISAO;
+  var porMes = {};
+  linhas(aba(ABA_CAIXINHA, CAB_CAIXINHA)).forEach(function (l) {
+    if (String(l[0]) !== divisao || !l[2]) return;
+    var mes = formatarMes(l[1]);
+    if (!/^\d{4}-\d{2}$/.test(mes)) return;
+    (porMes[mes] = porMes[mes] || []).push({ id: String(l[2]), nome: String(l[3] || ''), pagou: ehSim(l[4]) });
+  });
+  var meses = Object.keys(porMes).sort().reverse().map(function (mes) {
+    return { mes: mes, membros: porMes[mes] };
+  });
+  return { ok: true, meses: meses };
+}
+
+// Lanca (ou corrige) um mes: membroIds e a lista de quem devia pagar,
+// marcacoes = { idMembro: true } pra quem pagou. O mes e reescrito
+// inteiro - lancar de novo um mes que ja existe corrige, nao duplica.
+function salvarCaixinhaMes(p) {
+  var divisao = String(p.divisao || '');
+  if (!podeNaDivisao(divisao, String(p.pin || ''))) return SEM_PERMISSAO_DIVISAO;
+  var mes = String(p.mes || '');
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(mes)) throw new Error('Mes invalido');
+  var ids = listaDe(p.membroIds);
+  // Confere ANTES de apagar: um mes salvo sem ninguem apagaria o que havia.
+  if (!ids.length) throw new Error('O mes precisa ter pelo menos 1 integrante');
+  var marcacoes = typeof p.marcacoes === 'string' ? parseOuVazio(p.marcacoes, {}) : (p.marcacoes || {});
+  var nomes = {};
+  lerMembros().forEach(function (m) { nomes[m.id] = m.nome; });
+  var momento = agora();
+  var pagaram = 0;
+  var novas = ids.map(function (mid) {
+    var pagou = ehVerdadeiro(marcacoes[mid]);
+    if (pagou) pagaram++;
+    return [divisao, mes, mid, nomes[mid] || '', simNao(pagou), momento];
+  });
+
+  var s = aba(ABA_CAIXINHA, CAB_CAIXINHA);
+  apagarLinhas(s, function (l) { return String(l[0]) === divisao && formatarMes(l[1]) === mes; });
+  // Texto antes de gravar: sem isso o Sheets transforma "2026-10" em data.
+  var range = s.getRange(s.getLastRow() + 1, 1, novas.length, CAB_CAIXINHA.length);
+  range.setNumberFormat('@');
+  range.setValues(novas);
+  return { ok: true, mes: mes, pagaram: pagaram, total: novas.length };
+}
+
+function removerCaixinhaMes(p) {
+  var divisao = String(p.divisao || '');
+  if (!podeNaDivisao(divisao, String(p.pin || ''))) return SEM_PERMISSAO_DIVISAO;
+  var mes = String(p.mes || '');
+  apagarLinhas(aba(ABA_CAIXINHA, CAB_CAIXINHA), function (l) {
+    return String(l[0]) === divisao && formatarMes(l[1]) === mes;
+  });
+  return { ok: true };
 }
 
 // ---------- RELATORIO ----------

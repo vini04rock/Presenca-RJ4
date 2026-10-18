@@ -5,14 +5,17 @@
 // nunca COMO. Era tudo um arquivo so de 1098 linhas; repartir nao mudou uma
 // virgula do que aparece na tela.
 
-import { escopoPorChave } from '../nucleo/config.js';
+import { escopoPorChave, temDoacoesECaixinha } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { escapeHtml } from '../nucleo/util.js';
-import { loadEstatisticas, loadInsightStats, loadReportData } from '../dados/carregar.js';
+import { carregarCaixinha, carregarDoacoes, loadEstatisticas, loadInsightStats, loadReportData } from '../dados/carregar.js';
+import { fecharMesCaixinha } from '../fluxos/doacoes-caixinha.js';
 import { render } from '../nucleo/render.js';
 import { renderAdminEventos, renderAdminRelatorio } from './admin-eventos.js';
 import { renderAdminMembros, renderAdminPresencas } from './admin-membros.js';
 import { renderAdminInsights } from './admin-insights.js';
+import { renderAdminDoacoes } from './admin-doacoes.js';
+import { renderAdminCaixinha } from './admin-caixinha.js';
 
 // As secoes do organizador. Cada card do menu abre uma secao, e a barra de
 // abas mostra so as abas daquela secao - antes era uma barra unica com as
@@ -43,6 +46,20 @@ export const SECOES_ORGANIZADOR = {
       { chave: 'insights', label: 'Nova rodada' },
       { chave: 'insights-rodadas', label: 'Últimas rodadas' },
       { chave: 'insights-relatorio', label: 'Relatório completo' },
+    ],
+  },
+  doacoes: {
+    titulo: 'Doações',
+    abas: [
+      { chave: 'doacoes', label: 'Por evento' },
+      { chave: 'doacoes-rank', label: 'Rank' },
+    ],
+  },
+  caixinha: {
+    titulo: 'Caixinha',
+    abas: [
+      { chave: 'caixinha', label: 'Mês a mês' },
+      { chave: 'caixinha-rank', label: 'Rank' },
     ],
   },
 };
@@ -80,6 +97,10 @@ export function renderAdmin(app) {
     content.innerHTML = renderAdminPresencas();
   } else if (state.adminTab.startsWith('insights') && state.adminEscopo === 'regional') {
     content.innerHTML = renderAdminInsights();
+  } else if (state.adminTab.startsWith('doacoes') && temDoacoesECaixinha(state.adminEscopo)) {
+    content.innerHTML = renderAdminDoacoes();
+  } else if (state.adminTab.startsWith('caixinha') && temDoacoesECaixinha(state.adminEscopo)) {
+    content.innerHTML = renderAdminCaixinha();
   } else {
     content.innerHTML = renderAdminMembros();
   }
@@ -90,6 +111,10 @@ export function renderAdmin(app) {
 // de exclusao aberta). Usada pela barra de abas e tambem pelo menu do
 // organizador, que e por onde se entra em cada secao agora.
 export async function abrirAbaOrganizador(aba) {
+  // Doacoes e Caixinha buscam da planilha ao ENTRAR na secao, e nao a cada
+  // troca de aba dentro dela: "Por evento" e "Rank" sao o mesmo dado visto
+  // de dois jeitos, e cada busca custa de 2 a 4 segundos.
+  const entrandoNaSecao = state.view !== 'admin' || secaoDaAba(state.adminTab) !== secaoDaAba(aba);
   state.adminTab = aba;
   state.view = 'admin';
   state.newEventSelected = null;
@@ -103,10 +128,17 @@ export async function abrirAbaOrganizador(aba) {
   state.insightConfirmDeleteRodadaId = null;
   state.insightResultado = null;
   state.insightMostrarExcluidos = false;
+  state.doacoesEventoId = null;
+  state.doacoesMarcacoes = {};
+  state.doacoesMsg = null;
+  fecharMesCaixinha();
+  state.caixinhaMsg = null;
   render();
   if (aba === 'encerrados') await loadReportData();
   if (aba === 'presencas') await loadEstatisticas();
   if (aba.startsWith('insights')) await loadInsightStats();
+  if (aba.startsWith('doacoes') && entrandoNaSecao) await carregarDoacoes();
+  if (aba.startsWith('caixinha') && entrandoNaSecao) await carregarCaixinha();
 }
 
 // A unica acao do esqueleto: trocar de aba. Todas as outras moram no arquivo

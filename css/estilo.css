@@ -2328,3 +2328,63 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
   .acoes-cadastro { display: none !important; }
   #brasas, body::after { display: none !important; }
 }
+
+/* =====================================================================
+   DOACOES E CAIXINHA (secoes do organizador da divisao)
+   ===================================================================== */
+/* O total do evento/mes, embaixo do titulo do card. */
+.doacao-total { margin-top: 10px; font-size: 13px; color: var(--text-muted); }
+.doacao-total b { color: var(--white-strong); font-size: 15px; }
+.doacao-detalhe { color: var(--text-muted); font-size: 11.5px; margin-top: 3px; }
+.doacao-detalhe .cumpre { color: var(--status-confirmado); }
+.doacao-detalhe .falta-cumprir { color: var(--status-infracional); }
+.doacao-evento .meta { line-height: 1.45; }
+
+/* − 2 kg + : os botoes sao grandes de proposito, o toque e no celular. */
+.kg-controle { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.kg-botao {
+  width: 32px; height: 32px; border-radius: 50%;
+  font: inherit; font-size: 18px; font-weight: 700; line-height: 1;
+  color: var(--white-strong); background-color: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--line-strong); cursor: pointer;
+  transition: transform 0.12s ease, background-color 0.12s ease;
+}
+.kg-botao:active { transform: scale(0.9); background-color: rgba(255, 255, 255, 0.18); }
+.kg-valor {
+  min-width: 52px; text-align: center; font-weight: 700; font-size: 13px;
+  padding: 4px 8px; border-radius: 999px;
+  color: #0A0A0A; background-color: var(--white-strong);
+}
+.kg-valor.saltou { animation: saltar 0.45s var(--mola); }
+
+/* A grade de meses da Caixinha: o lancado fica cheio, o vazio so contorno. */
+.mes-grade { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+@media (max-width: 360px) { .mes-grade { grid-template-columns: repeat(3, 1fr); } }
+.mes-chip {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 8px 4px; border-radius: 10px; cursor: pointer; font: inherit;
+  color: var(--text-muted); background-color: transparent;
+  border: 1px dashed var(--line-strong);
+  transition: transform 0.12s ease, background-color 0.12s ease;
+}
+.mes-chip:active { transform: scale(0.95); }
+.mes-chip.lancado { color: var(--white-strong); border-style: solid; background-color: rgba(255, 255, 255, 0.06); }
+.mes-chip-nome { font-size: 12.5px; font-weight: 700; text-transform: capitalize; }
+.mes-chip-info { font-size: 11px; }
+.mes-chip.lancado .mes-chip-info { color: var(--status-confirmado); }
+
+/* Uma barra por mes no Rank da Caixinha. */
+.barras-meses { display: flex; align-items: flex-end; gap: 6px; margin-top: 14px; height: 120px; }
+.barra-mes { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.barra-mes-pct { font-size: 10.5px; font-weight: 700; color: var(--white-strong); }
+.barra-mes-trilho {
+  flex: 1; width: 100%; max-width: 34px; border-radius: 6px; overflow: hidden;
+  display: flex; align-items: flex-end; background-color: rgba(255, 255, 255, 0.07);
+}
+.barra-mes-cheia { width: 100%; border-radius: 6px; background-color: var(--status-confirmado); }
+.barras-meses.anima .barra-mes-cheia { transform-origin: bottom center; animation: crescer-coluna 0.8s var(--mola) both; }
+@keyframes crescer-coluna { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+.barra-mes-nome { font-size: 10.5px; color: var(--text-muted); text-transform: capitalize; white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) {
+  .kg-valor.saltou, .barras-meses.anima .barra-mes-cheia { animation: none !important; }
+}

@@ -27,7 +27,7 @@ Três modos de entrada, todos no mesmo link:
 - HTML + CSS + JavaScript puro, em **módulos ES nativos**. Sem framework,
   sem build step, sem dependências além das fontes do Google.
 - `index.html` é só o esqueleto; o visual em `css/estilo.css`; o código em
-  `js/`, repartido em 40 módulos.
+  `js/`, repartido em 46 módulos.
 - Hospedado no GitHub Pages (estático). Todo `git push` atualiza o site.
 - Backend: planilha do Google Sheets via Apps Script publicado como Web App.
   A URL fica em `API_URL`, em `js/nucleo/api.js`.
@@ -125,6 +125,8 @@ sem controlar o servidor.
 | `InsightExcluidos` | só quem foi tirado do Insight; sem linha = participa |
 | `Responsaveis` | quem assina a chamada, uma linha por divisão e uma pelo Regional |
 | `TextosChamada` | Regras do clube e Atenção personalizadas pelo Regional; sem linha = o padrão |
+| `Doacoes` | uma linha por evento × integrante que levou alimento, com os kg; sem linha = não levou |
+| `Caixinha` | uma linha por divisão × mês × integrante que devia pagar, com Sim/Não |
 
 **Abas geradas do zero** a cada "Gerar relatório na planilha" (botão que só
 aparece dentro do organizador Regional). Editar nelas não tem efeito:
@@ -325,6 +327,68 @@ de período.
   (`relatorioIndividualVarios`), que lê as abas uma vez e monta cada um com
   a mesma função do relatório de um, então os dois nunca discordam.
 
+## Doações e Caixinha
+
+Duas seções do menu do organizador, criadas em 18/10/2026 para dar número
+à conversa do clube: quem está bem e onde dá para melhorar. **Só aparecem
+nas divisões de `DIVISOES_COM_DOACOES_E_CAIXINHA`** (`js/nucleo/config.js`),
+hoje só a Barra. Replicar para outra divisão é acrescentar a chave dela
+ali, e mais nada: telas, planilha e PIN já funcionam para qualquer uma. O
+Regional fica de fora até ganhar uma visão própria, com todas as divisões
+juntas.
+
+**Doações** (`telas/admin-doacoes.js`, contas em `dominio/doacoes.js`). A
+regra do clube é levar 1 kg de alimento em todo evento.
+
+- **Por evento:** os eventos da divisão, ativos e encerrados. Tocar num
+  evento abre os convocados (os ✅ primeiro, depois a hierarquia). Um toque
+  no nome marca 1 kg, e o − / + ajusta de 1 em 1. Salvar troca as doações
+  do evento inteiro, então abrir de novo é corrigir. Evento sem convocado
+  mostra a divisão inteira.
+- **Rank:** o kg de cada um e o **cumprimento**: dos eventos *encerrados*
+  em que a pessoa estava ✅ Confirmada, em quantos ela levou. São dois
+  números de propósito. O kg é o lado de quem está bem; o cumprimento é o
+  da melhoria, e só cobra de quem foi. Quem faltou já responde pela falta,
+  e cobrar a doação de um evento a que ele nem foi seria cobrar duas vezes.
+  Doação de quem não estava como Confirmado soma no kg, mas fica fora do
+  cumprimento.
+
+**Caixinha** (`telas/admin-caixinha.js`, contas em `dominio/caixinha.js`).
+Só pagou ou não pagou, sem valores em dinheiro no app.
+
+- **Mês a mês:** uma grade do mês que vem até um ano atrás. Um mês novo
+  começa com a divisão inteira na lista e ninguém marcado; um mês já
+  lançado abre com o que foi gravado, e salvar corrige em vez de duplicar.
+  Dá para tirar alguém da lista daquele mês ou acrescentar, como no
+  "Ajustar" do Insight.
+- **A lista de cada mês fica congelada** na planilha. É isso que impede
+  quem entrou no clube depois de aparecer devendo mês antigo: ele não está
+  na lista daquele mês.
+- **Rank:** % de meses pagos por integrante, os meses que cada um deve,
+  quantos pagaram em cada mês (barras) e o % da divisão.
+
+Regras que valem para as duas:
+
+- **Ler também pede PIN**, ao contrário do Insight: quem deve a caixinha
+  não é coisa para qualquer um com a URL ver. E o `Code.gs` confere o PIN
+  de novo contra a **divisão dos dados** (`podeNaDivisao`), não só contra a
+  de entrada. Assim quem entrou pela Barra não lê nem grava o Oeste, e o
+  PIN do Regional continua abrindo tudo. A divisão vai no parâmetro
+  `divisao`, e não em `escopo`, porque o `api()` sobrescreve `escopo` com a
+  divisão de entrada.
+- **As listas mostram os integrantes atuais** da divisão. Quem saiu do
+  clube não aparece no rank, mas o que ele doou ou pagou continua somando
+  no total da divisão e nos meses. O nome dele fica gravado em cada linha,
+  igual em `Presencas`.
+- **A imagem pro grupo não leva nome de quem falhou**, a regra de sempre.
+  Na de Doações vai o pódio de quem mais levou; na da Caixinha, só os
+  números do grupo, sem nome nenhum. Os nomes de quem não levou ou está
+  devendo ficam no **texto** (📋 Copiar pro WhatsApp e 📋 Cobrar), que é
+  o que serve para cobrar.
+- Os dados são buscados ao **entrar** na seção, não a cada troca de aba:
+  "Por evento" e "Rank" são o mesmo dado visto de dois jeitos.
+- Remover um evento apaga as doações dele.
+
 ## A convocação: o app lê e escreve
 
 Este é um ciclo fechado que vale entender junto, porque as duas pontas usam
@@ -460,8 +524,8 @@ a cada mudança:
 | `servidor.py` | serve o app local com o cache desligado |
 | `estrutura.py` | 7 verificações: imports circulares, hierarquia de camadas, sintaxe, nome sem import, import sobrando, ações sem tratador |
 | `regras.mjs` | as regras do clube que, se quebrarem, saem erradas numa convocação sem ninguém perceber |
-| `telas.mjs` | desenha as 92 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
-| `planilha.mjs` | roda o `Code.gs` de verdade contra uma planilha de mentira: encerramento automático, PIN, relatório individual, responsável, textos e chamada do evento |
+| `telas.mjs` | desenha as 112 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
+| `planilha.mjs` | roda o `Code.gs` de verdade contra uma planilha de mentira: encerramento automático, PIN, relatório individual, responsável, textos, chamada do evento, doações e caixinha |
 
 O `--html` do `telas.mjs` é a rede de proteção mais útil: captura o HTML de
 todas as telas, você mexe, captura de novo e compara. Diferença que aparecer
@@ -586,14 +650,14 @@ ferramentas, acima):
 
     py ferramentas/estrutura.py     # imports, camadas, sintaxe, ações
     node ferramentas/regras.mjs     # ordem hierárquica e formato da convocação
-    node ferramentas/telas.mjs      # desenha as 92 telas e abas
+    node ferramentas/telas.mjs      # desenha as 112 telas e abas
     node ferramentas/planilha.mjs   # o encerramento automático, no Code.gs
 
 Eles dizem que o app **não quebrou**, não que está bonito: não cobrem
 aparência, impressão/PDF, o caminho de rede real nem o resto do `Code.gs` —
 o `planilha.mjs` só alcança o encerramento automático, a guarda de PIN, o
-relatório individual, o responsável, os textos da chamada e a chamada
-guardada no evento.
+relatório individual, o responsável, os textos da chamada, a chamada
+guardada no evento, as doações e a caixinha.
 
 Se a mudança mexeu no `Code.gs`, ele precisa ser **republicado à parte** no
 Apps Script — não vai junto no `git push`. Confira depois chamando a URL do
@@ -605,6 +669,12 @@ Web App com `?action=versao`; o passo a passo está no [LINK.md](LINK.md).
 ## Próximos passos possíveis
 
 Ideias registradas, nada pedido ainda:
+
+- **Doações e Caixinha, segunda etapa:** mostrar as duas no Relatório
+  individual de cada integrante e nas abas de resumo da planilha; levar
+  para as outras divisões (uma chave a mais em
+  `DIVISOES_COM_DOACOES_E_CAIXINHA`); e uma visão do Regional com todas as
+  divisões juntas.
 
 - **Multi-divisão de verdade** (um jogo de abas por divisão na planilha) —
   ver [PLANO-MULTI-DIVISAO.md](PLANO-MULTI-DIVISAO.md). Combinado que fica

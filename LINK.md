@@ -99,6 +99,12 @@ Abas em uso:
 - `TextosChamada` — Regras do clube e Atenção da chamada, quando o Regional
   personaliza. Um texto só para a RJ4 inteira; sem linha, o app usa o
   padrão dele. Nasce sozinha no primeiro "Salvar".
+- `Doacoes` — quem levou alimento em cada evento, com os kg (seção Doações
+  do organizador). Uma linha por evento × integrante que levou. É dado de
+  verdade, gravado pelo app. Nasce sozinha no primeiro uso.
+- `Caixinha` — quem pagou a caixinha em cada mês (seção Caixinha do
+  organizador). Uma linha por divisão × mês × integrante que devia pagar,
+  com Sim/Não. Nasce sozinha no primeiro uso.
 - `KV` — formato antigo, mantido apenas como backup da migração inicial.
 
 Todas as abas de resumo (`Calendário`, `Insight RJ4`, `Regional RJ4` e as

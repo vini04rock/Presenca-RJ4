@@ -25,6 +25,7 @@ const ACOES_PROTEGIDAS = [
   'insightSalvar', 'insightRodadaAjustar', 'insightRodadaRemover',
   'insightMembroRemover', 'insightMembroReincluir',
   'responsavel', 'responsavelSalvar', 'textoChamadaSalvar',
+  'doacoes', 'doacoesSalvar', 'caixinha', 'caixinhaSalvar', 'caixinhaRemover',
 ];
 
 // Anexa escopo+PIN quando a acao exige. Some do caminho nas demais, pra

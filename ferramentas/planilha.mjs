@@ -566,6 +566,113 @@ log('=== evento com a chamada guardada (coluna Chamada) ===');
 }
 
 log('');
+log('=== doações: por evento, atrás do PIN da divisão ===');
+{
+  // b1 e b2 sao da Barra, o1 do Oeste. Em b1, m1 confirmou, m2 ficou
+  // aguardando e m3 avisou Familia.
+  const p = montaPlanilha([
+    ev('b1', '2026-09-05', 'encerrado'),
+    ev('b2', daquiA(3), 'ativo'),
+    [...ev('o1', '2026-09-06', 'encerrado').slice(0, 8), 'oeste', 'Pub', ''],
+  ], [
+    pr('b1', 'm1', 'Confirmado'), pr('b1', 'm2', 'Aguardando'), pr('b1', 'm3', 'Familia'),
+    pr('b2', 'm1', 'Confirmado'),
+    pr('o1', 'o9', 'Confirmado'),
+  ]);
+  p.abas.Membros = novaAba('Membros', [['ID', 'Nome', 'Grau', 'Divisao', 'Funcoes', 'Cargo'],
+    ['m1', 'Costa', 'VI', 'Barra - RJ4', '', 'Diretor'], ['m2', 'Bull', 'X', 'Barra - RJ4', '', ''],
+    ['m3', 'Raposo', 'VI', 'Barra - RJ4', '', 'Social'], ['o9', 'Fabiano', 'IX', 'Oeste - RJ4', '', '']]);
+  const PINS = { PIN_REGIONAL: '0418', PIN_BARRA: '1801', PIN_OESTE: '1802' };
+  const { contexto } = carregaCodeGs(p, PINS);
+  const barra = { escopo: 'barra', pin: '1801' };
+  const linhasDoacao = () => p.abas.Doacoes ? p.abas.Doacoes.dados.slice(1).map(l => [l[0], l[3], l[5]]) : [];
+
+  confere('ler sem PIN é recusado', contexto.executar('doacoes', { divisao: 'barra' }).ok, false);
+  confere('salvar sem PIN é recusado', contexto.executar('doacoesSalvar', { eventoId: 'b1', kgs: '{"m1":1}' }).ok, false);
+
+  const salvo = contexto.executar('doacoesSalvar', { ...barra, eventoId: 'b1', kgs: JSON.stringify({ m1: 1, m2: '2,5', m3: 0 }) });
+  confere('a Barra salva o evento dela', [salvo.ok, salvo.doadores, salvo.totalKg], [true, 2, 3.5]);
+  // "2,5" com virgula e o jeito que se digita no Brasil; 0 e "nao levou".
+  confere('vírgula vira decimal, e 0 não grava linha', linhasDoacao(), [['b1', 'm1', 1], ['b1', 'm2', 2.5]]);
+  confere('o nome do integrante vai junto', p.abas.Doacoes.dados[1][4], 'Costa');
+
+  // Salvar de novo e a lista nova, inteira: m2 saiu, m3 entrou.
+  contexto.executar('doacoesSalvar', { ...barra, eventoId: 'b1', kgs: { m1: 1, m3: 1 } });
+  confere('salvar de novo troca, não acumula', linhasDoacao(), [['b1', 'm1', 1], ['b1', 'm3', 1]]);
+  contexto.executar('doacoesSalvar', { ...barra, eventoId: 'b2', kgs: { m1: 500 } });
+  confere('500 kg é erro de digitação, não grava', linhasDoacao().length, 2);
+
+  // A guarda geral so olha a divisao de entrada. Sem a segunda conferencia,
+  // a Barra gravaria no evento do Oeste.
+  const invasao = contexto.executar('doacoesSalvar', { ...barra, eventoId: 'o1', kgs: { o9: 1 } });
+  confere('a Barra NÃO grava no evento do Oeste', [invasao.ok, linhasDoacao().length], [false, 2]);
+  confere('a Barra NÃO lê as doações do Oeste', contexto.executar('doacoes', { ...barra, divisao: 'oeste' }).ok, false);
+  confere('o PIN do Regional grava em qualquer divisão',
+    contexto.executar('doacoesSalvar', { escopo: 'barra', pin: '0418', eventoId: 'o1', kgs: { o9: 1 } }).ok, true);
+
+  const lido = contexto.executar('doacoes', { ...barra, divisao: 'barra' });
+  const b1 = lido.eventos.find(e => e.id === 'b1');
+  confere('só os eventos da divisão', lido.eventos.map(e => e.id), ['b1', 'b2']);
+  confere('convocados e confirmados de cada evento', [b1.convocados, b1.confirmados], [['m1', 'm2', 'm3'], ['m1']]);
+  confere('o que cada um levou', b1.doacoes, { m1: 1, m3: 1 });
+  confere('e o nome gravado, pra quem sair do cadastro', lido.nomes, { m1: 'Costa', m3: 'Raposo' });
+
+  contexto.executar('eventoRemover', { ...barra, id: 'b1' });
+  confere('remover o evento apaga as doações dele', linhasDoacao().map(l => l[0]), ['o1']);
+  let semEvento = null;
+  try { contexto.executar('doacoesSalvar', { ...barra, eventoId: 'b1', kgs: { m1: 1 } }); } catch (e) { semEvento = e.message; }
+  confere('evento que não existe é recusado', semEvento, 'Evento nao encontrado');
+}
+
+log('');
+log('=== caixinha: um mês por vez, atrás do PIN da divisão ===');
+{
+  const p = montaPlanilha([], []);
+  p.abas.Membros = novaAba('Membros', [['ID', 'Nome', 'Grau', 'Divisao', 'Funcoes', 'Cargo'],
+    ['m1', 'Costa', 'VI', 'Barra - RJ4', '', 'Diretor'], ['m2', 'Bull', 'X', 'Barra - RJ4', '', ''],
+    ['m3', 'Raposo', 'VI', 'Barra - RJ4', '', 'Social'], ['o9', 'Fabiano', 'IX', 'Oeste - RJ4', '', '']]);
+  const PINS = { PIN_REGIONAL: '0418', PIN_BARRA: '1801', PIN_OESTE: '1802' };
+  const { contexto } = carregaCodeGs(p, PINS);
+  const barra = { escopo: 'barra', pin: '1801', divisao: 'barra' };
+  const ler = () => contexto.executar('caixinha', barra).meses;
+  const nLinhas = () => p.abas.Caixinha.dados.length - 1;
+
+  confere('ler sem PIN é recusado', contexto.executar('caixinha', { divisao: 'barra' }).ok, false);
+  confere('nada lançado: lista vazia', ler(), []);
+
+  const r = contexto.executar('caixinhaSalvar', { ...barra, mes: '2026-09', membroIds: 'm1,m2,m3', marcacoes: JSON.stringify({ m1: true, m3: true }) });
+  confere('a Barra lança setembro', [r.ok, r.pagaram, r.total], [true, 2, 3]);
+  contexto.executar('caixinhaSalvar', { ...barra, mes: '2026-10', membroIds: ['m1', 'm2'], marcacoes: { m2: true } });
+  confere('os meses vêm do mais recente pro mais antigo', ler().map(m => m.mes), ['2026-10', '2026-09']);
+  confere('com quem devia e quem pagou', ler()[1].membros,
+    [{ id: 'm1', nome: 'Costa', pagou: true }, { id: 'm2', nome: 'Bull', pagou: false }, { id: 'm3', nome: 'Raposo', pagou: true }]);
+
+  // Corrigir setembro: m3 saiu da lista, m2 pagou.
+  contexto.executar('caixinhaSalvar', { ...barra, mes: '2026-09', membroIds: 'm1,m2', marcacoes: { m1: true, m2: true } });
+  confere('lançar o mesmo mês corrige, não duplica', [nLinhas(), ler()[1].membros.map(m => m.id + ':' + m.pagou)],
+    [4, ['m1:true', 'm2:true']]);
+
+  let erro = null;
+  try { contexto.executar('caixinhaSalvar', { ...barra, mes: '2026-09', membroIds: '', marcacoes: {} }); } catch (e) { erro = e.message; }
+  confere('mês sem ninguém é recusado', erro, 'O mes precisa ter pelo menos 1 integrante');
+  confere('e o mês que existia continua lá', nLinhas(), 4);
+  erro = null;
+  try { contexto.executar('caixinhaSalvar', { ...barra, mes: '2026-13', membroIds: 'm1' }); } catch (e) { erro = e.message; }
+  confere('mês inválido é recusado', erro, 'Mes invalido');
+
+  const invasao = contexto.executar('caixinhaSalvar', { ...barra, divisao: 'oeste', mes: '2026-09', membroIds: 'o9' });
+  confere('a Barra NÃO lança a caixinha do Oeste', [invasao.ok, nLinhas()], [false, 4]);
+  confere('a Barra NÃO lê a caixinha do Oeste', contexto.executar('caixinha', { ...barra, divisao: 'oeste' }).ok, false);
+  contexto.executar('caixinhaSalvar', { escopo: 'barra', pin: '0418', divisao: 'oeste', mes: '2026-09', membroIds: 'o9', marcacoes: { o9: true } });
+  confere('o Regional lança no Oeste, e a Barra não vê', [nLinhas(), ler().length], [5, 2]);
+
+  confere('remover sem permissão é recusado',
+    contexto.executar('caixinhaRemover', { ...barra, divisao: 'oeste', mes: '2026-09' }).ok, false);
+  contexto.executar('caixinhaRemover', { ...barra, mes: '2026-09' });
+  confere('remover apaga só aquele mês daquela divisão', [ler().map(m => m.mes), nLinhas()], [['2026-10'], 3]);
+}
+
+log('');
 log(falhas === 0 ? 'TUDO OK' : `${falhas} FALHA(S) — veja acima`);
 fs.writeFileSync(SAIDA, linhas.join('\n'), 'utf8');
 process.exit(falhas === 0 ? 0 : 1);
