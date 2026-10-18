@@ -55,6 +55,7 @@ export const SECOES_ORGANIZADOR = {
     abas: [
       { chave: 'doacoes', label: 'Por evento' },
       { chave: 'doacoes-rank', label: 'Rank' },
+      { chave: 'doacoes-estoque', label: 'Outras doações' },
     ],
   },
   caixinha: {
@@ -140,6 +141,9 @@ export async function abrirAbaOrganizador(aba) {
   state.doacoesEventoId = null;
   state.doacoesMarcacoes = {};
   state.doacoesMsg = null;
+  // O rascunho do estoque fica entre as abas da secao (mexeu, foi ver o
+  // Rank, voltou: continua la). Ao entrar de novo na secao, a busca recomeca.
+  state.estoqueMsg = null;
   fecharMesCaixinha();
   state.caixinhaMsg = null;
   fecharFormFinanceiro();

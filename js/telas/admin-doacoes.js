@@ -1,6 +1,7 @@
 // Modo organizador, secao Doacoes: as abas "Por evento" (marcar quem levou
-// alimento em cada evento) e "Rank" (quem mais levou e quem foi e nao
-// levou). As contas moram em dominio/doacoes.js.
+// alimento em cada evento), "Rank" (quem mais levou e quem foi e nao
+// levou) e "Outras doacoes" (o estoque do clube, em
+// admin-doacoes-estoque.js). As contas moram em dominio/doacoes.js.
 //
 // So aparece nas divisoes de temDoacoesECaixinha (ver config.js).
 
@@ -16,6 +17,7 @@ import { copiarTexto, escapeHtml, formatDataCurta, hexParaRgba } from '../nucleo
 import { linhaFuncoes, medalha, posicoesDoPodio, selinhoIniciais } from '../ui/comuns.js';
 import { esqueletoLista, renderDonutChart, renderSparklineTendencia } from '../ui/graficos.js';
 import { imagemDoacoes, mostrarPreviaImagem } from '../ui/imagem.js';
+import { renderEstoque } from './admin-doacoes-estoque.js';
 
 // Os dados na memoria sao de uma divisao so; dentro de outra, e como se
 // nao houvesse nada (a busca ja esta a caminho).
@@ -223,6 +225,7 @@ export function renderAdminDoacoes() {
   if (!d) return `<div class="card">${esqueletoLista(5)}</div>`;
 
   if (state.adminTab === 'doacoes-rank') return renderRank(d);
+  if (state.adminTab === 'doacoes-estoque') return renderEstoque();
   const ev = eventoAberto();
   if (ev) return painelMarcar(ev);
   return aviso() + listaEventos(d);

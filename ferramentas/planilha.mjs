@@ -625,6 +625,47 @@ log('=== doações: por evento, atrás do PIN da divisão ===');
 }
 
 log('');
+log('=== outras doações: o estoque do clube ===');
+{
+  const p = montaPlanilha([], []);
+  const { contexto } = carregaCodeGs(p, { PIN_REGIONAL: '0418', PIN_BARRA: '1801', PIN_OESTE: '1802' });
+  const barra = { escopo: 'barra', pin: '1801', divisao: 'barra' };
+  const ler = () => contexto.executar('doacoes', barra).estoque;
+  const salvar = (itens, extra) => contexto.executar('estoqueSalvar', { ...barra, ...extra, itens: JSON.stringify(itens) });
+  const tentar = (fn) => { try { const r = fn(); return r.ok === false ? r.erro : 'ok'; } catch (e) { return e.message; } };
+  const linhasEstoque = () => (p.abas.EstoqueDoacoes ? p.abas.EstoqueDoacoes.dados.slice(1) : []);
+
+  confere('salvar sem PIN é recusado', contexto.executar('estoqueSalvar', { divisao: 'barra', itens: '[]' }).ok, false);
+  confere('nada salvo: estoque vazio, junto da leitura das doações', ler(), []);
+
+  const r = salvar([{ item: '  Cobertor  ', quantidade: 12, medida: 'un' }, { item: 'Sapato', quantidade: 6, medida: 'par' }, { item: 'Blusa', quantidade: 0, medida: 'un' }]);
+  confere('salva os itens, na ordem da tela', [r.itens, ler()], [3, [
+    { item: 'Cobertor', quantidade: 12, medida: 'un' }, { item: 'Sapato', quantidade: 6, medida: 'par' }, { item: 'Blusa', quantidade: 0, medida: 'un' }]]);
+  confere('a aba nasce sozinha, com a quantidade como número', [p.abas.EstoqueDoacoes.dados[0], typeof linhasEstoque()[0][2]],
+    [['Divisao', 'Item', 'Quantidade', 'Medida', 'Atualizado em'], 'number']);
+
+  salvar([{ item: 'Cobertor', quantidade: 10, medida: 'un' }]);
+  confere('salvar de novo troca a lista inteira, não acumula', [ler(), linhasEstoque().length], [[{ item: 'Cobertor', quantidade: 10, medida: 'un' }], 1]);
+
+  const antes = linhasEstoque().length;
+  confere('item repetido (maiúscula e acento não diferenciam) é recusado',
+    tentar(() => salvar([{ item: 'Cobertor', quantidade: 1 }, { item: 'cobertôr', quantidade: 2 }])), 'Item repetido: cobertôr');
+  confere('item sem nome é recusado', tentar(() => salvar([{ item: '  ', quantidade: 1 }])), 'Item sem nome');
+  confere('quantidade quebrada é recusada', tentar(() => salvar([{ item: 'Roupa', quantidade: 1.5 }])), 'Quantidade invalida em Roupa');
+  confere('quantidade negativa é recusada', tentar(() => salvar([{ item: 'Roupa', quantidade: -1 }])), 'Quantidade invalida em Roupa');
+  confere('lista que não é lista é recusada', tentar(() => contexto.executar('estoqueSalvar', { ...barra, itens: 'nada' })), 'Lista de itens invalida');
+  confere('e uma lista com erro não apaga a que estava salva', linhasEstoque().length, antes);
+  salvar([{ item: 'Meia', quantidade: 3, medida: 'qualquer' }]);
+  confere('medida que não é un nem par vira un', ler()[0].medida, 'un');
+
+  confere('a Barra NÃO salva o estoque do Oeste', salvar([{ item: 'X', quantidade: 1 }], { divisao: 'oeste' }).ok, false);
+  contexto.executar('estoqueSalvar', { escopo: 'barra', pin: '0418', divisao: 'oeste', itens: JSON.stringify([{ item: 'Calça', quantidade: 4 }]) });
+  confere('o Regional salva no Oeste, e a Barra não vê', ler().map(x => x.item), ['Meia']);
+  salvar([]);
+  confere('salvar a lista vazia limpa só a divisão', linhasEstoque().map(l => l[0]), ['oeste']);
+}
+
+log('');
 log('=== caixinha: um mês por vez, atrás do PIN da divisão ===');
 {
   const p = montaPlanilha([], []);

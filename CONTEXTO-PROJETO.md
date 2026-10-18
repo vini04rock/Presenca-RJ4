@@ -27,7 +27,7 @@ Três modos de entrada, todos no mesmo link:
 - HTML + CSS + JavaScript puro, em **módulos ES nativos**. Sem framework,
   sem build step, sem dependências além das fontes do Google.
 - `index.html` é só o esqueleto; o visual em `css/estilo.css`; o código em
-  `js/`, repartido em 51 módulos.
+  `js/`, repartido em 53 módulos.
 - Hospedado no GitHub Pages (estático). Todo `git push` atualiza o site.
 - Backend: planilha do Google Sheets via Apps Script publicado como Web App.
   A URL fica em `API_URL`, em `js/nucleo/api.js`.
@@ -127,6 +127,7 @@ sem controlar o servidor.
 | `TextosChamada` | Regras do clube e Atenção personalizadas pelo Regional; sem linha = o padrão |
 | `Movimentacoes` | o livro de Entrada/Saída: uma linha por entrada, afastamento, retorno ou desligamento. Nada é apagado |
 | `Doacoes` | uma linha por evento × integrante que levou alimento, com os kg; sem linha = não levou |
+| `EstoqueDoacoes` | as outras doações (roupas, cobertores, sapatos…): uma linha por item da divisão, com a quantidade de hoje, em unidades ou pares |
 | `Caixinha` | uma linha por divisão × mês × integrante que devia pagar, com Sim/Não e o **valor** pago |
 | `CaixinhaFinanceiro` | o controle financeiro da caixinha: uma linha por entrada ou saída lançada, e o saldo inicial de cada divisão |
 
@@ -410,6 +411,32 @@ regra do clube é levar 1 kg de alimento em todo evento.
   Doação de quem não estava como Confirmado soma no kg, mas fica fora do
   cumprimento.
 
+**Outras doações** (`telas/admin-doacoes-estoque.js`, regras em
+`dominio/estoque.js`): a 3ª aba de Doações, criada em 19/10/2026. É o
+**estoque do clube**, que não é de integrante nenhum: roupas, cobertores,
+sapatos e o que mais vier, com a quantidade de hoje.
+
+- **Um card por item**, com o nome, a medida (**un** ou **par**) e − /
+  quantidade / +. O "par" é sugerido sozinho quando o nome tem sapato,
+  tênis, chinelo, sandália, bota ou meia (`sugerirMedida`); tocar na
+  medida troca, e daí a sugestão para de mexer naquele card.
+- **Sempre um card vazio só, no fim.** Começou a escrever nele, aparece
+  outro embaixo. Escrever **não redesenha a tela** (o teclado fecharia):
+  `atualizarCampoEstoque` põe o card novo, o resumo e o contador de
+  mudanças por fora.
+- **Sem histórico** (decisão do clube): só a quantidade de hoje. Item com
+  0 continua na lista, marcado "acabou", até sair pela 🗑️.
+- **💾 Salvar estoque** grava a lista inteira de uma vez, por POST (com
+  muitos itens não cabe numa URL), e a planilha fica igual à tela. Até
+  salvar, o rascunho fica no state (`estoqueCards`), com o contador de
+  mudanças e o Desfazer. Item repetido (sem diferenciar maiúscula e
+  acento) e quantidade sem nome são avisados antes; o `Code.gs` confere de
+  novo, e uma lista com erro não apaga a que estava salva.
+- O estoque vem **na mesma leitura das Doações** (`lerDoacoes` devolve
+  também `estoque`). A **🖼️ imagem pro grupo** mostra o que está salvo
+  (com mudança pendente, pede pra salvar antes) e vira várias imagens
+  quando a lista não cabe.
+
 **Caixinha** (`telas/admin-caixinha.js`, contas em `dominio/caixinha.js`).
 Três abas: Mês a mês, Rank e Controle financeiro. Desde 18/10/2026 guarda
 **quanto** cada um pagou, e não só se pagou (antes disso a decisão era
@@ -666,7 +693,7 @@ a cada mudança:
 | `servidor.py` | serve o app local com o cache desligado |
 | `estrutura.py` | 7 verificações: imports circulares, hierarquia de camadas, sintaxe, nome sem import, import sobrando, ações sem tratador |
 | `regras.mjs` | as regras do clube que, se quebrarem, saem erradas numa convocação sem ninguém perceber |
-| `telas.mjs` | desenha as 143 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
+| `telas.mjs` | desenha as 149 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
 | `planilha.mjs` | roda o `Code.gs` de verdade contra uma planilha de mentira: encerramento automático, PIN, relatório individual, responsável, textos, chamada do evento, doações, caixinha e entrada/saída |
 
 O `--html` do `telas.mjs` é a rede de proteção mais útil: captura o HTML de
@@ -792,7 +819,7 @@ ferramentas, acima):
 
     py ferramentas/estrutura.py     # imports, camadas, sintaxe, ações
     node ferramentas/regras.mjs     # ordem hierárquica e formato da convocação
-    node ferramentas/telas.mjs      # desenha as 143 telas e abas
+    node ferramentas/telas.mjs      # desenha as 149 telas e abas
     node ferramentas/planilha.mjs   # o encerramento automático, no Code.gs
 
 Eles dizem que o app **não quebrou**, não que está bonito: não cobrem

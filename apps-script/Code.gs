@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-10-18-v-saldo-travado';
+var VERSAO = '2026-10-19-v-estoque-doacoes';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -39,6 +39,7 @@ var ABA_TEXTOS_CHAMADA = 'TextosChamada';
 var ABA_DOACOES = 'Doacoes';
 var ABA_CAIXINHA = 'Caixinha';
 var ABA_CAIXINHA_FINANCEIRO = 'CaixinhaFinanceiro';
+var ABA_ESTOQUE = 'EstoqueDoacoes';
 var ABA_MOVIMENTOS = 'Movimentacoes';
 
 // "Cargo" so faz sentido nos graus VI e V (ver CARGOS no js/nucleo/config.js):
@@ -112,6 +113,12 @@ var VALOR_CAIXINHA_PADRAO = 30;
 // - o que havia no COMECO daquele mes. Ver movimentosDoCaixa no app.
 var CAB_CAIXINHA_FINANCEIRO = ['ID', 'Divisao', 'Tipo', 'Data', 'Categoria', 'Descricao', 'Valor', 'Atualizado em'];
 var TIPOS_LANCAMENTO = { saldoInicial: 'Saldo inicial', entrada: 'Entrada', saida: 'Saida' };
+// Outras doacoes: o estoque do clube (roupas, cobertores, sapatos...), que
+// nao e de integrante nenhum. Uma linha por item da divisao, com a
+// quantidade de HOJE - sem historico (decisao do clube, 19/10/2026). Salvar
+// troca a lista inteira da divisao, entao a aba e sempre igual a tela.
+// "Medida" e 'un' ou 'par'.
+var CAB_ESTOQUE = ['Divisao', 'Item', 'Quantidade', 'Medida', 'Atualizado em'];
 // O livro de Entrada/Saida de integrantes: uma linha por movimentacao, e
 // nada aqui e apagado. "Tipo" e Entrada, Afastamento, Retorno ou
 // Desligamento; "Divisao" e a chave ('barra'...) e "Membro"/"Grau" um
@@ -212,7 +219,7 @@ var ACOES_PROTEGIDAS = [
   // Doacoes e caixinha: ler tambem e protegido - quem deve a caixinha nao e
   // coisa pra qualquer um com a URL ver.
   'doacoes', 'doacoesSalvar', 'caixinha', 'caixinhaSalvar', 'caixinhaRemover',
-  'caixinhaLancamentoSalvar', 'caixinhaLancamentoRemover',
+  'caixinhaLancamentoSalvar', 'caixinhaLancamentoRemover', 'estoqueSalvar',
   // Entrada/Saida: o motivo de um afastamento pode ser assunto pessoal.
   'membroMovimentar', 'movimentos'
 ];
@@ -279,6 +286,7 @@ function executar(action, p) {
   // caixinha do Oeste.
   if (action === 'doacoes') return lerDoacoes(String(p.divisao || ''), String(p.pin || ''));
   if (action === 'doacoesSalvar') return comTrava(function () { return salvarDoacoesEvento(p); });
+  if (action === 'estoqueSalvar') return comTrava(function () { return salvarEstoque(p); });
   if (action === 'caixinha') return lerCaixinha(String(p.divisao || ''), String(p.pin || ''));
   if (action === 'caixinhaSalvar') return comTrava(function () { return salvarCaixinhaMes(p); });
   if (action === 'caixinhaRemover') return comTrava(function () { return removerCaixinhaMes(p); });
@@ -1099,7 +1107,7 @@ function organizarAbas() {
   var ordem = [ABA_CALENDARIO].concat(ORDEM_EXIBICAO_ESCOPOS.map(function (chave) { return ESCOPOS_NOME[chave]; }))
     .concat([ABA_INSIGHT_RESUMO, 'Relatorio', 'Membros', 'Eventos', 'Presencas',
              ABA_INSIGHT_RODADAS, ABA_INSIGHT_PRESENCAS, ABA_INSIGHT_EXCLUIDOS,
-             ABA_DOACOES, ABA_CAIXINHA, ABA_CAIXINHA_FINANCEIRO, ABA_MOVIMENTOS, 'KV']);
+             ABA_DOACOES, ABA_ESTOQUE, ABA_CAIXINHA, ABA_CAIXINHA_FINANCEIRO, ABA_MOVIMENTOS, 'KV']);
   ordem.forEach(function (nome, i) {
     var s = ss.getSheetByName(nome);
     if (!s) return;
@@ -1674,7 +1682,56 @@ function lerDoacoes(divisao, pin) {
     e.doacoes[String(l[3])] = kg;
     nomes[String(l[3])] = String(l[4] || '');
   });
-  return { ok: true, eventos: eventos, nomes: nomes };
+  // O estoque vem junto: a secao inteira numa ida a planilha so.
+  return { ok: true, eventos: eventos, nomes: nomes, estoque: lerEstoque(divisao) };
+}
+
+// Os itens do estoque da divisao, na ordem em que foram salvos.
+function lerEstoque(divisao) {
+  return linhas(aba(ABA_ESTOQUE, CAB_ESTOQUE))
+    .filter(function (l) { return String(l[0]) === divisao && String(l[1]).trim(); })
+    .map(function (l) {
+      var q = Math.floor(Number(l[2]));
+      return { item: String(l[1]).trim(), quantidade: isFinite(q) && q > 0 ? q : 0, medida: String(l[3]) === 'par' ? 'par' : 'un' };
+    });
+}
+
+// "Cobertor" e "cobertôr " sao o mesmo item - a mesma regra do app.
+function chaveDoItem(nome) {
+  return String(nome).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().replace(/\s+/g, ' ');
+}
+
+// Grava o estoque inteiro da divisao: itens = [{ item, quantidade, medida }].
+// Confere tudo ANTES de apagar - uma lista com erro nao pode levar embora a
+// que estava salva.
+function salvarEstoque(p) {
+  var divisao = String(p.divisao || '');
+  if (!podeNaDivisao(divisao, String(p.pin || ''))) return SEM_PERMISSAO_DIVISAO;
+  var itens = typeof p.itens === 'string' ? parseOuVazio(p.itens, null) : p.itens;
+  if (!Array.isArray(itens)) throw new Error('Lista de itens invalida');
+  if (itens.length > 300) throw new Error('Itens demais (no maximo 300)');
+  var vistos = {};
+  var momento = agora();
+  var novas = itens.map(function (x) {
+    var item = String((x && x.item) || '').trim().replace(/\s+/g, ' ').slice(0, 60);
+    if (!item) throw new Error('Item sem nome');
+    var q = Number(x.quantidade);
+    if (!isFinite(q) || q < 0 || q > 100000 || Math.floor(q) !== q) throw new Error('Quantidade invalida em ' + item);
+    var chave = chaveDoItem(item);
+    if (vistos[chave]) throw new Error('Item repetido: ' + item);
+    vistos[chave] = true;
+    return [divisao, item, q, x.medida === 'par' ? 'par' : 'un', momento];
+  });
+  var s = aba(ABA_ESTOQUE, CAB_ESTOQUE);
+  apagarLinhas(s, function (l) { return String(l[0]) === divisao; });
+  if (novas.length) {
+    var faixa = s.getRange(s.getLastRow() + 1, 1, novas.length, CAB_ESTOQUE.length);
+    // Texto: um item que comece com "=" nao vira formula. A quantidade fica
+    // numero, pra quem abrir a planilha conseguir somar.
+    s.getRange(s.getLastRow() + 1, 1, novas.length, 2).setNumberFormat('@');
+    faixa.setValues(novas);
+  }
+  return { ok: true, itens: novas.length };
 }
 
 // Grava as doacoes de UM evento de uma vez: kgs = { idMembro: kg }. Quem

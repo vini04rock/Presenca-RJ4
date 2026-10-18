@@ -211,7 +211,10 @@ export async function carregarDoacoes() {
   try {
     const r = await api('doacoes', { divisao: escopo });
     if (state.adminEscopo !== escopo) return;
-    state.doacoesDados = { eventos: r.eventos || [], nomes: r.nomes || {} };
+    // O estoque (Outras doacoes) vem na mesma resposta. O rascunho da tela
+    // recomeca do que acabou de chegar.
+    state.doacoesDados = { eventos: r.eventos || [], nomes: r.nomes || {}, estoque: r.estoque || [] };
+    state.estoqueCards = null;
     state.doacoesDadosEscopo = escopo;
   } catch (e) {
     if (state.adminEscopo !== escopo) return;

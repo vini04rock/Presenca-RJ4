@@ -896,6 +896,40 @@ log('=== caixinha: controle financeiro (saldo, entradas, saídas, período) ==='
 }
 
 log('');
+log('=== outras doações: o estoque do clube ===');
+{
+  const { sugerirMedida, textoQuantidade, conferirEstoque, resumoEstoque, textoResumoEstoque, mudancasNoEstoque, cardVazio } = await import(url('dominio/estoque.js'));
+  confere('o que se conta em par', ['Sapato', 'Tênis infantil', 'chinelos', 'Sandália', 'Botas', 'Meia', 'Cobertor', 'Botão', 'Blusa'].map(sugerirMedida),
+    ['par', 'par', 'par', 'par', 'par', 'par', 'un', 'un', 'un']);
+  confere('como a quantidade se escreve', [textoQuantidade(12, 'un'), textoQuantidade(1, 'par'), textoQuantidade(6, 'par'), textoQuantidade(0, 'un')],
+    ['12 un', '1 par', '6 pares', '0 un']);
+  confere('card vazio é o sem nome e sem quantidade', [cardVazio({ item: ' ', quantidade: 0 }), cardVazio({ item: '', quantidade: 2 }), cardVazio({ item: 'X', quantidade: 0 })],
+    [true, false, false]);
+
+  const cards = [
+    { item: ' Cobertor  de lã ', quantidade: 12, medida: 'un' },
+    { item: 'Sapato', quantidade: 6, medida: 'par' },
+    { item: 'Blusa', quantidade: 0, medida: 'un' },
+    { item: '', quantidade: 0, medida: 'un' },
+  ];
+  confere('conferir: limpa o nome e deixa o card vazio de fora', conferirEstoque(cards).itens, [
+    { item: 'Cobertor de lã', quantidade: 12, medida: 'un' }, { item: 'Sapato', quantidade: 6, medida: 'par' }, { item: 'Blusa', quantidade: 0, medida: 'un' }]);
+  confere('conferir: repetido (sem diferença de maiúscula e acento) é avisado',
+    conferirEstoque([{ item: 'Cobertor', quantidade: 1 }, { item: 'cobertôr', quantidade: 2 }]).erro, '"cobertôr" aparece duas vezes. Junte as quantidades num card só.');
+  confere('conferir: quantidade sem nome é avisada', conferirEstoque([{ item: '', quantidade: 3 }]).erro, 'Um card tem quantidade (3) mas está sem o nome do item.');
+  confere('conferir: sem medida, sugere pelo nome', conferirEstoque([{ item: 'Chinelo', quantidade: 2 }]).itens[0].medida, 'par');
+
+  const r = resumoEstoque(cards);
+  confere('o resumo: itens, unidades, pares e quantos acabaram', r, { itens: 3, unidades: 12, pares: 6, acabaram: 1 });
+  confere('o resumo escrito', [textoResumoEstoque(r), textoResumoEstoque({ itens: 1, unidades: 1, pares: 0 })], ['3 itens · 12 unidades · 6 pares', '1 item · 1 unidade']);
+
+  const salvos = [{ item: 'Cobertor', quantidade: 12, medida: 'un' }, { item: 'Sapato', quantidade: 6, medida: 'par' }];
+  confere('sem mexer, nenhuma mudança (o card vazio não conta)', mudancasNoEstoque(salvos, [...salvos, { item: '', quantidade: 0 }]), 0);
+  confere('mudou um, tirou outro e criou um: 3 mudanças',
+    mudancasNoEstoque(salvos, [{ item: 'Cobertor', quantidade: 11, medida: 'un' }, { item: 'Roupa', quantidade: 5, medida: 'un' }]), 3);
+}
+
+log('');
 log('=== entrada/saída: o relatório de cada divisão e o quadro do Regional ===');
 {
   const { resumoMovimentos, quadroRegional, textoMovimentos, textoQuadroRegional, soAtivos, movimentosDoPeriodo } = await import(url('dominio/movimentos.js'));

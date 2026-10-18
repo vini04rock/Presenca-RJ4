@@ -453,7 +453,8 @@ const doacoesFalsas = { eventos: [
     convocados:['m1','m2','m3'], confirmados:['m2'], doacoes:{} },
   { id:'e4', nome:'Acao Social', data:'2026-07-10', tipo:'Ação Social', status:'encerrado',
     convocados:['m1','m2'], confirmados:['m1','m2'], doacoes:{ m1:1 } },
-], nomes:{ m1:'Costa', m3:'Almeida' } };
+], nomes:{ m1:'Costa', m3:'Almeida' },
+  estoque:[{ item:'Cobertor', quantidade:12, medida:'un' }, { item:'Sapato', quantidade:6, medida:'par' }, { item:'Blusa', quantidade:0, medida:'un' }] };
 const caixinhaFalsa = { meses: [
   { mes:'2026-10', membros:[{ id:'m1', nome:'Costa', pagou:true, valor:30 }, { id:'m2', nome:'Bull', pagou:false, valor:0 }, { id:'m3', nome:'Almeida', pagou:true, valor:35.5 }] },
   // m9 saiu do clube: aparece pelo nome gravado no mes.
@@ -482,6 +483,15 @@ add('doações / carregando',            { ...dc, adminTab:'doacoes', doacoesDad
 // Dados de outra divisao na memoria: nao podem aparecer dentro da Barra.
 add('doações / dados de outra divisão', { ...dc, adminTab:'doacoes', doacoesDadosEscopo:'oeste' }, T.renderAdmin);
 add('doações / erro',                  { ...dc, adminTab:'doacoes', doacoesErro:'A conexao demorou demais' }, T.renderAdmin);
+add('outras doações / estoque',         { ...dc, adminTab:'doacoes-estoque' }, T.renderAdmin);
+add('outras doações / estoque vazio',   { ...dc, adminTab:'doacoes-estoque', doacoesDados:{ eventos:[], nomes:{}, estoque:[] } }, T.renderAdmin);
+add('outras doações / mexendo (não salvo)', { ...dc, adminTab:'doacoes-estoque', estoqueCards:[
+  { item:'Cobertor', quantidade:10, medida:'un', medidaManual:true }, { item:'Tênis', quantidade:2, medida:'par', medidaManual:false },
+  { item:'', quantidade:0, medida:'un' }] }, T.renderAdmin);
+add('outras doações / item repetido',   { ...dc, adminTab:'doacoes-estoque',
+  estoqueMsg:{ ok:false, texto:'"cobertôr" aparece duas vezes. Junte as quantidades num card só.' } }, T.renderAdmin);
+add('outras doações / salvando',        { ...dc, adminTab:'doacoes-estoque', estoqueSalvando:true }, T.renderAdmin);
+add('outras doações / sem estoque na resposta', { ...dc, adminTab:'doacoes-estoque', doacoesDados:{ eventos:[], nomes:{} } }, T.renderAdmin);
 add('caixinha / mês a mês',            { ...dc, adminTab:'caixinha' }, T.renderAdmin);
 add('caixinha / corrigindo mês lançado', { ...dc, adminTab:'caixinha', caixinhaMes:'2026-09',
   caixinhaMembroIds:['m1','m2','m9'], caixinhaValores:{ m1:30 }, caixinhaInfo:{ m9:{ nome:'Antigo' } } }, T.renderAdmin);
@@ -580,6 +590,7 @@ const LIMPO = {
   relIndVariosCarregando:false, relIndVariosErro:null,
   doacoesDados:null, doacoesDadosEscopo:null, doacoesErro:null, doacoesEventoId:null, doacoesMarcacoes:{},
   doacoesMsg:null, doacoesSalvando:false, doacoesQtdEncerrados:8, doacoesPeriodo:0,
+  estoqueCards:null, estoqueSalvando:false, estoqueMsg:null,
   caixinhaDados:null, caixinhaDadosEscopo:null, caixinhaErro:null, caixinhaMes:null, caixinhaMembroIds:[],
   caixinhaValores:{}, caixinhaValoresTexto:{}, caixinhaInfo:{}, caixinhaMostrarAdicionar:false, caixinhaConfirmarRemover:false,
   caixinhaSalvando:false, caixinhaMsg:null, caixinhaPeriodo:0,

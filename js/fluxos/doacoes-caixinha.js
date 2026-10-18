@@ -9,7 +9,8 @@
 import { carregarCaixinha, carregarDoacoes } from '../dados/carregar.js';
 import { formatReais, lerValor, nomeDoMes } from '../dominio/caixinha.js';
 import { formatKg } from '../dominio/doacoes.js';
-import { api } from '../nucleo/api.js';
+import { conferirEstoque } from '../dominio/estoque.js';
+import { api, apiPost } from '../nucleo/api.js';
 import { CATEGORIA_ENTRADA_CAIXINHA } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
@@ -229,5 +230,32 @@ export async function removerLancamentoFinanceiro(id) {
     state.caixinhaFinMsg = { ok: false, texto: 'Não consegui excluir: ' + e.message + '.' };
   }
   state.caixinhaFinSalvando = false;
+  render();
+}
+
+// ---------- outras doacoes (o estoque) ----------
+
+// Grava a lista inteira do estoque da divisao. Vai por POST: com muitos
+// itens, a lista nao cabe numa URL.
+export async function salvarEstoque() {
+  const c = conferirEstoque(state.estoqueCards || []);
+  if (c.erro) {
+    state.estoqueMsg = { ok: false, texto: c.erro };
+    return render();
+  }
+  state.estoqueSalvando = true;
+  state.estoqueMsg = null;
+  render();
+  try {
+    const r = await apiPost('estoqueSalvar', { divisao: state.adminEscopo, itens: JSON.stringify(c.itens) });
+    mostrarAviso('📦 Estoque salvo');
+    state.estoqueMsg = { ok: true, texto: `✅ Estoque salvo: ${r.itens} ${r.itens === 1 ? 'item' : 'itens'}.` };
+    state.estoqueSalvando = false;
+    return carregarDoacoes();
+  } catch (e) {
+    // O rascunho fica na tela como estava: a pessoa tenta de novo.
+    state.estoqueMsg = { ok: false, texto: textoDoErro(e, 'salvar') };
+  }
+  state.estoqueSalvando = false;
   render();
 }

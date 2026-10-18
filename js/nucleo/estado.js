@@ -219,6 +219,13 @@ export let state = {
   doacoesQtdEncerrados: 8,
   // Janela do rank, em meses (0 = desde sempre). Ver PERIODOS.
   doacoesPeriodo: 3,
+  // Aba "Outras doacoes" (o estoque do clube). estoqueCards e o rascunho da
+  // tela: [{ item, quantidade, medida, medidaManual }], com um card vazio no
+  // fim; null = ainda nao montado (comeca do que esta salvo). medidaManual:
+  // a pessoa escolheu un/par, e a sugestao pelo nome para de mexer.
+  estoqueCards: null,
+  estoqueSalvando: false,
+  estoqueMsg: null,
 
   // Secao Caixinha do organizador. Mesma ideia: os meses lancados da
   // divisao (e o controle financeiro dela, que vem junto), e o mes aberto

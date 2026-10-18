@@ -35,7 +35,7 @@ const SECOES = [
   { aba: 'insights', nome: 'Insights', desc: 'Rodadas de Insight', icone: '💡', cor: '#B57EDC', visivel: () => state.adminEscopo === 'regional' },
   // Doacoes e Caixinha so nas divisoes liberadas - decisao que mora em
   // temDoacoesECaixinha(), pra replicar pras outras num lugar so.
-  { aba: 'doacoes', nome: 'Doações', desc: 'Quem levou alimento em cada evento e o rank', icone: '🥫', cor: '#4CAF6E',
+  { aba: 'doacoes', nome: 'Doações', desc: 'Alimento de cada evento, o rank e o estoque de doações', icone: '🥫', cor: '#4CAF6E',
     visivel: () => temDoacoesECaixinha(state.adminEscopo) },
   { aba: 'caixinha', nome: 'Caixinha', desc: 'Quem pagou, quanto entrou e saiu, e o saldo do caixa', icone: '💰', cor: '#C9A227',
     visivel: () => temDoacoesECaixinha(state.adminEscopo) },

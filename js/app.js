@@ -23,6 +23,7 @@ import { atualizarConfirmacoes } from './fluxos/evento.js';
 import { acoes as acoesAdminMembros } from './telas/admin-membros.js';
 import { acoes as acoesAdminInsights } from './telas/admin-insights.js';
 import { acoes as acoesAdminDoacoes } from './telas/admin-doacoes.js';
+import { acoes as acoesAdminDoacoesEstoque, atualizarCampoEstoque } from './telas/admin-doacoes-estoque.js';
 import { acoes as acoesAdminCaixinha, atualizarValorCaixinha } from './telas/admin-caixinha.js';
 import { acoes as acoesAdminCaixinhaFinanceiro, escolherMesDoPeriodo } from './telas/admin-caixinha-financeiro.js';
 import { acoes as acoesAdminMovimentos } from './telas/admin-movimentos.js';
@@ -297,6 +298,12 @@ document.getElementById('app').addEventListener('input', (e) => {
     escolherMesDoPeriodo(e.target);
     return;
   }
+  // O nome e a quantidade de um item do estoque (Outras doacoes): acerta o
+  // resto por fora, sem redesenhar.
+  if (e.target.classList && (e.target.classList.contains('estoque-nome') || e.target.classList.contains('estoque-qtd'))) {
+    atualizarCampoEstoque(e.target, document.getElementById('app'));
+    return;
+  }
   // O valor do saldo inicial (o card do painel) e o PIN do Regional da
   // correcao: so lembra, sem redesenhar.
   if (e.target.id === 'fin-saldo-valor') {
@@ -351,6 +358,7 @@ for (const [area, mapa] of Object.entries({
   acoesAdminMembros,
   acoesAdminInsights,
   acoesAdminDoacoes,
+  acoesAdminDoacoesEstoque,
   acoesAdminCaixinha,
   acoesAdminCaixinhaFinanceiro,
   acoesAdminMovimentos,

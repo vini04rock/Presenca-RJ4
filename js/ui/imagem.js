@@ -12,6 +12,7 @@ import { IMG_FUNDO, LOGO_SRC } from '../nucleo/imagens.js';
 import { diaDaSemana, formatDataBR, mostrarAviso } from '../nucleo/util.js';
 import { formatReais, nomeCurtoDoMes, nomeDoMes } from '../dominio/caixinha.js';
 import { formatKg } from '../dominio/doacoes.js';
+import { textoQuantidade } from '../dominio/estoque.js';
 import { posicoesDoPodio } from './comuns.js';
 
 const L = 1080, A = 1350; // retrato 4:5, o formato que o WhatsApp mostra maior
@@ -902,6 +903,63 @@ export async function imagensRelatorioCaixinha(r, nomeDivisao, rotuloPeriodo) {
   for (let i = 0; i < detalhe.length; i++) {
     const t = await novaTela();
     paginaDetalhe(t.ctx, t.logo, detalhe[i], cores, nomeDivisao, rotuloPeriodo, i + 2, paginas);
+    rodape(t.ctx);
+    telas.push(t.canvas);
+  }
+  return telas;
+}
+
+// ---------------------------------------------------------------------------
+// Outras doacoes: o estoque do clube pro grupo - o resumo e a lista de itens
+// com a quantidade, "acabou" em vermelho. Varias imagens do mesmo tamanho
+// quando a lista nao cabe, como no relatorio da Caixinha. `itens` ja vem
+// conferido (conferirEstoque), na ordem da tela.
+const TOPO_ESTOQUE = 360, FIM_ESTOQUE = 1190, ALTURA_ITEM = 64;
+
+function paginaEstoque(ctx, logo, itens, resumo, nomeDivisao, pagina, paginas) {
+  emblema(ctx, logo, 28, 104);
+  const y = tituloMetal(ctx, '📦 Estoque de doações', 196, 50, 980);
+  rotuloEspacado(ctx, `OUTRAS DOAÇÕES  ·  ${nomeDivisao.toUpperCase()}`, y + 4, 20, COR.ouro);
+  const hoje = new Date();
+  const data = `${String(hoje.getDate()).padStart(2, '0')}/${String(hoje.getMonth() + 1).padStart(2, '0')}/${hoje.getFullYear()}`;
+  const linha = `${resumo}  ·  ${data}` + (paginas > 1 ? `  ·  página ${pagina} de ${paginas}` : '');
+  fonteQueCabe(ctx, linha, 960, 26, 600);
+  ctx.fillStyle = COR.apagado;
+  ctx.textAlign = 'center';
+  ctx.fillText(linha, L / 2, y + 44);
+
+  ctx.textBaseline = 'middle';
+  itens.forEach((x, i) => {
+    const topo = TOPO_ESTOQUE + i * ALTURA_ITEM;
+    const meio = topo + ALTURA_ITEM / 2;
+    if (i % 2 === 0) {
+      ctx.fillStyle = 'rgba(255,255,255,0.05)';
+      ctx.beginPath(); retangulo(ctx, 90, topo + 4, L - 180, ALTURA_ITEM - 8, 14); ctx.fill();
+    }
+    const acabou = !x.quantidade;
+    const qtd = acabou ? 'acabou' : textoQuantidade(x.quantidade, x.medida);
+    fonte(ctx, 30, 700);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = acabou ? COR.infracional : COR.marfim;
+    ctx.fillText(qtd, L - 120, meio);
+    const larguraQtd = ctx.measureText(qtd).width;
+    fonte(ctx, 30, 600);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = acabou ? COR.apagado : COR.texto;
+    ctx.fillText(caber(ctx, x.item, L - 240 - larguraQtd - 30), 120, meio);
+  });
+  ctx.textBaseline = 'alphabetic';
+  ctx.textAlign = 'center';
+}
+
+export async function imagensEstoqueDoacoes(itens, resumo, nomeDivisao) {
+  const porPagina = Math.floor((FIM_ESTOQUE - TOPO_ESTOQUE) / ALTURA_ITEM);
+  const paginas = [];
+  for (let i = 0; i < itens.length; i += porPagina) paginas.push(itens.slice(i, i + porPagina));
+  const telas = [];
+  for (let p = 0; p < paginas.length; p++) {
+    const t = await novaTela();
+    paginaEstoque(t.ctx, t.logo, paginas[p], resumo, nomeDivisao, p + 1, paginas.length);
     rodape(t.ctx);
     telas.push(t.canvas);
   }
