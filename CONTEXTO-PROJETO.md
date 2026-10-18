@@ -465,12 +465,25 @@ controle que a Barra mantinha à mão.
   Tudo daquele mês em diante soma em cima dele; o que for de antes fica
   fora da conta, e a tela diz quanto ficou. Sem saldo inicial, o caixa
   conta do zero. É um por divisão: salvar de novo substitui.
-- **Relatório de controle:** período de 3, 6 ou 12 meses, tudo, ou um mês
-  só (o "📊 Controle financeiro do mês" de cada mês lançado abre direto
-  nele). Saldo no início, + mensalidades, + outras entradas, − saídas por
+- **Relatório de controle:** período de 3, 6 ou 12 meses, tudo, ou **de
+  um mês a outro**, nos seletores De/Até (o "📊 Controle financeiro do
+  mês" de cada mês lançado abre direto num mês só). O período é por mês, e
+  não por dia, pelo mesmo motivo do saldo inicial: a mensalidade é
+  mensal. Saldo no início, + mensalidades, + outras entradas, − saídas por
   categoria (cada lançamento embaixo da sua) e saldo final. Sai em texto
   pro WhatsApp, imagem pro grupo e PDF (a impressão do navegador), todos
   de `controleCaixinha`, então nunca discordam.
+- **O relatório em imagem** (`imagensRelatorioCaixinha`, em `ui/imagem.js`)
+  tem botão à vista no painel da aba, e são **várias imagens do mesmo
+  tamanho**, não uma que cresce (imagem comprida o WhatsApp encolhe até
+  ninguém ler). A 1ª é o resumo: saldo no início → no fim, entrou e saiu,
+  o gráfico **Entrou × Saiu × Saldo** (barras do mês embaixo, a linha do
+  saldo em escala própria na faixa de cima, pra um não cobrir o outro) e a
+  pizza "Com o que gastamos" (passando de 6 categorias, as menores viram
+  "Outras"). As seguintes detalham **só as saídas**, mês a mês, com dia,
+  categoria, descrição e valor; as entradas ficam nos totais (decisão do
+  clube). Mês que não cabe continua na página seguinte com "(continua)". A
+  prévia mostra todas e compartilha ou baixa as várias de uma vez.
 - **Pro grupo vão as despesas e o saldo** (decisão do clube, 18/10/2026),
   mas nunca nome de integrante: isso é do relatório de pagamentos.
 - Tudo vem na mesma leitura da Caixinha (`lerCaixinha` devolve os meses,
@@ -642,7 +655,7 @@ a cada mudança:
 | `servidor.py` | serve o app local com o cache desligado |
 | `estrutura.py` | 7 verificações: imports circulares, hierarquia de camadas, sintaxe, nome sem import, import sobrando, ações sem tratador |
 | `regras.mjs` | as regras do clube que, se quebrarem, saem erradas numa convocação sem ninguém perceber |
-| `telas.mjs` | desenha as 136 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
+| `telas.mjs` | desenha as 138 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
 | `planilha.mjs` | roda o `Code.gs` de verdade contra uma planilha de mentira: encerramento automático, PIN, relatório individual, responsável, textos, chamada do evento, doações, caixinha e entrada/saída |
 
 O `--html` do `telas.mjs` é a rede de proteção mais útil: captura o HTML de
@@ -768,7 +781,7 @@ ferramentas, acima):
 
     py ferramentas/estrutura.py     # imports, camadas, sintaxe, ações
     node ferramentas/regras.mjs     # ordem hierárquica e formato da convocação
-    node ferramentas/telas.mjs      # desenha as 136 telas e abas
+    node ferramentas/telas.mjs      # desenha as 138 telas e abas
     node ferramentas/planilha.mjs   # o encerramento automático, no Code.gs
 
 Eles dizem que o app **não quebrou**, não que está bonito: não cobrem

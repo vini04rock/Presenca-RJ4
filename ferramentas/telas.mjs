@@ -515,6 +515,8 @@ add('caixinha / saldo inicial',               { ...fin, caixinhaFinForm:{ tipo:'
 add('caixinha / relatório de controle (tudo)', { ...fin, caixinhaFinRelatorio:true, caixinhaFinPeriodo:0 }, T.renderAdmin);
 add('caixinha / relatório de um mês',         { ...fin, caixinhaFinRelatorio:true, caixinhaFinPeriodo:'2026-10' }, T.renderAdmin);
 add('caixinha / relatório antes do saldo inicial', { ...fin, caixinhaFinRelatorio:true, caixinhaFinPeriodo:'2026-07' }, T.renderAdmin);
+add('caixinha / relatório de um mês a outro', { ...fin, caixinhaFinRelatorio:true, caixinhaFinPeriodo:{ de:'2026-08', ate:'2026-10' } }, T.renderAdmin);
+add('caixinha / relatório de mês a mês invertido', { ...fin, caixinhaFinRelatorio:true, caixinhaFinPeriodo:{ de:'2026-10', ate:'2026-09' } }, T.renderAdmin);
 add('caixinha / relatório de caixa vazio',    { ...fin, caixinhaDados:caixaVazio, caixinhaFinRelatorio:true, caixinhaFinPeriodo:6 }, T.renderAdmin);
 
 // Entrada/Saida. No cadastro, Bull (m2) esta afastado; o painel de

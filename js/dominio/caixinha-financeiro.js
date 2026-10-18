@@ -55,14 +55,60 @@ export function movimentosDoCaixa(dados) {
 const comSinal = x => (x.tipo === 'saida' ? -x.valor : x.valor);
 
 // O periodo do relatorio: 0 = tudo; um numero = os ultimos N meses (contando
-// o atual, igual aos ranks); 'yyyy-mm' = so aquele mes.
+// o atual, igual aos ranks); 'yyyy-mm' = so aquele mes; { de, ate } = de um
+// mes a outro ('yyyy-mm', os dois inclusos - escolhidos ao contrario, vale
+// a ordem certa).
 function faixaDoPeriodo(periodo, base) {
   if (typeof periodo === 'string') return { de: periodo, ate: periodo };
+  if (periodo && typeof periodo === 'object') {
+    const [de, ate] = [periodo.de || '', periodo.ate || ''].sort();
+    return { de, ate };
+  }
   return { de: periodo ? mesISO(1 - periodo, base) : '', ate: '' };
 }
 
+// O periodo na forma { de, ate } que os seletores "De"/"Ate" mostram. Pros
+// atalhos (3, 6, 12 meses, tudo), o "ate" e o mes de hoje.
+export function mesesDoPeriodoFinanceiro(periodo, base = new Date()) {
+  const f = faixaDoPeriodo(periodo, base);
+  return { de: f.de, ate: f.ate || mesISO(0, base) };
+}
+
 export function rotuloDoPeriodoFinanceiro(periodo) {
-  return typeof periodo === 'string' ? nomeDoMes(periodo) : nomeDoPeriodo(periodo);
+  if (typeof periodo === 'string') return nomeDoMes(periodo);
+  if (periodo && typeof periodo === 'object') {
+    const f = faixaDoPeriodo(periodo);
+    return f.de === f.ate ? nomeDoMes(f.de) : `${nomeDoMes(f.de)} a ${nomeDoMes(f.ate)}`;
+  }
+  return nomeDoPeriodo(periodo);
+}
+
+// Um periodo de um mes so - o saldo do fim dele e "o saldo no fim do mes".
+export function periodoDeUmMes(periodo) {
+  const f = faixaDoPeriodo(periodo);
+  return !!f.ate && f.de === f.ate;
+}
+
+const mesSeguinte = mes => { const [a, m] = mes.split('-').map(Number); return mesISO(1, new Date(a, m - 1, 1)); };
+
+// Mes a mes do periodo, sem pular mes vazio, com o saldo do fim de cada um
+// - e a linha do saldo do grafico. Comeca no primeiro mes do periodo (ou no
+// primeiro com movimento, em "tudo") e vai ate o fim dele (ou ate hoje, ou
+// ate o ultimo mes com movimento, o que vier depois). No maximo 36 meses.
+function serieMensal(de, ate, noPeriodo, saldoAnterior, base) {
+  const meses = noPeriodo.map(x => x.mes).sort();
+  const primeiro = de || meses[0] || mesISO(0, base);
+  const ultimo = ate || [mesISO(0, base), meses[meses.length - 1] || ''].sort().pop();
+  const serie = [];
+  let saldo = saldoAnterior;
+  for (let mes = primeiro; mes <= ultimo && serie.length < 36; mes = mesSeguinte(mes)) {
+    const doMes = noPeriodo.filter(x => x.mes === mes);
+    const entradas = somaReais(doMes.filter(x => x.tipo !== 'saida').map(x => x.valor));
+    const saidas = somaReais(doMes.filter(x => x.tipo === 'saida').map(x => x.valor));
+    saldo = somaReais([saldo, entradas, -saidas]);
+    serie.push({ mes, entradas, saidas, saldo });
+  }
+  return serie;
 }
 
 // O relatorio de controle de um periodo. Tudo o que a tela, o texto, a
@@ -94,6 +140,15 @@ export function controleCaixinha(dados, periodo, base = new Date()) {
     else m.entradas = somaReais([m.entradas, x.valor]);
   });
 
+  // As saidas de cada mes, do mais antigo pro mais novo, e dentro do mes
+  // por dia - a ordem em que se le o detalhamento.
+  const saidasPorMes = {};
+  saidas.slice().sort((a, b) => a.data.localeCompare(b.data)).forEach(x => {
+    const m = saidasPorMes[x.mes] = saidasPorMes[x.mes] || { mes: x.mes, total: 0, itens: [] };
+    m.total = somaReais([m.total, x.valor]);
+    m.itens.push(x);
+  });
+
   const totalMensalidades = somaReais(mensalidades.map(x => x.valor));
   const totalOutras = somaReais(outras.map(x => x.valor));
   const totalSaidas = somaReais(saidas.map(x => x.valor));
@@ -119,9 +174,11 @@ export function controleCaixinha(dados, periodo, base = new Date()) {
       porCategoria: Object.values(porCategoria).sort((a, b) => b.valor - a.valor || a.categoria.localeCompare(b.categoria)),
     },
     saldoFinal: somaReais([saldoAnterior, totalEntradas, -totalSaidas]),
-    // O livro de hoje, tudo somado - nao depende do periodo.
+    // O caixa de hoje, tudo somado - nao depende do periodo.
     saldoAtual: somaReais([livro.saldoInicial, ...livro.itens.map(comSinal)]),
     porMes: Object.values(porMes).sort((a, b) => a.mes.localeCompare(b.mes)),
+    serie: (faixa.ate && de > faixa.ate) ? [] : serieMensal(de, faixa.ate, noPeriodo, saldoAnterior, base),
+    saidasPorMes: Object.values(saidasPorMes).sort((a, b) => a.mes.localeCompare(b.mes)),
     extrato: noPeriodo,
   };
 }

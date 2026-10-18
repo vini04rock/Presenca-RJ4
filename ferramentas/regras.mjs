@@ -851,6 +851,27 @@ log('=== caixinha: controle financeiro (saldo, entradas, saídas, período) ==='
     texto9.includes('   ↳ 10/09 · R$ 20,00')], [true, true]);
   confere('o texto não leva nome de integrante', /Na|Nb/.test(textoControleCaixinha(tudo, 'barra')), false);
   confere('período sem nada diz que não houve', textoControleCaixinha(julho, 'barra').includes('• Nenhuma saída'), true);
+
+  // O periodo "de um mes a outro" (o relatorio em imagem).
+  const { mesesDoPeriodoFinanceiro, periodoDeUmMes } = await import(url('dominio/caixinha-financeiro.js'));
+  const setOut = controleCaixinha(dados, { de: '2026-09', ate: '2026-10' }, base);
+  confere('de setembro a outubro: início, entradas, saídas e fim',
+    [setOut.saldoAnterior, setOut.entradas.total, setOut.saidas.total, setOut.saldoFinal], [175, 145, 135.5, 184.5]);
+  confere('escolhido ao contrário, vale a ordem certa',
+    controleCaixinha(dados, { de: '2026-10', ate: '2026-09' }, base).saldoFinal, 184.5);
+  confere('a série mês a mês, com o saldo do fim de cada mês', setOut.serie, [
+    { mes: '2026-09', entradas: 80, saidas: 20, saldo: 235 }, { mes: '2026-10', entradas: 65, saidas: 115.5, saldo: 184.5 }]);
+  confere('a série não pula mês vazio (agosto, sem nada)', tudo.serie.map(m => [m.mes, m.saldo]),
+    [['2026-08', 175], ['2026-09', 235], ['2026-10', 184.5]]);
+  confere('as saídas por mês, do mais antigo pro mais novo e por dia', setOut.saidasPorMes.map(m => [m.mes, m.total, m.itens.map(x => x.id)]),
+    [['2026-09', 20, ['l2']], ['2026-10', 115.5, ['l1', 'l4']]]);
+  confere('mês antes do saldo inicial: série vazia', julho.serie, []);
+  confere('rótulo de um mês a outro', [rotuloDoPeriodoFinanceiro({ de: '2026-08', ate: '2026-10' }), rotuloDoPeriodoFinanceiro({ de: '2026-10', ate: '2026-10' })],
+    ['Agosto/2026 a Outubro/2026', 'Outubro/2026']);
+  confere('os meses que os seletores mostram', [mesesDoPeriodoFinanceiro(6, base), mesesDoPeriodoFinanceiro(0, base), mesesDoPeriodoFinanceiro('2026-09', base)],
+    [{ de: '2026-05', ate: '2026-10' }, { de: '', ate: '2026-10' }, { de: '2026-09', ate: '2026-09' }]);
+  confere('o que é período de um mês só', [periodoDeUmMes('2026-10'), periodoDeUmMes({ de: '2026-10', ate: '2026-10' }), periodoDeUmMes({ de: '2026-09', ate: '2026-10' }), periodoDeUmMes(6)],
+    [true, true, false, false]);
 }
 
 log('');

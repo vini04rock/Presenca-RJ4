@@ -9,7 +9,7 @@
 // nela.
 
 import { formatReais, mesISO, mesesParaEscolher, nomeCurtoDoMes, nomeDoMes } from '../dominio/caixinha.js';
-import { CATEGORIA_MENSALIDADES, controleCaixinha, rotuloDoPeriodoFinanceiro, textoControleCaixinha } from '../dominio/caixinha-financeiro.js';
+import { CATEGORIA_MENSALIDADES, controleCaixinha, mesesDoPeriodoFinanceiro, periodoDeUmMes, rotuloDoPeriodoFinanceiro, textoControleCaixinha } from '../dominio/caixinha-financeiro.js';
 import { PERIODOS, rotuloPilula } from '../dominio/doacoes.js';
 import { fecharFormFinanceiro, removerLancamentoFinanceiro, salvarLancamentoFinanceiro } from '../fluxos/doacoes-caixinha.js';
 import { CATEGORIAS_SAIDA_CAIXINHA, CATEGORIA_ENTRADA_CAIXINHA, escopoPorChave } from '../nucleo/config.js';
@@ -17,7 +17,7 @@ import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
 import { copiarTexto, escapeHtml, formatDataBR } from '../nucleo/util.js';
 import { renderPizza } from '../ui/graficos.js';
-import { imagemControleCaixinha, mostrarPreviaImagem } from '../ui/imagem.js';
+import { imagensRelatorioCaixinha, mostrarPreviaImagem } from '../ui/imagem.js';
 
 const COR_ENTRADA = 'var(--status-confirmado)';
 const COR_SAIDA = 'var(--status-infracional)';
@@ -159,6 +159,7 @@ function painel(d) {
         <button class="btn secondary" style="flex:1;" data-action="editar-saldo-inicial-caixinha">💼 Saldo inicial</button>
         <button class="btn" style="flex:1;" data-action="abrir-relatorio-financeiro">📊 Relatório de controle</button>
       </div>
+      <button class="btn secondary block no-print" style="margin-top:8px;" data-action="abrir-relatorio-financeiro">🖼️ Relatório em imagem</button>
     </div>
     ${barrasPorMes(r.porMes)}
     ${saidasPorCategoria(r, false)}
@@ -257,27 +258,44 @@ function formLancamento(f) {
 
 // ---------- o relatorio de controle ----------
 
-function seletorPeriodo(d) {
-  const p = state.caixinhaFinPeriodo;
-  // Os meses com alguma coisa, pra escolher um so.
-  const comMovimento = new Set([
+// Os meses que da pra escolher em "De"/"Ate": os da grade da caixinha (do
+// mes que vem a um ano atras) e todos os que tem algum movimento, do mais
+// novo pro mais antigo.
+function mesesDoSeletor(d) {
+  return [...new Set([
+    ...mesesParaEscolher(),
     ...(d.meses || []).map(m => m.mes),
     ...(d.lancamentos || []).map(l => (l.data || '').slice(0, 7)),
-  ]);
-  const meses = mesesParaEscolher();
+    ...(d.saldoInicial ? [d.saldoInicial.mes] : []),
+  ].filter(m => /^\d{4}-\d{2}$/.test(m)))].sort().reverse();
+}
+
+function seletorMes(id, rotulo, valor, meses) {
+  return `
+    <label class="fin-seletor">
+      <span>${rotulo}</span>
+      <select id="${id}">
+        ${meses.map(m => `<option value="${m}"${m === valor ? ' selected' : ''}>${escapeHtml(nomeDoMes(m))}</option>`).join('')}
+      </select>
+    </label>
+  `;
+}
+
+function seletorPeriodo(d) {
+  const p = state.caixinhaFinPeriodo;
+  const { de, ate } = mesesDoPeriodoFinanceiro(p);
+  const meses = mesesDoSeletor(d);
+  // "Tudo" nao tem mes de comeco: o "De" mostra o mais antigo da lista.
+  const deMostrado = de || meses[meses.length - 1];
   return `
     <div class="no-print">
       <div class="pilulas-periodo">
         ${PERIODOS.map(m => `<button class="pilula ${p === m ? 'active' : ''}" data-action="fin-periodo" data-value="${m}">${rotuloPilula(m)}</button>`).join('')}
       </div>
-      <div class="fin-ou-mes">ou um mês só:</div>
-      <div class="mes-grade">
-        ${meses.map(m => `
-          <button class="mes-chip${p === m ? ' lancado' : ''}" data-action="fin-periodo-mes" data-value="${m}">
-            <span class="mes-chip-nome">${escapeHtml(nomeCurtoDoMes(m))}</span>
-            <span class="mes-chip-info">${comMovimento.has(m) ? '•' : ''}</span>
-          </button>
-        `).join('')}
+      <div class="fin-ou-mes">ou escolha de um mês a outro:</div>
+      <div class="fin-seletores">
+        ${seletorMes('fin-de', 'De', deMostrado, meses)}
+        ${seletorMes('fin-ate', 'Até', ate, meses)}
       </div>
     </div>
   `;
@@ -299,12 +317,12 @@ function relatorio(d) {
         <div class="fin-conta-linha entrada"><span>+ ${CATEGORIA_MENSALIDADES} <small>(${r.entradas.pagamentos} ${r.entradas.pagamentos === 1 ? 'pagamento' : 'pagamentos'})</small></span><b>${reais(r.entradas.mensalidades)}</b></div>
         <div class="fin-conta-linha entrada"><span>+ ${escapeHtml(CATEGORIA_ENTRADA_CAIXINHA)}</span><b>${reais(r.entradas.outras)}</b></div>
         <div class="fin-conta-linha saida"><span>− Saídas</span><b>${reais(r.saidas.total)}</b></div>
-        <div class="fin-conta-linha total${r.saldoFinal < 0 ? ' negativo' : ''}"><span>💰 Saldo ${typeof state.caixinhaFinPeriodo === 'string' ? 'no fim do mês' : 'final'}</span><b>${reais(r.saldoFinal)}</b></div>
+        <div class="fin-conta-linha total${r.saldoFinal < 0 ? ' negativo' : ''}"><span>💰 Saldo ${periodoDeUmMes(state.caixinhaFinPeriodo) ? 'no fim do mês' : 'final'}</span><b>${reais(r.saldoFinal)}</b></div>
       </div>
       ${pizzaCaixa(r)}
       <div class="row-gap no-print" style="margin-top:14px;">
         <button class="btn secondary" style="flex:1;" data-action="texto-controle-caixinha">📋 WhatsApp</button>
-        <button class="btn secondary" style="flex:1;" data-action="imagem-controle-caixinha">🖼️ Imagem</button>
+        <button class="btn secondary" style="flex:1;" data-action="imagem-controle-caixinha">🖼️ Imagem detalhada</button>
         <button class="btn secondary" style="flex:1;" data-action="pdf-controle-caixinha">🖨️ PDF</button>
       </div>
     </div>
@@ -401,10 +419,7 @@ export const acoes = {
     state.caixinhaFinPeriodo = Number(target.dataset.value);
     return render();
   },
-  'fin-periodo-mes': async (id, target, action, e) => {
-    state.caixinhaFinPeriodo = target.dataset.value;
-    return render();
-  },
+
   'texto-controle-caixinha': async (id, target, action, e) => {
     const r = relatorioAtual();
     if (!r) return;
@@ -415,9 +430,20 @@ export const acoes = {
     if (!r) return;
     const nome = escopoPorChave(state.adminEscopo).nome;
     const rotulo = rotuloDoPeriodoFinanceiro(state.caixinhaFinPeriodo);
-    return mostrarPreviaImagem(() => imagemControleCaixinha(r, nome, rotulo), 'caixinha-controle.png');
+    return mostrarPreviaImagem(() => imagensRelatorioCaixinha(r, nome, rotulo), 'caixinha-relatorio.png');
   },
   'pdf-controle-caixinha': async (id, target, action, e) => {
     window.print();
   },
 };
+
+// "De"/"Ate" do relatorio, escolhidos nos seletores (ver o ouvinte de
+// digitacao no app.js). O outro lado fica como estava na tela.
+export function escolherMesDoPeriodo(campo) {
+  const atual = mesesDoPeriodoFinanceiro(state.caixinhaFinPeriodo);
+  const d = dadosCaixinha();
+  const meses = d ? mesesDoSeletor(d) : [];
+  const de = atual.de || meses[meses.length - 1] || campo.value;
+  state.caixinhaFinPeriodo = campo.id === 'fin-de' ? { de: campo.value, ate: atual.ate } : { de, ate: campo.value };
+  return render();
+}

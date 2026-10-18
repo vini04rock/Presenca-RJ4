@@ -10,7 +10,7 @@
 import { divisoesSemRegional, emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao } from '../nucleo/config.js';
 import { IMG_FUNDO, LOGO_SRC } from '../nucleo/imagens.js';
 import { diaDaSemana, formatDataBR, mostrarAviso } from '../nucleo/util.js';
-import { formatReais, nomeDoMes } from '../dominio/caixinha.js';
+import { formatReais, nomeCurtoDoMes, nomeDoMes } from '../dominio/caixinha.js';
 import { formatKg } from '../dominio/doacoes.js';
 import { posicoesDoPodio } from './comuns.js';
 
@@ -587,11 +587,20 @@ export async function imagemMesCaixinha(r, nomeDivisao) {
 }
 
 // ---------------------------------------------------------------------------
-// O relatorio de controle da Caixinha: o saldo grande, de onde veio e pra
-// onde foi, e com o que se gastou - categoria por categoria. Decisao do
-// clube (18/10/2026): a imagem vai pro grupo com as despesas e o saldo.
-// Nome de integrante nao entra (isso e do relatorio do mes). A imagem
-// cresce pra baixo quando ha muita categoria. `r` e o controleCaixinha.
+// O relatorio da Caixinha em imagem, pro grupo: o que entrou, o que saiu, o
+// saldo, e com o que se gastou - saida por saida, mes a mes. Decisao do clube
+// (18/10/2026): vai pro grupo com as despesas e o saldo, e so as saidas sao
+// detalhadas; as entradas ficam nos totais. Nome de integrante nao entra
+// (isso e do relatorio de pagamentos).
+//
+// Sao varias imagens do mesmo tamanho, nao uma que cresce: a 1a e o resumo
+// com os graficos, e as seguintes o detalhamento das saidas, quantas
+// precisar. Imagem comprida demais o WhatsApp encolhe ate ninguem ler.
+// `r` e o controleCaixinha.
+
+// As cores das categorias na pizza e no detalhamento, sempre na mesma ordem
+// (a da maior pra menor categoria do periodo).
+const CORES_CATEGORIA = ['#D9635A', '#E0B24D', '#4C86D9', '#B57EDC', '#4CAF6E', '#E08A3C', '#5FA0C4', '#D46A9F', '#8FA3B8', '#C9A227'];
 
 // Escolhe o maior tamanho de fonte (ate `inicial`) em que o texto cabe.
 function fonteQueCabe(ctx, texto, larguraMax, inicial, peso, familia) {
@@ -604,93 +613,299 @@ function fonteQueCabe(ctx, texto, larguraMax, inicial, peso, familia) {
   return t;
 }
 
-function placasControle(ctx, y, placas) {
-  const largura = 290, gap = 25, x0 = (L - (largura * 3 + gap * 2)) / 2;
-  placas.forEach(([rotulo, texto, cor], i) => {
-    const x = x0 + i * (largura + gap);
-    ctx.fillStyle = 'rgba(255,255,255,0.05)';
-    ctx.beginPath(); retangulo(ctx, x, y, largura, 150, 24); ctx.fill();
-    ctx.strokeStyle = cor;
-    ctx.globalAlpha = 0.55;
-    ctx.lineWidth = 2;
-    ctx.beginPath(); retangulo(ctx, x, y, largura, 150, 24); ctx.stroke();
-    ctx.globalAlpha = 1;
+// O valor sem os centavos quando sao zero ("R$ 120" e nao "R$ 120,00") -
+// so nos rotulos pequenos do grafico, onde o espaco e curto.
+const reaisCurto = v => formatReais(v).replace(/,00$/, '');
+
+// Entrou × Saiu em barras, mes a mes, e a linha dourada do saldo por cima,
+// em escala propria (o saldo costuma ser bem maior que o movimento do mes,
+// e na mesma escala as barras sumiriam). As barras ficam na metade de baixo
+// e a linha na faixa de cima, pra um nunca cobrir o outro; os valores de
+// cada mes vao embaixo do nome dele. No maximo os 12 ultimos meses.
+function graficoCaixa(ctx, serie, x, y, largura, altura) {
+  const meses = serie.slice(-12);
+  if (!meses.length) return;
+  const n = meses.length;
+  const passo = largura / n;
+  const maior = Math.max(1, ...meses.map(m => Math.max(m.entradas, m.saidas)));
+  const base = y + altura;
+  const comValores = n <= 6;
+
+  // O chao do grafico.
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(x, base); ctx.lineTo(x + largura, base); ctx.stroke();
+
+  const bl = Math.min(44, passo * 0.3);
+  meses.forEach((m, i) => {
+    const cx = x + passo * i + passo / 2;
+    [[m.entradas, COR.confirmado, cx - bl - 3], [m.saidas, COR.infracional, cx + 3]].forEach(([v, cor, bx]) => {
+      const h = v ? Math.max(4, (v / maior) * altura * 0.55) : 0;
+      if (h) {
+        ctx.fillStyle = cor;
+        ctx.beginPath(); retangulo(ctx, bx, base - h, bl, h, 6); ctx.fill();
+      }
+    });
+    fonte(ctx, 20, 600);
     ctx.textAlign = 'center';
-    fonteQueCabe(ctx, texto, largura - 30, 40, 700);
-    ctx.fillStyle = COR.marfim;
-    ctx.fillText(texto, x + largura / 2, y + 80);
-    fonte(ctx, 21, 700);
-    ctx.fillStyle = cor;
-    ctx.fillText(rotulo, x + largura / 2, y + 122);
+    ctx.fillStyle = COR.apagado;
+    ctx.fillText(nomeCurtoDoMes(m.mes), cx, base + 28);
+    if (comValores) {
+      fonte(ctx, 18, 700);
+      ctx.fillStyle = COR.confirmado;
+      ctx.fillText('+' + reaisCurto(m.entradas), cx, base + 54);
+      ctx.fillStyle = COR.infracional;
+      ctx.fillText('−' + reaisCurto(m.saidas), cx, base + 77);
+    }
   });
-  return y + 150;
+
+  // A linha do saldo, na faixa de cima (de 12% a 36% da altura), acima de
+  // qualquer barra.
+  const saldos = meses.map(m => m.saldo);
+  const min = Math.min(...saldos), max = Math.max(...saldos);
+  const ySaldo = v => y + altura * 0.36 - (max > min ? (v - min) / (max - min) : 0.5) * altura * 0.24;
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.6)';
+  ctx.shadowBlur = 8;
+  ctx.strokeStyle = COR.ouro;
+  ctx.lineWidth = 5;
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  meses.forEach((m, i) => {
+    const px = x + passo * i + passo / 2, py = ySaldo(m.saldo);
+    if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+  });
+  ctx.stroke();
+  ctx.restore();
+  meses.forEach((m, i) => {
+    const px = x + passo * i + passo / 2, py = ySaldo(m.saldo);
+    ctx.fillStyle = COR.ouro;
+    ctx.beginPath(); ctx.arc(px, py, 9, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#1A1408';
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(px, py, 9, 0, Math.PI * 2); ctx.stroke();
+    // O saldo escrito no ultimo ponto sempre, e em todos quando cabe.
+    if (comValores || i === n - 1) {
+      fonte(ctx, 19, 700);
+      ctx.textAlign = 'center';
+      ctx.fillStyle = COR.marfim;
+      ctx.fillText(reaisCurto(m.saldo), px, py - 18);
+    }
+  });
 }
 
-export async function imagemControleCaixinha(r, nomeDivisao, rotuloPeriodo) {
-  const cats = r.saidas.porCategoria;
-  const alturaLinha = 78;
-  const topoCats = 870;
-  const altura = Math.max(A, topoCats + 60 + Math.max(1, cats.length) * alturaLinha + 200);
-  const { canvas, ctx, logo } = await novaTela(altura);
-
-  emblema(ctx, logo, 40, 140);
-  let y = tituloMetal(ctx, '💰 Caixinha', 255, 62, 980);
-  rotuloEspacado(ctx, `CONTROLE  ·  ${nomeDivisao.toUpperCase()}  ·  ${rotuloPeriodo.toUpperCase()}`, y + 2, 21, COR.ouro);
-
-  // O saldo, grande, no meio.
-  rotuloEspacado(ctx, 'SALDO', 420, 24, COR.apagado);
-  const saldo = formatReais(r.saldoFinal);
-  fonteQueCabe(ctx, saldo, 900, 110, 400, 'rye');
+function legendaGrafico(ctx, y) {
+  const itens = [['Entrou', COR.confirmado, 'barra'], ['Saiu', COR.infracional, 'barra'], ['Saldo', COR.ouro, 'linha']];
+  fonte(ctx, 21, 600);
+  const larguras = itens.map(([t]) => ctx.measureText(t).width + 40);
+  let x = L / 2 - (larguras.reduce((s, w) => s + w, 0) + 30 * (itens.length - 1)) / 2;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  itens.forEach(([t, cor, forma], i) => {
+    ctx.fillStyle = cor;
+    if (forma === 'barra') { ctx.beginPath(); retangulo(ctx, x, y - 9, 18, 18, 4); ctx.fill(); }
+    else { ctx.fillRect(x - 2, y - 2, 22, 5); ctx.beginPath(); ctx.arc(x + 9, y, 6, 0, Math.PI * 2); ctx.fill(); }
+    ctx.fillStyle = COR.apagado;
+    ctx.fillText(t, x + 28, y + 1);
+    x += larguras[i] + 30;
+  });
+  ctx.textBaseline = 'alphabetic';
   ctx.textAlign = 'center';
-  ctx.fillStyle = r.saldoFinal < 0 ? COR.infracional : COR.marfim;
-  ctx.fillText(saldo, L / 2, 535);
+}
 
-  placasControle(ctx, 590, [
-    ['💼 NO INÍCIO', formatReais(r.saldoAnterior), COR.ouro],
-    ['🟢 ENTROU', formatReais(r.entradas.total), COR.confirmado],
-    ['🔴 SAIU', formatReais(r.saidas.total), COR.infracional],
-  ]);
-
-  // De onde veio o que entrou.
-  const origens = [];
-  if (r.entradas.mensalidades) origens.push(`Mensalidades ${formatReais(r.entradas.mensalidades)} (${r.entradas.pagamentos} ${r.entradas.pagamentos === 1 ? 'pagamento' : 'pagamentos'})`);
-  if (r.entradas.outras) origens.push(`Outras entradas ${formatReais(r.entradas.outras)}`);
-  if (origens.length) {
-    fonteQueCabe(ctx, origens.join('  ·  '), 960, 24, 600);
-    ctx.fillStyle = COR.apagado;
-    ctx.fillText(origens.join('  ·  '), L / 2, 795);
+// A pizza das categorias, a esquerda, e a legenda a direita: cor, nome,
+// valor e %. Passando de 6 categorias, as menores viram "Outras".
+function pizzaCategorias(ctx, cats, total, y) {
+  let fatias = cats.map((c, i) => ({ nome: c.categoria, valor: c.valor, cor: CORES_CATEGORIA[i % CORES_CATEGORIA.length] }));
+  if (fatias.length > 6) {
+    const resto = fatias.slice(5);
+    fatias = fatias.slice(0, 5).concat({ nome: `Outras (${resto.length})`, valor: resto.reduce((s, f) => s + f.valor, 0), cor: COR.apagado });
   }
-
-  rotuloEspacado(ctx, '🔴 COM O QUE GASTAMOS', topoCats, 24, COR.ouro);
-  if (!cats.length) {
-    fonte(ctx, 28, 600);
-    ctx.fillStyle = COR.apagado;
-    ctx.fillText('Nenhuma saída no período', L / 2, topoCats + 80);
-  }
-  const maior = cats.length ? cats[0].valor : 1;
-  cats.forEach((c, i) => {
-    const meio = topoCats + 40 + i * alturaLinha + alturaLinha / 2;
-    const valor = formatReais(c.valor);
-    ctx.textBaseline = 'middle';
-    fonte(ctx, 30, 700);
+  pizza(ctx, 250, y + 105, 98, fatias.map(f => [f.valor, f.cor]));
+  const alturaLinha = 34;
+  const topo = y + 105 - (fatias.length * alturaLinha) / 2;
+  ctx.textBaseline = 'middle';
+  fatias.forEach((f, i) => {
+    const meio = topo + i * alturaLinha + alturaLinha / 2;
+    ctx.fillStyle = f.cor;
+    ctx.beginPath(); retangulo(ctx, 420, meio - 9, 18, 18, 4); ctx.fill();
+    const valor = `${formatReais(f.valor)} · ${Math.round((f.valor / total) * 100)}%`;
+    fonte(ctx, 22, 700);
     ctx.textAlign = 'right';
     ctx.fillStyle = COR.marfim;
-    ctx.fillText(valor, L - 110, meio - 12);
+    ctx.fillText(valor, 975, meio);
     const larguraValor = ctx.measureText(valor).width;
-    fonte(ctx, 28, 600);
+    fonte(ctx, 22, 600);
     ctx.textAlign = 'left';
     ctx.fillStyle = COR.texto;
-    ctx.fillText(caber(ctx, c.categoria, L - 220 - larguraValor - 30), 110, meio - 12);
-    ctx.fillStyle = COR.trilho;
-    ctx.beginPath(); retangulo(ctx, 110, meio + 14, L - 220, 10, 5); ctx.fill();
-    ctx.fillStyle = COR.infracional;
-    ctx.beginPath(); retangulo(ctx, 110, meio + 14, Math.max(10, (L - 220) * c.valor / maior), 10, 5); ctx.fill();
-    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(caber(ctx, f.nome, 975 - 450 - larguraValor - 16), 450, meio);
   });
+  ctx.textBaseline = 'alphabetic';
   ctx.textAlign = 'center';
+}
 
-  rodape(ctx, altura);
-  return canvas;
+// O topo de cada pagina: emblema, titulo, divisao, periodo e "1/3".
+function cabecalhoRelatorio(ctx, logo, titulo, nomeDivisao, rotuloPeriodo, pagina, paginas) {
+  emblema(ctx, logo, 28, 104);
+  const y = tituloMetal(ctx, titulo, 196, 50, 980);
+  rotuloEspacado(ctx, `RELATÓRIO FINANCEIRO  ·  ${nomeDivisao.toUpperCase()}`, y + 4, 20, COR.ouro);
+  const linha = rotuloPeriodo + (paginas > 1 ? `   ·   página ${pagina} de ${paginas}` : '');
+  fonteQueCabe(ctx, linha, 960, 26, 600);
+  ctx.fillStyle = COR.apagado;
+  ctx.textAlign = 'center';
+  ctx.fillText(linha, L / 2, y + 44);
+}
+
+function paginaResumo(ctx, logo, r, nomeDivisao, rotuloPeriodo, paginas) {
+  cabecalhoRelatorio(ctx, logo, '💰 Caixinha', nomeDivisao, rotuloPeriodo, 1, paginas);
+
+  // Saldo no inicio -> saldo no fim.
+  [['NO INÍCIO', r.saldoAnterior, 290, 46, COR.apagado], ['NO FIM', r.saldoFinal, 790, 64, COR.marfim]].forEach(([rotulo, v, cx, tam, cor]) => {
+    rotuloEspacado(ctx, rotulo, 366, 20, COR.ouro, cx);
+    const t = formatReais(v);
+    fonteQueCabe(ctx, t, 420, tam, 400, 'rye');
+    ctx.fillStyle = v < 0 ? COR.infracional : cor;
+    ctx.textAlign = 'center';
+    ctx.fillText(t, cx, 440);
+  });
+  fonte(ctx, 52, 400, 'rye');
+  ctx.fillStyle = COR.ouroEscuro;
+  ctx.fillText('→', L / 2 - 10, 430);
+
+  // Entrou e saiu, com a origem do que entrou embaixo.
+  fonteQueCabe(ctx, `🟢 Entrou ${formatReais(r.entradas.total)}`, 440, 32, 700);
+  ctx.fillStyle = COR.confirmado;
+  ctx.fillText(`🟢 Entrou ${formatReais(r.entradas.total)}`, 290, 515);
+  fonteQueCabe(ctx, `🔴 Saiu ${formatReais(r.saidas.total)}`, 440, 32, 700);
+  ctx.fillStyle = COR.infracional;
+  ctx.fillText(`🔴 Saiu ${formatReais(r.saidas.total)}`, 790, 515);
+  const origem = [`mensalidades ${formatReais(r.entradas.mensalidades)}`].concat(r.entradas.outras ? [`outras ${formatReais(r.entradas.outras)}`] : []).join(' · ');
+  fonteQueCabe(ctx, origem, 460, 19, 600);
+  ctx.fillStyle = COR.apagado;
+  ctx.fillText(origem, 290, 548);
+  const nSaidas = r.saidasPorMes.reduce((s, m) => s + m.itens.length, 0);
+  fonte(ctx, 19, 600);
+  ctx.fillText(`${nSaidas} ${nSaidas === 1 ? 'saída' : 'saídas'}${nSaidas ? ' · detalhadas adiante' : ''}`, 790, 548);
+
+  rotuloEspacado(ctx, '📊 ENTROU × SAIU × SALDO', 615, 22, COR.ouro);
+  if (r.serie.length) {
+    graficoCaixa(ctx, r.serie, 120, 650, L - 240, 190);
+    legendaGrafico(ctx, 952);
+  } else {
+    fonte(ctx, 26, 600);
+    ctx.fillStyle = COR.apagado;
+    ctx.fillText('Nada no período', L / 2, 760);
+  }
+
+  rotuloEspacado(ctx, '🔴 COM O QUE GASTAMOS', 1004, 22, COR.ouro);
+  if (r.saidas.porCategoria.length) pizzaCategorias(ctx, r.saidas.porCategoria, r.saidas.total, 1010);
+  else {
+    fonte(ctx, 26, 600);
+    ctx.fillStyle = COR.apagado;
+    ctx.fillText('Nenhuma saída no período', L / 2, 1110);
+  }
+}
+
+// O detalhamento das saidas, em linhas: o cabecalho de cada mes (com o
+// total dele) e uma linha por saida. Reparte em paginas sem deixar um
+// cabecalho de mes sozinho no pe da pagina; o mes que continua na pagina
+// seguinte repete o cabecalho, com "(continua)".
+const TOPO_DETALHE = 330, FIM_DETALHE = 1195, ALTURA_MES = 74, ALTURA_SAIDA = 58;
+function paginasDeSaidas(saidasPorMes) {
+  const paginas = [];
+  let atual = [], y = TOPO_DETALHE;
+  const novaPagina = () => { paginas.push(atual); atual = []; y = TOPO_DETALHE; };
+  saidasPorMes.forEach(m => {
+    if (y + ALTURA_MES + ALTURA_SAIDA > FIM_DETALHE) novaPagina();
+    atual.push({ tipo: 'mes', mes: m });
+    y += ALTURA_MES;
+    m.itens.forEach(x => {
+      if (y + ALTURA_SAIDA > FIM_DETALHE) {
+        novaPagina();
+        atual.push({ tipo: 'mes', mes: m, continua: true });
+        y += ALTURA_MES;
+      }
+      atual.push({ tipo: 'saida', x });
+      y += ALTURA_SAIDA;
+    });
+  });
+  if (atual.length) paginas.push(atual);
+  return paginas;
+}
+
+function paginaDetalhe(ctx, logo, linhas, cores, nomeDivisao, rotuloPeriodo, pagina, paginas) {
+  cabecalhoRelatorio(ctx, logo, '🔴 Saídas detalhadas', nomeDivisao, rotuloPeriodo, pagina, paginas);
+  let y = TOPO_DETALHE;
+  ctx.textBaseline = 'middle';
+  linhas.forEach(l => {
+    if (l.tipo === 'mes') {
+      ctx.fillStyle = 'rgba(255,255,255,0.06)';
+      ctx.beginPath(); retangulo(ctx, 90, y + 8, L - 180, ALTURA_MES - 16, 16); ctx.fill();
+      fonte(ctx, 30, 400, 'rye');
+      ctx.textAlign = 'left';
+      ctx.fillStyle = COR.marfim;
+      ctx.fillText(nomeDoMes(l.mes.mes) + (l.continua ? ' (continua)' : ''), 120, y + ALTURA_MES / 2);
+      fonte(ctx, 28, 700);
+      ctx.textAlign = 'right';
+      ctx.fillStyle = COR.infracional;
+      ctx.fillText(formatReais(l.mes.total), L - 120, y + ALTURA_MES / 2);
+      y += ALTURA_MES;
+      return;
+    }
+    const x = l.x;
+    const meio = y + ALTURA_SAIDA / 2;
+    ctx.fillStyle = cores[x.categoria] || COR.apagado;
+    ctx.beginPath(); ctx.arc(126, meio, 8, 0, Math.PI * 2); ctx.fill();
+    fonte(ctx, 22, 700);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = COR.ouro;
+    ctx.fillText(formatDataBR(x.data).slice(0, 5), 148, meio);
+    const valor = formatReais(x.valor);
+    fonte(ctx, 26, 700);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = COR.marfim;
+    ctx.fillText(valor, L - 120, meio);
+    const espaco = L - 120 - ctx.measureText(valor).width - 30 - 225;
+    fonte(ctx, 25, 600);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = COR.texto;
+    const categoria = caber(ctx, x.categoria, espaco);
+    ctx.fillText(categoria, 225, meio);
+    if (x.descricao) {
+      const largura = ctx.measureText(categoria).width;
+      fonte(ctx, 22, 600);
+      ctx.fillStyle = COR.apagado;
+      const resto = espaco - largura - 12;
+      if (resto > 60) ctx.fillText(caber(ctx, '· ' + x.descricao, resto), 225 + largura + 12, meio);
+    }
+    ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(110, y + ALTURA_SAIDA); ctx.lineTo(L - 110, y + ALTURA_SAIDA); ctx.stroke();
+    y += ALTURA_SAIDA;
+  });
+  ctx.textBaseline = 'alphabetic';
+  ctx.textAlign = 'center';
+}
+
+export async function imagensRelatorioCaixinha(r, nomeDivisao, rotuloPeriodo) {
+  const detalhe = paginasDeSaidas(r.saidasPorMes);
+  const paginas = 1 + detalhe.length;
+  // A mesma cor da categoria na pizza e no detalhamento.
+  const cores = {};
+  r.saidas.porCategoria.forEach((c, i) => { cores[c.categoria] = i < 5 || r.saidas.porCategoria.length <= 6 ? CORES_CATEGORIA[i % CORES_CATEGORIA.length] : COR.apagado; });
+
+  const telas = [];
+  const primeira = await novaTela();
+  paginaResumo(primeira.ctx, primeira.logo, r, nomeDivisao, rotuloPeriodo, paginas);
+  rodape(primeira.ctx);
+  telas.push(primeira.canvas);
+  for (let i = 0; i < detalhe.length; i++) {
+    const t = await novaTela();
+    paginaDetalhe(t.ctx, t.logo, detalhe[i], cores, nomeDivisao, rotuloPeriodo, i + 2, paginas);
+    rodape(t.ctx);
+    telas.push(t.canvas);
+  }
+  return telas;
 }
 
 // ---------------------------------------------------------------------------
@@ -804,29 +1019,37 @@ export async function imagemQuadroMovimentos(q, rotuloPeriodo) {
 // ---------------------------------------------------------------------------
 // A previa: a imagem grande, com Compartilhar (onde o celular deixa),
 // Baixar e Fechar. Fica fora do #app, que e redesenhado a cada toque.
+//
+// `gerar` pode devolver uma imagem ou varias (o relatorio da Caixinha em
+// paginas). Varias aparecem uma embaixo da outra, e Compartilhar e Baixar
+// levam todas juntas, numeradas: "caixinha-1.png", "caixinha-2.png"...
 export async function mostrarPreviaImagem(gerar, nomeArquivo) {
   mostrarAviso('🖼️ Montando a imagem…');
-  let canvas;
+  let canvases;
   try {
-    canvas = await gerar();
+    const r = await gerar();
+    canvases = Array.isArray(r) ? r : [r];
   } catch (e) {
     return mostrarAviso('Não consegui montar a imagem. Tente de novo.');
   }
-  const blob = await new Promise(ok => canvas.toBlob(ok, 'image/png'));
-  if (!blob) return mostrarAviso('Não consegui montar a imagem. Tente de novo.');
-  const arquivo = new File([blob], nomeArquivo, { type: 'image/png' });
-  const url = URL.createObjectURL(blob);
-  const podeCompartilhar = !!(navigator.canShare && navigator.canShare({ files: [arquivo] }));
+  const blobs = await Promise.all(canvases.map(c => new Promise(ok => c.toBlob(ok, 'image/png'))));
+  if (!blobs.length || blobs.some(b => !b)) return mostrarAviso('Não consegui montar a imagem. Tente de novo.');
+  const varias = blobs.length > 1;
+  const nomes = blobs.map((b, i) => (varias ? nomeArquivo.replace(/\.png$/, `-${i + 1}.png`) : nomeArquivo));
+  const arquivos = blobs.map((b, i) => new File([b], nomes[i], { type: 'image/png' }));
+  const urls = blobs.map(b => URL.createObjectURL(b));
+  const podeCompartilhar = !!(navigator.canShare && navigator.canShare({ files: arquivos }));
 
   fecharPrevia();
   const fundo = document.createElement('div');
   fundo.id = 'previa-imagem';
+  const imagens = urls.map((u, i) => `<img src="${u}" alt="Prévia da imagem${varias ? ` ${i + 1} de ${urls.length}` : ''}">`).join('');
   fundo.innerHTML = `
     <div class="previa-caixa">
-      <img src="${url}" alt="Prévia da imagem">
+      ${varias ? `<div class="previa-imagens">${imagens}</div><div class="previa-contagem">${urls.length} imagens · role pra ver todas</div>` : imagens}
       <div class="previa-botoes">
-        ${podeCompartilhar ? '<button class="btn" data-previa="compartilhar">📤 Compartilhar</button>' : ''}
-        <button class="btn ${podeCompartilhar ? 'secondary' : ''}" data-previa="baixar">⬇️ Baixar imagem</button>
+        ${podeCompartilhar ? `<button class="btn" data-previa="compartilhar">📤 Compartilhar${varias ? ' todas' : ''}</button>` : ''}
+        <button class="btn ${podeCompartilhar ? 'secondary' : ''}" data-previa="baixar">⬇️ Baixar ${varias ? 'imagens' : 'imagem'}</button>
         <button class="btn ghost" data-previa="fechar">Fechar</button>
       </div>
     </div>
@@ -837,16 +1060,18 @@ export async function mostrarPreviaImagem(gerar, nomeArquivo) {
     const acao = botao ? botao.dataset.previa : 'fechar';
     if (acao === 'fechar') return fecharPrevia();
     if (acao === 'baixar') {
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = nomeArquivo;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      return mostrarAviso('⬇️ Imagem baixada');
+      urls.forEach((u, i) => {
+        const a = document.createElement('a');
+        a.href = u;
+        a.download = nomes[i];
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      });
+      return mostrarAviso(varias ? '⬇️ Imagens baixadas' : '⬇️ Imagem baixada');
     }
     if (acao === 'compartilhar') {
-      try { await navigator.share({ files: [arquivo] }); } catch (err) { /* cancelou - tudo bem */ }
+      try { await navigator.share({ files: arquivos }); } catch (err) { /* cancelou - tudo bem */ }
     }
   });
   document.body.appendChild(fundo);
@@ -857,8 +1082,7 @@ export async function mostrarPreviaImagem(gerar, nomeArquivo) {
 function fecharPrevia() {
   const atual = document.getElementById('previa-imagem');
   if (!atual) return;
-  const img = atual.querySelector('img');
-  if (img) URL.revokeObjectURL(img.src);
+  atual.querySelectorAll('img').forEach(img => URL.revokeObjectURL(img.src));
   atual.remove();
   document.body.classList.remove('com-previa');
 }

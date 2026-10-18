@@ -24,7 +24,7 @@ import { acoes as acoesAdminMembros } from './telas/admin-membros.js';
 import { acoes as acoesAdminInsights } from './telas/admin-insights.js';
 import { acoes as acoesAdminDoacoes } from './telas/admin-doacoes.js';
 import { acoes as acoesAdminCaixinha, atualizarValorCaixinha } from './telas/admin-caixinha.js';
-import { acoes as acoesAdminCaixinhaFinanceiro } from './telas/admin-caixinha-financeiro.js';
+import { acoes as acoesAdminCaixinhaFinanceiro, escolherMesDoPeriodo } from './telas/admin-caixinha-financeiro.js';
 import { acoes as acoesAdminMovimentos } from './telas/admin-movimentos.js';
 import { acoes as acoesComuns, aplicarBusca } from './ui/comuns.js';
 import { acoes as acoesGraficos } from './ui/graficos.js';
@@ -289,6 +289,12 @@ document.getElementById('app').addEventListener('input', (e) => {
   // o teclado do celular fecharia a cada numero.
   if (e.target.classList && e.target.classList.contains('caixinha-valor')) {
     atualizarValorCaixinha(e.target, document.getElementById('app'));
+    return;
+  }
+  // "De"/"Ate" do relatorio de controle: um seletor, sem teclado - aqui
+  // redesenhar na hora e o certo.
+  if (e.target.id === 'fin-de' || e.target.id === 'fin-ate') {
+    escolherMesDoPeriodo(e.target);
     return;
   }
   // Os campos do lancamento do controle financeiro: so lembra. Um toque

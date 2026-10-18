@@ -2068,6 +2068,14 @@ input.busca-membro:focus { border-color: rgba(245, 243, 236, 0.45); box-shadow: 
 .previa-botoes .btn:not(.ghost) { flex: 1 1 140px; }
 .previa-botoes .btn.ghost { flex-basis: 100%; text-align: center; }
 body.com-previa { overflow: hidden; }
+/* Varias imagens de uma vez (o relatorio da Caixinha em paginas): rolam
+   dentro da previa, uma embaixo da outra, com os botoes sempre a vista. */
+.previa-imagens {
+  flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.previa-imagens img { flex: none; height: auto; }
+.previa-contagem { font-size: 12px; color: var(--text-muted); text-align: center; }
 
 /* ---- Rosca: tocar na fatia acende so ela ---- */
 .donut-arco { cursor: pointer; transition: opacity 0.2s ease, filter 0.2s ease; }
@@ -2433,6 +2441,15 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 .fin-explica { font-size: 12.5px; color: var(--text-muted); line-height: 1.45; margin: 6px 0 12px; }
 .fin-subtitulo { font-size: 12.5px; color: var(--text-muted); margin: -4px 0 10px; }
 .fin-ou-mes { font-size: 11.5px; color: var(--text-muted); margin: 10px 0 6px; }
+/* "De" e "Ate" do relatorio, lado a lado. */
+.fin-seletores { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.fin-seletor { display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; color: var(--text-muted); }
+.fin-seletor select {
+  width: 100%; padding: 9px 10px; border-radius: 10px;
+  font: inherit; font-size: 13.5px; font-weight: 600; color: var(--white-strong);
+  background-color: rgba(0, 0, 0, 0.3); border: 1px solid var(--line-strong);
+}
+.fin-seletor select option { color: #111; }
 .fin-categorias { display: flex; flex-wrap: wrap; gap: 6px; }
 /* Fora do trilho escuro das .pilulas-periodo, a pilula ganha contorno
    proprio - sem ele as nao escolhidas pareciam texto solto, nao botao. */
