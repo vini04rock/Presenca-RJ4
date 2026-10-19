@@ -46,23 +46,23 @@ async function prepararFontes() {
 // `altura`: 4:5 (A) por padrao. O relatorio do mes da Caixinha pede mais
 // quando a lista de nomes nao cabe - a imagem cresce pra baixo, em vez de
 // espremer os nomes ate ninguem ler.
-async function novaTela(altura = A) {
+export async function novaTela(altura = A, largura = L) {
   await prepararFontes();
   const [fundo, logo] = await Promise.all([carregarImagem(IMG_FUNDO), carregarImagem(LOGO_SRC)]);
   const canvas = document.createElement('canvas');
-  canvas.width = L;
+  canvas.width = largura;
   canvas.height = altura;
   const ctx = canvas.getContext('2d');
   // A foto cobrindo tudo, escurecida por cima pra o texto ler bem.
-  const escala = Math.max(L / fundo.width, altura / fundo.height);
+  const escala = Math.max(largura / fundo.width, altura / fundo.height);
   const fw = fundo.width * escala, fh = fundo.height * escala;
-  ctx.drawImage(fundo, (L - fw) / 2, (altura - fh) * 0.35, fw, fh);
+  ctx.drawImage(fundo, (largura - fw) / 2, (altura - fh) * 0.35, fw, fh);
   const veu = ctx.createLinearGradient(0, 0, 0, altura);
   veu.addColorStop(0, 'rgba(10,10,10,0.78)');
   veu.addColorStop(0.45, 'rgba(10,10,10,0.70)');
   veu.addColorStop(1, 'rgba(10,10,10,0.92)');
   ctx.fillStyle = veu;
-  ctx.fillRect(0, 0, L, altura);
+  ctx.fillRect(0, 0, largura, altura);
   return { canvas, ctx, logo };
 }
 

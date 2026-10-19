@@ -969,6 +969,24 @@ log('=== entrada/saída: o relatório de cada divisão e o quadro do Regional ==
 }
 
 log('');
+{
+  log('=== calendario: datas compartilhadas e divisao ===');
+  const { marcacoesVisiveisCalendario, construirGradeCalendario } = await import(url('dominio/estatisticas.js'));
+  const anteriores = st.events;
+  st.events = [
+    { id: 'a', data: '2026-08-01', categoria: 'barra', tipo: 'Pub' },
+    { id: 'b', data: '2026-08-01', categoria: 'regional', tipo: 'Reunião', status: 'encerrado' },
+    { id: 'c', data: '2026-08-01', categoria: 'oeste', tipo: 'Pub' },
+    { id: 'sem-data', data: '', categoria: 'barra', tipo: 'Pub' },
+    { id: 'sem-tipo', data: '2026-08-02', categoria: 'barra', tipo: '' },
+  ];
+  const barra = marcacoesVisiveisCalendario('barra');
+  confere('divisao preserva os dois eventos, inclusive encerrado, sem trazer outra divisao', barra['2026-08-01'].eventos.map(e => e.id), ['a', 'b']);
+  confere('regional preserva todos os eventos na mesma data', marcacoesVisiveisCalendario('regional')['2026-08-01'].eventos.map(e => e.id), ['a', 'b', 'c']);
+  confere('sem data ou sem tipo fica fora da grade', Object.keys(barra), ['2026-08-01']);
+  confere('meses de quatro, cinco e seis semanas', [construirGradeCalendario(2021, 1).length, construirGradeCalendario(2026, 9).length, construirGradeCalendario(2026, 7).length], [28, 35, 42]);
+  st.events = anteriores;
+}
 log(falhas === 0 ? 'TUDO OK' : `${falhas} FALHA(S) — veja acima`);
 fs.writeFileSync(SAIDA, linhas.join('\n'), 'utf8');
 process.exit(falhas === 0 ? 0 : 1);

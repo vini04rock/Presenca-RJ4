@@ -10,6 +10,8 @@ import { renderEscolhaDivisao, renderTelaPin, subtituloDoEvento } from '../ui/co
 import { loadInitial, salvarOuAvisar } from '../dados/carregar.js';
 import { conferirPin } from '../dados/pin.js';
 import { paramsDeEvento } from '../fila/presenca.js';
+import { imagensCalendario } from '../ui/calendario-imagem.js';
+import { mostrarPreviaImagem } from '../ui/imagem.js';
 
 // Tela "Calendario" - escolhe a divisao/regional (sem PIN, igual Eventos),
 // depois mostra a grade do mes daquele escopo. Por enquanto so mostra os
@@ -72,7 +74,7 @@ export function renderCalendario(app) {
             <div class="calendario-dia${ehHoje(dia) ? ' calendario-dia-hoje' : ''}${tipo ? ' tem-evento calendario-dia-clicavel' : ''}${dataIso === state.calendarioDiaAberto ? ' calendario-dia-selecionado' : ''}" style="${estilo}" ${tipo ? `data-action="calendario-ver-dia" data-value="${dataIso}"` : ''} title="${tipo ? escapeHtml(tipo + (nomeOrigem ? ' - ' + nomeOrigem : '')) : ''}">
               <span class="calendario-dia-numero">${dia}</span>
               ${tipo ? `<span class="calendario-dia-emoji">${emojiTipoEvento(tipo)}</span>` : ''}
-              ${nomeOrigem ? `<span class="calendario-dia-origem">${escapeHtml(nomeOrigem)}</span>` : ''}
+              ${marcacao && marcacao.eventos.length > 1 ? `<span class="calendario-dia-origem">${marcacao.eventos.length} eventos</span>` : nomeOrigem ? `<span class="calendario-dia-origem">${escapeHtml(nomeOrigem)}</span>` : ''}
             </div>
           `;
         }).join('')}
@@ -86,6 +88,7 @@ export function renderCalendario(app) {
         `).join('')}
       </div>
     </div>
+    <button class="btn block" style="margin-top:14px;" data-action="calendario-gerar-imagem">🖼️ Gerar imagem</button>
     <button class="btn secondary block" style="margin-top:14px;" data-action="abrir-calendario-organizar">🗂️ Organizar</button>
     ${folhaDoDia(marcacoesEscopo)}
   `;
@@ -96,25 +99,25 @@ export function renderCalendario(app) {
 function folhaDoDia(marcacoes) {
   const dataIso = state.calendarioDiaAberto;
   const marcacao = dataIso && marcacoes[dataIso];
-  const ev = marcacao && state.events.find(e => e.id === marcacao.id);
-  if (!ev) return '';
-  const cor = corTipoEvento(ev.tipo);
+  const eventos = marcacao && marcacao.eventos;
+  if (!eventos || !eventos.length) return '';
+  const cor = corTipoEvento(eventos[0].tipo);
   const [ano, mes, dia] = dataIso.split('-').map(Number);
-  const detalhe = [ev.horario, escopoPorChave(ev.categoria).nome].filter(Boolean).map(escapeHtml).join(' · ');
   return `
     <div class="folha-fundo" data-action="calendario-fechar-dia"></div>
     <div class="folha-dia${state.calendarioDiaAbrindo ? ' abrindo' : ''}" style="--cor-tipo:${cor};">
       <div class="folha-alca"></div>
       <div class="folha-data">${escapeHtml(diaDaSemana(dataIso))}, ${dia} de ${NOMES_MESES[mes - 1].toLowerCase()} de ${ano}</div>
-      <div class="folha-evento">
+      ${eventos.map(ev => {
+        const detalhe = [ev.horario, escopoPorChave(ev.categoria).nome].filter(Boolean).map(escapeHtml).join(' · ');
+        return `<div class="folha-evento">
         <div class="folha-tipo">${ev.tipo ? `${emojiTipoEvento(ev.tipo)} ${escapeHtml(ev.tipo)}` : 'Evento'}</div>
         <div class="folha-nome">${escapeHtml(ev.nome)}${subtituloDoEvento(ev)}</div>
         <div class="folha-meta">${pastilhaQuando(ev)}${detalhe}</div>
-      </div>
-      <div class="row-gap">
-        <button class="btn" style="flex:2;" data-action="open-event" data-id="${ev.id}">Abrir evento ›</button>
-        <button class="btn secondary" style="flex:1;" data-action="calendario-fechar-dia">Fechar</button>
-      </div>
+        <button class="btn block" data-action="open-event" data-id="${escapeHtml(ev.id)}">Abrir evento ›</button>
+      </div>`;
+      }).join('')}
+      <button class="btn secondary block" data-action="calendario-fechar-dia">Fechar</button>
     </div>
   `;
 }
@@ -303,6 +306,18 @@ export async function checkCalendarioPin() {
 // Cada entrada e o corpo do antigo "if (action === ...)" do app.js, tal
 // e qual. O app.js so olha o nome da acao neste mapa e chama.
 export const acoes = {
+  'calendario-gerar-imagem': async (id, target) => {
+    if (target.disabled) return;
+    target.disabled = true;
+    const ano = state.calendarioAno, mes = state.calendarioMes, escopo = state.calendarioEscopo;
+    const eventos = eventosCalendarioVisiveis(escopo).map(ev => ({ ...ev }));
+    try {
+      await mostrarPreviaImagem(() => imagensCalendario({ ano, mes, escopo, eventos }),
+        `calendario-${escopo}-${ano}-${String(mes + 1).padStart(2, '0')}.png`);
+    } finally {
+      target.disabled = false;
+    }
+  },
   'go-calendario-divisoes': async (id, target, action, e) => {
     state.view = 'calendario-divisoes';
     state.calendarioEscopo = null;

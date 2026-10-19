@@ -79,13 +79,16 @@ export function membrosElegiveisCalendario(chaveEscopo) {
   return soAtivos(state.roster.filter(m => m.divisao === nomeDivisao));
 }
 
-// Mapa 'yyyy-mm-dd' -> { tipo, origem, id } pra desenhar a grade do
+// Mapa 'yyyy-mm-dd' -> { tipo, origem, id, eventos } pra desenhar a grade do
 // calendario (renderCalendario) - origem e a categoria do evento (uma
-// divisao, ou 'regional'), usada so pro rotulo de origem.
+// divisao, ou 'regional'), usada so pro rotulo de origem. eventos preserva
+// todos os encontros da data, inclusive os de divisoes diferentes.
 export function marcacoesVisiveisCalendario(chaveEscopo) {
   const mapa = {};
   eventosCalendarioVisiveis(chaveEscopo).forEach(ev => {
-    if (ev.data) mapa[ev.data] = { tipo: ev.tipo, origem: ev.categoria, id: ev.id };
+    if (!ev.data) return;
+    if (!mapa[ev.data]) mapa[ev.data] = { tipo: ev.tipo, origem: ev.categoria, id: ev.id, eventos: [] };
+    mapa[ev.data].eventos.push(ev);
   });
   return mapa;
 }
