@@ -135,7 +135,7 @@ function linhaAviso({ ev, dias }) {
         <div class="aviso-contagem" style="color:${pendente ? cor : 'var(--text-muted)'};">${escapeHtml(contagem)}</div>
       </div>
       ${pendente
-        ? `<button class="aviso-cobrar" data-action="copiar-cobranca" data-id="${ev.id}" title="Copiar a lista de quem falta pro WhatsApp">📋 Cobrar</button>`
+        ? `<button class="aviso-cobrar" data-action="copiar-cobranca" data-id="${ev.id}" title="Copiar a lista de quem falta pro WhatsApp">📋 Chamado</button>`
         : '<div class="aviso-seta">›</div>'}
     </div>
   `;
@@ -208,7 +208,7 @@ function cardObrigatoriedades() {
     <div class="card" style="padding:0; overflow:hidden;">
       <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 12px;">
         <div style="font-size:12px; font-weight:600; color:${n ? cor : COR_OK};">${n ? '⚠️' : '✅'} ${escapeHtml(topo)}</div>
-        ${n ? '<button class="aviso-cobrar" data-action="copiar-obrigatoriedades" title="Copiar as pendências pro WhatsApp">📋 Cobrar</button>' : ''}
+        ${n ? '<button class="aviso-cobrar" data-action="copiar-obrigatoriedades" title="Copiar as pendências pro WhatsApp">📋 Chamado</button>' : ''}
       </div>
       ${conteudo}
     </div>

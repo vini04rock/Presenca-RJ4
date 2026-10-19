@@ -114,7 +114,7 @@ function renderCapaEvento(ev, members, confirmados) {
     </div>
     ${state.isAdmin && state.statusLoaded && aguardando > 0 && ev.status !== 'encerrado' ? `
       <button class="btn secondary block botao-cobrar" data-action="copiar-cobranca" data-id="${ev.id}">
-        📋 Cobrar quem falta (${aguardando})
+        📋 Chamado de quem falta (${aguardando})
       </button>
     ` : ''}
   `;

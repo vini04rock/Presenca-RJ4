@@ -207,8 +207,9 @@ Existe justamente porque não responder vira falta não justificada: a janela
 é a última chance de cobrar quem falta, e sem ela a pessoa levaria a falta
 sem nunca ter sido cutucada.
 
-Por isso cada aviso com gente faltando tem o botão **📋 Cobrar**, e a tela
-do evento, aberta pelo organizador, tem o **📋 Cobrar quem falta (N)**. Os
+Por isso cada aviso com gente faltando tem o botão **📋 Chamado**, e a tela
+do evento, aberta pelo organizador, tem o **📋 Chamado de quem falta (N)**
+(até 19/10/2026 era "Cobrar", palavra que o clube achou forte demais). Os
 dois copiam para o WhatsApp a lista de quem está ⚠️ Aguardando, em ordem
 hierárquica (no regional, um bloco por divisão, na ordem oficial),
 terminando com as **Regras do clube**, o mesmo bloco da chamada (prazo da
@@ -246,7 +247,7 @@ divisão tem que fazer pelo menos um evento de cada tipo obrigatório:
 (`TIPOS_OBRIGATORIOS`, no topo do arquivo de regras: mudou a regra, muda
 essa linha). O card lista as divisões que ainda não marcaram algum deles
 no **mês atual**, com o que falta; tocar numa abre os 4 tipos, com o
-evento que cobre cada um. O **📋 Cobrar** copia as pendências pro grupo.
+evento que cobre cada um. O **📋 Chamado** copia as pendências pro grupo.
 
 - **Confere as 6 divisões**, na ordem oficial, inclusive as que ainda não
   usam o app: o retrato é o real.
