@@ -748,7 +748,7 @@ label {
 .calendario-dia-clicavel:active { filter: brightness(0.8); }
 .calendario-dia-selecionado { border-width: 2px; box-shadow: 0 0 0 1px var(--white-strong); }
 .calendario-dia-numero { line-height: 1; }
-.calendario-dia-emoji { font-size: 13px; line-height: 1; }
+.calendario-dia-emoji { font-size: 11px; line-height: 1; }
 .calendario-dia > span { flex-shrink: 0; }
 .calendario-dia-origem {
   font-size: 10px;
