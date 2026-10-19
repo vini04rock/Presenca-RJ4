@@ -296,6 +296,19 @@ export let state = {
   movMotivo: '',
   movSalvando: false,
   movErro: null,
+  // A transferencia (movTipo 'transferencia'): a chave da divisao da RJ4
+  // escolhida, ou "outra regional" com a regional e a divisao escritas.
+  movDestino: null,
+  movForaDaRJ4: false,
+  movRegionalDestino: '',
+  movDivisaoDestino: '',
+  // O "Confirmar grau" de quem chegou transferido, aberto numa linha: o grau
+  // e o cargo escolhidos (comecam com os que ele tem).
+  grauMembroId: null,
+  grauEscolhido: null,
+  cargoEscolhido: null,
+  grauSalvando: false,
+  grauErro: null,
   // O integrante com a confirmacao do "Remover" aberta na linha dele.
   removerMembroId: null,
   // "Preencher datas" do cadastro: os ids da lista (quem estava sem data de

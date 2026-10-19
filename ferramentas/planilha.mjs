@@ -1048,6 +1048,81 @@ log('=== entrada/saída: afastamento, retorno e desligamento ===');
 }
 
 log('');
+log('=== entrada/saída: transferência de divisão e grau a confirmar ===');
+{
+  const evc = (id, data, status, categoria) => { const l = ev(id, data, status); l[8] = categoria; return l; };
+  // Barra: um encerrado e um aberto. Regional: um aberto. Oeste: um aberto,
+  // um de ontem ainda nao encerrado e um sem data.
+  const p = montaPlanilha([
+    evc('velhoB', '2026-09-05', 'encerrado', 'barra'), evc('abertoB', daquiA(3), 'ativo', 'barra'),
+    evc('abertoR', daquiA(4), 'ativo', 'regional'), evc('abertoO', daquiA(5), 'ativo', 'oeste'),
+    evc('ontemO', daquiA(-1), 'ativo', 'oeste'), evc('semDataO', '', 'ativo', 'oeste'),
+  ], [
+    pr('velhoB', 'm1', 'Confirmado'), pr('abertoB', 'm1', 'Aguardando'), pr('abertoR', 'm1', 'Aguardando'),
+    pr('abertoB', 'm2', 'Aguardando'), pr('abertoR', 'm2', 'Aguardando'), pr('abertoO', 'o9', 'Aguardando'),
+  ]);
+  // A aba como esta hoje: 9 colunas, sem "Grau a Confirmar".
+  p.abas.Membros = novaAba('Membros', [['ID', 'Nome', 'Grau', 'Divisao', 'Funcoes', 'Cargo', 'Situacao', 'Situacao Desde', 'Entrada'],
+    ['m1', 'Costa', 'VI', 'Barra - RJ4', 'batedor', 'Diretor', '', '', '2019-03-12'],
+    ['m2', 'Bull', 'X', 'Barra - RJ4', '', '', '', '', ''],
+    ['o9', 'Fabiano', 'IX', 'Oeste - RJ4', '', '', '', '', '']]);
+  const { contexto } = carregaCodeGs(p, { PIN_REGIONAL: '0418', PIN_BARRA: '1801', PIN_OESTE: '1802' });
+  const barra = { escopo: 'barra', pin: '1801' }, oeste = { escopo: 'oeste', pin: '1802' };
+  const membro = (id) => contexto.executar('dados', {}).membros.find(m => m.id === id);
+  const eventosDe = (mid) => p.abas.Presencas.dados.slice(1).filter(l => l[2] === mid).map(l => l[0]).sort();
+  const tentar = (fn) => { try { const r = fn(); return r.ok === false ? r.erro : 'ok'; } catch (e) { return e.message; } };
+  const transferir = (cred, extra) => contexto.executar('membroMovimentar', { ...cred, tipo: 'transferencia', ...extra });
+
+  confere('o Oeste NÃO transfere quem é da Barra', transferir(oeste, { membroId: 'm1', destino: 'oeste' }).ok, false);
+  confere('pra mesma divisão é recusado', tentar(() => transferir(barra, { membroId: 'm1', destino: 'barra' })), 'O integrante ja e desta divisao');
+  confere('data no futuro é recusada', tentar(() => transferir(barra, { membroId: 'm1', destino: 'oeste', data: daquiA(2) })), 'A data nao pode ser no futuro');
+
+  const r = transferir(barra, { membroId: 'm1', destino: 'oeste', motivo: 'Mudou de bairro' });
+  confere('a Barra transfere o dela pro Oeste', [r.ok, r.eventosAbertosTirados, r.eventosAbertosColocados], [true, 1, 2]);
+  const m1 = membro('m1');
+  confere('muda de divisão, o cargo sai, funções e ingresso ficam, grau a confirmar',
+    [m1.divisao, m1.grau, m1.cargo, m1.funcoes, m1.entrada, m1.grauPendente], ['Oeste - RJ4', 'VI', '', ['batedor'], '2019-03-12', true]);
+  confere('eventos: o encerrado e o do Regional ficam, sai do aberto da Barra, entra nos do Oeste (sem o de ontem)',
+    eventosDe('m1'), ['abertoO', 'abertoR', 'semDataO', 'velhoB']);
+  confere('nos eventos do Oeste ele entra como Aguardando',
+    p.abas.Presencas.dados.filter(l => l[2] === 'm1' && l[0] === 'abertoO').map(l => [l[3], l[4]]), [['Costa', 'Aguardando']]);
+
+  // Um celular com a lista velha edita o nome: a divisao nao volta.
+  contexto.executar('membroSalvar', { ...barra, id: 'm1', nome: 'Costa Jr', grau: 'VI', divisao: 'Barra - RJ4', funcoes: 'batedor', cargo: '' });
+  confere('o Editar não troca a divisão', [membro('m1').nome, membro('m1').divisao, membro('m1').grauPendente], ['Costa Jr', 'Oeste - RJ4', true]);
+
+  const livro = (cred, divisao) => contexto.executar('movimentos', { ...cred, divisao }).movimentos;
+  confere('no livro da Barra: saiu, pro Oeste, com o motivo', livro(barra, 'barra').map(m => [m.tipo, m.nome, m.dePara, m.motivo]),
+    [['transferenciaSaida', 'Costa', 'Oeste - RJ4', 'Mudou de bairro']]);
+  confere('no livro do Oeste: chegou, da Barra', livro(oeste, 'oeste').map(m => [m.tipo, m.dePara]), [['transferenciaEntrada', 'Barra - RJ4']]);
+
+  confere('a Barra NÃO confirma o grau de quem agora é do Oeste',
+    contexto.executar('membroConfirmarGrau', { ...barra, membroId: 'm1', grau: 'VI', cargo: 'Social' }).ok, false);
+  confere('confirmar grau sem PIN é recusado', contexto.executar('membroConfirmarGrau', { membroId: 'm1', grau: 'VI' }).ok, false);
+  confere('grau inválido é recusado', tentar(() => contexto.executar('membroConfirmarGrau', { ...oeste, membroId: 'm1', grau: 'XX' })), 'Grau invalido');
+  contexto.executar('membroConfirmarGrau', { ...oeste, membroId: 'm1', grau: 'VI', cargo: 'Social' });
+  confere('o Oeste confirma: grau, cargo e o lembrete sai', [membro('m1').grau, membro('m1').cargo, membro('m1').grauPendente], ['VI', 'Social', false]);
+  contexto.executar('membroConfirmarGrau', { ...oeste, membroId: 'm1', grau: 'X', cargo: 'Social' });
+  confere('cargo só nos graus VI e V', [membro('m1').grau, membro('m1').cargo], ['X', '']);
+
+  // Pra outra regional: sai do cadastro, o historico fica.
+  confere('outra regional sem a divisão é recusado', tentar(() => transferir(barra, { membroId: 'm2', regionalDestino: 'RJ2' })), 'Faltou a divisao de destino');
+  confere('"RJ4" como outra regional é recusado',
+    tentar(() => transferir(barra, { membroId: 'm2', regionalDestino: 'rj 4', divisaoDestino: 'Oeste' })), 'Para a RJ4, escolha a divisao na lista');
+  const fora = transferir(barra, { membroId: 'm2', regionalDestino: 'RJ2', divisaoDestino: 'Centro' });
+  confere('pra outra regional: sai do cadastro e de todos os eventos abertos', [fora.ok, fora.eventosAbertosTirados, membro('m2'), eventosDe('m2')],
+    [true, 2, undefined, []]);
+  confere('e continua no livro, com o destino', livro(barra, 'barra').filter(m => m.membroId === 'm2').map(m => [m.tipo, m.dePara]),
+    [['transferenciaSaida', 'RJ2 · Centro']]);
+
+  confere('o Regional transfere em qualquer divisão',
+    transferir({ escopo: 'barra', pin: '0418' }, { membroId: 'o9', destino: 'regional' }).ok, true);
+  confere('quem vai pro Regional entra nos eventos abertos do Regional', eventosDe('o9'), ['abertoR']);
+  confere('o Remover apaga a transferência do livro', (contexto.executar('membroRemover', { ...barra, id: 'm1' }),
+    livro({ escopo: 'regional', pin: '0418' }, 'regional').filter(m => m.membroId === 'm1').length), 0);
+}
+
+log('');
 log('=== caixinha do Regional (das divisões) e o kg no estoque ===');
 {
   const p = montaPlanilha([], []);

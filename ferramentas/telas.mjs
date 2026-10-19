@@ -256,6 +256,8 @@ const entradaParaHonraria = dias => {
 };
 add('organizador / menu (medalha em 42 dias)', { isAdmin:true, adminEscopo:'barra', events:[],
   roster:membros.map(m => m.id === 'm1' ? { ...m, entrada:entradaParaHonraria(42) } : m) }, T.renderMenuOrganizador);
+add('organizador / menu (grau a confirmar)', { isAdmin:true, adminEscopo:'barra', events:[],
+  roster:membros.map(m => m.id === 'm1' || m.id === 'm3' ? { ...m, grauPendente:true } : m) }, T.renderMenuOrganizador);
 add('organizador / menu (medalha hoje)', { isAdmin:true, adminEscopo:'barra', events:[],
   roster:membros.map(m => m.id === 'm2' ? { ...m, entrada:entradaParaHonraria(0), situacao:'afastado' } : m) }, T.renderMenuOrganizador);
 add('organizador / menu (regional vê medalhas da RJ4)', { isAdmin:true, adminEscopo:'regional', events:[],
@@ -616,7 +618,22 @@ add('membros / editando com ingresso',   { isAdmin:true, adminEscopo:'barra', ad
 add('membros / confirmando remover',     { isAdmin:true, adminEscopo:'barra', adminTab:'membros', removerMembroId:'m1' }, T.renderAdmin);
 add('membros / desligando (com erro)',   { isAdmin:true, adminEscopo:'barra', adminTab:'membros', movMembroId:'m3', movTipo:'desligamento',
   movMotivo:'Pediu pra sair', movErro:'Não consegui registrar: Falha de conexao.' }, T.renderAdmin);
+add('membros / transferindo na RJ4',    { isAdmin:true, adminEscopo:'barra', adminTab:'membros', movMembroId:'m1', movTipo:'transferencia',
+  movDestino:'oeste', movMotivo:'Mudou de bairro' }, T.renderAdmin);
+add('membros / transferindo pra fora',   { isAdmin:true, adminEscopo:'barra', adminTab:'membros', movMembroId:'m1', movTipo:'transferencia',
+  movForaDaRJ4:true, movRegionalDestino:'RJ2', movDivisaoDestino:'', movErro:'Escreva a divisão de destino.' }, T.renderAdmin);
+add('membros / grau a confirmar',        { isAdmin:true, adminEscopo:'barra', adminTab:'membros',
+  roster:membros.map(m => m.id === 'm1' ? { ...m, cargo:'', grauPendente:true } : m) }, T.renderAdmin);
+add('membros / confirmando grau',        { isAdmin:true, adminEscopo:'barra', adminTab:'membros',
+  roster:membros.map(m => m.id === 'm1' ? { ...m, cargo:'', grauPendente:true } : m), grauMembroId:'m1', grauEscolhido:'VI', cargoEscolhido:'Social' }, T.renderAdmin);
+const comTransferencias = movimentosFalsos.concat([
+  { id:'t1', data:'2026-10-05', divisao:'barra', membroId:'m5', nome:'Lobo', grau:'X', tipo:'transferenciaSaida', motivo:'Mudou de bairro', dePara:'Oeste - RJ4' },
+  { id:'t2', data:'2026-10-05', divisao:'oeste', membroId:'m5', nome:'Lobo', grau:'X', tipo:'transferenciaEntrada', motivo:'Mudou de bairro', dePara:'Barra - RJ4' },
+  { id:'t3', data:'2026-10-06', divisao:'barra', membroId:'m6', nome:'Puma', grau:'IX', tipo:'transferenciaSaida', motivo:'', dePara:'RJ2 · Centro' },
+]);
 const mvs = { isAdmin:true, adminTab:'movimentos', roster:rosterComAfastado, movimentosDados:movimentosFalsos, movimentosPeriodo:0 };
+add('entrada/saída / com transferências', { ...mvs, adminEscopo:'barra', movimentosDadosEscopo:'barra', movimentosDados:comTransferencias }, T.renderAdmin);
+add('entrada/saída / quadro com transferências', { ...mvs, adminEscopo:'regional', movimentosDadosEscopo:'regional', movimentosDados:comTransferencias }, T.renderAdmin);
 add('entrada/saída / divisão',           { ...mvs, adminEscopo:'barra', movimentosDadosEscopo:'barra' }, T.renderAdmin);
 add('entrada/saída / divisão vazia',     { ...mvs, adminEscopo:'oeste', movimentosDadosEscopo:'oeste', movimentosDados:[] }, T.renderAdmin);
 add('entrada/saída / quadro regional',   { ...mvs, adminEscopo:'regional', movimentosDadosEscopo:'regional' }, T.renderAdmin);
@@ -687,7 +704,9 @@ const LIMPO = {
   caixinhaFinForm:null, caixinhaFinSalvando:false, caixinhaFinMsg:null, caixinhaFinConfirmarRemover:null,
   caixinhaFinSaldoTexto:'', caixinhaFinConfirmarSaldo:false,
   caixinhaFinQtdExtrato:15, caixinhaFinRelatorio:false, caixinhaFinPeriodo:0,
-  roster:membros, newMemberEntrada:'', movMembroId:null, movTipo:null, movData:'', movMotivo:'', movSalvando:false, movErro:null, removerMembroId:null, preencherEntradasIds:null, entradasRascunho:{}, entradasSalvando:false, entradasMsg:null,
+  roster:membros, newMemberEntrada:'', movMembroId:null, movTipo:null, movData:'', movMotivo:'', movSalvando:false, movErro:null, removerMembroId:null,
+  movDestino:null, movForaDaRJ4:false, movRegionalDestino:'', movDivisaoDestino:'',
+  grauMembroId:null, grauEscolhido:null, cargoEscolhido:null, grauSalvando:false, grauErro:null, preencherEntradasIds:null, entradasRascunho:{}, entradasSalvando:false, entradasMsg:null,
   movimentosDados:null, movimentosDadosEscopo:null, movimentosErro:null, movimentosPeriodo:0, movimentosDivisaoAberta:null,
   estoqueAdmDados:null, estoqueAdmCarregando:false, estoqueAdmErro:null, estoqueAdmForm:null,
   estoqueAdmSalvando:false, estoqueAdmMsg:null, estoqueAdmFiltroTipo:'todos', estoqueAdmAnularId:null,

@@ -66,7 +66,7 @@ Quatro testes que rodam offline, sem tocar na planilha:
 
     py ferramentas/estrutura.py     # imports, camadas, sintaxe, ações
     node ferramentas/regras.mjs     # regras do clube: hierarquia, chamada, cobrança
-    node ferramentas/telas.mjs      # desenha as 189 telas e abas
+    node ferramentas/telas.mjs      # desenha as 196 telas e abas
     node ferramentas/planilha.mjs   # o Code.gs contra uma planilha de mentira
 
 Detalhes e o que eles não cobrem: [ferramentas/README.md](ferramentas/README.md).

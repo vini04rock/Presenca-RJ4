@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-10-19-w-emoji-acao-social';
+var VERSAO = '2026-10-19-x-transferencia';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -53,7 +53,10 @@ var ABA_ESTOQUE_ADM_MOV = 'EstoqueADMMovimentacoes';
 // a data ao lado (ver registrarMovimento). Desligado nao tem situacao: sai
 // da aba de vez. "Entrada" e a data de entrada no clube, gravada no
 // cadastro de um integrante novo - os cadastrados antes dela ficam vazios.
-var CAB_MEMBROS = ['ID', 'Nome', 'Grau', 'Divisao', 'Funcoes', 'Cargo', 'Situacao', 'Situacao Desde', 'Entrada'];
+// "Grau a Confirmar" = 'Sim' em quem chegou por transferencia e ainda nao
+// teve o grau conferido pela divisao nova (ver transferirMembro e
+// confirmarGrau). E so um lembrete: ele participa de tudo enquanto isso.
+var CAB_MEMBROS = ['ID', 'Nome', 'Grau', 'Divisao', 'Funcoes', 'Cargo', 'Situacao', 'Situacao Desde', 'Entrada', 'Grau a Confirmar'];
 // "Texto Original" (ultima coluna) so existe pra eventos criados via colar
 // convocacao (ver criarEventoDeTexto) - eventos criados pelo Modo
 // organizador manual ficam com essa coluna vazia, e lerEventos() ja trata
@@ -134,8 +137,17 @@ var ITEM_ALIMENTOS = 'Alimentos (dos eventos)';
 // Desligamento; "Divisao" e a chave ('barra'...) e "Membro"/"Grau" um
 // retrato de quando foi registrado - o desligado nao existe mais em Membros,
 // e e por aqui que ele continua aparecendo no relatorio.
-var CAB_MOVIMENTOS = ['ID', 'Data', 'Divisao', 'ID Membro', 'Membro', 'Grau', 'Tipo', 'Motivo', 'Registrado em'];
-var TIPOS_MOVIMENTO = { entrada: 'Entrada', afastamento: 'Afastamento', retorno: 'Retorno', desligamento: 'Desligamento' };
+//
+// A transferencia (19/10/2026) vira duas linhas: a saida, na divisao de
+// origem, e a entrada, na de destino - cada divisao le o proprio livro sem
+// olhar o resto. "De/Para" guarda o outro lado: na saida, pra onde foi
+// ('Oeste - RJ4', ou 'RJ2 · Centro' quando sai da RJ4); na entrada, de onde
+// veio. Pra outra regional so existe a saida.
+var CAB_MOVIMENTOS = ['ID', 'Data', 'Divisao', 'ID Membro', 'Membro', 'Grau', 'Tipo', 'Motivo', 'Registrado em', 'De/Para'];
+var TIPOS_MOVIMENTO = {
+  entrada: 'Entrada', afastamento: 'Afastamento', retorno: 'Retorno', desligamento: 'Desligamento',
+  transferenciaSaida: 'Transferencia (saida)', transferenciaEntrada: 'Transferencia (entrada)'
+};
 var SITUACAO_AFASTADO = 'Afastado';
 // Estoque de materiais administrativos do Regional. A primeira aba e o
 // cadastro dos materiais; a segunda e um livro permanente. O saldo exibido
@@ -237,7 +249,7 @@ var ACOES_PROTEGIDAS = [
   'doacoes', 'doacoesSalvar', 'caixinha', 'caixinhaSalvar', 'caixinhaRemover',
   'caixinhaLancamentoSalvar', 'caixinhaLancamentoRemover', 'estoqueSalvar', 'membrosEntradaSalvar',
   // Entrada/Saida: o motivo de um afastamento pode ser assunto pessoal.
-  'membroMovimentar', 'movimentos',
+  'membroMovimentar', 'movimentos', 'membroConfirmarGrau',
   // Estoque administrativo: inclusive a leitura e exclusiva do Regional.
   'estoqueAdm', 'estoqueAdmMovimentar', 'estoqueAdmAnular'
 ];
@@ -312,6 +324,7 @@ function executar(action, p) {
   if (action === 'caixinhaLancamentoSalvar') return comTrava(function () { return salvarLancamentoCaixinha(p); });
   if (action === 'caixinhaLancamentoRemover') return comTrava(function () { return removerLancamentoCaixinha(p); });
   if (action === 'membroMovimentar') return comTrava(function () { return registrarMovimento(p); });
+  if (action === 'membroConfirmarGrau') return comTrava(function () { return confirmarGrau(p); });
   if (action === 'movimentos') return lerMovimentos(String(p.divisao || ''), String(p.pin || ''));
   if (action === 'estoqueAdm') return lerEstoqueAdm(p);
   if (action === 'estoqueAdmMovimentar') return comTrava(function () { return movimentarEstoqueAdm(p); });
@@ -427,7 +440,9 @@ function lerMembros() {
         // (eventos, caixinha); o Insight ja vem filtrado daqui do Code.gs.
         situacao: estaAfastado(l) ? 'afastado' : '',
         situacaoDesde: estaAfastado(l) ? formatarData(l[7]) : '',
-        entrada: formatarData(l[8])
+        entrada: formatarData(l[8]),
+        // Chegou por transferencia e a divisao nova ainda nao conferiu o grau.
+        grauPendente: ehSim(l[9])
       };
     });
 }
@@ -1217,6 +1232,11 @@ function salvarMembro(p) {
   // passa (desde 19/10/2026), mas so quando vem - um app antigo que nao
   // manda o campo nao apaga a data de ninguem.
   if (achado) {
+    // A divisao nao muda pelo Editar (decisao do clube, 19/10/2026): troca de
+    // divisao e Transferencia, que fica no livro. Fica a da planilha - assim
+    // um celular com a lista velha, editando quem acabou de ser transferido,
+    // nao o devolve pra divisao antiga.
+    linha[3] = achado.valores[3];
     s.getRange(achado.indice, 1, 1, linha.length).setValues([linha]);
     if (p.entrada !== undefined && p.entrada !== null) gravarDataDeIngresso(s, achado.indice, String(id), validarDataDeIngresso(p.entrada));
   } else {
@@ -1225,7 +1245,7 @@ function salvarMembro(p) {
     var entrada = dataOuHoje(p.entrada);
     var range = s.getRange(s.getLastRow() + 1, 1, 1, CAB_MEMBROS.length);
     range.setNumberFormat('@');
-    range.setValues([linha.concat(['', '', entrada])]);
+    range.setValues([linha.concat(['', '', entrada, ''])]);
     var chave = CHAVE_POR_NOME_DIVISAO[String(p.divisao || '')];
     if (chave) anotarMovimento(entrada, chave, id, p.nome, p.grau || '', 'entrada', '');
   }
@@ -2346,22 +2366,24 @@ function dataOuHoje(v) {
   return /^\d{4}-\d{2}-\d{2}$/.test(t) ? t : Utilities.formatDate(new Date(), fuso(), 'yyyy-MM-dd');
 }
 
-function anotarMovimento(data, divisao, membroId, nome, grau, tipo, motivo) {
+function anotarMovimento(data, divisao, membroId, nome, grau, tipo, motivo, dePara) {
   var s = aba(ABA_MOVIMENTOS, CAB_MOVIMENTOS);
   var range = s.getRange(s.getLastRow() + 1, 1, 1, CAB_MOVIMENTOS.length);
   // Texto: a data nao vira Date, e um motivo que comece com "=" nao vira formula.
   range.setNumberFormat('@');
-  range.setValues([[novoId(), data, divisao, membroId, nome, grau, TIPOS_MOVIMENTO[tipo], motivo, agora()]]);
+  range.setValues([[novoId(), data, divisao, membroId, nome, grau, TIPOS_MOVIMENTO[tipo], motivo, agora(), dePara || '']]);
 }
 
 // Tira o integrante dos eventos que ainda nao encerraram. Sem isso, quem
 // se afastou (ou saiu) ficaria "Aguardando" num evento aberto e levaria falta
 // nao justificada no encerramento. Os eventos encerrados ficam como estao:
 // sao historico, e os % deles nao podem mudar.
-function tirarDosEventosAbertos(membroId) {
+// soCategoria: so os eventos daquela divisao (a transferencia tira dos
+// eventos da divisao antiga e deixa nos do Regional).
+function tirarDosEventosAbertos(membroId, soCategoria) {
   var abertos = {};
   linhas(aba(ABA_EVENTOS, CAB_EVENTOS)).forEach(function (l) {
-    if (l[0] && String(l[6]) !== 'encerrado') abertos[String(l[0])] = true;
+    if (l[0] && String(l[6]) !== 'encerrado' && (!soCategoria || categoriaDaLinha(l) === soCategoria)) abertos[String(l[0])] = true;
   });
   var tirados = 0;
   apagarLinhas(aba(ABA_PRESENCAS, CAB_PRESENCAS), function (l) {
@@ -2377,7 +2399,7 @@ function tirarDosEventosAbertos(membroId) {
 // Barra nao afasta nem desliga ninguem do Oeste.
 function registrarMovimento(p) {
   var tipo = String(p.tipo || '');
-  if (['afastamento', 'retorno', 'desligamento'].indexOf(tipo) === -1) throw new Error('Movimentacao desconhecida');
+  if (['afastamento', 'retorno', 'desligamento', 'transferencia'].indexOf(tipo) === -1) throw new Error('Movimentacao desconhecida');
   var s = aba(ABA_MEMBROS, CAB_MEMBROS);
   var achado = acharLinha(s, function (l) { return String(l[0]) === String(p.membroId || ''); });
   if (!achado) throw new Error('Integrante nao encontrado');
@@ -2385,6 +2407,8 @@ function registrarMovimento(p) {
   var divisao = CHAVE_POR_NOME_DIVISAO[String(l[3] || '')];
   if (!divisao) throw new Error('Integrante sem divisao no cadastro');
   if (!podeNaDivisao(divisao, String(p.pin || ''))) return SEM_PERMISSAO_DIVISAO;
+
+  if (tipo === 'transferencia') return transferirMembro(p, s, achado, divisao);
 
   var afastado = estaAfastado(l);
   if (tipo === 'afastamento' && afastado) throw new Error('Este integrante ja esta afastado');
@@ -2413,6 +2437,101 @@ function registrarMovimento(p) {
   return { ok: true, tipo: tipo, data: data, eventosAbertosTirados: tirados };
 }
 
+// Transferencia de divisao (19/10/2026). Quem transfere e a divisao de
+// ORIGEM (ou o Regional, chave-mestra) - o PIN ja foi conferido contra ela.
+//
+// Dentro da RJ4 (p.destino = a chave da divisao nova): o cadastro muda de
+// divisao com o MESMO ID, entao presencas, Insight, doacoes e caixinha
+// continuam dele. O cargo e apagado (era da divisao antiga) e o grau fica
+// "a confirmar" pela divisao nova. Sai dos eventos abertos da divisao
+// antiga e entra como Aguardando nos abertos da nova, do dia da
+// transferencia em diante - um evento de ontem ainda nao encerrado daria
+// falta num evento de antes de ele chegar.
+//
+// Pra outra regional (p.regionalDestino e p.divisaoDestino, texto livre):
+// sai do cadastro e de todos os eventos abertos, como no desligamento, e o
+// historico fica.
+function transferirMembro(p, s, achado, origem) {
+  var l = achado.valores;
+  var mid = String(l[0]), nome = String(l[1] || ''), grau = String(l[2] || '');
+  var data = dataOuHoje(p.data);
+  if (data > Utilities.formatDate(new Date(), fuso(), 'yyyy-MM-dd')) throw new Error('A data nao pode ser no futuro');
+  var motivo = String(p.motivo || '').trim().slice(0, 300);
+  var destino = String(p.destino || '');
+
+  if (destino) {
+    if (ESCOPOS_VALIDOS.indexOf(destino) === -1) throw new Error('Divisao desconhecida');
+    if (destino === origem) throw new Error('O integrante ja e desta divisao');
+    // Divisao (4), funcoes (5, ficam) e cargo (6, sai).
+    var faixa = s.getRange(achado.indice, 4, 1, 3);
+    faixa.setNumberFormat('@');
+    faixa.setValues([[ESCOPOS_NOME[destino], String(l[4] || ''), '']]);
+    var pendente = s.getRange(achado.indice, 10);
+    pendente.setNumberFormat('@');
+    pendente.setValue('Sim');
+    // Os eventos do Regional sao de todo mundo: quem sai do Regional pra uma
+    // divisao continua neles.
+    var tirados = origem === 'regional' ? 0 : tirarDosEventosAbertos(mid, origem);
+    // Afastado nao entra em evento novo (a mesma regra de soAtivos no app).
+    var colocados = estaAfastado(l) ? 0 : colocarNosEventosAbertos(mid, nome, destino, data);
+    anotarMovimento(data, origem, mid, nome, grau, 'transferenciaSaida', motivo, ESCOPOS_NOME[destino]);
+    anotarMovimento(data, destino, mid, nome, grau, 'transferenciaEntrada', motivo, ESCOPOS_NOME[origem]);
+    return { ok: true, tipo: 'transferencia', data: data, destino: destino, eventosAbertosTirados: tirados, eventosAbertosColocados: colocados };
+  }
+
+  var regional = String(p.regionalDestino || '').trim().slice(0, 60);
+  var divisaoFora = String(p.divisaoDestino || '').trim().slice(0, 60);
+  if (!regional) throw new Error('Faltou a regional de destino');
+  if (!divisaoFora) throw new Error('Faltou a divisao de destino');
+  if (regional.replace(/\s/g, '').toUpperCase() === 'RJ4') throw new Error('Para a RJ4, escolha a divisao na lista');
+  var tiradosFora = tirarDosEventosAbertos(mid);
+  s.deleteRow(achado.indice);
+  anotarMovimento(data, origem, mid, nome, grau, 'transferenciaSaida', motivo, regional + ' · ' + divisaoFora);
+  return { ok: true, tipo: 'transferencia', data: data, destino: '', eventosAbertosTirados: tiradosFora };
+}
+
+// Poe o integrante como Aguardando nos eventos ainda abertos de uma
+// divisao, com data a partir de `desde` (ou sem data). Quem ja esta num
+// deles fica como esta.
+function colocarNosEventosAbertos(membroId, nome, categoria, desde) {
+  var eventos = [];
+  linhas(aba(ABA_EVENTOS, CAB_EVENTOS)).forEach(function (l) {
+    if (!l[0] || String(l[6]) === 'encerrado' || categoriaDaLinha(l) !== categoria) return;
+    var dataEv = formatarData(l[2]);
+    if (dataEv && dataEv < desde) return;
+    eventos.push([String(l[0]), String(l[1] || '')]);
+  });
+  if (!eventos.length) return 0;
+  var s = aba(ABA_PRESENCAS, CAB_PRESENCAS);
+  var jaEsta = {};
+  linhas(s).forEach(function (l) { if (String(l[2]) === String(membroId)) jaEsta[String(l[0])] = true; });
+  var novas = eventos.filter(function (ev) { return !jaEsta[ev[0]]; }).map(function (ev) {
+    return [ev[0], ev[1], membroId, nome, STATUS_ROTULO.aguardando, 'Nao', 'Nao', 'Nao', agora()];
+  });
+  if (novas.length) s.getRange(s.getLastRow() + 1, 1, novas.length, CAB_PRESENCAS.length).setValues(novas);
+  return novas.length;
+}
+
+// O "Confirmar grau" de quem chegou por transferencia: a divisao nova
+// confere o grau (e o cargo, nos graus VI e V) e o lembrete sai. O PIN e
+// conferido contra a divisao ATUAL do integrante.
+function confirmarGrau(p) {
+  var s = aba(ABA_MEMBROS, CAB_MEMBROS);
+  var achado = acharLinha(s, function (l) { return String(l[0]) === String(p.membroId || ''); });
+  if (!achado) throw new Error('Integrante nao encontrado');
+  var divisao = CHAVE_POR_NOME_DIVISAO[String(achado.valores[3] || '')];
+  if (!divisao) throw new Error('Integrante sem divisao no cadastro');
+  if (!podeNaDivisao(divisao, String(p.pin || ''))) return SEM_PERMISSAO_DIVISAO;
+  var grau = String(p.grau || '').trim();
+  if (grau && ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'].indexOf(grau) === -1) throw new Error('Grau invalido');
+  // Cargo so existe nos graus VI e V (ver CARGOS no js/nucleo/config.js).
+  var cargo = grau === 'VI' || grau === 'V' ? String(p.cargo || '').trim().slice(0, 60) : '';
+  s.getRange(achado.indice, 3).setValue(grau);
+  s.getRange(achado.indice, 6).setValue(cargo);
+  s.getRange(achado.indice, 10).setValue('');
+  return { ok: true, grau: grau, cargo: cargo };
+}
+
 // O livro de uma divisao, do mais recente pro mais antigo. Pelo Regional
 // (divisao = 'regional') vem o livro inteiro, de todas as divisoes - e o
 // quadro comparativo; por isso ali so o PIN do Regional vale.
@@ -2427,7 +2546,12 @@ function lerMovimentos(divisao, pin) {
   var livro = linhas(aba(ABA_MOVIMENTOS, CAB_MOVIMENTOS));
   var existe = {};
   linhas(aba(ABA_MEMBROS, CAB_MEMBROS)).forEach(function (l) { if (l[0]) existe[String(l[0])] = true; });
-  livro.forEach(function (l) { if (String(l[6]) === TIPOS_MOVIMENTO.desligamento) existe[String(l[3])] = true; });
+  // Quem saiu da RJ4 por transferencia tambem nao esta em Membros, e
+  // continua - igual ao desligado.
+  livro.forEach(function (l) {
+    var t = String(l[6]);
+    if (t === TIPOS_MOVIMENTO.desligamento || t === TIPOS_MOVIMENTO.transferenciaSaida) existe[String(l[3])] = true;
+  });
   var movimentos = livro
     .filter(function (l) { return l[0] && (todas || String(l[2]) === divisao) && existe[String(l[3])]; })
     .map(function (l) {
@@ -2436,7 +2560,9 @@ function lerMovimentos(divisao, pin) {
       return {
         id: String(l[0]), data: formatarData(l[1]), divisao: String(l[2] || ''),
         membroId: String(l[3] || ''), nome: String(l[4] || ''), grau: String(l[5] || ''),
-        tipo: tipo, motivo: String(l[7] || '')
+        tipo: tipo, motivo: String(l[7] || ''),
+        // Na transferencia: pra onde foi (saida) ou de onde veio (entrada).
+        dePara: String(l[9] || '')
       };
     })
     .filter(function (m) { return m.tipo; })

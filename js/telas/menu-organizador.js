@@ -159,7 +159,28 @@ function linhaHonraria(h) {
   `;
 }
 
+// Quem chegou por transferencia e ainda nao teve o grau confirmado pela
+// divisao. Um aviso so, com a contagem; tocar abre o cadastro, onde cada
+// um tem o "✅ Confirmar grau".
+function linhaGrauPendente(membros) {
+  const n = membros.length;
+  return `
+    <div class="aviso-linha" style="border-left-color:#5FA0C4;" data-action="abrir-secao-organizador" data-tab="membros">
+      <div class="aviso-icone" style="border-color:#5FA0C4;">⏳</div>
+      <div class="aviso-texto">
+        <div class="aviso-nome">${n} ${n === 1 ? 'integrante' : 'integrantes'} com grau a confirmar</div>
+        <div class="aviso-meta">${escapeHtml(membros.map(m => m.nome).join(', '))}</div>
+        <div class="aviso-contagem" style="color:#5FA0C4;">${n === 1 ? 'Chegou' : 'Chegaram'} por transferência · confirme em Membros</div>
+      </div>
+      <div class="aviso-seta">›</div>
+    </div>
+  `;
+}
+
 function avisosDoMural() {
+  const nomeDivisao = escopoPorChave(state.adminEscopo).nome;
+  const grauAConfirmar = state.roster.filter(m => m.grauPendente && m.divisao === nomeDivisao);
+  const graus = grauAConfirmar.length ? [{ tipo:'grau', prioridade:1, ordem:'', dados:grauAConfirmar }] : [];
   const eventos = eventosProximos(state.adminEscopo).map(dados => {
     const r = semResposta(dados.ev);
     // Evento que ainda pode ter pendencia fica no topo. Se todos ja
@@ -171,7 +192,7 @@ function avisosDoMural() {
     tipo:'honraria', prioridade:h.dias <= 30 ? 1 : 2,
     ordem:String(h.dias + 1000).padStart(4, '0') + '|' + h.membro.nome, dados:h,
   }));
-  return eventos.concat(honrarias).sort((a, b) => a.prioridade - b.prioridade || a.ordem.localeCompare(b.ordem));
+  return eventos.concat(graus, honrarias).sort((a, b) => a.prioridade - b.prioridade || a.ordem.localeCompare(b.ordem));
 }
 
 // O mural fica na tela mesmo sem nenhum aviso, com a mesma altura de
@@ -184,7 +205,7 @@ function avisosDoMural() {
 function muralDeAvisos() {
   const avisos = avisosDoMural();
   const conteudo = avisos.length
-    ? avisos.map(a => a.tipo === 'evento' ? linhaAviso(a.dados) : linhaHonraria(a.dados)).join('')
+    ? avisos.map(a => a.tipo === 'evento' ? linhaAviso(a.dados) : a.tipo === 'grau' ? linhaGrauPendente(a.dados) : linhaHonraria(a.dados)).join('')
     : '<div class="aviso-vazio">Nenhum aviso no momento</div>';
   return `
     <div class="rotulo-secao">Mural de avisos</div>

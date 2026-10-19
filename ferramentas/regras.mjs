@@ -1185,9 +1185,36 @@ log('=== entrada/saída: o relatório de cada divisão e o quadro do Regional ==
   confere('o quadro vem na ordem oficial', q.linhas.map(l => l.e.chave), ['regional', 'oeste', 'recreio', 'barra', 'curicica', 'taquara', 'gardenia']);
   const linha = c => { const l = q.linhas.find(x => x.e.chave === c); return [l.entradas, l.afastados, l.desligamentos]; };
   confere('números da Barra e do Oeste', [linha('barra'), linha('oeste')], [[1, 1, 1], [1, 1, 0]]);
-  confere('total da RJ4', q.total, { entradas: 2, afastados: 2, desligamentos: 1 });
+  confere('total da RJ4', q.total, { entradas: 2, afastados: 2, desligamentos: 1, sairamDaRJ4: 0 });
   confere('texto do quadro com o total', textoQuadroRegional(q, 6).split('\n').slice(-1),
-    ['*TOTAL RJ4*: 🟢 2 entraram · ⏸️ 2 afastados · 🚪 1 desligados']);
+    ['*TOTAL RJ4*: 🟢 2 entraram · ⏸️ 2 afastados · 🚪 1 desligados · 🔁 0 para outra regional']);
+
+  // Transferencias: Lobo foi da Barra pro Oeste (duas linhas no livro) e
+  // Puma foi da Barra pra outra regional (so a saida).
+  const { rotuloMovimento, saiuDaRJ4 } = await import(url('dominio/movimentos.js'));
+  const tr = (nome, divisao, tipo, dePara) => ({ ...mv(emDias(-2), divisao, nome, tipo, 'pessoal'), dePara });
+  const comTransf = movimentos.concat([
+    tr('Lobo', 'barra', 'transferenciaSaida', 'Oeste - RJ4'),
+    tr('Lobo', 'oeste', 'transferenciaEntrada', 'Barra - RJ4'),
+    tr('Puma', 'barra', 'transferenciaSaida', 'RJ2 · Centro'),
+  ]);
+  const rb = resumoMovimentos(comTransf, roster, 'barra', 6), ro = resumoMovimentos(comTransf, roster, 'oeste', 6);
+  confere('transferência: a Barra vê quem saiu, o Oeste quem chegou',
+    [nomes(rb.sairam), nomes(rb.chegaram), nomes(ro.chegaram), nomes(ro.sairam)], [['Lobo', 'Puma'], [], ['Lobo'], []]);
+  confere('o rótulo diz pra onde foi e de onde veio', [rotuloMovimento(rb.sairam[0]), rotuloMovimento(ro.chegaram[0])],
+    ['Transferido para Oeste - RJ4', 'Veio de Barra - RJ4']);
+  confere('só sai da RJ4 quem foi pra outra regional', comTransf.filter(saiuDaRJ4).map(m => m.nome), ['Puma']);
+  const qt = quadroRegional(comTransf, roster, 6);
+  const tLinha = c => { const l = qt.linhas.find(x => x.e.chave === c); return [l.chegaram, l.sairam]; };
+  confere('o quadro: Barra -2, Oeste +1', [tLinha('barra'), tLinha('oeste')], [[0, 2], [1, 0]]);
+  confere('no total da RJ4, a transferência interna se anula', qt.total.sairamDaRJ4, 1);
+  const textoT = textoMovimentos(rb, 6);
+  confere('o texto leva as transferências, sem o motivo', [
+    textoT.includes('🔁 Transferências: *0* chegaram · *2* saíram'),
+    textoT.includes('🔁 Lobo (X) — para Oeste - RJ4 — '), textoT.includes('🔁 Puma (X) — para RJ2 · Centro — '),
+    textoT.includes('pessoal')], [true, true, true, false]);
+  confere('o texto do quadro leva +chegaram −saíram', textoQuadroRegional(qt, 6).split('\n').find(l => l.startsWith('*Barra')),
+    '*Barra - RJ4*: 🟢 1 · ⏸️ 1 · 🚪 1 · 🔁 +0 −2');
 }
 
 log('');

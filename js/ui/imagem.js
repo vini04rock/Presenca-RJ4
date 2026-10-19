@@ -971,18 +971,21 @@ export async function imagensEstoqueDoacoes(itens, resumo, nomeDivisao) {
 }
 
 // ---------------------------------------------------------------------------
-// Entrada/Saida de integrantes. Os tres numeros em placas lado a lado, e
+// Entrada/Saida de integrantes. Os quatro numeros em placas lado a lado, e
 // embaixo os nomes. Sem o motivo de ninguem: pode ser assunto pessoal (ver
 // dominio/movimentos.js).
-const COR_MOV = { entrada: '#5FC98D', afastamento: '#E0B24D', desligamento: '#D9635A' };
+const COR_MOV = { entrada: '#5FC98D', afastamento: '#E0B24D', desligamento: '#D9635A', transferencia: '#5FA0C4' };
 
-function placasMovimento(ctx, y, entradas, afastados, desligamentos) {
+// `transferencias` = [rotulo, numero]: numa divisao, as que chegaram e
+// sairam; no quadro da RJ4, so as pra outra regional.
+function placasMovimento(ctx, y, entradas, afastados, desligamentos, transferencias) {
   const placas = [
     ['🟢 ENTRARAM', entradas, COR_MOV.entrada],
     ['⏸️ AFASTADOS', afastados, COR_MOV.afastamento],
     ['🚪 DESLIGADOS', desligamentos, COR_MOV.desligamento],
+    [transferencias[0], transferencias[1], COR_MOV.transferencia],
   ];
-  const largura = 290, gap = 25, x0 = (L - (largura * 3 + gap * 2)) / 2;
+  const largura = 222, gap = 18, x0 = (L - (largura * 4 + gap * 3)) / 2;
   placas.forEach(([rotulo, n, cor], i) => {
     const x = x0 + i * (largura + gap);
     ctx.fillStyle = 'rgba(255,255,255,0.05)';
@@ -996,7 +999,10 @@ function placasMovimento(ctx, y, entradas, afastados, desligamentos) {
     fonte(ctx, 86, 400, 'rye');
     ctx.fillStyle = COR.marfim;
     ctx.fillText(String(n), x + largura / 2, y + 108);
-    fonte(ctx, 22, 700);
+    // O rotulo encolhe ate caber na placa ("🔁 TRANSFERÊNCIAS" e longo).
+    let tamanho = 22;
+    fonte(ctx, tamanho, 700);
+    while (tamanho > 14 && ctx.measureText(rotulo).width > largura - 20) fonte(ctx, --tamanho, 700);
     ctx.fillStyle = cor;
     ctx.fillText(rotulo, x + largura / 2, y + 152);
   });
@@ -1010,6 +1016,8 @@ export async function imagemMovimentos(r, nomeDivisao, rotuloPeriodo) {
     [`🟢 ENTRARAM (${r.entradas.length})`, COR_MOV.entrada, '🟢', r.entradas.map(m => comData(m, m.data))],
     [`⏸️ AFASTADOS AGORA (${r.afastadosAgora.length})`, COR_MOV.afastamento, '⏸️', r.afastadosAgora.map(m => comData(m, m.situacaoDesde, 'desde '))],
     [`🚪 DESLIGADOS (${r.desligamentos.length})`, COR_MOV.desligamento, '🚪', r.desligamentos.map(m => comData(m, m.data))],
+    [`🔁 CHEGARAM POR TRANSFERÊNCIA (${r.chegaram.length})`, COR_MOV.transferencia, '🔁', r.chegaram.map(m => comData(m, m.data, `de ${m.dePara} · `))],
+    [`🔁 SAÍRAM POR TRANSFERÊNCIA (${r.sairam.length})`, COR_MOV.transferencia, '🔁', r.sairam.map(m => comData(m, m.data, `para ${m.dePara} · `))],
   ].filter(s => s[3].length);
   const topoListas = 690;
   const alturaListas = secoes.reduce((s, sec) => s + 70 + sec[3].length * alturaLinha + 18 + 24, 0);
@@ -1019,7 +1027,8 @@ export async function imagemMovimentos(r, nomeDivisao, rotuloPeriodo) {
   emblema(ctx, logo, 40, 140);
   const y = tituloMetal(ctx, '🔄 Entrada e Saída', 255, 58, 980);
   rotuloEspacado(ctx, `${nomeDivisao.toUpperCase()}  ·  ${rotuloPeriodo.toUpperCase()}`, y + 2, 24, COR.ouro);
-  placasMovimento(ctx, 440, r.entradas.length, r.afastadosAgora.length, r.desligamentos.length);
+  placasMovimento(ctx, 440, r.entradas.length, r.afastadosAgora.length, r.desligamentos.length,
+    ['🔁 TRANSFERÊNCIAS', r.chegaram.length + r.sairam.length]);
 
   let yl = topoListas;
   if (!secoes.length) {
@@ -1036,16 +1045,18 @@ export async function imagemMovimentos(r, nomeDivisao, rotuloPeriodo) {
   return canvas;
 }
 
-// O quadro do Regional: uma linha por divisao com os tres numeros, e o
-// total da RJ4 nas placas de cima. So numeros.
+// O quadro do Regional: uma linha por divisao com os quatro numeros (a
+// transferencia como "+chegaram −sairam"), e o total da RJ4 nas placas de
+// cima - ali a transferencia e so a que foi pra outra regional. So numeros.
 export async function imagemQuadroMovimentos(q, rotuloPeriodo) {
   const { canvas, ctx, logo } = await novaTela();
   emblema(ctx, logo, 40, 140);
   const y = tituloMetal(ctx, '🔄 Entrada e Saída', 255, 58, 980);
   rotuloEspacado(ctx, `REGIONAL RJ4  ·  ${rotuloPeriodo.toUpperCase()}`, y + 2, 24, COR.ouro);
-  placasMovimento(ctx, 420, q.total.entradas, q.total.afastados, q.total.desligamentos);
+  placasMovimento(ctx, 420, q.total.entradas, q.total.afastados, q.total.desligamentos,
+    ['🔁 P/ OUTRA REGIONAL', q.total.sairamDaRJ4]);
 
-  const colunas = [640, 790, 940];
+  const colunas = [570, 690, 810, 945];
   let yl = 660;
   ctx.textBaseline = 'middle';
   fonte(ctx, 22, 700);
@@ -1053,7 +1064,7 @@ export async function imagemQuadroMovimentos(q, rotuloPeriodo) {
   ctx.textAlign = 'left';
   ctx.fillText('DIVISÃO', 110, yl);
   ctx.textAlign = 'center';
-  ['🟢', '⏸️', '🚪'].forEach((e, i) => ctx.fillText(e, colunas[i], yl));
+  ['🟢', '⏸️', '🚪', '🔁'].forEach((e, i) => ctx.fillText(e, colunas[i], yl));
   yl += 34;
   const alturaLinha = Math.min(64, (A - 190 - yl) / q.linhas.length);
   q.linhas.forEach((l, i) => {
@@ -1072,6 +1083,9 @@ export async function imagemQuadroMovimentos(q, rotuloPeriodo) {
       ctx.fillStyle = n ? cor : COR.apagado;
       ctx.fillText(String(n), colunas[k], meio + 2);
     });
+    fonte(ctx, 28, 400, 'rye');
+    ctx.fillStyle = l.chegaram || l.sairam ? COR_MOV.transferencia : COR.apagado;
+    ctx.fillText(`+${l.chegaram} −${l.sairam}`, colunas[3], meio + 2);
   });
   ctx.textBaseline = 'alphabetic';
   rodape(ctx);

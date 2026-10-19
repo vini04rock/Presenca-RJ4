@@ -27,7 +27,7 @@ const ACOES_PROTEGIDAS = [
   'responsavel', 'responsavelSalvar', 'textoChamadaSalvar',
   'doacoes', 'doacoesSalvar', 'caixinha', 'caixinhaSalvar', 'caixinhaRemover',
   'caixinhaLancamentoSalvar', 'caixinhaLancamentoRemover', 'estoqueSalvar', 'membrosEntradaSalvar',
-  'membroMovimentar', 'movimentos',
+  'membroMovimentar', 'movimentos', 'membroConfirmarGrau',
   'estoqueAdm', 'estoqueAdmMovimentar', 'estoqueAdmAnular',
 ];
 

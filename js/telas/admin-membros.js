@@ -5,8 +5,8 @@
 
 import { membrosDoEscopo } from '../dominio/estatisticas.js';
 import { TIPOS_MOVIMENTO, estaAfastado, semDataDeIngresso } from '../dominio/movimentos.js';
-import { confirmarMovimento, fecharPainelMovimento, salvarDatasDeIngresso } from '../fluxos/movimentos.js';
-import { FUNCOES, GRAUS, cargosDoGrau, escopoPorChave } from '../nucleo/config.js';
+import { confirmarGrauDoMembro, confirmarMovimento, fecharPainelMovimento, salvarDatasDeIngresso } from '../fluxos/movimentos.js';
+import { FUNCOES, GRAUS, cargosDoGrau, escopoPorChave, escoposNaOrdemOficial } from '../nucleo/config.js';
 import { genId, state } from '../nucleo/estado.js';
 import { dataISOdeBR, escapeHtml, formatDataBR, hojeISO, ordenarPorHierarquia } from '../nucleo/util.js';
 import { linhaFuncoes, selinhoIniciais } from '../ui/comuns.js';
@@ -210,8 +210,40 @@ function botoesMovimento(m) {
       ${afastado
         ? `<button class="btn-mov" data-action="abrir-movimento" data-id="${m.id}" data-value="retorno">▶️ Retorno</button>`
         : `<button class="btn-mov" data-action="abrir-movimento" data-id="${m.id}" data-value="afastamento">⏸️ Afastamento</button>`}
+      <button class="btn-mov" data-action="abrir-movimento" data-id="${m.id}" data-value="transferencia">🔁 Transferência</button>
       <button class="btn-mov perigo" data-action="abrir-movimento" data-id="${m.id}" data-value="desligamento">🚪 Desligamento</button>
     </span>
+  `;
+}
+
+// O destino da transferencia: RJ4 (as divisoes daqui em botoes, na ordem
+// oficial, sem a dele) ou outra regional (regional e divisao escritas).
+// Botoes na RJ4 porque o app precisa do nome exato - um "Barr" escrito a
+// mao deixaria o irmao sem divisao.
+function camposTransferencia(m) {
+  const fora = state.movForaDaRJ4;
+  const destinos = escoposNaOrdemOficial().filter(e => e.nome !== m.divisao);
+  return `
+    <label>Regional</label>
+    <div class="row-gap" style="margin-bottom:10px;">
+      <button class="toggle-chip ${fora ? '' : 'active'}" style="flex:1;" data-action="mov-regional" data-value="rj4">RJ4</button>
+      <button class="toggle-chip ${fora ? 'active' : ''}" style="flex:1;" data-action="mov-regional" data-value="fora">Outra regional</button>
+    </div>
+    ${fora ? `
+      <div class="field" style="margin-bottom:10px;">
+        <label>Qual regional</label>
+        <input type="text" id="mov-regional-destino" maxlength="60" value="${escapeHtml(state.movRegionalDestino)}" placeholder="Ex: RJ2" autocomplete="off">
+      </div>
+      <div class="field" style="margin-bottom:10px;">
+        <label>Divisão</label>
+        <input type="text" id="mov-divisao-destino" maxlength="60" value="${escapeHtml(state.movDivisaoDestino)}" placeholder="Ex: Centro" autocomplete="off">
+      </div>
+    ` : `
+      <label>Divisão</label>
+      <div class="chip-grid wide" style="margin-bottom:10px;">
+        ${destinos.map(e => `<button class="chip-option ${state.movDestino === e.chave ? 'active' : ''}" data-action="mov-destino" data-value="${e.chave}">${escapeHtml(e.nome)}</button>`).join('')}
+      </div>
+    `}
   `;
 }
 
@@ -221,14 +253,19 @@ const EXPLICA_MOVIMENTO = {
   afastamento: 'Enquanto afastado, não entra em evento novo, na caixinha de mês novo nem no Insight. Sai dos eventos ainda abertos, pra não levar falta. O histórico fica como está.',
   retorno: 'Volta a entrar nos eventos novos, na caixinha e no Insight. Os eventos já abertos não recebem ele de volta sozinhos — inclua pelo Editar do evento, se for o caso.',
   desligamento: 'Sai do cadastro e dos eventos ainda abertos. As presenças dos eventos encerrados continuam valendo, então os percentuais antigos não mudam. Fica registrado no Entrada/Saída.',
+  transferencia: 'Muda de divisão com todo o histórico. O cargo sai e o grau fica "a confirmar" pela divisão nova. Sai dos eventos ainda abertos daqui e entra como ⚠️ Aguardando nos abertos da divisão nova, do dia da transferência em diante. Fica no Entrada/Saída das duas.',
+  transferenciaFora: 'Sai do cadastro e dos eventos ainda abertos, como no desligamento. O histórico fica: as presenças dos eventos encerrados e os percentuais antigos não mudam. Fica registrado no Entrada/Saída.',
 };
 function painelMovimento(m) {
-  const t = TIPOS_MOVIMENTO[state.movTipo];
-  const verbo = { afastamento: 'Afastar', retorno: 'Registrar o retorno de', desligamento: 'Desligar' }[state.movTipo];
+  const transferencia = state.movTipo === 'transferencia';
+  const t = transferencia ? { emoji: '🔁', label: 'Transferência' } : TIPOS_MOVIMENTO[state.movTipo];
+  const verbo = { afastamento: 'Afastar', retorno: 'Registrar o retorno de', desligamento: 'Desligar', transferencia: 'Transferir' }[state.movTipo];
+  const explica = EXPLICA_MOVIMENTO[transferencia && state.movForaDaRJ4 ? 'transferenciaFora' : state.movTipo];
   return `
     <div class="mov-painel mov-${state.movTipo}">
       <div class="mov-titulo">${t.emoji} ${escapeHtml(verbo)} ${escapeHtml(m.nome)}</div>
-      <div class="mov-explica">${escapeHtml(EXPLICA_MOVIMENTO[state.movTipo])}</div>
+      <div class="mov-explica">${escapeHtml(explica)}</div>
+      ${transferencia ? camposTransferencia(m) : ''}
       <div class="field" style="margin-bottom:10px;">
         <label>Data</label>
         <input type="text" inputmode="numeric" maxlength="10" class="campo-data" id="mov-data"
@@ -244,6 +281,34 @@ function painelMovimento(m) {
           ${state.movSalvando ? 'Registrando…' : `Confirmar ${t.label.toLowerCase()}`}
         </button>
         <button class="btn secondary" style="flex:1;" data-action="cancelar-movimento" ${state.movSalvando ? 'disabled' : ''}>Cancelar</button>
+      </div>
+    </div>
+  `;
+}
+
+// O "Confirmar grau" de quem chegou transferido: o grau que veio ja
+// marcado, e o cargo nos graus VI e V (o da divisao antiga saiu na
+// transferencia). Confirmar tira o lembrete.
+function painelConfirmarGrau(m) {
+  const cargos = cargosDoGrau(state.grauEscolhido);
+  return `
+    <div class="mov-painel mov-transferencia">
+      <div class="mov-titulo">✅ Confirmar o grau de ${escapeHtml(m.nome)}</div>
+      <div class="mov-explica">Chegou por transferência, e o cargo da divisão antiga saiu. Confira o grau${cargos.length ? ', marque o cargo dele aqui, se tiver,' : ''} e confirme.</div>
+      <label>Grau</label>
+      <div class="chip-grid" style="margin-bottom:10px;">
+        ${GRAUS.map(g => `<button class="chip-option ${state.grauEscolhido === g ? 'active' : ''}" data-action="confirmar-grau-pick" data-value="${g}">${g}</button>`).join('')}
+      </div>
+      ${cargos.length ? `
+        <label>Cargo (opcional)</label>
+        <div class="chip-grid wide" style="margin-bottom:10px;">
+          ${cargos.map(c => `<button class="chip-option ${state.cargoEscolhido === c ? 'active' : ''}" data-action="confirmar-cargo-pick" data-value="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('')}
+        </div>
+      ` : ''}
+      ${state.grauErro ? `<div class="alert" style="margin-bottom:10px;"><div class="alert-msg">${escapeHtml(state.grauErro)}</div></div>` : ''}
+      <div class="row-gap">
+        <button class="btn" style="flex:1;" data-action="confirmar-grau" ${state.grauSalvando ? 'disabled' : ''}>${state.grauSalvando ? 'Confirmando…' : 'Confirmar grau'}</button>
+        <button class="btn secondary" style="flex:1;" data-action="cancelar-confirmar-grau" ${state.grauSalvando ? 'disabled' : ''}>Cancelar</button>
       </div>
     </div>
   `;
@@ -278,6 +343,10 @@ function linhaCadastro(m) {
             ${m.cargo ? `<span class="member-cargo-inline">${escapeHtml(m.cargo)}</span>` : ''}
           </div>
           ${afastado ? `<div class="selo-afastado">⏸️ Afastado${m.situacaoDesde ? ` desde ${escapeHtml(formatDataBR(m.situacaoDesde))}` : ''}</div>` : ''}
+          ${m.grauPendente ? `
+            <div class="selo-grau-pendente">⏳ Grau a confirmar
+              <button class="btn-mov" data-action="abrir-confirmar-grau" data-id="${m.id}">✅ Confirmar grau</button>
+            </div>` : ''}
           <div class="cadastro-controles">
             ${botoesMovimento(m)}
             <div class="acoes-cadastro">
@@ -290,6 +359,7 @@ function linhaCadastro(m) {
         </div>
       </div>
       ${state.movMembroId === m.id ? painelMovimento(m) : ''}
+      ${state.grauMembroId === m.id ? painelConfirmarGrau(m) : ''}
       ${state.removerMembroId === m.id ? painelRemover(m) : ''}
     </div>
   `;
@@ -366,6 +436,49 @@ export const acoes = {
   'cancelar-movimento': async (id, target, action, e) => {
     fecharPainelMovimento();
     return render();
+  },
+  // A transferencia: RJ4 ou outra regional, e a divisao da RJ4.
+  'mov-regional': async (id, target, action, e) => {
+    state.movForaDaRJ4 = target.dataset.value === 'fora';
+    state.movErro = null;
+    return render();
+  },
+  'mov-destino': async (id, target, action, e) => {
+    state.movDestino = target.dataset.value;
+    state.movErro = null;
+    return render();
+  },
+
+  // O "Confirmar grau", na linha de quem chegou transferido. Tocar de novo
+  // fecha.
+  'abrir-confirmar-grau': async (id, target, action, e) => {
+    const mesmo = state.grauMembroId === id;
+    fecharPainelMovimento();
+    if (!mesmo) {
+      const m = state.roster.find(x => x.id === id);
+      state.grauMembroId = id;
+      state.grauEscolhido = (m && m.grau) || null;
+      state.cargoEscolhido = (m && m.cargo) || null;
+      state.grauErro = null;
+    }
+    return render();
+  },
+  'confirmar-grau-pick': async (id, target, action, e) => {
+    state.grauEscolhido = target.dataset.value;
+    // Cargo pertence a um grau - o mesmo cuidado do pick-grau.
+    state.cargoEscolhido = null;
+    return render();
+  },
+  'confirmar-cargo-pick': async (id, target, action, e) => {
+    state.cargoEscolhido = state.cargoEscolhido === target.dataset.value ? null : target.dataset.value;
+    return render();
+  },
+  'cancelar-confirmar-grau': async (id, target, action, e) => {
+    state.grauMembroId = null;
+    return render();
+  },
+  'confirmar-grau': async (id, target, action, e) => {
+    return confirmarGrauDoMembro();
   },
   'confirmar-movimento': async (id, target, action, e) => {
     return confirmarMovimento();

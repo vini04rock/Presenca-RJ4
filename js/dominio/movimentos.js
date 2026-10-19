@@ -6,12 +6,16 @@
 //   - afastados: quantos estao afastados AGORA (o cadastro diz), porque
 //     afastamento e um estado, nao um acontecimento - quem se afastou ha um
 //     ano e continua afastado ainda conta.
+// E as transferencias (19/10/2026), tambem no periodo: quem chegou de outra
+// divisao e quem saiu pra outra divisao ou regional. No total da RJ4, a
+// transferencia entre duas divisoes da RJ4 se anula (saiu de uma, chegou na
+// outra) - so conta quem foi pra outra regional.
 //
 // O motivo de cada movimentacao so aparece dentro do app. O texto e a
 // imagem pro grupo levam nome e data, nunca o motivo: pode ser assunto
 // pessoal (saude, familia), e o que vai pro grupo circula.
 
-import { escopoPorChave, escoposNaOrdemOficial } from '../nucleo/config.js';
+import { escopoPorChave, escoposEmOrdemDeExibicao, escoposNaOrdemOficial } from '../nucleo/config.js';
 import { dataCorteMeses, formatDataBR, ordenarPorHierarquia } from '../nucleo/util.js';
 import { nomeDoPeriodo } from './doacoes.js';
 
@@ -20,7 +24,22 @@ export const TIPOS_MOVIMENTO = {
   afastamento: { emoji: '⏸️', label: 'Afastamento' },
   retorno: { emoji: '▶️', label: 'Retorno' },
   desligamento: { emoji: '🚪', label: 'Desligamento' },
+  // As duas pontas de uma transferencia (ver transferirMembro no Code.gs).
+  transferenciaSaida: { emoji: '🔁', label: 'Transferido' },
+  transferenciaEntrada: { emoji: '🔁', label: 'Chegou por transferência' },
 };
+
+// "Transferido para Oeste - RJ4" / "Veio de Barra - RJ4": a linha do tempo.
+export function rotuloMovimento(m) {
+  if (m.tipo === 'transferenciaSaida') return `Transferido para ${m.dePara || '?'}`;
+  if (m.tipo === 'transferenciaEntrada') return `Veio de ${m.dePara || '?'}`;
+  return TIPOS_MOVIMENTO[m.tipo].label;
+}
+
+// A saida que deixou a RJ4: o destino nao e uma das divisoes daqui.
+export function saiuDaRJ4(m) {
+  return m.tipo === 'transferenciaSaida' && !escoposEmOrdemDeExibicao().some(e => e.nome === m.dePara);
+}
 
 export function estaAfastado(m) { return !!m && m.situacao === 'afastado'; }
 
@@ -100,6 +119,8 @@ export function resumoMovimentos(movimentos, roster, chave, meses) {
     afastamentos: doTipo('afastamento'),
     retornos: doTipo('retorno'),
     desligamentos: doTipo('desligamento'),
+    chegaram: doTipo('transferenciaEntrada'),
+    sairam: doTipo('transferenciaSaida'),
     afastadosAgora: ordenarPorHierarquia(roster.filter(m => m.divisao === nomeDivisao && estaAfastado(m))),
     linhaDoTempo,
   };
@@ -110,10 +131,12 @@ export function resumoMovimentos(movimentos, roster, chave, meses) {
 export function quadroRegional(movimentos, roster, meses) {
   const linhas = escoposNaOrdemOficial().map(e => {
     const r = resumoMovimentos(movimentos, roster, e.chave, meses);
-    return { e, entradas: r.entradas.length, afastados: r.afastadosAgora.length, desligamentos: r.desligamentos.length };
+    return { e, entradas: r.entradas.length, afastados: r.afastadosAgora.length, desligamentos: r.desligamentos.length,
+      chegaram: r.chegaram.length, sairam: r.sairam.length, sairamDaRJ4: r.sairam.filter(saiuDaRJ4).length };
   });
   const soma = campo => linhas.reduce((s, l) => s + l[campo], 0);
-  return { linhas, total: { entradas: soma('entradas'), afastados: soma('afastados'), desligamentos: soma('desligamentos') } };
+  return { linhas, total: { entradas: soma('entradas'), afastados: soma('afastados'), desligamentos: soma('desligamentos'),
+    sairamDaRJ4: soma('sairamDaRJ4') } };
 }
 
 const comGrau = m => `${m.nome}${m.grau ? ` (${m.grau})` : ''}`;
@@ -128,12 +151,15 @@ export function textoMovimentos(r, meses) {
     `🟢 Entraram: *${r.entradas.length}*`,
     `⏸️ Afastados agora: *${r.afastadosAgora.length}*`,
     `🚪 Desligados: *${r.desligamentos.length}*`,
+    `🔁 Transferências: *${r.chegaram.length}* ${r.chegaram.length === 1 ? 'chegou' : 'chegaram'} · *${r.sairam.length}* ${r.sairam.length === 1 ? 'saiu' : 'saíram'}`,
   ];
   if (r.entradas.length) partes.push('', '🟢 *ENTRARAM*', ...r.entradas.map(m => `🟢 ${comGrau(m)}${quandoFoi(m)}`));
   if (r.afastadosAgora.length) {
     partes.push('', '⏸️ *AFASTADOS*', ...r.afastadosAgora.map(m => `⏸️ ${comGrau(m)}${m.situacaoDesde ? ` — desde ${formatDataBR(m.situacaoDesde)}` : ''}`));
   }
   if (r.desligamentos.length) partes.push('', '🚪 *DESLIGADOS*', ...r.desligamentos.map(m => `🚪 ${comGrau(m)}${quandoFoi(m)}`));
+  if (r.chegaram.length) partes.push('', '🔁 *CHEGARAM POR TRANSFERÊNCIA*', ...r.chegaram.map(m => `🔁 ${comGrau(m)} — veio de ${m.dePara}${quandoFoi(m)}`));
+  if (r.sairam.length) partes.push('', '🔁 *SAÍRAM POR TRANSFERÊNCIA*', ...r.sairam.map(m => `🔁 ${comGrau(m)} — para ${m.dePara}${quandoFoi(m)}`));
   return partes.join('\n');
 }
 
@@ -143,8 +169,8 @@ export function textoQuadroRegional(q, meses) {
     '🔄 *ENTRADA E SAÍDA — RJ4* 🔄',
     rotuloPeriodoMovimentos(meses),
     '',
-    ...q.linhas.map(l => `*${l.e.nome}*: 🟢 ${l.entradas} · ⏸️ ${l.afastados} · 🚪 ${l.desligamentos}`),
+    ...q.linhas.map(l => `*${l.e.nome}*: 🟢 ${l.entradas} · ⏸️ ${l.afastados} · 🚪 ${l.desligamentos} · 🔁 +${l.chegaram} −${l.sairam}`),
     '',
-    `*TOTAL RJ4*: 🟢 ${q.total.entradas} entraram · ⏸️ ${q.total.afastados} afastados · 🚪 ${q.total.desligamentos} desligados`,
+    `*TOTAL RJ4*: 🟢 ${q.total.entradas} entraram · ⏸️ ${q.total.afastados} afastados · 🚪 ${q.total.desligamentos} desligados · 🔁 ${q.total.sairamDaRJ4} para outra regional`,
   ].join('\n');
 }

@@ -5,7 +5,7 @@
 
 import { carregarMovimentos } from '../dados/carregar.js';
 import { rotuloPilula } from '../dominio/doacoes.js';
-import { PERIODOS_MOVIMENTOS, TIPOS_MOVIMENTO, quadroRegional, rotuloPeriodoMovimentos, resumoMovimentos, textoMovimentos, textoQuadroRegional } from '../dominio/movimentos.js';
+import { PERIODOS_MOVIMENTOS, TIPOS_MOVIMENTO, quadroRegional, rotuloMovimento, rotuloPeriodoMovimentos, resumoMovimentos, textoMovimentos, textoQuadroRegional } from '../dominio/movimentos.js';
 import { escopoPorChave } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
@@ -47,25 +47,35 @@ function pilulas() {
   `;
 }
 
-// A pizza dos tres numeros, entre o placar e os botoes. Mesmas cores do
-// placar e das imagens: verde entrou, amarelo afastado, vermelho desligado.
-function pizzaMovimentos(entradas, afastados, desligamentos) {
+// A pizza dos quatro numeros, entre o placar e os botoes. Mesmas cores do
+// placar e das imagens: verde entrou, amarelo afastado, vermelho desligado,
+// azul transferencia.
+function pizzaMovimentos(entradas, afastados, desligamentos, transferencias) {
   return renderPizza([
     { label: 'Entraram', value: entradas, cor: 'var(--status-confirmado)' },
     { label: 'Afastados agora', value: afastados, cor: '#E0B24D' },
     { label: 'Desligados', value: desligamentos, cor: 'var(--status-infracional)' },
+    { label: transferencias.rotulo, value: transferencias.n, cor: '#5FA0C4' },
   ], 130, 'Nada no período');
 }
 
-// Os tres numeros lado a lado.
-function placar(entradas, afastados, desligamentos) {
+// Os quatro numeros, dois a dois. `transferencias` = { n, rotulo, detalhe }:
+// numa divisao, quem chegou + quem saiu; no total da RJ4, so quem foi pra
+// outra regional (entre divisoes daqui, uma saida e uma chegada se anulam).
+function placar(entradas, afastados, desligamentos, transferencias) {
   return `
-    <div class="mov-placar" data-anima="placar:${entradas},${afastados},${desligamentos}">
+    <div class="mov-placar" data-anima="placar:${entradas},${afastados},${desligamentos},${transferencias.n}">
       <div class="mov-placar-item mov-entrada"><b data-conta="${entradas}">${entradas}</b><span>🟢 Entraram</span></div>
       <div class="mov-placar-item mov-afastamento"><b data-conta="${afastados}">${afastados}</b><span>⏸️ Afastados agora</span></div>
       <div class="mov-placar-item mov-desligamento"><b data-conta="${desligamentos}">${desligamentos}</b><span>🚪 Desligados</span></div>
+      <div class="mov-placar-item mov-transferencia"><b data-conta="${transferencias.n}">${transferencias.n}</b><span>🔁 ${escapeHtml(transferencias.rotulo)}</span>${transferencias.detalhe ? `<span>${escapeHtml(transferencias.detalhe)}</span>` : ''}</div>
     </div>
   `;
+}
+
+function transferenciasDaDivisao(r) {
+  return { n: r.chegaram.length + r.sairam.length, rotulo: 'Transferências',
+    detalhe: `${r.chegaram.length} ${r.chegaram.length === 1 ? 'chegou' : 'chegaram'} · ${r.sairam.length} ${r.sairam.length === 1 ? 'saiu' : 'saíram'}` };
 }
 
 function linhaMovimento(m) {
@@ -80,7 +90,7 @@ function linhaMovimento(m) {
         </div>
         <span class="mov-data">${m.data ? escapeHtml(formatDataBR(m.data)) : '—'}</span>
       </div>
-      <div class="mov-tipo">${escapeHtml(t.label)}${m.motivo ? ` · <span class="mov-motivo">${escapeHtml(m.motivo)}</span>` : ''}</div>
+      <div class="mov-tipo">${escapeHtml(rotuloMovimento(m))}${m.motivo ? ` · <span class="mov-motivo">${escapeHtml(m.motivo)}</span>` : ''}</div>
     </div>
   `;
 }
@@ -95,9 +105,9 @@ function relatorioDivisao(movimentos, chave) {
     <div class="card">
       <div class="painel-titulo">🔄 ${escapeHtml(escopoPorChave(chave).nome)}</div>
       ${pilulas()}
-      ${placar(r.entradas.length, r.afastadosAgora.length, r.desligamentos.length)}
-      ${pizzaMovimentos(r.entradas.length, r.afastadosAgora.length, r.desligamentos.length)}
-      <div class="info-line" style="padding:10px 0 0; color:var(--text-muted); font-size:12px;">Entraram e desligados: no período. Afastados: quem está afastado hoje.</div>
+      ${placar(r.entradas.length, r.afastadosAgora.length, r.desligamentos.length, transferenciasDaDivisao(r))}
+      ${pizzaMovimentos(r.entradas.length, r.afastadosAgora.length, r.desligamentos.length, transferenciasDaDivisao(r))}
+      <div class="info-line" style="padding:10px 0 0; color:var(--text-muted); font-size:12px;">Entraram, desligados e transferências: no período. Afastados: quem está afastado hoje.</div>
       <div class="row-gap no-print" style="margin-top:12px;">
         <button class="btn secondary" style="flex:1;" data-action="copiar-texto-movimentos" data-value="${chave}">📋 Copiar pro WhatsApp</button>
         <button class="btn secondary" style="flex:1;" data-action="imagem-movimentos" data-value="${chave}">🖼️ Imagem pro grupo</button>
@@ -125,27 +135,28 @@ function relatorioDivisao(movimentos, chave) {
       <div class="division-subheader"><span>LINHA DO TEMPO</span><span class="division-counts">${r.linhaDoTempo.length}</span></div>
       ${r.linhaDoTempo.length
         ? r.linhaDoTempo.map(linhaMovimento).join('')
-        : `<div class="empty">Nenhuma movimentação ${state.movimentosPeriodo ? 'nesse período' : 'registrada ainda'}.<br>Afastamento e desligamento se registram no cadastro de Membros.</div>`}
+        : `<div class="empty">Nenhuma movimentação ${state.movimentosPeriodo ? 'nesse período' : 'registrada ainda'}.<br>Afastamento, transferência e desligamento se registram no cadastro de Membros.</div>`}
     </div>
   `;
 }
 
 function quadro(movimentos) {
   const q = quadroRegional(movimentos, state.roster, state.movimentosPeriodo);
+  const paraFora = { n: q.total.sairamDaRJ4, rotulo: 'Para outra regional', detalhe: '' };
   return `
     <div class="card">
       <div class="painel-titulo">🔄 Entrada e saída — RJ4</div>
       ${pilulas()}
-      ${placar(q.total.entradas, q.total.afastados, q.total.desligamentos)}
-      ${pizzaMovimentos(q.total.entradas, q.total.afastados, q.total.desligamentos)}
-      <div class="info-line" style="padding:10px 0 0; color:var(--text-muted); font-size:12px;">A soma de todas as divisões. Toque numa divisão abaixo pra ver só a dela.</div>
+      ${placar(q.total.entradas, q.total.afastados, q.total.desligamentos, paraFora)}
+      ${pizzaMovimentos(q.total.entradas, q.total.afastados, q.total.desligamentos, paraFora)}
+      <div class="info-line" style="padding:10px 0 0; color:var(--text-muted); font-size:12px;">A soma de todas as divisões. Transferência entre divisões da RJ4 não muda o total; só conta quem foi pra outra regional. Toque numa divisão abaixo pra ver só a dela.</div>
       <div class="row-gap no-print" style="margin-top:12px;">
         <button class="btn secondary" style="flex:1;" data-action="copiar-quadro-movimentos">📋 Copiar pro WhatsApp</button>
         <button class="btn secondary" style="flex:1;" data-action="imagem-quadro-movimentos">🖼️ Imagem pro grupo</button>
       </div>
     </div>
     <div class="card" style="padding: 4px 16px;">
-      <div class="division-subheader"><span>POR DIVISÃO</span><span class="division-counts">🟢 · ⏸️ · 🚪</span></div>
+      <div class="division-subheader"><span>POR DIVISÃO</span><span class="division-counts">🟢 · ⏸️ · 🚪 · 🔁</span></div>
       ${q.linhas.map(l => `
         <div class="member-row mov-quadro-linha" data-action="abrir-movimentos-divisao" data-value="${l.e.chave}">
           <div class="member-head">
@@ -154,6 +165,7 @@ function quadro(movimentos) {
               <span class="mov-num mov-entrada${l.entradas ? '' : ' zero'}">🟢 ${l.entradas}</span>
               <span class="mov-num mov-afastamento${l.afastados ? '' : ' zero'}">⏸️ ${l.afastados}</span>
               <span class="mov-num mov-desligamento${l.desligamentos ? '' : ' zero'}">🚪 ${l.desligamentos}</span>
+              <span class="mov-num mov-transferencia${l.chegaram || l.sairam ? '' : ' zero'}" title="chegaram · saíram">🔁 +${l.chegaram} −${l.sairam}</span>
               <span class="arrow">›</span>
             </span>
           </div>

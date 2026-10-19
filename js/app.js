@@ -289,6 +289,11 @@ document.getElementById('app').addEventListener('input', (e) => {
     state.movMotivo = e.target.value;
     return;
   }
+  // A regional e a divisao de destino de uma transferencia pra fora da RJ4.
+  if (e.target.id === 'mov-regional-destino' || e.target.id === 'mov-divisao-destino') {
+    state[e.target.id === 'mov-regional-destino' ? 'movRegionalDestino' : 'movDivisaoDestino'] = e.target.value;
+    return;
+  }
   if (atualizarCampoEstoqueAdm(e.target)) return;
   // O valor pago na Caixinha: acerta o selo e o total sem redesenhar, senao
   // o teclado do celular fecharia a cada numero.

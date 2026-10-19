@@ -2638,6 +2638,11 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 .btn-mov.perigo { color: #C9A29C; border-color: var(--danger-line); }
 .linha-cadastro.afastado .member-name { color: var(--text-muted); }
 .selo-afastado { font-size: 11.5px; font-weight: 600; color: #E0B24D; padding-left: 34px; }
+/* Quem chegou por transferencia, ate a divisao nova confirmar o grau. */
+.selo-grau-pendente {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  font-size: 11.5px; font-weight: 600; color: #5FA0C4; padding-left: 34px; margin-top: 2px;
+}
 
 /* O painel que abre embaixo da linha, na cor do que vai acontecer. */
 .mov-painel {
@@ -2648,11 +2653,12 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 .mov-painel.mov-afastamento { border-left-color: #E0B24D; }
 .mov-painel.mov-retorno { border-left-color: var(--status-confirmado); }
 .mov-painel.mov-desligamento { border-left-color: var(--status-infracional); }
+.mov-painel.mov-transferencia { border-left-color: #5FA0C4; }
 .mov-titulo { font-weight: 700; color: var(--white-strong); margin-bottom: 4px; }
 .mov-explica { font-size: 12px; color: var(--text-muted); line-height: 1.45; margin-bottom: 10px; }
 
-/* Os tres numeros do relatorio. */
-.mov-placar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+/* Os quatro numeros do relatorio, dois a dois. */
+.mov-placar { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
 .mov-placar-item {
   display: flex; flex-direction: column; align-items: center; gap: 4px;
   padding: 12px 4px; border-radius: 12px; text-align: center;
@@ -2663,6 +2669,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 .mov-placar-item.mov-entrada { border-color: rgba(95, 201, 141, 0.45); }
 .mov-placar-item.mov-afastamento { border-color: rgba(224, 178, 77, 0.45); }
 .mov-placar-item.mov-desligamento { border-color: rgba(217, 99, 90, 0.45); }
+.mov-placar-item.mov-transferencia { border-color: rgba(95, 160, 196, 0.45); }
 
 /* Linha do tempo e quadro do Regional. */
 .mov-emoji { font-size: 15px; }
@@ -2671,6 +2678,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 .mov-linha.mov-entrada .mov-tipo { color: var(--status-confirmado); }
 .mov-linha.mov-afastamento .mov-tipo { color: #E0B24D; }
 .mov-linha.mov-desligamento .mov-tipo { color: var(--status-infracional); }
+.mov-linha.mov-transferenciaSaida .mov-tipo, .mov-linha.mov-transferenciaEntrada .mov-tipo { color: #5FA0C4; }
 .mov-motivo { color: var(--text-muted); font-style: italic; }
 .mov-quadro-linha { cursor: pointer; }
 .mov-quadro-linha:active { opacity: 0.7; }
@@ -2679,9 +2687,10 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 .mov-num.mov-entrada { color: var(--status-confirmado); }
 .mov-num.mov-afastamento { color: #E0B24D; }
 .mov-num.mov-desligamento { color: var(--status-infracional); }
+.mov-num.mov-transferencia { color: #5FA0C4; min-width: 52px; }
 .mov-num.zero { color: var(--text-muted); font-weight: 500; opacity: 0.7; }
 .mov-quadro-numeros .arrow { color: var(--text-muted); font-size: 18px; }
-@media print { .acoes-movimento, .mov-painel { display: none !important; } }
+@media print { .acoes-movimento, .mov-painel, .selo-grau-pendente .btn-mov { display: none !important; } }
 
 /* A pizza (renderPizza): fatias cheias, com sombra, crescendo do centro. */
 .pizza-wrap { margin-top: 14px; }

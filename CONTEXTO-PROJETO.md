@@ -126,7 +126,7 @@ sem controlar o servidor.
 
 | Aba | O que guarda |
 |---|---|
-| `Membros` | id, nome, grau, divisão, funções, **cargo**, situação (afastado), data de ingresso no clube (coluna Entrada) |
+| `Membros` | id, nome, grau, divisão, funções, **cargo**, situação (afastado), data de ingresso no clube (coluna Entrada), grau a confirmar (quem chegou por transferência) |
 | `Eventos` | id, nome, data, horário, endereço, outros, status, categoria, tipo, texto original, **chamada** (JSON) |
 | `Presencas` | uma linha por evento × membro, com status e as flags Direto/Destacado/Acompanhado |
 | `InsightRodadas` | uma linha por rodada |
@@ -134,7 +134,7 @@ sem controlar o servidor.
 | `InsightExcluidos` | só quem foi tirado do Insight; sem linha = participa |
 | `Responsaveis` | quem assina a chamada, uma linha por divisão e uma pelo Regional |
 | `TextosChamada` | Regras do clube e Atenção personalizadas pelo Regional; sem linha = o padrão |
-| `Movimentacoes` | o livro de Entrada/Saída: uma linha por entrada, afastamento, retorno ou desligamento. Nada é apagado |
+| `Movimentacoes` | o livro de Entrada/Saída: uma linha por entrada, afastamento, retorno, desligamento ou ponta de transferência (com o `De/Para`). Nada é apagado |
 | `Doacoes` | uma linha por evento × integrante que levou alimento, com os kg; sem linha = não levou |
 | `EstoqueDoacoes` | o estoque (alimentos, roupas, cobertores, sapatos…): uma linha por item da divisão, com a quantidade de hoje, em unidades, pares ou kg; a linha com "Automatico" = Sim é a dos alimentos dos eventos |
 | `EstoqueADMItens` | cadastro dos materiais administrativos do Regional; uma linha por material |
@@ -469,16 +469,17 @@ O que cada um faz (`registrarMovimento`, no `Code.gs`):
 **O relatório** é o card **🔄 Entrada/Saída** do menu do organizador
 (`telas/admin-movimentos.js`, contas em `dominio/movimentos.js`):
 
-- Numa divisão: três números (entraram, afastados agora, desligados), os
+- Numa divisão: quatro números (entraram, afastados agora, desligados e
+  transferências — chegaram · saíram), os
   afastados de hoje e a linha do tempo. O período (desde 19/10/2026) é
   **1 mês** (os últimos 30 dias), **Tudo** (o padrão) ou **Por período**,
   de uma data a outra, com "De" ou "Até" em branco valendo sem limite
   daquele lado (`PERIODOS_MOVIMENTOS`/`rotuloPeriodoMovimentos`, em
   `dominio/movimentos.js`). É uma lista própria: Doações e Caixinha
-  continuam com 3, 6, 12 meses e tudo. **Entraram e desligados contam no
-  período; afastados contam agora**, porque afastamento é um estado e não
-  um acontecimento.
-- Os três números também viram uma **pizza** (`renderPizza`, em
+  continuam com 3, 6, 12 meses e tudo. **Entraram, desligados e
+  transferências contam no período; afastados contam agora**, porque
+  afastamento é um estado e não um acontecimento.
+- Os quatro números também viram uma **pizza** (`renderPizza`, em
   `ui/graficos.js`), entre o placar e os botões: no Regional, a soma de
   todas as divisões; numa divisão, só a dela.
 - No Regional: o quadro de todas as divisões na ordem oficial, com o total
@@ -490,8 +491,41 @@ O que cada um faz (`registrarMovimento`, no `Code.gs`):
 - Registrar e ler pedem PIN, e o `Code.gs` confere contra a divisão do
   integrante (`podeNaDivisao`). A Barra não afasta ninguém do Oeste.
 
-Ainda não registrado: a troca de divisão (feita pelo Editar, sem entrar no
-livro).
+**Transferência** (19/10/2026) — o **🔁 Transferência** no card do
+integrante, ao lado do Afastamento. Antes, mudar alguém de divisão era
+criar outro cadastro e perder o histórico. O painel pede a **Regional**
+(RJ4 ou outra), a **Divisão**, a data e o motivo (`transferirMembro`, no
+`Code.gs`; a tela em `telas/admin-membros.js`).
+
+- **Na RJ4**, a divisão é escolhida em botões, não escrita: o app precisa do
+  nome exato. O cadastro muda de divisão com o **mesmo ID**, então
+  presenças, Insight, doações e caixinha continuam dele. O **cargo sai** (era
+  da divisão antiga) e o grau fica **⏳ a confirmar** pela divisão nova.
+  Sai dos eventos ainda abertos da divisão antiga (os do Regional ficam) e
+  **entra como ⚠️ Aguardando** nos abertos da nova, só os com data a partir
+  do dia da transferência ou sem data: um evento de ontem ainda não
+  encerrado daria falta num evento de antes de ele chegar. Afastado não
+  entra em evento nenhum.
+- **Para outra regional**, a regional e a divisão são escritas. Sai do
+  cadastro e de todos os eventos abertos, como no desligamento, e o
+  histórico fica.
+- **Quem transfere é a divisão de origem**, com o PIN dela, ou o Regional.
+- **No livro são duas linhas**: a saída na divisão de origem e a entrada na
+  de destino, com o outro lado na coluna `De/Para`. Para outra regional, só
+  a saída. No relatório de cada divisão entra o 🔁 (chegaram · saíram); no
+  quadro do Regional, a transferência entre divisões da RJ4 se anula, e o
+  total conta só quem foi para outra regional (`saiuDaRJ4`).
+- **⏳ Grau a confirmar** (coluna `Grau a Confirmar` de `Membros`): o selo
+  aparece no card, com o **✅ Confirmar grau** (grau e, no VI e no V, o
+  cargo da divisão nova; `confirmarGrau` confere o PIN contra a divisão
+  atual dele), e o mural da divisão avisa. É só lembrete: enquanto isso,
+  ele participa de tudo com o grau que veio.
+- **O Editar não troca mais a divisão** de quem já está cadastrado — nem o
+  app manda, nem o `Code.gs` aceita (`salvarMembro` mantém a da planilha).
+  Toda troca passa pela Transferência e fica no livro.
+- **O % pessoal** só conta os eventos da divisão em que ele está agora: na
+  divisão nova, começa do zero. O histórico da antiga continua no Relatório
+  individual, evento a evento.
 
 ## Doações e Caixinha
 
@@ -861,7 +895,7 @@ a cada mudança:
 | `servidor.py` | serve o app local com o cache desligado |
 | `estrutura.py` | 7 verificações: imports circulares, hierarquia de camadas, sintaxe, nome sem import, import sobrando, ações sem tratador |
 | `regras.mjs` | as regras do clube que, se quebrarem, saem erradas numa convocação sem ninguém perceber |
-| `telas.mjs` | desenha as 189 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
+| `telas.mjs` | desenha as 196 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
 | `planilha.mjs` | roda o `Code.gs` de verdade contra uma planilha de mentira: encerramento automático, PIN, relatório individual, responsável, textos, chamada do evento, doações, caixinha e entrada/saída |
 
 O `--html` do `telas.mjs` é a rede de proteção mais útil: captura o HTML de
@@ -987,7 +1021,7 @@ ferramentas, acima):
 
     py ferramentas/estrutura.py     # imports, camadas, sintaxe, ações
     node ferramentas/regras.mjs     # ordem hierárquica e formato da convocação
-    node ferramentas/telas.mjs      # desenha as 189 telas e abas
+    node ferramentas/telas.mjs      # desenha as 196 telas e abas
     node ferramentas/planilha.mjs   # o encerramento automático, no Code.gs
 
 Eles dizem que o app **não quebrou**, não que está bonito: não cobrem
@@ -1007,6 +1041,11 @@ Web App com `?action=versao`; o passo a passo está no [LINK.md](LINK.md).
 ## Próximos passos possíveis
 
 Ideias registradas, nada pedido ainda:
+
+- **Transferência, segunda etapa** (combinada com o clube em 19/10/2026): no
+  Relatório individual de quem foi transferido, um bloco a mais com a
+  presença na divisão antiga ("Na Barra (até 19/10/2026)"). Hoje esses
+  eventos só aparecem no histórico, fora do %.
 
 - **Doações e Caixinha, segunda etapa:** mostrar as duas no Relatório
   individual de cada integrante e nas abas de resumo da planilha; levar

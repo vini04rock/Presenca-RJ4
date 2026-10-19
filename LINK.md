@@ -124,10 +124,12 @@ Abas em uso:
   corrige. Se for preciso começar de novo, apagar a linha "Saldo inicial"
   da divisão aqui faz o app pedir o valor outra vez.
 - `Movimentacoes` — o livro de Entrada/Saída de integrantes: entrada,
-  afastamento, retorno e desligamento, com data e motivo. Gravado pelo app
-  (cadastro de Membros). Nada é apagado dela. Nasce sozinha no primeiro uso.
-  A aba `Membros` também ganhou as colunas Situação, Situação Desde e
-  Entrada, acrescentadas sozinhas.
+  afastamento, retorno, desligamento e transferência (uma linha na divisão
+  de origem e outra na de destino, com o outro lado na coluna De/Para), com
+  data e motivo. Gravado pelo app (cadastro de Membros). Nada é apagado
+  dela. Nasce sozinha no primeiro uso. A aba `Membros` também ganhou as
+  colunas Situação, Situação Desde, Entrada e Grau a Confirmar,
+  acrescentadas sozinhas.
 - `EstoqueADMItens` — cadastro dos materiais administrativos do Regional.
   Uma linha por material; nasce no primeiro acesso ao Estoque ADM.
 - `EstoqueADMMovimentacoes` — livro de entradas e saídas do Estoque ADM,
