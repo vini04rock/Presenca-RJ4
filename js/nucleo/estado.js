@@ -283,6 +283,13 @@ export let state = {
   movErro: null,
   // O integrante com a confirmacao do "Remover" aberta na linha dele.
   removerMembroId: null,
+  // "Preencher datas" do cadastro: os ids da lista (quem estava sem data de
+  // ingresso quando abriu; null = fechado), o que foi digitado em cada um
+  // (dd/mm/aaaa) e o aviso depois de salvar.
+  preencherEntradasIds: null,
+  entradasRascunho: {},
+  entradasSalvando: false,
+  entradasMsg: null,
   // A divisao aberta no card de obrigatoriedades do mes (menu do organizador
   // do Regional), com o detalhe dos tipos; null = nenhuma.
   obrigatoriedadeAberta: null,

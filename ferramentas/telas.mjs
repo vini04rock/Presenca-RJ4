@@ -426,6 +426,10 @@ add('relatório individual / erro',              { ...org, adminEscopo:'barra', 
   relIndErro:'A conexao demorou demais' }, T.renderRelatorioIndividual);
 add('relatório individual / completo',          { ...org, adminEscopo:'barra', relIndMembroId:'m1',
   relIndDados:relInd }, T.renderRelatorioIndividual);
+// Com a data de ingresso: a carteirinha mostra desde quando e o tempo de
+// clube (que anda com o relogio - muda de um mes pro outro, e esta certo).
+add('relatório individual / com ingresso',      { ...org, adminEscopo:'barra', relIndMembroId:'m1',
+  relIndDados:{ ...relInd, membro:{ ...relInd.membro, entrada:'2019-03-12' } } }, T.renderRelatorioIndividual);
 add('relatório individual / só agosto',         { ...org, adminEscopo:'barra', relIndMembroId:'m1',
   relIndDados:relInd, relIndFiltroInicio:'2026-08-01', relIndFiltroFim:'2026-08-31' }, T.renderRelatorioIndividual);
 add('relatório individual / nada no período',   { ...org, adminEscopo:'barra', relIndMembroId:'m1',
@@ -583,6 +587,14 @@ add('membros / cadastro com afastado',   { isAdmin:true, adminEscopo:'barra', ad
 add('membros / afastando (painel)',      { isAdmin:true, adminEscopo:'barra', adminTab:'membros', movMembroId:'m1', movTipo:'afastamento' }, T.renderAdmin);
 add('membros / retorno (painel)',        { isAdmin:true, adminEscopo:'barra', adminTab:'membros', roster:rosterComAfastado,
   movMembroId:'m2', movTipo:'retorno', movData:'18/10/2026' }, T.renderAdmin);
+add('membros / com datas de ingresso',   { isAdmin:true, adminEscopo:'barra', adminTab:'membros',
+  roster:membros.map((m, i) => i % 2 ? m : { ...m, entrada:'2019-03-12' }) }, T.renderAdmin);
+add('membros / preenchendo datas',       { isAdmin:true, adminEscopo:'barra', adminTab:'membros',
+  preencherEntradasIds:['m1', 'm3'], entradasRascunho:{ m1:'12/03/2019' } }, T.renderAdmin);
+add('membros / datas com erro',          { isAdmin:true, adminEscopo:'barra', adminTab:'membros', preencherEntradasIds:['m1'],
+  entradasRascunho:{ m1:'31/02/2019' }, entradasMsg:{ ok:false, texto:'A data de Costa ("31/02/2019") não é uma data válida - escreva como 12/03/2019.' } }, T.renderAdmin);
+add('membros / editando com ingresso',   { isAdmin:true, adminEscopo:'barra', adminTab:'membros', editingMemberId:'m1',
+  newMemberNome:'Costa', newMemberEntrada:'12/03/2019' }, T.renderAdmin);
 add('membros / confirmando remover',     { isAdmin:true, adminEscopo:'barra', adminTab:'membros', removerMembroId:'m1' }, T.renderAdmin);
 add('membros / desligando (com erro)',   { isAdmin:true, adminEscopo:'barra', adminTab:'membros', movMembroId:'m3', movTipo:'desligamento',
   movMotivo:'Pediu pra sair', movErro:'Não consegui registrar: Falha de conexao.' }, T.renderAdmin);
@@ -632,7 +644,7 @@ const LIMPO = {
   caixinhaFinForm:null, caixinhaFinSalvando:false, caixinhaFinMsg:null, caixinhaFinConfirmarRemover:null,
   caixinhaFinSaldoTexto:'', caixinhaFinConfirmarSaldo:false,
   caixinhaFinQtdExtrato:15, caixinhaFinRelatorio:false, caixinhaFinPeriodo:0,
-  roster:membros, newMemberEntrada:'', movMembroId:null, movTipo:null, movData:'', movMotivo:'', movSalvando:false, movErro:null, removerMembroId:null,
+  roster:membros, newMemberEntrada:'', movMembroId:null, movTipo:null, movData:'', movMotivo:'', movSalvando:false, movErro:null, removerMembroId:null, preencherEntradasIds:null, entradasRascunho:{}, entradasSalvando:false, entradasMsg:null,
   movimentosDados:null, movimentosDadosEscopo:null, movimentosErro:null, movimentosPeriodo:0, movimentosDivisaoAberta:null,
 };
 log('');

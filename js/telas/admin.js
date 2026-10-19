@@ -159,6 +159,9 @@ export async function abrirAbaOrganizador(aba) {
   state.caixinhaFinQtdExtrato = 15;
   fecharPainelMovimento();
   state.movimentosDivisaoAberta = null;
+  state.preencherEntradasIds = null;
+  state.entradasRascunho = {};
+  state.entradasMsg = null;
   render();
   if (aba === 'encerrados') await loadReportData();
   if (aba === 'presencas') await loadEstatisticas();

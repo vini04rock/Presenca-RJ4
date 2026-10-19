@@ -73,3 +73,48 @@ function aplicarNaMemoria(membroId, tipo, data) {
     situacaoDesde: tipo === 'afastamento' ? data : '',
   });
 }
+
+// O "Preencher datas" do cadastro: grava de uma vez as datas de ingresso
+// escritas na lista (state.entradasRascunho, como foram digitadas). Em
+// branco fica sem data. Uma data errada para tudo antes de ir pra planilha.
+export async function salvarDatasDeIngresso() {
+  const datas = {};
+  for (const id of state.preencherEntradasIds || []) {
+    const bruto = String(state.entradasRascunho[id] || '').trim();
+    if (!bruto) continue;
+    const iso = dataISOdeBR(bruto);
+    const m = state.roster.find(x => x.id === id) || { nome: 'um integrante' };
+    if (!iso) {
+      state.entradasMsg = { ok: false, texto: `A data de ${m.nome} ("${bruto}") não é uma data válida - escreva como 12/03/2019.` };
+      return render();
+    }
+    if (iso > hojeISO()) {
+      state.entradasMsg = { ok: false, texto: `A data de ${m.nome} não pode ser no futuro.` };
+      return render();
+    }
+    datas[id] = iso;
+  }
+  if (!Object.keys(datas).length) {
+    state.entradasMsg = { ok: false, texto: 'Nenhuma data escrita ainda.' };
+    return render();
+  }
+  state.entradasSalvando = true;
+  state.entradasMsg = null;
+  render();
+  try {
+    const r = await api('membrosEntradaSalvar', { datas: JSON.stringify(datas) });
+    state.roster = state.roster.map(m => (datas[m.id] ? { ...m, entrada: datas[m.id] } : m));
+    state.preencherEntradasIds = null;
+    state.entradasRascunho = {};
+    state.entradasMsg = { ok: true, texto: `✅ ${r.salvos} ${r.salvos === 1 ? 'data de ingresso salva' : 'datas de ingresso salvas'}.`
+      + (r.recusados ? ` ${r.recusados} de outra divisão ficaram de fora.` : '') };
+    mostrarAviso('🗓️ Datas salvas');
+  } catch (e) {
+    // A lista fica como estava: a pessoa tenta de novo.
+    state.entradasMsg = { ok: false, texto: /Acao desconhecida/.test(e.message)
+      ? 'A planilha ainda está com o Code.gs antigo. Publique a versão nova no Apps Script e tente de novo.'
+      : 'Não consegui salvar: ' + e.message + '.' };
+  }
+  state.entradasSalvando = false;
+  render();
+}

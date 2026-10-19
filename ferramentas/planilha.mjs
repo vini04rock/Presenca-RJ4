@@ -991,6 +991,44 @@ log('=== caixinha do Regional (das divisões) e o kg no estoque ===');
 }
 
 log('');
+log('=== data de ingresso: Editar e "Preencher datas" ===');
+{
+  const p = montaPlanilha([], []);
+  p.abas.Membros = novaAba('Membros', [['ID', 'Nome', 'Grau', 'Divisao', 'Funcoes', 'Cargo', 'Situacao', 'Situacao Desde', 'Entrada'],
+    ['m1', 'Costa', 'VI', 'Barra - RJ4', '', 'Diretor', '', '', ''], ['m2', 'Bull', 'X', 'Barra - RJ4', '', '', '', '', ''],
+    ['n1', 'Novo', 'X', 'Barra - RJ4', '', '', '', '', '2026-10-01'], ['o9', 'Fabiano', 'IX', 'Oeste - RJ4', '', '', '', '', '']]);
+  p.abas.Movimentacoes = novaAba('Movimentacoes', [['ID', 'Data', 'Divisao', 'ID Membro', 'Membro', 'Grau', 'Tipo', 'Motivo', 'Registrado em'],
+    ['v1', '2026-10-01', 'barra', 'n1', 'Novo', 'X', 'Entrada', '', '']]);
+  const { contexto } = carregaCodeGs(p, { PIN_REGIONAL: '0418', PIN_BARRA: '1801', PIN_OESTE: '1802' });
+  const barra = { escopo: 'barra', pin: '1801' };
+  const entrada = id => p.abas.Membros.dados.find(l => l[0] === id)[8];
+  const livro = () => p.abas.Movimentacoes.dados.slice(1).map(l => [l[1], l[3], l[6]]);
+  const tentar = (fn) => { try { const r = fn(); return r.ok === false ? r.erro : 'ok'; } catch (e) { return e.message; } };
+  const editar = (extra) => contexto.executar('membroSalvar', { ...barra, id: 'm1', nome: 'Costa', grau: 'VI', divisao: 'Barra - RJ4', funcoes: '', cargo: 'Diretor', ...extra });
+
+  editar({ entrada: '2019-03-12' });
+  confere('o Editar grava a data de ingresso de quem já estava cadastrado', entrada('m1'), '2019-03-12');
+  confere('e NÃO cria entrada no livro de Entrada/Saída', livro(), [['2026-10-01', 'n1', 'Entrada']]);
+  editar({});
+  confere('um app antigo, que não manda a data, não apaga a de ninguém', entrada('m1'), '2019-03-12');
+  confere('data no futuro é recusada', tentar(() => editar({ entrada: daquiA(3) })), 'A data de ingresso nao pode ser no futuro');
+  confere('data que não existe é recusada', tentar(() => editar({ entrada: '2019-02-30' })), 'Data de ingresso invalida: 2019-02-30');
+  contexto.executar('membroSalvar', { ...barra, id: 'n1', nome: 'Novo', grau: 'X', divisao: 'Barra - RJ4', funcoes: '', cargo: '', entrada: '2026-09-20' });
+  confere('corrigir a data de quem entrou pelo cadastro corrige o livro junto', [entrada('n1'), livro()], ['2026-09-20', [['2026-09-20', 'n1', 'Entrada']]]);
+
+  confere('preencher datas sem PIN é recusado', contexto.executar('membrosEntradaSalvar', { datas: '{}' }).ok, false);
+  const r = contexto.executar('membrosEntradaSalvar', { ...barra, datas: JSON.stringify({ m2: '2015-06-01', o9: '2010-01-01', m1: '' }) });
+  confere('preencher datas: grava os da divisão, recusa o do Oeste, ignora em branco',
+    [r.salvos, r.recusados, entrada('m2'), entrada('o9'), entrada('m1')], [1, 1, '2015-06-01', '', '2019-03-12']);
+  confere('preencher datas também não mexe no livro', livro().length, 1);
+  confere('preencher datas com uma data errada recusa tudo antes de gravar',
+    [tentar(() => contexto.executar('membrosEntradaSalvar', { ...barra, datas: JSON.stringify({ m2: '2014-01-01', m1: '2099-01-01' }) })), entrada('m2')],
+    ['A data de ingresso nao pode ser no futuro', '2015-06-01']);
+  confere('o Regional preenche o Oeste', contexto.executar('membrosEntradaSalvar', { escopo: 'regional', pin: '0418', datas: JSON.stringify({ o9: '2010-01-01' }) }).salvos, 1);
+  confere('e a data volta na leitura do cadastro', contexto.executar('dados', {}).membros.find(m => m.id === 'o9').entrada, '2010-01-01');
+}
+
+log('');
 log('=== remover: cadastro feito errado some de tudo ===');
 {
   const p = montaPlanilha([ev('b1', '2026-09-05', 'encerrado')], [pr('b1', 'm1', 'Confirmado'), pr('b1', 'm2', 'Confirmado')]);

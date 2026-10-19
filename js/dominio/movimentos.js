@@ -28,6 +28,38 @@ export function estaAfastado(m) { return !!m && m.situacao === 'afastado'; }
 // enquanto durar. O historico dele continua onde estava.
 export function soAtivos(membros) { return membros.filter(m => !estaAfastado(m)); }
 
+// ---- data de ingresso e tempo de clube --------------------------------
+// A data de entrada no clube fica no cadastro (coluna Entrada de Membros).
+// Os integrantes novos ja nascem com ela; os antigos ganham pelo Editar ou
+// pelo "Preencher datas" do cadastro - e isso NAO conta como entrada no
+// livro acima (eles ja eram do clube).
+
+// Quanto tempo de clube, contando meses inteiros: "3 anos e 2 meses",
+// "1 ano", "8 meses", "menos de 1 mês". Vazio sem data.
+export function tempoDeClube(entradaISO, base = new Date()) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(entradaISO || ''));
+  if (!m) return '';
+  let meses = (base.getFullYear() - Number(m[1])) * 12 + (base.getMonth() + 1 - Number(m[2]));
+  if (base.getDate() < Number(m[3])) meses--;
+  if (meses < 1) return 'menos de 1 mês';
+  const anos = Math.floor(meses / 12), resto = meses % 12;
+  const txtAnos = anos ? `${anos} ${anos === 1 ? 'ano' : 'anos'}` : '';
+  const txtMeses = resto ? `${resto} ${resto === 1 ? 'mês' : 'meses'}` : '';
+  return [txtAnos, txtMeses].filter(Boolean).join(' e ');
+}
+
+// "No clube desde 12/03/2019 · 3 anos e 2 meses" - a linha da carteirinha
+// e do texto do relatorio individual.
+export function textoIngresso(entradaISO, base = new Date()) {
+  if (!entradaISO) return 'Data de ingresso não informada';
+  return `No clube desde ${formatDataBR(entradaISO)} · ${tempoDeClube(entradaISO, base)}`;
+}
+
+// Os integrantes sem data de ingresso, na ordem hierarquica.
+export function semDataDeIngresso(membros) {
+  return ordenarPorHierarquia(membros.filter(m => !m.entrada));
+}
+
 // As movimentacoes da janela, do mais recente pro mais antigo.
 export function movimentosDoPeriodo(movimentos, meses) {
   const corte = meses ? dataCorteMeses(meses) : null;

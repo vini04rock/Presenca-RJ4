@@ -13,6 +13,7 @@
 
 import { TIPOS_EVENTO_TABS_ORDEM, emojiTipoEvento, escoposEmOrdemDeExibicao } from '../nucleo/config.js';
 import { formatDataBR } from '../nucleo/util.js';
+import { textoIngresso } from './movimentos.js';
 
 // Mesma regra dos Relatorios (eventosDoRelatorioEscopo): com um limite
 // escolhido, o que nao tem data fica de fora - nao da pra saber se cai
@@ -153,6 +154,7 @@ export function textoRelatorioIndividual(r, inicio, fim) {
     '📄 RELATÓRIO INDIVIDUAL',
     m.nome + (m.grau ? ` (${m.grau})` : ''),
     [m.cargo, m.divisao].filter(Boolean).join(' · '),
+    '🪪 ' + textoIngresso(m.entrada),
     '🗓️ ' + textoDoPeriodo(inicio, fim),
   ].filter(Boolean);
   if (r.divisao) linhas.push(...linhasPresenca('🏁 PRESENÇA · ' + String(m.divisao || '').toUpperCase(), r.divisao));

@@ -117,7 +117,7 @@ sem controlar o servidor.
 
 | Aba | O que guarda |
 |---|---|
-| `Membros` | id, nome, grau, divisão, funções, **cargo**, situação (afastado), data de entrada |
+| `Membros` | id, nome, grau, divisão, funções, **cargo**, situação (afastado), data de ingresso no clube (coluna Entrada) |
 | `Eventos` | id, nome, data, horário, endereço, outros, status, categoria, tipo, texto original, **chamada** (JSON) |
 | `Presencas` | uma linha por evento × membro, com status e as flags Direto/Destacado/Acompanhado |
 | `InsightRodadas` | uma linha por rodada |
@@ -365,8 +365,27 @@ afastado) e **🚪 Desligamento**. Cada um abre um painel na própria linha,
 com a data (hoje, se nada for escrito; nunca no futuro), o motivo
 (opcional) e o que vai acontecer, dito antes de confirmar. A **entrada** é
 registrada pelo próprio cadastro: o formulário de integrante novo tem
-"Data de entrada", e salvar já anota no livro. Quem foi cadastrado antes
+"Data de ingresso", e salvar já anota no livro. Quem foi cadastrado antes
 disso não conta como entrada.
+
+**Data de ingresso e tempo de clube** (19/10/2026). A data de ingresso
+fica no cadastro (coluna Entrada de `Membros`) e aparece embaixo do nome
+na lista ("Ingresso: 12/03/2019"). Na **carteirinha do Relatório
+individual** (e no PDF e no texto dele) sai com o tempo de clube: "No
+clube desde 12/03/2019 · 7 anos e 7 meses" (`tempoDeClube`/`textoIngresso`,
+em `dominio/movimentos.js`; conta meses inteiros).
+
+- Os integrantes novos já nascem com ela. Os antigos ganham pelo
+  **Editar** (que agora tem o campo) ou pelo **"🗓️ Preencher datas"**: o
+  cadastro avisa quantos estão sem data, e o botão abre uma lista só com
+  eles para preencher todos de uma vez (`membrosEntradaSalvar`, que confere
+  a divisão de cada um e todas as datas antes de gravar qualquer uma).
+- **Preencher a data de quem já era do clube não conta como "entrou"** no
+  livro de Entrada/Saída: senão o relatório diria que dezenas entraram de
+  uma vez. Só quem já tem a Entrada no livro (cadastrado como integrante
+  novo) tem a data de lá corrigida junto (`gravarDataDeIngresso`).
+- Um app antigo que salva pelo Editar sem mandar a data não apaga a data
+  de ninguém.
 
 O que cada um faz (`registrarMovimento`, no `Code.gs`):
 
@@ -766,7 +785,7 @@ a cada mudança:
 | `servidor.py` | serve o app local com o cache desligado |
 | `estrutura.py` | 7 verificações: imports circulares, hierarquia de camadas, sintaxe, nome sem import, import sobrando, ações sem tratador |
 | `regras.mjs` | as regras do clube que, se quebrarem, saem erradas numa convocação sem ninguém perceber |
-| `telas.mjs` | desenha as 163 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
+| `telas.mjs` | desenha as 168 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
 | `planilha.mjs` | roda o `Code.gs` de verdade contra uma planilha de mentira: encerramento automático, PIN, relatório individual, responsável, textos, chamada do evento, doações, caixinha e entrada/saída |
 
 O `--html` do `telas.mjs` é a rede de proteção mais útil: captura o HTML de
@@ -892,7 +911,7 @@ ferramentas, acima):
 
     py ferramentas/estrutura.py     # imports, camadas, sintaxe, ações
     node ferramentas/regras.mjs     # ordem hierárquica e formato da convocação
-    node ferramentas/telas.mjs      # desenha as 163 telas e abas
+    node ferramentas/telas.mjs      # desenha as 168 telas e abas
     node ferramentas/planilha.mjs   # o encerramento automático, no Code.gs
 
 Eles dizem que o app **não quebrou**, não que está bonito: não cobrem

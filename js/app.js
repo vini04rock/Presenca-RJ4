@@ -279,6 +279,7 @@ document.getElementById('app').addEventListener('input', (e) => {
     // tela redesenha a cada toque num chip, e sem isso o digitado sumia.
     if (e.target.id === 'new-member-entrada') state.newMemberEntrada = e.target.value;
     if (e.target.id === 'mov-data') state.movData = e.target.value;
+    if (e.target.dataset && e.target.dataset.entradaId) state.entradasRascunho[e.target.dataset.entradaId] = e.target.value;
     if (e.target.id === 'fin-data' && state.caixinhaFinForm) state.caixinhaFinForm.data = e.target.value;
     return;
   }

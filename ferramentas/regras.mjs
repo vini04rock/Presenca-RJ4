@@ -284,8 +284,8 @@ log('=== relatório individual ===');
   const { textoRelatorioIndividual, textoDoPeriodo } = await import(url('dominio/relatorio-individual.js'));
   const texto = textoRelatorioIndividual(tudo, '', '');
   const linhasTexto = texto.split('\n');
-  confere('texto: abre com o nome, o grau, o cargo e o período', linhasTexto.slice(0, 4),
-    ['📄 RELATÓRIO INDIVIDUAL', 'Costa (VI)', 'Diretor · Barra - RJ4', '🗓️ Desde sempre']);
+  confere('texto: abre com o nome, o grau, o cargo, o ingresso e o período', linhasTexto.slice(0, 5),
+    ['📄 RELATÓRIO INDIVIDUAL', 'Costa (VI)', 'Diretor · Barra - RJ4', '🪪 Data de ingresso não informada', '🗓️ Desde sempre']);
   confere('texto: o geral da divisão bate com a tela', linhasTexto.includes('📊 33% (1 de 3 eventos)'), true);
   confere('texto: só os tipos em que foi convocado',
     linhasTexto.filter(l => / \d+% \(\d+ de \d+\)$/.test(l)), ['🍻 Pub: 50% (1 de 2)', '📊 Reunião: 0% (0 de 1)', '🍻 Pub: 100% (1 de 1)']);
@@ -295,7 +295,7 @@ log('=== relatório individual ===');
   confere('texto: termina com as faltas não justificadas', linhasTexto.slice(-2),
     ['⭕ FALTAS NÃO JUSTIFICADAS (1)', '- 01/08/2026 · Evento b']);
   confere('texto: sem falta, diz que não tem', textoRelatorioIndividual(doRegional, '', '').split('\n').slice(-1), ['- Nenhuma']);
-  confere('texto: o período escolhido vai no topo', textoRelatorioIndividual(agosto, '2026-08-01', '2026-08-31').split('\n')[3],
+  confere('texto: o período escolhido vai no topo', textoRelatorioIndividual(agosto, '2026-08-01', '2026-08-31').split('\n')[4],
     '🗓️ De 01/08/2026 a 31/08/2026');
   confere('texto: sem nada no período, avisa', textoRelatorioIndividual(semRodada, '2026-01-01', '2026-01-31')
     .includes('💡 INSIGHT\nNenhuma rodada nesse período.'), true);
@@ -990,6 +990,25 @@ log('=== caixinha do Regional: quem contribui são as divisões ===');
   const ctrl = controleCaixinha(dados, 0, new Date(2026, 9, 18));
   confere('o controle: as contribuições entram no caixa', [ctrl.entradas.mensalidades, ctrl.saldoAtual], [160, 560]);
   confere('o texto de controle fala em contribuições', textoControleCaixinha(ctrl, 'regional').split('\n')[6], '• Contribuições das divisões: R$ 160,00 (2 contribuições)');
+}
+
+log('');
+log('=== data de ingresso e tempo de clube ===');
+{
+  const { tempoDeClube, textoIngresso, semDataDeIngresso } = await import(url('dominio/movimentos.js'));
+  const hoje = new Date(2026, 9, 19); // 19/10/2026
+  confere('o tempo de clube, em meses inteiros', [
+    tempoDeClube('2023-08-19', hoje), tempoDeClube('2023-08-20', hoje), tempoDeClube('2025-10-19', hoje),
+    tempoDeClube('2026-02-01', hoje), tempoDeClube('2026-09-19', hoje), tempoDeClube('2026-10-01', hoje), tempoDeClube('', hoje)],
+    ['3 anos e 2 meses', '3 anos e 1 mês', '1 ano', '8 meses', '1 mês', 'menos de 1 mês', '']);
+  confere('a linha da carteirinha', [textoIngresso('2019-03-12', hoje), textoIngresso('', hoje)],
+    ['No clube desde 12/03/2019 · 7 anos e 7 meses', 'Data de ingresso não informada']);
+  confere('quem ainda não tem data, na ordem hierárquica',
+    semDataDeIngresso([{ id: 'a', nome: 'Bravo', grau: 'X', entrada: '' }, { id: 'b', nome: 'Costa', grau: 'VI', entrada: '' },
+      { id: 'c', nome: 'Raposo', grau: 'VI', entrada: '2020-01-01' }]).map(m => m.nome), ['Costa', 'Bravo']);
+  const { montarRelatorioIndividual, textoRelatorioIndividual } = await import(url('dominio/relatorio-individual.js'));
+  const r = montarRelatorioIndividual({ membro: { id: 'm1', nome: 'Costa', grau: 'VI', divisao: 'Barra - RJ4', entrada: '2019-03-12' }, eventos: [], insight: { elegivel: false, rodadas: [] } }, '', '');
+  confere('o texto do relatório individual leva o ingresso', textoRelatorioIndividual(r, '', '').split('\n')[3].startsWith('🪪 No clube desde 12/03/2019 · '), true);
 }
 
 log('');

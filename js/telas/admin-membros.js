@@ -4,8 +4,8 @@
 // Mesma gente vista dos dois lados, entao moram no mesmo arquivo.
 
 import { membrosDoEscopo } from '../dominio/estatisticas.js';
-import { TIPOS_MOVIMENTO, estaAfastado } from '../dominio/movimentos.js';
-import { confirmarMovimento, fecharPainelMovimento } from '../fluxos/movimentos.js';
+import { TIPOS_MOVIMENTO, estaAfastado, semDataDeIngresso } from '../dominio/movimentos.js';
+import { confirmarMovimento, fecharPainelMovimento, salvarDatasDeIngresso } from '../fluxos/movimentos.js';
 import { FUNCOES, GRAUS, cargosDoGrau, escopoPorChave } from '../nucleo/config.js';
 import { genId, state } from '../nucleo/estado.js';
 import { dataISOdeBR, escapeHtml, formatDataBR, hojeISO, ordenarPorHierarquia } from '../nucleo/util.js';
@@ -91,10 +91,58 @@ function blocoCargo() {
       `;
 }
 
+// "⚠️ 8 integrantes sem data de ingresso" no topo do cadastro, e o modo de
+// preencher todas de uma vez: uma lista so com eles, cada um com o campo de
+// data, e um Salvar no fim. A lista e a de quando o modo abriu - quem vai
+// sendo preenchido nao some do meio da tela.
+function blocoDatasDeIngresso(membros) {
+  const msg = state.entradasMsg
+    ? `<div class="alert ${state.entradasMsg.ok ? 'ok' : ''}" style="margin-bottom:12px;"><div class="alert-msg">${escapeHtml(state.entradasMsg.texto)}</div></div>`
+    : '';
+  if (state.preencherEntradasIds) {
+    const lista = state.preencherEntradasIds.map(id => membros.find(m => m.id === id)).filter(Boolean);
+    return `
+      <div class="card">
+        <div class="painel-titulo">🗓️ Datas de ingresso</div>
+        <div class="fin-explica">Escreva o dia em que cada um entrou no clube (dd/mm/aaaa). Quem você não souber, deixe em branco. Isso não conta como "entrou" no Entrada/Saída: eles já eram do clube.</div>
+        ${lista.map(m => `
+          <div class="member-row">
+            <div class="member-head" style="cursor:default;">
+              <div class="member-info">
+                ${selinhoIniciais(m)}
+                <span class="member-name">${escapeHtml(m.nome)}</span>
+                ${m.grau ? `<span class="grade-box">${escapeHtml(m.grau)}</span>` : ''}
+              </div>
+              <input type="text" inputmode="numeric" maxlength="10" class="campo-data" id="entrada-${m.id}" data-entrada-id="${m.id}"
+                     value="${escapeHtml(state.entradasRascunho[m.id] || '')}" placeholder="dd/mm/aaaa" autocomplete="off" style="width:118px; flex-shrink:0;">
+            </div>
+          </div>
+        `).join('')}
+        ${msg}
+        <div class="row-gap" style="margin-top:12px;">
+          <button class="btn block" data-action="salvar-datas-ingresso" ${state.entradasSalvando ? 'disabled' : ''}>${state.entradasSalvando ? 'Salvando…' : '💾 Salvar datas'}</button>
+          <button class="btn secondary block" data-action="fechar-datas-ingresso" ${state.entradasSalvando ? 'disabled' : ''}>Cancelar</button>
+        </div>
+      </div>
+    `;
+  }
+  const faltam = semDataDeIngresso(membros);
+  if (!faltam.length) return msg;
+  return `
+    ${msg}
+    <div class="alert info" style="margin-bottom:12px;">
+      <div class="alert-msg">⚠️ ${faltam.length} ${faltam.length === 1 ? 'integrante sem data' : 'integrantes sem data'} de ingresso no clube.</div>
+      <button class="btn secondary block" style="margin-top:10px;" data-action="abrir-datas-ingresso">🗓️ Preencher datas</button>
+    </div>
+  `;
+}
+
 export function renderAdminMembros() {
   const membros = membrosDoEscopo();
   const editando = !!state.editingMemberId;
+  if (state.preencherEntradasIds) return blocoDatasDeIngresso(membros);
   return `
+    ${editando ? '' : blocoDatasDeIngresso(membros)}
     <div class="card">
       ${editando ? '<label style="display:block; margin-bottom:8px; color:var(--text-muted); font-size:12px;">Editando membro</label>' : ''}
       <div class="field">
@@ -110,13 +158,18 @@ export function renderAdminMembros() {
         ${FUNCOES.map(f => `<button class="toggle-chip ${state.newMemberFuncoes.has(f.chave) ? 'active' : ''}" data-action="toggle-funcao" data-value="${f.chave}" style="flex: none; padding: 8px 12px;">${f.selo} ${escapeHtml(f.label)}</button>`).join('')}
       </div>
       ${editando ? `
+        <div class="field">
+          <label>Data de ingresso no clube</label>
+          <input type="text" inputmode="numeric" maxlength="10" class="campo-data" id="new-member-entrada"
+                 value="${escapeHtml(state.newMemberEntrada)}" placeholder="dd/mm/aaaa" autocomplete="off">
+        </div>
         <div class="row-gap">
           <button class="btn" data-action="save-member-edit">Salvar alterações</button>
           <button class="btn secondary" data-action="cancel-member-edit">Cancelar</button>
         </div>
       ` : `
         <div class="field">
-          <label>Data de entrada no clube</label>
+          <label>Data de ingresso no clube</label>
           <input type="text" inputmode="numeric" maxlength="10" class="campo-data" id="new-member-entrada"
                  value="${escapeHtml(state.newMemberEntrada || formatDataBR(hojeISO()))}" placeholder="dd/mm/aaaa" autocomplete="off">
         </div>
@@ -226,6 +279,7 @@ function linhaCadastro(m) {
           </div>
           ${afastado ? `<div class="selo-afastado">⏸️ Afastado${m.situacaoDesde ? ` desde ${escapeHtml(formatDataBR(m.situacaoDesde))}` : ''}</div>` : ''}
           ${m.cargo ? `<div class="confirmado-divisao">${escapeHtml(m.cargo)}</div>` : ''}
+          ${m.entrada ? `<div class="confirmado-divisao" style="white-space:nowrap;">Ingresso: ${escapeHtml(formatDataBR(m.entrada))}</div>` : ''}
           ${linhaFuncoes(m.funcoes)}
         </div>
         <div class="acoes-cadastro">
@@ -323,11 +377,13 @@ export const acoes = {
     state.newMemberGrau = m.grau || null;
     state.newMemberCargo = m.cargo || null;
     state.newMemberFuncoes = new Set(m.funcoes || []);
+    state.newMemberEntrada = m.entrada ? formatDataBR(m.entrada) : '';
     return render();
   },
 
   'cancel-member-edit': async (id, target, action, e) => {
     state.editingMemberId = null;
+    state.newMemberEntrada = '';
     state.newMemberNome = '';
     state.newMemberGrau = null;
     state.newMemberCargo = null;
@@ -340,10 +396,18 @@ export const acoes = {
     if (!nome) return;
     const original = state.roster.find(x => x.id === state.editingMemberId);
     if (!original) return;
-    // Divisao nao muda por aqui - so nome, grau e funcoes.
+    // A data de ingresso: em branco = sem data; escrita, tem que ser uma
+    // data de verdade e nao pode ser no futuro.
+    const brutoEntrada = (state.newMemberEntrada || '').trim();
+    const entrada = brutoEntrada ? dataISOdeBR(brutoEntrada) : '';
+    if ((brutoEntrada && !entrada) || entrada > hojeISO()) {
+      alert(entrada ? 'A data de ingresso não pode ser no futuro.' : `"${brutoEntrada}" não é uma data válida - escreva como 12/03/2019.`);
+      return;
+    }
+    // Divisao nao muda por aqui - so nome, grau, funcoes e a data de ingresso.
     const member = {
       ...original, nome, grau: state.newMemberGrau || '',
-      funcoes: Array.from(state.newMemberFuncoes), cargo: state.newMemberCargo || ''
+      funcoes: Array.from(state.newMemberFuncoes), cargo: state.newMemberCargo || '', entrada
     };
     state.roster = state.roster.map(x => x.id === member.id ? member : x);
     state.editingMemberId = null;
@@ -351,8 +415,27 @@ export const acoes = {
     state.newMemberCargo = null;
     state.newMemberFuncoes = new Set();
     state.newMemberNome = '';
+    state.newMemberEntrada = '';
     render();
     await salvarOuAvisar('membroSalvar', { ...member, funcoes: member.funcoes.join(',') });
+  },
+
+  // "Preencher datas": abre a lista de quem esta sem data de ingresso.
+  'abrir-datas-ingresso': async (id, target, action, e) => {
+    state.preencherEntradasIds = semDataDeIngresso(membrosDoEscopo()).map(m => m.id);
+    state.entradasRascunho = {};
+    state.entradasMsg = null;
+    window.scrollTo(0, 0);
+    return render();
+  },
+  'fechar-datas-ingresso': async (id, target, action, e) => {
+    state.preencherEntradasIds = null;
+    state.entradasRascunho = {};
+    state.entradasMsg = null;
+    return render();
+  },
+  'salvar-datas-ingresso': async (id, target, action, e) => {
+    return salvarDatasDeIngresso();
   },
 
   // O "Remover" so abre a confirmacao na linha; tocar de novo fecha.

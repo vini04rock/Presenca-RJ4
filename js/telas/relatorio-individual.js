@@ -12,6 +12,7 @@
 //
 // As contas moram em dominio/relatorio-individual.js; aqui e so desenho.
 
+import { textoIngresso } from '../dominio/movimentos.js';
 import { montarRelatorioIndividual, textoDoPeriodo, textoRelatorioIndividual } from '../dominio/relatorio-individual.js';
 import { emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao, STATUS } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
@@ -203,8 +204,10 @@ function geradoEm() {
 // A "carteirinha" do integrante: emblema, nome, grau com o anel da cor
 // dele (ouro/prata/bronze, igual as iniciais das listas), cargo, divisao e
 // o % de presenca em destaque - o da divisao, ou o do Regional pra quem e
-// do Regional. Sai igual na tela e no PDF.
+// do Regional. Sai igual na tela e no PDF. Leva tambem a data de ingresso
+// no clube e o tempo de clube.
 function cabecalhoMembro(m, r) {
+  const entrada = m.entrada || ((state.roster.find(x => x.id === m.id) || {}).entrada) || '';
   const detalhe = [m.cargo, m.divisao].filter(Boolean).map(escapeHtml).join(' · ');
   const bloco = r.divisao || r.regional;
   const pct = bloco && bloco.geral.percentual !== null ? bloco.geral.percentual : null;
@@ -216,6 +219,7 @@ function cabecalhoMembro(m, r) {
         <div class="carteirinha-nome">${escapeHtml(m.nome)}</div>
         <div class="carteirinha-detalhe">${m.grau ? `<span class="carteirinha-grau">${escapeHtml(m.grau)}</span>` : ''}${detalhe || '—'}</div>
         ${linhaFuncoes(m.funcoes)}
+        <div class="carteirinha-periodo">🗓️ ${escapeHtml(textoIngresso(entrada))}</div>
         <div class="carteirinha-periodo">${escapeHtml(textoDoPeriodo(state.relIndFiltroInicio, state.relIndFiltroFim))}</div>
       </div>
       ${pct === null ? '' : `

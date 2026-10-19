@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-10-19-v-estoque-alimentos';
+var VERSAO = '2026-10-19-v-data-de-ingresso';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -227,7 +227,7 @@ var ACOES_PROTEGIDAS = [
   // Doacoes e caixinha: ler tambem e protegido - quem deve a caixinha nao e
   // coisa pra qualquer um com a URL ver.
   'doacoes', 'doacoesSalvar', 'caixinha', 'caixinhaSalvar', 'caixinhaRemover',
-  'caixinhaLancamentoSalvar', 'caixinhaLancamentoRemover', 'estoqueSalvar',
+  'caixinhaLancamentoSalvar', 'caixinhaLancamentoRemover', 'estoqueSalvar', 'membrosEntradaSalvar',
   // Entrada/Saida: o motivo de um afastamento pode ser assunto pessoal.
   'membroMovimentar', 'movimentos'
 ];
@@ -248,6 +248,7 @@ function executar(action, p) {
   if (action === 'presenca') return comTrava(function () { return salvarPresenca(p); });
   if (action === 'membroSalvar') return comTrava(function () { return salvarMembro(p); });
   if (action === 'membroRemover') return comTrava(function () { return removerMembro(p.id); });
+  if (action === 'membrosEntradaSalvar') return comTrava(function () { return salvarDatasDeIngresso(p); });
   if (action === 'eventoSalvar') return comTrava(function () { return salvarEvento(p); });
   if (action === 'criarEventoDeTexto') return comTrava(function () { return criarEventoDeTexto(p); });
   if (action === 'criarEventosDeCalendario') return comTrava(function () { return criarEventosDeCalendario(p); });
@@ -1198,10 +1199,14 @@ function salvarMembro(p) {
   var id = p.id || novoId();
   var linha = [id, p.nome, p.grau || '', p.divisao || '', p.funcoes || '', p.cargo || ''];
   var achado = acharLinha(s, function (l) { return String(l[0]) === String(id); });
-  // Editar regrava so as 6 primeiras colunas: a situacao (afastado) e a
-  // entrada nao passam pelo formulario e nao podem ser apagadas por ele.
-  if (achado) s.getRange(achado.indice, 1, 1, linha.length).setValues([linha]);
-  else {
+  // Editar regrava as 6 primeiras colunas; a situacao (afastado) nao passa
+  // pelo formulario e nao pode ser apagada por ele. A data de ingresso
+  // passa (desde 19/10/2026), mas so quando vem - um app antigo que nao
+  // manda o campo nao apaga a data de ninguem.
+  if (achado) {
+    s.getRange(achado.indice, 1, 1, linha.length).setValues([linha]);
+    if (p.entrada !== undefined && p.entrada !== null) gravarDataDeIngresso(s, achado.indice, String(id), validarDataDeIngresso(p.entrada));
+  } else {
     // Integrante novo: a data de entrada vai pro cadastro e pro livro de
     // Entrada/Saida. Sem data valida, vale hoje.
     var entrada = dataOuHoje(p.entrada);
@@ -1213,6 +1218,73 @@ function salvarMembro(p) {
   }
   renomearEmPresencas(2, id, p.nome);
   return { ok: true, id: id };
+}
+
+// A data de ingresso no clube: '' (sem data) ou 'yyyy-mm-dd' de verdade,
+// nunca no futuro.
+function validarDataDeIngresso(v) {
+  var t = String(v || '').trim();
+  if (!t) return '';
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t);
+  var d = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : null;
+  if (!d || d.getFullYear() !== Number(m[1]) || d.getMonth() !== Number(m[2]) - 1 || d.getDate() !== Number(m[3])) {
+    throw new Error('Data de ingresso invalida: ' + t);
+  }
+  if (t > Utilities.formatDate(new Date(), fuso(), 'yyyy-MM-dd')) throw new Error('A data de ingresso nao pode ser no futuro');
+  if (t < '1950-01-01') throw new Error('Data de ingresso invalida: ' + t);
+  return t;
+}
+
+// Grava a data no cadastro (coluna Entrada). Preencher a data de quem ja
+// era do clube NAO conta como entrada no livro de Entrada/Saida - senao o
+// relatorio diria que dezenas de pessoas entraram de uma vez. So quem ja
+// tem a Entrada no livro (os cadastrados como integrante novo) tem a data
+// de la corrigida junto, pros dois nao discordarem.
+function gravarDataDeIngresso(s, indice, membroId, data) {
+  var celula = s.getRange(indice, 9);
+  celula.setNumberFormat('@');
+  celula.setValue(data);
+  if (!data) return;
+  var livro = planilha().getSheetByName(ABA_MOVIMENTOS);
+  if (!livro) return;
+  var dados = linhas(livro);
+  for (var i = 0; i < dados.length; i++) {
+    if (String(dados[i][3]) === membroId && String(dados[i][6]) === TIPOS_MOVIMENTO.entrada) {
+      var c = livro.getRange(i + 2, 2);
+      c.setNumberFormat('@');
+      c.setValue(data);
+    }
+  }
+}
+
+// O "Preencher datas" do cadastro: datas = { idMembro: 'yyyy-mm-dd' }, de
+// varios integrantes de uma vez. Cada um e conferido contra a divisao DELE
+// (podeNaDivisao) - quem entrou pela Barra nao muda a data de ninguem do
+// Oeste. Data em branco e ignorada (nao apaga nada).
+function salvarDatasDeIngresso(p) {
+  var datas = typeof p.datas === 'string' ? parseOuVazio(p.datas, null) : p.datas;
+  if (!datas || typeof datas !== 'object') throw new Error('Lista de datas invalida');
+  var pin = String(p.pin || '');
+  var s = aba(ABA_MEMBROS, CAB_MEMBROS);
+  var dados = linhas(s);
+  var salvos = 0, recusados = 0;
+  // Confere TODAS antes de gravar a primeira: uma data errada no meio nao
+  // pode deixar metade gravada e metade nao.
+  var validas = {};
+  Object.keys(datas).forEach(function (id) { validas[id] = validarDataDeIngresso(datas[id]); });
+  Object.keys(validas).forEach(function (id) {
+    var data = validas[id];
+    if (!data) return;
+    for (var i = 0; i < dados.length; i++) {
+      if (String(dados[i][0]) !== String(id)) continue;
+      var divisao = CHAVE_POR_NOME_DIVISAO[String(dados[i][3] || '')];
+      if (!divisao || !podeNaDivisao(divisao, pin)) { recusados++; return; }
+      gravarDataDeIngresso(s, i + 2, String(id), data);
+      salvos++;
+      return;
+    }
+  });
+  return { ok: true, salvos: salvos, recusados: recusados };
 }
 
 // ---------- RESPONSAVEL DA CHAMADA ----------
