@@ -6,10 +6,10 @@
 import { membrosDoEscopo } from '../dominio/estatisticas.js';
 import { TIPOS_MOVIMENTO, estaAfastado, semDataDeIngresso } from '../dominio/movimentos.js';
 import { confirmarGrauDoMembro, confirmarMovimento, fecharPainelMovimento, salvarDatasDeIngresso } from '../fluxos/movimentos.js';
-import { FUNCOES, GRAUS, cargosDoGrau, escopoPorChave, escoposNaOrdemOficial } from '../nucleo/config.js';
+import { FUNCOES, GRAUS, cargosDoGrau, escopoPorChave, escoposNaOrdemOficial, funcaoPorChave } from '../nucleo/config.js';
 import { genId, state } from '../nucleo/estado.js';
 import { dataISOdeBR, escapeHtml, formatDataBR, hojeISO, ordenarPorHierarquia } from '../nucleo/util.js';
-import { linhaFuncoes, selinhoIniciais } from '../ui/comuns.js';
+import { selinhoIniciais } from '../ui/comuns.js';
 import { loadEstatisticas, salvarOuAvisar } from '../dados/carregar.js';
 import { render } from '../nucleo/render.js';
 
@@ -330,32 +330,43 @@ function painelRemover(m) {
   `;
 }
 
+// Os selos das funcoes na mesma linha do nome, sem o bloco proprio que a
+// linhaFuncoes (das outras listas) desenha embaixo.
+function funcoesNaLinha(funcoes) {
+  const selos = (funcoes || []).map(funcaoPorChave).filter(Boolean)
+    .map(f => `<span class="funcao-item" title="${escapeHtml(f.label)}">${f.selo}</span>`).join('');
+  return selos ? `<span class="cadastro-funcoes">${selos}</span>` : '';
+}
+
+// O card do integrante, em tres andares (19/10/2026, pra ficar mais
+// baixo): nome, grau, cargo e funcoes, com a data de admissao (D.A) no
+// canto direito; os botoes de movimentacao; e Editar / Remover.
 function linhaCadastro(m) {
   const afastado = estaAfastado(m);
   return `
     <div class="member-row linha-cadastro${state.editingMemberId === m.id ? ' editando' : ''}${afastado ? ' afastado' : ''}">
       <div class="member-head">
         <div class="member-info-wrap">
-          <div class="member-info">
-            ${selinhoIniciais(m)}
-            <span class="member-name">${escapeHtml(m.nome)}</span>
-            ${m.grau ? `<span class="grade-box">${escapeHtml(m.grau)}</span>` : ''}
-            ${m.cargo ? `<span class="member-cargo-inline">${escapeHtml(m.cargo)}</span>` : ''}
+          <div class="cadastro-topo">
+            <div class="member-info">
+              ${selinhoIniciais(m)}
+              <span class="member-name">${escapeHtml(m.nome)}</span>
+              ${m.grau ? `<span class="grade-box">${escapeHtml(m.grau)}</span>` : ''}
+              ${m.cargo ? `<span class="member-cargo-inline">${escapeHtml(m.cargo)}</span>` : ''}
+              ${funcoesNaLinha(m.funcoes)}
+            </div>
+            ${m.entrada ? `<span class="cadastro-da" title="Data de admissão">D.A: ${escapeHtml(formatDataBR(m.entrada))}</span>` : ''}
           </div>
           ${afastado ? `<div class="selo-afastado">⏸️ Afastado${m.situacaoDesde ? ` desde ${escapeHtml(formatDataBR(m.situacaoDesde))}` : ''}</div>` : ''}
           ${m.grauPendente ? `
             <div class="selo-grau-pendente">⏳ Grau a confirmar
               <button class="btn-mov" data-action="abrir-confirmar-grau" data-id="${m.id}">✅ Confirmar grau</button>
             </div>` : ''}
-          <div class="cadastro-controles">
-            ${botoesMovimento(m)}
-            <div class="acoes-cadastro">
-              <button class="btn-mini" data-action="edit-member" data-id="${m.id}">✏️ Editar</button>
-              <button class="btn-mini perigo" data-action="remove-member" data-id="${m.id}" title="Para cadastro feito errado: apaga também o histórico. Quem saiu do clube é Desligamento.">Remover</button>
-            </div>
+          <div class="cadastro-controles">${botoesMovimento(m)}</div>
+          <div class="acoes-cadastro">
+            <button class="btn-mini" data-action="edit-member" data-id="${m.id}">✏️ Editar</button>
+            <button class="btn-mini perigo" data-action="remove-member" data-id="${m.id}" title="Para cadastro feito errado: apaga também o histórico. Quem saiu do clube é Desligamento.">Remover</button>
           </div>
-          ${m.entrada ? `<div class="confirmado-divisao" style="white-space:nowrap;">Ingresso: ${escapeHtml(formatDataBR(m.entrada))}</div>` : ''}
-          ${linhaFuncoes(m.funcoes)}
         </div>
       </div>
       ${state.movMembroId === m.id ? painelMovimento(m) : ''}

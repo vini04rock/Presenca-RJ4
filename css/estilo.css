@@ -1800,6 +1800,15 @@ body.rolou .barra-fixa-nome { opacity: 1; transform: none; }
   box-shadow: inset 3px 0 0 #E0B23C;
 }
 .acoes-cadastro { display: flex; gap: 6px; flex-shrink: 0; }
+/* O card em tres andares (19/10/2026): nome, grau, cargo e funcoes com a
+   D.A no canto direito; os botoes de movimentacao; Editar e Remover nas
+   pontas. Sem caber, o lado do nome quebra embaixo dele e a data fica. */
+.linha-cadastro .member-info-wrap { flex: 1; gap: 6px; }
+.cadastro-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.cadastro-topo .member-info { flex: 1; min-width: 0; row-gap: 2px; }
+.cadastro-funcoes { display: inline-flex; gap: 4px; font-size: 12.5px; }
+.cadastro-da { font-size: 11.5px; color: var(--text-muted); white-space: nowrap; flex-shrink: 0; padding-top: 4px; }
+.linha-cadastro .acoes-cadastro { justify-content: space-between; }
 .btn-mini {
   font: inherit; font-size: 12px; font-weight: 600;
   padding: 6px 10px; border-radius: 8px; cursor: pointer;

@@ -417,8 +417,11 @@ registrada pelo próprio cadastro: o formulário de integrante novo tem
 disso não conta como entrada.
 
 **Data de ingresso e tempo de clube** (19/10/2026). A data de ingresso
-fica no cadastro (coluna Entrada de `Membros`) e aparece embaixo do nome
-na lista ("Ingresso: 12/03/2019"). Na **carteirinha do Relatório
+fica no cadastro (coluna Entrada de `Membros`) e aparece no canto direito
+do card, na altura do nome, como "D.A: 12/03/2019" (data de admissão). O
+card do cadastro tem três andares: nome, grau, cargo e os emojis das
+funções (com a D.A à direita); os botões de movimentação; e Editar e
+Remover nas pontas. Na **carteirinha do Relatório
 individual** (e no PDF e no texto dele) sai com o tempo de clube: "No
 clube desde 12/03/2019 · 7 anos e 7 meses" (`tempoDeClube`/`textoIngresso`,
 em `dominio/movimentos.js`; conta meses inteiros).
