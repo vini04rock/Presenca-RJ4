@@ -283,6 +283,9 @@ export let state = {
   movErro: null,
   // O integrante com a confirmacao do "Remover" aberta na linha dele.
   removerMembroId: null,
+  // A divisao aberta no card de obrigatoriedades do mes (menu do organizador
+  // do Regional), com o detalhe dos tipos; null = nenhuma.
+  obrigatoriedadeAberta: null,
 
   // Secao Entrada/Saida do organizador: o livro de movimentacoes da divisao
   // (ou de todas, no Regional) e o periodo. No Regional, a divisao aberta

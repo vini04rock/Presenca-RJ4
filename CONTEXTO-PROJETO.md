@@ -27,7 +27,7 @@ Três modos de entrada, todos no mesmo link:
 - HTML + CSS + JavaScript puro, em **módulos ES nativos**. Sem framework,
   sem build step, sem dependências além das fontes do Google.
 - `index.html` é só o esqueleto; o visual em `css/estilo.css`; o código em
-  `js/`, repartido em 53 módulos.
+  `js/`, repartido em 55 módulos.
 - Hospedado no GitHub Pages (estático). Todo `git push` atualiza o site.
 - Backend: planilha do Google Sheets via Apps Script publicado como Web App.
   A URL fica em `API_URL`, em `js/nucleo/api.js`.
@@ -229,6 +229,30 @@ Três decisões que valem lembrar antes de mexer nele:
 > propósito. Na comparação de texto `''` é anterior a qualquer data, então
 > sem essa guarda ele apareceria sempre. O encerramento automático, abaixo,
 > tem a mesma guarda pelo mesmo motivo.
+
+**Obrigatoriedades do mês** — só no menu do organizador do **Regional**,
+logo abaixo do mural (`js/dominio/obrigatoriedades.js` +
+`js/telas/menu-organizador.js`), criado em 19/10/2026. Todo mês, cada
+divisão tem que fazer pelo menos um evento de cada tipo obrigatório:
+📊 Reunião, 🍻 Pub, 🏍️ Bate e Volta e 🏥 Ação Social
+(`TIPOS_OBRIGATORIOS`, no topo do arquivo de regras: mudou a regra, muda
+essa linha). O card lista as divisões que ainda não marcaram algum deles
+no **mês atual**, com o que falta; tocar numa abre os 4 tipos, com o
+evento que cobre cada um. O **📋 Cobrar** copia as pendências pro grupo.
+
+- **Confere as 6 divisões**, na ordem oficial, inclusive as que ainda não
+  usam o app: o retrato é o real.
+- **Marcado no calendário já conta**, mesmo que ainda não tenha
+  acontecido: o que se cobra é a divisão ter planejado.
+- **Evento do Regional vale para todas:** um Bate e Volta do Regional no
+  mês tira o Bate e Volta da pendência de todas as divisões (decisão do
+  clube; o detalhe diz "pelo Regional").
+- **A cor acompanha o mês:** amarelo enquanto há tempo, vermelho nos
+  últimos 10 dias (`DIAS_URGENTES`), pra não gritar no dia 1º, quando todo
+  mundo ainda "deve" tudo.
+- Como o mural, **não some** quando está tudo em dia: diz que está.
+- Usa os eventos que o app já tem (`state.events`, de todas as
+  divisões): nada novo vem da planilha, e o `Code.gs` não mudou.
 
 **Encerramento automático** — o outro lado da regra. Todo evento cuja data
 já passou é encerrado sozinho, e encerrar converte quem ficou "Aguardando"
@@ -705,7 +729,7 @@ a cada mudança:
 | `servidor.py` | serve o app local com o cache desligado |
 | `estrutura.py` | 7 verificações: imports circulares, hierarquia de camadas, sintaxe, nome sem import, import sobrando, ações sem tratador |
 | `regras.mjs` | as regras do clube que, se quebrarem, saem erradas numa convocação sem ninguém perceber |
-| `telas.mjs` | desenha as 150 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
+| `telas.mjs` | desenha as 153 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
 | `planilha.mjs` | roda o `Code.gs` de verdade contra uma planilha de mentira: encerramento automático, PIN, relatório individual, responsável, textos, chamada do evento, doações, caixinha e entrada/saída |
 
 O `--html` do `telas.mjs` é a rede de proteção mais útil: captura o HTML de
@@ -831,7 +855,7 @@ ferramentas, acima):
 
     py ferramentas/estrutura.py     # imports, camadas, sintaxe, ações
     node ferramentas/regras.mjs     # ordem hierárquica e formato da convocação
-    node ferramentas/telas.mjs      # desenha as 150 telas e abas
+    node ferramentas/telas.mjs      # desenha as 153 telas e abas
     node ferramentas/planilha.mjs   # o encerramento automático, no Code.gs
 
 Eles dizem que o app **não quebrou**, não que está bonito: não cobrem

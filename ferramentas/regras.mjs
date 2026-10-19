@@ -930,6 +930,43 @@ log('=== outras doações: o estoque do clube ===');
 }
 
 log('');
+log('=== obrigatoriedades do mês: os 4 eventos de cada divisão ===');
+{
+  const { obrigatoriedadesDoMes, textoFaltam, textoDiasRestantes, textoEventoMarcado, textoCobrancaObrigatoriedades } = await import(url('dominio/obrigatoriedades.js'));
+  const e = (categoria, tipo, data, nome) => ({ id: categoria + tipo + data, categoria, tipo, data, nome: nome || tipo, status: 'ativo' });
+  const eventos = [
+    e('barra', 'Reunião', '2026-10-05'), e('barra', 'Pub', '2026-10-12'), e('barra', 'Bate e Volta', '2026-10-19'),
+    // Marcado pra depois de hoje: ja conta.
+    e('barra', 'Ação Social', '2026-10-26'),
+    e('oeste', 'Pub', '2026-10-03'),
+    // O Regional fez Bate e Volta no mes: vale pra todas.
+    e('regional', 'Bate e Volta', '2026-10-19', 'Bonde da Serra'),
+    // Fora do mes, e sem data: nao contam.
+    e('recreio', 'Reunião', '2026-09-28'), e('recreio', 'Pub', ''),
+  ];
+  const r = obrigatoriedadesDoMes(eventos, new Date(2026, 9, 22));
+  confere('as 6 divisões, na ordem oficial', r.divisoes.map(d => d.escopo.chave), ['oeste', 'recreio', 'barra', 'curicica', 'taquara', 'gardenia']);
+  confere('quem deve, e o quê', r.devendo.map(d => [d.escopo.chave, d.faltam]), [
+    ['oeste', ['Reunião', 'Ação Social']], ['recreio', ['Reunião', 'Pub', 'Ação Social']],
+    ['curicica', ['Reunião', 'Pub', 'Ação Social']], ['taquara', ['Reunião', 'Pub', 'Ação Social']], ['gardenia', ['Reunião', 'Pub', 'Ação Social']]]);
+  const oeste = r.divisoes[0].tipos.find(t => t.tipo === 'Bate e Volta');
+  const barra = r.divisoes[2].tipos.find(t => t.tipo === 'Bate e Volta');
+  confere('o Bate e Volta do Regional cobre a divisão; o da própria divisão vem primeiro',
+    [oeste.peloRegional, textoEventoMarcado(oeste), barra.peloRegional], [true, 'pelo Regional: Bonde da Serra · 19/10', false]);
+  confere('o mês, os dias que faltam e a urgência (últimos 10 dias)',
+    [r.mes, r.nomeMes, r.diasRestantes, r.urgente, obrigatoriedadesDoMes(eventos, new Date(2026, 9, 21)).urgente], ['2026-10', 'Outubro', 9, true, false]);
+  confere('os textos', [textoFaltam(['Ação Social', 'Pub']), textoDiasRestantes(9), textoDiasRestantes(1), textoDiasRestantes(0)],
+    ['falta 🏥 Ação Social · 🍻 Pub', 'faltam 9 dias', 'falta 1 dia', 'último dia do mês']);
+  const texto = textoCobrancaObrigatoriedades(r).split('\n');
+  confere('a cobrança pro grupo', [texto[0], texto.slice(3, 7), texto[texto.length - 1]], [
+    '⚠️ *OBRIGATORIEDADES DE OUTUBRO* ⚠️', ['', '*OESTE - RJ4*', '❌ 📊 Reunião', '❌ 🏥 Ação Social'], '⏳ Faltam 9 dias para fechar Outubro.']);
+  const tudoOk = obrigatoriedadesDoMes(['oeste', 'recreio', 'barra', 'curicica', 'taquara', 'gardenia', 'regional'].flatMap(c =>
+    ['Reunião', 'Pub', 'Bate e Volta', 'Ação Social'].map(t => e(c, t, '2026-10-10'))), new Date(2026, 9, 31));
+  confere('tudo em dia, no último dia', [tudoOk.devendo.length, textoCobrancaObrigatoriedades(tudoOk).split('\n')[2]],
+    [0, '✅ Todas as divisões marcaram os 4 eventos do mês.']);
+}
+
+log('');
 log('=== entrada/saída: o relatório de cada divisão e o quadro do Regional ===');
 {
   const { resumoMovimentos, quadroRegional, textoMovimentos, textoQuadroRegional, soAtivos, movimentosDoPeriodo } = await import(url('dominio/movimentos.js'));

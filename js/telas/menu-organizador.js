@@ -12,7 +12,8 @@
 import { JANELA_DIAS, eventosProximos, semResposta } from '../dominio/pendencias.js';
 import { carregarTextosChamada, loadPresencasProximas } from '../dados/carregar.js';
 import { escopoPorChave, escoposAtivos, temDoacoesECaixinha } from '../nucleo/config.js';
-import { diaDaSemana, formatDataBR, quando } from '../nucleo/util.js';
+import { TIPOS_OBRIGATORIOS, obrigatoriedadesDoMes, rotuloTipo, textoCobrancaObrigatoriedades, textoDiasRestantes, textoEventoMarcado, textoFaltam } from '../dominio/obrigatoriedades.js';
+import { copiarTexto, diaDaSemana, formatDataBR, quando } from '../nucleo/util.js';
 import { state } from '../nucleo/estado.js';
 import { escapeHtml } from '../nucleo/util.js';
 import { render } from '../nucleo/render.js';
@@ -122,6 +123,62 @@ function avisoEventosProximos() {
   `;
 }
 
+// Obrigatoriedades do mes, so no Regional: as divisoes que ainda nao
+// marcaram no calendario algum dos eventos obrigatorios do mes (as regras
+// moram em dominio/obrigatoriedades.js). Mesmo visual das linhas do mural,
+// mas sem a altura fixa dele: aqui cada divisao abre o proprio detalhe.
+// Amarelo enquanto ha tempo; vermelho nos ultimos dias do mes. Como o
+// mural, nao some quando esta tudo certo - diz que esta.
+const COR_OK = '#4CAF6E';
+function linhaObrigatoriedade(d, cor) {
+  const chave = d.escopo.chave;
+  const aberta = state.obrigatoriedadeAberta === chave;
+  return `
+    <div class="aviso-linha" style="border-left-color:${cor}; height:auto; min-height:58px; padding:8px 12px;" data-action="abrir-obrigatoriedade" data-value="${chave}">
+      <div class="aviso-icone" style="border-color:${cor};">⚠️</div>
+      <div class="aviso-texto">
+        <div class="aviso-nome">${escapeHtml(d.escopo.nome)}</div>
+        <div class="aviso-contagem" style="color:${cor};">${escapeHtml(textoFaltam(d.faltam))}</div>
+      </div>
+      <div class="aviso-seta">${aberta ? '⌄' : '›'}</div>
+    </div>
+    ${aberta ? `
+      <div style="padding:2px 12px 10px 50px; border-left:3px solid ${cor};">
+        ${d.tipos.map(t => `
+          <div style="font-size:12px; padding:3px 0; color:${t.ok ? 'var(--text)' : 'var(--status-infracional)'};">
+            ${t.ok ? '✅' : '❌'} ${escapeHtml(rotuloTipo(t.tipo))}<span style="color:var(--text-muted);"> — ${escapeHtml(textoEventoMarcado(t))}</span>
+          </div>
+        `).join('')}
+      </div>
+    ` : ''}
+  `;
+}
+
+function cardObrigatoriedades() {
+  const r = obrigatoriedadesDoMes(state.events);
+  const n = r.devendo.length;
+  const cor = r.urgente ? '#D9573C' : '#E0B24D';
+  const topo = `${r.nomeMes} · ${textoDiasRestantes(r.diasRestantes)} · ${n ? `${n} ${n === 1 ? 'divisão' : 'divisões'} com pendência` : 'tudo em dia'}`;
+  const conteudo = n
+    ? r.devendo.map(d => linhaObrigatoriedade(d, cor)).join('')
+    : `
+      <div class="aviso-linha" style="border-left-color:${COR_OK}; height:auto; padding:12px; cursor:default;">
+        <div class="aviso-icone aviso-ok" style="border-color:${COR_OK};">✅</div>
+        <div class="aviso-texto"><div class="aviso-meta" style="font-size:12px;">Todas as divisões marcaram os ${TIPOS_OBRIGATORIOS.length} eventos obrigatórios de ${escapeHtml(r.nomeMes)}.</div></div>
+      </div>
+    `;
+  return `
+    <div class="rotulo-secao">Obrigatoriedades do mês</div>
+    <div class="card" style="padding:0; overflow:hidden;">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 12px;">
+        <div style="font-size:12px; font-weight:600; color:${n ? cor : COR_OK};">${n ? '⚠️' : '✅'} ${escapeHtml(topo)}</div>
+        ${n ? '<button class="aviso-cobrar" data-action="copiar-obrigatoriedades" title="Copiar as pendências pro WhatsApp">📋 Cobrar</button>' : ''}
+      </div>
+      ${conteudo}
+    </div>
+  `;
+}
+
 // Entrar no menu: desenha na hora e busca as presencas dos eventos proximos
 // em seguida, sem travar a tela - ate elas chegarem o aviso diz que esta
 // vendo. Quem chama e o PIN (primeira entrada) e o "‹ Menu" de dentro das
@@ -141,6 +198,7 @@ export function renderMenuOrganizador(app) {
       <div class="count-box">${escapeHtml(escopoPorChave(state.adminEscopo).nome.toUpperCase())}</div>
     </div>
     ${avisoEventosProximos()}
+    ${state.adminEscopo === 'regional' ? cardObrigatoriedades() : ''}
     ${secoesVisiveis().map(cardSecao).join('')}
   `;
 }
@@ -158,5 +216,14 @@ export const acoes = {
   // divisao que ja foi escolhida e liberada pelo PIN la atras.
   'abrir-relatorios-organizador': async (id, target, action, e) => {
     return entrarNosRelatorios();
+  },
+  // Abre (ou fecha) o detalhe de uma divisao no card de obrigatoriedades.
+  'abrir-obrigatoriedade': async (id, target, action, e) => {
+    const chave = target.dataset.value;
+    state.obrigatoriedadeAberta = state.obrigatoriedadeAberta === chave ? null : chave;
+    return render();
+  },
+  'copiar-obrigatoriedades': async (id, target, action, e) => {
+    return copiarTexto(textoCobrancaObrigatoriedades(obrigatoriedadesDoMes(state.events)));
   },
 };

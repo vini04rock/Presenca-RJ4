@@ -253,6 +253,16 @@ add('organizador / menu (mural transbordando)', { isAdmin:true, adminEscopo:'bar
 // logo abaixo: os eventos dos dados falsos tem data fixa e nenhum cai na
 // janela, entao o menu de qualquer divisao nasce com o mural vazio.
 add('organizador / menu (regional)', { isAdmin:true, adminEscopo:'regional' }, T.renderMenuOrganizador);
+// Obrigatoriedades do mes (so no Regional): o card olha o mes de HOJE, entao
+// os eventos daqui tambem andam com o relogio, como os do mural acima.
+const evMes = (categoria, tipo) => ({ ...evProximo, id:'ob-' + categoria + tipo, nome:tipo + ' ' + categoria, categoria, tipo, data:daquiA(0) });
+add('organizador / obrigatoriedades (com pendências)', { isAdmin:true, adminEscopo:'regional',
+  events:[evMes('barra', 'Pub'), evMes('barra', 'Reunião'), evMes('regional', 'Bate e Volta')] }, T.renderMenuOrganizador);
+add('organizador / obrigatoriedades (divisão aberta)', { isAdmin:true, adminEscopo:'regional', obrigatoriedadeAberta:'barra',
+  events:[evMes('barra', 'Pub'), evMes('barra', 'Reunião'), evMes('regional', 'Bate e Volta')] }, T.renderMenuOrganizador);
+add('organizador / obrigatoriedades (tudo em dia)', { isAdmin:true, adminEscopo:'regional',
+  events:['barra', 'oeste', 'recreio', 'curicica', 'taquara', 'gardenia'].flatMap(c =>
+    ['Reunião', 'Pub', 'Bate e Volta', 'Ação Social'].map(t => evMes(c, t))) }, T.renderMenuOrganizador);
 add('organizador / menu (barra)',    { isAdmin:true, adminEscopo:'barra' }, T.renderMenuOrganizador);
 add('organizador / menu (oeste)',    { isAdmin:true, adminEscopo:'oeste' }, T.renderMenuOrganizador);
 for (const aba of ['eventos','membros','encerrados','presencas','insights','insights-rodadas','insights-relatorio']) {
@@ -588,7 +598,7 @@ const LIMPO = {
   relIndMembroId:null, relIndDados:null, relIndCarregando:false, relIndErro:null,
   relIndFiltroInicio:'', relIndFiltroFim:'', relIndDivisoesAbertas:new Set(),
   relIndCopiado:false, relIndSelecionando:false, relIndMarcados:new Set(), relIndVarios:null,
-  relIndVariosCarregando:false, relIndVariosErro:null,
+  relIndVariosCarregando:false, relIndVariosErro:null, obrigatoriedadeAberta:null,
   doacoesDados:null, doacoesDadosEscopo:null, doacoesErro:null, doacoesEventoId:null, doacoesMarcacoes:{},
   doacoesMsg:null, doacoesSalvando:false, doacoesQtdEncerrados:8, doacoesPeriodo:0,
   estoqueCards:null, estoqueSalvando:false, estoqueMsg:null,
