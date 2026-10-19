@@ -170,11 +170,11 @@ function cardObrigatoriedades() {
     : `
       <div class="aviso-linha" style="border-left-color:${COR_OK}; height:auto; padding:12px; cursor:default;">
         <div class="aviso-icone aviso-ok" style="border-color:${COR_OK};">✅</div>
-        <div class="aviso-texto"><div class="aviso-meta" style="font-size:12px;">Todas as divisões marcaram os ${TIPOS_OBRIGATORIOS.length} eventos obrigatórios de ${escapeHtml(r.nomeMes)}.</div></div>
+        <div class="aviso-texto"><div class="aviso-meta" style="font-size:12px;">Todas as divisões marcaram os ${TIPOS_OBRIGATORIOS.length} eventos de ${escapeHtml(r.nomeMes)}.</div></div>
       </div>
     `;
   return `
-    <div class="rotulo-secao">Obrigatoriedades do mês</div>
+    <div class="rotulo-secao">Eventos de divisão do mês</div>
     <div class="card" style="padding:0; overflow:hidden;">
       <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 12px;">
         <div style="font-size:12px; font-weight:600; color:${n ? cor : COR_OK};">${n ? '⚠️' : '✅'} ${escapeHtml(topo)}</div>
