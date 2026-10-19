@@ -3303,7 +3303,7 @@ function gerarDadosFakeTeste() {
       var nome = PREFIXO_TESTE + nomeDivisao.split(' ')[0] + ' ' + sorteia(nomesFake) + ' ' + (i + 1);
       // Colunas na ordem de CAB_MEMBROS - inclusive as vazias (Funcoes,
       // Cargo). setValues() recusa linha mais estreita que o range.
-      novosMembros.push([id, nome, '', nomeDivisao, '', '', '', '', '']);
+      novosMembros.push([id, nome, '', nomeDivisao, '', '', '', '', '', '']);
       membrosPorChave[chave].push({ id: id, nome: nome, divisao: nomeDivisao });
     }
   });
