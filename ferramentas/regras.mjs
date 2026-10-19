@@ -824,6 +824,10 @@ log('=== caixinha: controle financeiro (saldo, entradas, saídas, período) ==='
   const { controleCaixinha, movimentosDoCaixa, textoControleCaixinha, rotuloDoPeriodoFinanceiro } = await import(url('dominio/caixinha-financeiro.js'));
   const base = new Date(2026, 9, 18); // 18/10/2026
   const pg = (id, valor) => ({ id, nome: 'N' + id, pagou: valor > 0, valor });
+  const { categoriasSaidaCaixinha } = await import(url('nucleo/config.js'));
+  confere('a contribuição pro Regional é saída da divisão, não do Regional',
+    [categoriasSaidaCaixinha('barra').includes('Contribuição Caixinha Regional'), categoriasSaidaCaixinha('regional').includes('Contribuição Caixinha Regional'),
+      categoriasSaidaCaixinha('regional').at(-1)], [true, false, 'Outros']);
   const lc = (id, tipo, data, categoria, descricao, valor) => ({ id, tipo, data, categoria, descricao, valor });
   const dados = {
     meses: [

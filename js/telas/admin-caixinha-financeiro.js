@@ -12,7 +12,7 @@ import { formatReais, mesesParaEscolher, nomeCurtoDoMes, nomeDoMes, vocabularioC
 import { controleCaixinha, mesesDoPeriodoFinanceiro, periodoDeUmMes, quandoDoSaldoInicial, rotuloDoPeriodoFinanceiro, textoControleCaixinha } from '../dominio/caixinha-financeiro.js';
 import { PERIODOS, rotuloPilula } from '../dominio/doacoes.js';
 import { conferirSaldoInicial, definirSaldoInicial, fecharFormFinanceiro, removerLancamentoFinanceiro, salvarLancamentoFinanceiro } from '../fluxos/doacoes-caixinha.js';
-import { CATEGORIAS_SAIDA_CAIXINHA, CATEGORIA_ENTRADA_CAIXINHA, escopoPorChave } from '../nucleo/config.js';
+import { CATEGORIA_ENTRADA_CAIXINHA, categoriasSaidaCaixinha, escopoPorChave } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
 import { copiarTexto, escapeHtml, formatDataBR } from '../nucleo/util.js';
@@ -256,7 +256,7 @@ function formLancamento(f) {
         <div class="field">
           <label>Categoria</label>
           <div class="fin-categorias">
-            ${CATEGORIAS_SAIDA_CAIXINHA.map(c => `<button class="pilula ${f.categoria === c ? 'active' : ''}" data-action="fin-categoria" data-value="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('')}
+            ${categoriasSaidaCaixinha(state.adminEscopo).map(c => `<button class="pilula ${f.categoria === c ? 'active' : ''}" data-action="fin-categoria" data-value="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('')}
           </div>
         </div>
       ` : ''}

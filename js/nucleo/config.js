@@ -79,8 +79,9 @@ export const VALOR_CAIXINHA_PADRAO = 30;
 // Barra usava. "Outros" fica sempre por ultimo. Acrescentar uma e so um
 // item a mais aqui; o que ja foi lancado guarda o nome da categoria como
 // texto, entao renomear uma aqui nao muda os lancamentos antigos.
-export const CATEGORIAS_SAIDA_CAIXINHA = [
-  'Contribuição Caixinha Regional',
+const CONTRIBUICAO_CAIXINHA_REGIONAL = 'Contribuição Caixinha Regional';
+const CATEGORIAS_SAIDA_CAIXINHA = [
+  CONTRIBUICAO_CAIXINHA_REGIONAL,
   'Kit Churrasco / lanches',
   'Material gráfico',
   'Ação Social Externa',
@@ -88,9 +89,15 @@ export const CATEGORIAS_SAIDA_CAIXINHA = [
   'Auxílio mensalidade',
   'Equipamentos / Utensílios',
   'Pedágios',
-  'Ajuda custo Sede (Barbearia Insanos)',
+  'Ajuda de custo da sede',
   'Outros',
 ];
+// As categorias de saida da caixinha de um escopo. O Regional recebe a
+// contribuicao das divisoes e nao paga a ninguem, entao fica sem a
+// "Contribuição Caixinha Regional" (decisao do clube, 19/10/2026).
+export function categoriasSaidaCaixinha(escopo) {
+  return escopo === 'regional' ? CATEGORIAS_SAIDA_CAIXINHA.filter(c => c !== CONTRIBUICAO_CAIXINHA_REGIONAL) : CATEGORIAS_SAIDA_CAIXINHA;
+}
 // O que entra fora das mensalidades (doacao extra, rifa...) - uma categoria
 // so, e a descricao diz o que foi.
 export const CATEGORIA_ENTRADA_CAIXINHA = 'Outras entradas';

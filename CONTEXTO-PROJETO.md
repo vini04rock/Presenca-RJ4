@@ -627,7 +627,9 @@ controle que a Barra mantinha à mão.
   direto do Mês a mês, uma entrada por mês. Cada real tem um lugar só, e
   corrigir um pagamento é corrigir o mês.
 - **Lançamentos:** 🔴 saída (data, uma das categorias de
-  `CATEGORIAS_SAIDA_CAIXINHA`, descrição e valor) e 🟢 entrada avulsa
+  `CATEGORIAS_SAIDA_CAIXINHA`, descrição e valor; no Regional sem a
+  "Contribuição Caixinha Regional", que é saída das divisões —
+  `categoriasSaidaCaixinha`) e 🟢 entrada avulsa
   (doação extra, rifa… numa categoria só, "Outras entradas"). Data em
   branco é hoje, e nunca no futuro. Tocar num lançamento do extrato abre a
   correção, com o excluir.
