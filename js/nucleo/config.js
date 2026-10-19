@@ -134,7 +134,7 @@ export const TIPOS_EVENTO = ['Bate e Volta', 'Pub', 'Ação Social', 'Reunião']
 const EMOJI_TIPO_EVENTO = {
   'Pub': '🍻',
   'Bate e Volta': '🏍️',
-  'Ação Social': '🏥',
+  'Ação Social': '🤝',
   'Reunião': '📊'
 };
 export function emojiTipoEvento(tipo) { return EMOJI_TIPO_EVENTO[tipo] || ''; }

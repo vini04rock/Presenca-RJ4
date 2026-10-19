@@ -274,7 +274,7 @@ mural diz **"Nenhum aviso no momento"**.
 logo abaixo do mural (`js/dominio/obrigatoriedades.js` +
 `js/telas/menu-organizador.js`), criado em 19/10/2026. Todo mês, cada
 divisão tem que fazer pelo menos um evento de cada tipo obrigatório:
-📊 Reunião, 🍻 Pub, 🏍️ Bate e Volta e 🏥 Ação Social
+📊 Reunião, 🍻 Pub, 🏍️ Bate e Volta e 🤝 Ação Social
 (`TIPOS_OBRIGATORIOS`, no topo do arquivo de regras: mudou a regra, muda
 essa linha). O card lista as divisões que ainda não marcaram algum deles
 no **mês atual**, com o que falta; tocar numa abre os 4 tipos, com o
@@ -341,7 +341,7 @@ dar para saber de quem era cada um. A ordem dos blocos é a oficial do clube
 Bonde Regional. Numa divisão só, a lista é a de sempre, sem blocos. Nenhuma
 conta mudou, só a forma de mostrar.
 
-**Tipos de evento** — Pub 🍻, Bate e Volta 🏍️, Ação Social 🏥, Reunião 📊.
+**Tipos de evento** — Pub 🍻, Bate e Volta 🏍️, Ação Social 🤝, Reunião 📊.
 Cada um com cor e arte próprias.
 
 **Funções** — Sargento de Armas ⚔️, Caveira 💀, Combate Insanos 🥋,
@@ -749,7 +749,7 @@ A tela e o texto são divididos nos mesmos **8 quadros**, na mesma ordem:
 
 | Quadro | O que é | De onde vem |
 |---|---|---|
-| 1. Tipo de chamada | o tipo no topo (`🏥 AÇÃO SOCIAL 🏥`), a linha do bonde, o subtítulo e a estrada de 🏍️ | tipo e nome do evento |
+| 1. Tipo de chamada | o tipo no topo (`🤝 AÇÃO SOCIAL 🤝`), a linha do bonde, o subtítulo e a estrada de 🏍️ | tipo e nome do evento |
 | 2. Informações | `🎯` destino, `📅 Data: 19/09`, `⏰ Horário: 07:00h` | data do evento; destino e horário sugeridos |
 | 3. Roteiro | um bloco por P.E. (nome, endereço, Maps, Concentração/Briefing/Saída), o `🏁 Destino` e o roteiro do bonde | formulário; o roteiro é montado dos P.E. |
 | 4. Membros | ver abaixo | cadastro |

@@ -477,7 +477,7 @@ camposReg.pes[0].vias = 'Av. Ayrton Senna\n* Linha Amarela — sentido Fundão';
 const respBull = { nome:'Bull', cargo:'Operacional RJ4', telefone:'21 90000-0000' };
 const textoReg = montarConvocacao(evRegional, rosterTeste, camposReg, respBull);
 const linhasReg = textoReg.split('\n');
-confere('o tipo no topo, o bonde logo abaixo', linhasReg.slice(0, 2), ['🏥 AÇÃO SOCIAL 🏥', '⚙️ BONDE REGIONAL - RJ4 ⚙️']);
+confere('o tipo no topo, o bonde logo abaixo', linhasReg.slice(0, 2), ['🤝 AÇÃO SOCIAL 🤝', '⚙️ BONDE REGIONAL - RJ4 ⚙️']);
 confere('o subtítulo vem do nome do evento', linhasReg[3], 'Inauguração Divisão Paraíba do Sul');
 confere('informações: destino, data e horário', ['🎯 Bandas Bar - Paraíba do Sul', '📅 Data: 19/09', '⏰ Horário: 07:00h']
   .every(l => linhasReg.includes(l)), true);
@@ -1112,10 +1112,10 @@ log('=== obrigatoriedades do mês: os 4 eventos de cada divisão ===');
   confere('o mês, os dias que faltam e a urgência (últimos 10 dias)',
     [r.mes, r.nomeMes, r.diasRestantes, r.urgente, obrigatoriedadesDoMes(eventos, new Date(2026, 9, 21)).urgente], ['2026-10', 'Outubro', 9, true, false]);
   confere('os textos', [textoFaltam(['Ação Social', 'Pub']), textoDiasRestantes(9), textoDiasRestantes(1), textoDiasRestantes(0)],
-    ['falta 🏥 Ação Social · 🍻 Pub', 'faltam 9 dias', 'falta 1 dia', 'último dia do mês']);
+    ['falta 🤝 Ação Social · 🍻 Pub', 'faltam 9 dias', 'falta 1 dia', 'último dia do mês']);
   const texto = textoCobrancaObrigatoriedades(r).split('\n');
   confere('a cobrança pro grupo', [texto[0], texto.slice(3, 7), texto[texto.length - 1]], [
-    '⚠️ *OBRIGATORIEDADES DE OUTUBRO* ⚠️', ['', '*OESTE - RJ4*', '❌ 📊 Reunião', '❌ 🏥 Ação Social'], '⏳ Faltam 9 dias para fechar Outubro.']);
+    '⚠️ *OBRIGATORIEDADES DE OUTUBRO* ⚠️', ['', '*OESTE - RJ4*', '❌ 📊 Reunião', '❌ 🤝 Ação Social'], '⏳ Faltam 9 dias para fechar Outubro.']);
   const tudoOk = obrigatoriedadesDoMes(['oeste', 'recreio', 'barra', 'curicica', 'taquara', 'gardenia', 'regional'].flatMap(c =>
     ['Reunião', 'Pub', 'Bate e Volta', 'Ação Social'].map(t => e(c, t, '2026-10-10'))), new Date(2026, 9, 31));
   confere('tudo em dia, no último dia', [tudoOk.devendo.length, textoCobrancaObrigatoriedades(tudoOk).split('\n')[2]],

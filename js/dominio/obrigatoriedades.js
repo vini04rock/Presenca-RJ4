@@ -61,7 +61,7 @@ export function obrigatoriedadesDoMes(eventos, base = new Date()) {
 const comEmoji = tipo => `${emojiTipoEvento(tipo)} ${tipo}`.trim();
 export function rotuloTipo(tipo) { return comEmoji(tipo); }
 
-// "falta 🏥 Ação Social · 🍻 Pub"
+// "falta 🤝 Ação Social · 🍻 Pub"
 export function textoFaltam(faltam) {
   return `falta ${faltam.map(comEmoji).join(' · ')}`;
 }

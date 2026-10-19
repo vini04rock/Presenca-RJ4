@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-10-19-v-estoque-adm';
+var VERSAO = '2026-10-19-w-emoji-acao-social';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -1010,7 +1010,7 @@ function atualizarAbasDivisoes() {
 var DIAS_SEMANA_CALENDARIO = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 var NOMES_MESES_CALENDARIO = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
                                'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-var EMOJI_TIPO_EVENTO_CALENDARIO = { 'Pub': '🍻', 'Bate e Volta': '🏍️', 'Ação Social': '🏥', 'Reunião': '📊' };
+var EMOJI_TIPO_EVENTO_CALENDARIO = { 'Pub': '🍻', 'Bate e Volta': '🏍️', 'Ação Social': '🤝', 'Reunião': '📊' };
 
 // Mistura uma cor com branco - fundo de celula do dia (a cor "crua" da
 // divisao, igual usada no grafico da aba Regional RJ4, e forte demais pra
