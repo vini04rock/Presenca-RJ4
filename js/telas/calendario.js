@@ -16,6 +16,13 @@ import { mostrarPreviaImagem } from '../ui/imagem.js';
 // Tela "Calendario" - escolhe a divisao/regional (sem PIN, igual Eventos),
 // depois mostra a grade do mes daquele escopo. Por enquanto so mostra os
 // dias - o que cada dia vai destacar (eventos, etc.) fica pra depois.
+
+// O nome curto de quem criou o evento, pro quadradinho do dia: "Regional",
+// "Barra", "Gardênia" (sem o " - RJ4", que nao caberia).
+function nomeDaOrigem(categoria) {
+  return categoria === 'regional' ? 'Regional' : escopoPorChave(categoria).nome.split(' - ')[0];
+}
+
 export function renderCalendarioDivisoes(app) {
   renderEscolhaDivisao(app, {
     titulo: 'Calendário',
@@ -62,14 +69,11 @@ export function renderCalendario(app) {
           const marcacao = marcacoesEscopo[dataIso];
           const tipo = marcacao && marcacao.tipo;
           const estilo = tipo ? `border-color:${corTipoEvento(tipo)}; background:${hexParaRgba(corTipoEvento(tipo), 0.18)}; --cor-dia:${corTipoEvento(tipo)};` : '';
-          // Mostra de onde o evento veio sempre que a origem for diferente
-          // de quem esta olhando - no Regional, aparece o nome da divisao
-          // (ex: "Barra"); numa divisao, um evento vindo do Regional
-          // aparece com "Regional" embaixo. O proprio evento da divisao,
-          // visto por ela mesma, nao precisa de rotulo nenhum.
-          const nomeOrigem = tipo && marcacao.origem !== state.calendarioEscopo
-            ? (marcacao.origem === 'regional' ? 'Regional' : escopoPorChave(marcacao.origem).nome.split(' - ')[0])
-            : '';
+          // Sempre o nome de quem criou o evento, inclusive a propria
+          // divisao do calendario aberto (decisao do clube, 19/10/2026 -
+          // antes so aparecia o de outra origem, e o evento da propria
+          // divisao ficava so com o emoji).
+          const nomeOrigem = tipo ? nomeDaOrigem(marcacao.origem) : '';
           return `
             <div class="calendario-dia${ehHoje(dia) ? ' calendario-dia-hoje' : ''}${tipo ? ' tem-evento calendario-dia-clicavel' : ''}${dataIso === state.calendarioDiaAberto ? ' calendario-dia-selecionado' : ''}" style="${estilo}" ${tipo ? `data-action="calendario-ver-dia" data-value="${dataIso}"` : ''} title="${tipo ? escapeHtml(tipo + (nomeOrigem ? ' - ' + nomeOrigem : '')) : ''}">
               <span class="calendario-dia-numero">${dia}</span>
@@ -225,11 +229,8 @@ function conteudoCalendarioOrganizarEditar() {
           if (ehHoje(dia)) classes.push('calendario-dia-hoje');
           if (tipo) classes.push('calendario-dia-clicavel', 'tem-evento');
           if (dataIso === dataSelecionada) classes.push('calendario-dia-selecionado');
-          // So aparece no Regional (unico escopo que edita evento de outra
-          // origem) - pra saber de qual divisao e o evento antes de tocar.
-          const nomeOrigem = tipo && evento.categoria !== state.calendarioEscopo
-            ? (evento.categoria === 'regional' ? 'Regional' : escopoPorChave(evento.categoria).nome.split(' - ')[0])
-            : '';
+          // Sempre o nome de quem criou o evento, como na grade principal.
+          const nomeOrigem = tipo ? nomeDaOrigem(evento.categoria) : '';
           return `
             <div class="${classes.join(' ')}" style="${estilo}" ${tipo ? `data-action="calendario-editar-selecionar-dia" data-value="${dataIso}"` : ''} title="${tipo ? escapeHtml(tipo + (nomeOrigem ? ' - ' + nomeOrigem : '')) : ''}">
               <span class="calendario-dia-numero">${dia}</span>
@@ -249,12 +250,9 @@ function conteudoCalendarioOrganizarEditar() {
 function renderCalendarioEditorPainel(evento) {
   const [ano, mes, dia] = evento.data.split('-');
   const tipo = evento.tipo;
-  // So o Regional edita evento de outra origem - mostra de qual divisao e,
-  // pra nao confundir "excluir o evento errado" com um evento parecido da
-  // propria divisao.
-  const origemTexto = evento.categoria !== state.calendarioEscopo
-    ? ` (${evento.categoria === 'regional' ? 'Regional' : escopoPorChave(evento.categoria).nome.split(' - ')[0]})`
-    : '';
+  // De qual divisao e o evento, sempre - pra nao confundir "excluir o
+  // evento errado" com um parecido de outra origem.
+  const origemTexto = ` (${nomeDaOrigem(evento.categoria)})`;
   const titulo = `${emojiTipoEvento(tipo)} ${escapeHtml(tipo)} - ${dia}/${mes}/${ano}${escapeHtml(origemTexto)}`;
   if (state.calendarioAjustandoData) {
     return `

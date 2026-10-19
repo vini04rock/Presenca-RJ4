@@ -753,7 +753,13 @@ label {
 .calendario-dia-emoji { font-size: 11px; line-height: 1; }
 .calendario-dia > span { flex-shrink: 0; }
 .calendario-dia-origem {
-  font-size: 10px;
+  /* 9px com as letras um pouco mais juntas: "Regional", "Gardenia" e
+     "Curicica" cabem inteiros no quadradinho de um celular comum (375px).
+     Desde 19/10/2026 o nome aparece em todo evento, inclusive os da propria
+     divisao, entao os compridos ficaram mais comuns. Em tela mais estreita
+     ainda, a quebra abaixo continua de reserva. */
+  font-size: 9px;
+  letter-spacing: -0.02em;
   line-height: 1.25;
   color: var(--text-muted);
   max-width: 100%;

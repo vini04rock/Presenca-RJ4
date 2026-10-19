@@ -174,6 +174,14 @@ A categoria do evento é um **campo de verdade** na planilha, não filtro por
 nome. Evento regional que aparece dentro de uma tela de divisão fica
 rotulado como tal, para não se confundir com um evento próprio.
 
+No **Calendário**, desde 19/10/2026, o quadradinho do dia mostra **sempre**
+o nome de quem criou o evento ("Regional", "Barra"...), inclusive no
+calendário da própria divisão; antes só aparecia o de outra origem, e o
+próprio ficava só com o emoji (`nomeDaOrigem`, em `telas/calendario.js`,
+nas grades de ver e de editar). Dia com mais de um evento continua com
+"2 eventos". O rótulo é de 9px, com as letras um pouco mais juntas, para
+"Regional" e "Gardênia" caberem inteiros num celular comum.
+
 **Status** — os 4 do seletor manual (⚠️ Aguardando, ✅ Confirmado, ❌ Família,
 ❌ Trabalho) e mais 2 que só nascem da convocação colada (❌ Justificada,
 ⭕ Não justificada).
