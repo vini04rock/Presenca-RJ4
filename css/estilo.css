@@ -719,17 +719,15 @@ label {
 .calendario-card { padding: 16px 6px; }
 .calendario-cabecalho { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; padding: 0 6px; }
 .calendario-cabecalho .btn.ghost { padding: 4px 14px; font-size: 16px; }
-.calendario-titulo { font-family: 'Rye', serif; font-size: 16px; color: var(--white-strong); }
+.calendario-titulo { min-width: 0; text-align: center; font-family: 'Rye', serif; font-size: 16px; color: var(--white-strong); }
 /* minmax(0, 1fr), e nao so 1fr: uma coluna 1fr nao encolhe abaixo do
-   conteudo, e com a letra aumentada no celular o nome da divisao (que nao
-   quebra linha) empurrava a grade pra fora do card - o domingo saia cortado.
-   Assim as 7 colunas dividem so a largura que existe, e o nome vira "…". */
+   conteudo. As sete colunas dividem a largura disponivel e os rotulos
+   quebram linha; a altura acompanha o conteudo, inclusive com letra maior. */
 .calendario-grade { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
 .calendario-dia-semana { text-align: center; font-size: 11px; color: var(--text-muted); font-weight: 700; padding-bottom: 4px; }
 .calendario-dia {
-  aspect-ratio: 1 / 1;
+  min-height: 76px;
   min-width: 0;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -737,8 +735,8 @@ label {
      sobra espaco embaixo pro emoji do tipo e, no calendario Regional, o
      nome da divisao de origem. */
   justify-content: flex-start;
-  padding-top: 7px;
-  gap: 2px;
+  padding: 7px 2px;
+  gap: 3px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   font-size: 15px;
@@ -751,15 +749,15 @@ label {
 .calendario-dia-selecionado { border-width: 2px; box-shadow: 0 0 0 1px var(--white-strong); }
 .calendario-dia-numero { line-height: 1; }
 .calendario-dia-emoji { font-size: 13px; line-height: 1; }
+.calendario-dia > span { flex-shrink: 0; }
 .calendario-dia-origem {
-  font-size: 8.5px;
-  line-height: 1;
+  font-size: 10px;
+  line-height: 1.25;
   color: var(--text-muted);
   max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  padding: 0 2px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
 }
 .calendario-legenda {
   display: flex;
