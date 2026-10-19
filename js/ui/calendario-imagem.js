@@ -1,4 +1,4 @@
-// Agenda mensal em paginas de tamanho fixo: grade inteira e lista lateral.
+﻿// Uma imagem com o calendario e, depois, paginas so com os eventos.
 import { construirGradeCalendario } from '../dominio/estatisticas.js';
 import { NOMES_MESES, TIPOS_EVENTO, corTipoEvento, emojiTipoEvento, escopoPorChave } from '../nucleo/config.js';
 import { diaDaSemana, formatDataBR } from '../nucleo/util.js';
@@ -31,104 +31,123 @@ function linhasTexto(ctx, texto, largura) {
   return linhas;
 }
 
+function cabecalho(ctx, logo, ano, mes, escopo, titulo) {
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  ctx.drawImage(logo, 60, 40, 130, 130);
+  ctx.fillStyle = '#F3E6C4';
+  ctx.font = '42px Rye, serif';
+  ctx.fillText(`${NOMES_MESES[mes]} ${ano}`, 220, 100);
+  fonte(ctx, 30, 600);
+  ctx.fillStyle = '#F2EFE8';
+  ctx.fillText(escopoPorChave(escopo).nome, 220, 150);
+  fonte(ctx, 24, 600);
+  ctx.fillStyle = '#D4A24C';
+  ctx.fillText(titulo, 60, 224);
+}
+
+function rodape(ctx, pagina, total) {
+  fonte(ctx, 20);
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#BBB6AC';
+  ctx.fillText('Consulte o app para acompanhar atualizações.', 60, 1305);
+  ctx.textAlign = 'right';
+  ctx.fillText(`${pagina} / ${total}`, 1020, 1305);
+}
+
 export async function imagensCalendario({ ano, mes, escopo, eventos }) {
   const prefixo = `${ano}-${String(mes + 1).padStart(2, '0')}-`;
   const lista = eventos.filter(ev => ev.data && ev.data.startsWith(prefixo))
     .slice().sort((a, b) => a.data.localeCompare(b.data) || (a.horario || '').localeCompare(b.horario || '') || a.nome.localeCompare(b.nome, 'pt-BR'));
-  const primeira = await novaTela(1000, 1600);
-  const paginas = [[]];
+  const primeira = await novaTela();
+  const paginas = [];
   let usado = 0;
-  fonte(primeira.ctx, 28, 600);
+  fonte(primeira.ctx, 30, 600);
   lista.forEach(ev => {
-    const linhas = linhasTexto(primeira.ctx, ev.nome || ev.tipo, 650);
-    // Um nome excepcionalmente longo continua na pagina seguinte.
-    for (let i = 0; i < linhas.length; i += 10) {
-      const trecho = linhas.slice(i, i + 10);
-      const altura = 84 + trecho.length * 34;
-      if (usado + altura > 580 && paginas[paginas.length - 1].length) {
+    const linhas = linhasTexto(primeira.ctx, ev.nome || ev.tipo, 900);
+    // Um nome excepcionalmente longo continua sem ser cortado.
+    for (let i = 0; i < linhas.length; i += 23) {
+      const trecho = linhas.slice(i, i + 23);
+      const altura = 66 + trecho.length * 36;
+      if (!paginas.length || usado + altura > 980) {
         paginas.push([]);
         usado = 0;
       }
-      paginas[paginas.length - 1].push({ ev, linhas: trecho, continuacao: i > 0 });
+      paginas[paginas.length - 1].push({ ev, linhas: trecho, continuacao: i > 0, altura });
       usado += altura;
     }
   });
+
+  const { canvas, ctx, logo } = primeira;
+  cabecalho(ctx, logo, ano, mes, escopo, `CALENDÁRIO DO MÊS · ${lista.length} ${lista.length === 1 ? 'EVENTO' : 'EVENTOS'}`);
   const grade = construirGradeCalendario(ano, mes);
-  const telas = [];
-  for (let pagina = 0; pagina < paginas.length; pagina++) {
-    const { canvas, ctx, logo } = pagina ? await novaTela(1000, 1600) : primeira;
-    ctx.textBaseline = 'alphabetic';
-    ctx.drawImage(logo, 60, 40, 130, 130);
-    ctx.fillStyle = '#F3E6C4';
-    ctx.font = '42px Rye, serif';
-    ctx.fillText(`${NOMES_MESES[mes]} ${ano}`, 220, 100);
-    fonte(ctx, 30, 600);
+  const larguraDia = 960 / 7;
+  const alturaDia = 810 / (grade.length / 7);
+  ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB', 'DOM'].forEach((dia, i) => {
+    ctx.textAlign = 'center';
+    fonte(ctx, 23, 600);
+    ctx.fillStyle = '#BBB6AC';
+    ctx.fillText(dia, 60 + (i + 0.5) * larguraDia, 282);
+  });
+  grade.forEach((dia, i) => {
+    if (dia === null) return;
+    const x = 60 + (i % 7) * larguraDia, y = 310 + Math.floor(i / 7) * alturaDia;
+    const data = prefixo + String(dia).padStart(2, '0');
+    const doDia = lista.filter(ev => ev.data === data);
+    ctx.fillStyle = doDia.length ? '#29251E' : 'rgba(20,20,20,0.85)';
+    ctx.fillRect(x, y, larguraDia - 8, alturaDia - 8);
+    ctx.strokeStyle = doDia.length ? corTipoEvento(doDia[0].tipo) : '#45433E';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, larguraDia - 8, alturaDia - 8);
+    ctx.textAlign = 'center';
+    fonte(ctx, 38, 700);
     ctx.fillStyle = '#F2EFE8';
-    ctx.fillText(escopoPorChave(escopo).nome, 220, 150);
-    fonte(ctx, 22);
-    ctx.fillStyle = '#BBB6AC';
-    ctx.fillText('AGENDA DO MÊS', 60, 224);
-    ctx.fillText(`EVENTOS DO MÊS · ${lista.length}`, 840, 224);
-    ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB', 'DOM'].forEach((dia, i) => {
-      ctx.textAlign = 'center';
-      ctx.fillText(dia, 110 + i * 100, 280);
-    });
-    grade.forEach((dia, i) => {
-      if (dia === null) return;
-      const x = 60 + (i % 7) * 100, y = 305 + Math.floor(i / 7) * 90;
-      const data = prefixo + String(dia).padStart(2, '0');
-      const doDia = lista.filter(ev => ev.data === data);
-      ctx.fillStyle = doDia.length ? '#29251E' : 'rgba(20,20,20,0.85)';
-      ctx.fillRect(x, y, 94, 84);
-      ctx.strokeStyle = doDia.length ? corTipoEvento(doDia[0].tipo) : '#45433E';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(x, y, 94, 84);
-      ctx.textAlign = 'center';
-      fonte(ctx, 28, 700);
-      ctx.fillStyle = '#F2EFE8';
-      ctx.fillText(String(dia), x + 47, y + 32);
-      if (doDia.length) {
-        fonte(ctx, 22);
-        const tipos = [...new Set(doDia.map(ev => ev.tipo))];
-        ctx.fillText(tipos.slice(0, 2).map(emojiTipoEvento).join(' '), x + 47, y + 58);
-        if (doDia.length > 1) {
-          fonte(ctx, 14, 600);
-          ctx.fillText(`${doDia.length} eventos`, x + 47, y + 76);
-        }
+    ctx.fillText(String(dia), x + (larguraDia - 8) / 2, y + 46);
+    if (doDia.length) {
+      fonte(ctx, 24);
+      const tipos = [...new Set(doDia.map(ev => ev.tipo))];
+      ctx.fillText(tipos.map(emojiTipoEvento).join(''), x + (larguraDia - 8) / 2, y + 82);
+      if (doDia.length > 1) {
+        fonte(ctx, 18, 600);
+        ctx.fillText(`${doDia.length} eventos`, x + (larguraDia - 8) / 2, y + 109);
       }
-    });
-    ctx.textAlign = 'left';
-    let y = 310;
-    if (!lista.length) {
-      fonte(ctx, 28);
-      ctx.fillStyle = '#F2EFE8';
-      ctx.fillText('Nenhum evento cadastrado neste mês.', 840, y);
     }
-    paginas[pagina].forEach(({ ev, linhas, continuacao }) => {
-      ctx.fillStyle = corTipoEvento(ev.tipo);
-      ctx.fillRect(810, y - 23, 5, 56 + linhas.length * 34);
-      fonte(ctx, 23, 700);
-      ctx.fillStyle = '#D4A24C';
-      ctx.fillText(`${formatDataBR(ev.data)} · ${diaDaSemana(ev.data)}${continuacao ? ' · continua' : ''}`, 840, y);
-      fonte(ctx, 28, 600);
-      ctx.fillStyle = '#F2EFE8';
-      linhas.forEach((linha, i) => ctx.fillText(linha, 840, y + 36 + i * 34));
-      fonte(ctx, 21);
-      ctx.fillStyle = '#BBB6AC';
-      ctx.fillText(`${emojiTipoEvento(ev.tipo)} ${ev.tipo} · ${escopoPorChave(ev.categoria).nome}`, 840, y + 40 + linhas.length * 34);
-      y += 84 + linhas.length * 34;
+  });
+  ctx.textAlign = 'left';
+  fonte(ctx, 23);
+  TIPOS_EVENTO.forEach((tipo, i) => {
+    ctx.fillStyle = corTipoEvento(tipo);
+    ctx.fillText(`${emojiTipoEvento(tipo)} ${tipo}`, 60 + (i % 2) * 490, 1170 + Math.floor(i / 2) * 40);
+  });
+  fonte(ctx, 22);
+  ctx.fillStyle = '#F2EFE8';
+  ctx.fillText(lista.length ? 'Datas e nomes dos eventos nas próximas imagens.' : 'Nenhum evento cadastrado neste mês.', 60, 1255);
+  rodape(ctx, 1, paginas.length + 1);
+  const telas = [canvas];
+
+  for (let pagina = 0; pagina < paginas.length; pagina++) {
+    const detalhe = await novaTela();
+    const c = detalhe.ctx;
+    cabecalho(c, detalhe.logo, ano, mes, escopo, 'PROGRAMAÇÃO · DETALHES DOS EVENTOS');
+    let y = 265;
+    paginas[pagina].forEach(({ ev, linhas, continuacao, altura }) => {
+      c.fillStyle = 'rgba(16,16,16,0.8)';
+      c.fillRect(60, y, 960, altura - 8);
+      c.fillStyle = corTipoEvento(ev.tipo);
+      c.fillRect(60, y, 5, altura - 8);
+      fonte(c, 22, 700);
+      c.fillStyle = '#D4A24C';
+      c.fillText(`${formatDataBR(ev.data)} · ${diaDaSemana(ev.data)}${continuacao ? ' · continua' : ''}`, 85, y + 24);
+      fonte(c, 30, 600);
+      c.fillStyle = '#F2EFE8';
+      linhas.forEach((linha, i) => c.fillText(linha, 85, y + 61 + i * 36));
+      fonte(c, 21);
+      c.fillStyle = '#BBB6AC';
+      c.fillText(`${emojiTipoEvento(ev.tipo)} ${ev.tipo} · ${escopoPorChave(ev.categoria).nome}`, 85, y + 54 + linhas.length * 36);
+      y += altura;
     });
-    fonte(ctx, 21);
-    TIPOS_EVENTO.forEach((tipo, i) => {
-      ctx.fillStyle = corTipoEvento(tipo);
-      ctx.fillText(`${emojiTipoEvento(tipo)} ${tipo}`, 60 + i * 190, 915);
-    });
-    fonte(ctx, 19);
-    ctx.fillStyle = '#BBB6AC';
-    ctx.fillText('Consulte o app para acompanhar atualizações da programação.', 60, 965);
-    ctx.textAlign = 'right';
-    ctx.fillText(`Página ${pagina + 1} de ${paginas.length}`, 1540, 965);
-    telas.push(canvas);
+    rodape(c, pagina + 2, paginas.length + 1);
+    telas.push(detalhe.canvas);
   }
   return telas;
 }
