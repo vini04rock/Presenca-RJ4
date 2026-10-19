@@ -102,7 +102,9 @@ Abas em uso:
 - `Doacoes` — quem levou alimento em cada evento, com os kg (seção Doações
   do organizador). Uma linha por evento × integrante que levou. É dado de
   verdade, gravado pelo app. Nasce sozinha no primeiro uso.
-- `EstoqueDoacoes` — as outras doações (aba "Outras doações" de Doações):
+- `EstoqueDoacoes` — o estoque (aba "Estoque" de Doações). A linha com
+  "Automatico" = Sim é a dos alimentos dos eventos: o app soma nela
+  sozinho as doações salvas em "Por evento". O resto:
   uma linha por item da divisão, com a quantidade de hoje e a medida (un,
   par ou kg; só o kg com casa decimal). Salvar pelo app troca a lista
   inteira da divisão. Nasce sozinha no primeiro uso.

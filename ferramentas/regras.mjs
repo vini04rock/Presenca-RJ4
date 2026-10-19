@@ -945,6 +945,19 @@ log('=== estoque: o kg, com casa decimal ===');
     [2.5, 'A quantidade de "Blusa" não está certa.']);
   const r = resumoEstoque([{ item: 'Arroz', quantidade: 20.5, medida: 'kg' }, { item: 'Feijão', quantidade: 10, medida: 'kg' }, { item: 'Blusa', quantidade: 3, medida: 'un' }]);
   confere('o resumo soma os kg', [r.kg, textoResumoEstoque(r)], [30.5, '3 itens · 3 unidades · 30,5 kg']);
+
+  // O card dos alimentos dos eventos.
+  const { ITEM_ALIMENTOS, mudancasNoEstoque } = await import(url('dominio/estoque.js'));
+  const auto = { item: ITEM_ALIMENTOS, quantidade: 7.5, medida: 'kg', automatico: true, base: 10 };
+  confere('conferir: o card dos alimentos vai com a base de quando a tela abriu', conferirEstoque([auto, { item: 'Blusa', quantidade: 2, medida: 'un' }]).itens[0],
+    { item: ITEM_ALIMENTOS, quantidade: 7.5, medida: 'kg', automatico: true, base: 10 });
+  confere('conferir: ninguém cria outro card com o nome do automático',
+    conferirEstoque([auto, { item: 'alimentos (dos eventos)', quantidade: 2, medida: 'kg' }]).erro,
+    '"alimentos (dos eventos)" já é o card automático dos eventos. Use outro nome, como "Arroz".');
+  confere('o resumo conta os kg dele, mas em 0 kg ele não "acabou"',
+    [resumoEstoque([{ ...auto, quantidade: 0 }]).acabaram, resumoEstoque([auto]).kg], [0, 7.5]);
+  confere('mexer no card dos alimentos conta como mudança',
+    mudancasNoEstoque([{ item: ITEM_ALIMENTOS, quantidade: 10, medida: 'kg', automatico: true }], [auto]), 1);
 }
 
 log('');

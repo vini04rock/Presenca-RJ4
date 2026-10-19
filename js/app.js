@@ -298,7 +298,7 @@ document.getElementById('app').addEventListener('input', (e) => {
     escolherMesDoPeriodo(e.target);
     return;
   }
-  // O nome e a quantidade de um item do estoque (Outras doacoes): acerta o
+  // O nome e a quantidade de um item do Estoque (aba de Doacoes): acerta o
   // resto por fora, sem redesenhar.
   if (e.target.classList && (e.target.classList.contains('estoque-nome') || e.target.classList.contains('estoque-qtd'))) {
     atualizarCampoEstoque(e.target, document.getElementById('app'));

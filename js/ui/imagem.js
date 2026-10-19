@@ -914,7 +914,7 @@ export async function imagensRelatorioCaixinha(r, nomeDivisao, rotuloPeriodo, v)
 }
 
 // ---------------------------------------------------------------------------
-// Outras doacoes: o estoque do clube pro grupo - o resumo e a lista de itens
+// O Estoque do clube pro grupo - o resumo e a lista de itens
 // com a quantidade, "acabou" em vermelho. Varias imagens do mesmo tamanho
 // quando a lista nao cabe, como no relatorio da Caixinha. `itens` ja vem
 // conferido (conferirEstoque), na ordem da tela.
@@ -923,7 +923,7 @@ const TOPO_ESTOQUE = 360, FIM_ESTOQUE = 1190, ALTURA_ITEM = 64;
 function paginaEstoque(ctx, logo, itens, resumo, nomeDivisao, pagina, paginas) {
   emblema(ctx, logo, 28, 104);
   const y = tituloMetal(ctx, '📦 Estoque de doações', 196, 50, 980);
-  rotuloEspacado(ctx, `OUTRAS DOAÇÕES  ·  ${nomeDivisao.toUpperCase()}`, y + 4, 20, COR.ouro);
+  rotuloEspacado(ctx, `ESTOQUE  ·  ${nomeDivisao.toUpperCase()}`, y + 4, 20, COR.ouro);
   const hoje = new Date();
   const data = `${String(hoje.getDate()).padStart(2, '0')}/${String(hoje.getMonth() + 1).padStart(2, '0')}/${hoje.getFullYear()}`;
   const linha = `${resumo}  ·  ${data}` + (paginas > 1 ? `  ·  página ${pagina} de ${paginas}` : '');

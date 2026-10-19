@@ -1,6 +1,6 @@
 // Modo organizador, secao Doacoes: as abas "Por evento" (marcar quem levou
 // alimento em cada evento), "Rank" (quem mais levou e quem foi e nao
-// levou) e "Outras doacoes" (o estoque do clube, em
+// levou) e "Estoque" (o que o clube tem guardado, em
 // admin-doacoes-estoque.js). As contas moram em dominio/doacoes.js.
 //
 // So aparece nas divisoes de temDoacoesECaixinha (ver config.js).

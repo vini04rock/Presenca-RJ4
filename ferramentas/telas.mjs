@@ -464,7 +464,8 @@ const doacoesFalsas = { eventos: [
   { id:'e4', nome:'Acao Social', data:'2026-07-10', tipo:'Ação Social', status:'encerrado',
     convocados:['m1','m2'], confirmados:['m1','m2'], doacoes:{ m1:1 } },
 ], nomes:{ m1:'Costa', m3:'Almeida' },
-  estoque:[{ item:'Cobertor', quantidade:12, medida:'un' }, { item:'Sapato', quantidade:6, medida:'par' }, { item:'Blusa', quantidade:0, medida:'un' }] };
+  estoque:[{ item:'Alimentos (dos eventos)', quantidade:23.5, medida:'kg', automatico:true },
+    { item:'Cobertor', quantidade:12, medida:'un' }, { item:'Sapato', quantidade:6, medida:'par' }, { item:'Blusa', quantidade:0, medida:'un' }] };
 const caixinhaFalsa = { meses: [
   { mes:'2026-10', membros:[{ id:'m1', nome:'Costa', pagou:true, valor:30 }, { id:'m2', nome:'Bull', pagou:false, valor:0 }, { id:'m3', nome:'Almeida', pagou:true, valor:35.5 }] },
   // m9 saiu do clube: aparece pelo nome gravado no mes.
@@ -494,6 +495,8 @@ add('doações / carregando',            { ...dc, adminTab:'doacoes', doacoesDad
 add('doações / dados de outra divisão', { ...dc, adminTab:'doacoes', doacoesDadosEscopo:'oeste' }, T.renderAdmin);
 add('doações / erro',                  { ...dc, adminTab:'doacoes', doacoesErro:'A conexao demorou demais' }, T.renderAdmin);
 add('outras doações / estoque',         { ...dc, adminTab:'doacoes-estoque' }, T.renderAdmin);
+add('outras doações / alimentos em 0 kg', { ...dc, adminTab:'doacoes-estoque',
+  doacoesDados:{ eventos:[], nomes:{}, estoque:[{ item:'Alimentos (dos eventos)', quantidade:0, medida:'kg', automatico:true }] } }, T.renderAdmin);
 add('outras doações / estoque com kg',  { ...dc, adminTab:'doacoes-estoque', estoqueCards:[
   { item:'Arroz', quantidade:20.5, medida:'kg', medidaManual:false }, { item:'Cobertor', quantidade:3, medida:'un', medidaManual:true },
   { item:'', quantidade:0, medida:'un' }] }, T.renderAdmin);

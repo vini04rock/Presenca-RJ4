@@ -2434,6 +2434,11 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 .estoque-remover:active { transform: scale(0.9); }
 .estoque-acabou-texto { color: var(--status-infracional); font-size: 12px; font-weight: 700; }
 .estoque-card .estoque-acabou-texto { margin-top: 6px; }
+/* O card dos alimentos dos eventos: fixo no topo, na cor das doacoes, com
+   o nome no lugar do campo (ele nao muda de nome). */
+.estoque-card.estoque-alimentos { border-left: 3px solid #4CAF6E; }
+.estoque-alimentos-titulo { font-size: 15px; font-weight: 700; color: var(--white-strong); padding: 4px 2px 0; }
+.estoque-alimentos-explica { font-size: 11.5px; color: var(--text-muted); padding: 2px 2px 0; line-height: 1.4; }
 .estoque-mudancas { font-size: 12.5px; color: var(--text-muted); text-align: center; margin-bottom: 10px; }
 .estoque-mudancas.pendente { color: #E0B24D; font-weight: 700; }
 /* O botao de salvar fica preso no pe da tela enquanto a lista rola. */

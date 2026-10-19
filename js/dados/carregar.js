@@ -211,7 +211,7 @@ export async function carregarDoacoes() {
   try {
     const r = await api('doacoes', { divisao: escopo });
     if (state.adminEscopo !== escopo) return;
-    // O estoque (Outras doacoes) vem na mesma resposta. O rascunho da tela
+    // O Estoque (aba de Doacoes) vem na mesma resposta. O rascunho da tela
     // recomeca do que acabou de chegar.
     state.doacoesDados = { eventos: r.eventos || [], nomes: r.nomes || {}, estoque: r.estoque || [] };
     state.estoqueCards = null;

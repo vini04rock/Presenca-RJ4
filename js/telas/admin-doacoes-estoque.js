@@ -1,13 +1,17 @@
-// Modo organizador, secao Doacoes, aba "Outras doacoes": o estoque do clube
-// (roupas, cobertores, sapatos...). Um card por item, com a quantidade de
-// hoje em unidades ou pares, e sempre um card vazio so no fim - comecou a
-// escrever nele, aparece outro embaixo. "Salvar estoque" grava a lista
-// inteira de uma vez. As regras moram em dominio/estoque.js.
+// Modo organizador, secao Doacoes, aba "Estoque": o que o clube tem guardado
+// (alimentos, roupas, cobertores, sapatos...). Um card por item, com a
+// quantidade de hoje em unidades, pares ou kg, e sempre um card vazio so no
+// fim - comecou a escrever nele, aparece outro embaixo. "Salvar estoque"
+// grava a lista inteira de uma vez. As regras moram em dominio/estoque.js.
+//
+// Nas divisoes, o primeiro card e o dos alimentos dos eventos: o Code.gs
+// soma nele sozinho cada doacao salva em "Por evento". Aqui ele so tem a
+// quantidade (pra quando o alimento sai) - nome, medida e lixeira, nao.
 //
 // O rascunho (state.estoqueCards) nasce do que esta salvo na primeira vez
 // que a aba desenha, e fica ate salvar, desfazer ou entrar de novo na secao.
 
-import { cardVazio, lerQuantidade, mudancasNoEstoque, numeroEstoque, proximaMedida, resumoEstoque, sugerirMedida, textoResumoEstoque, conferirEstoque, QUANTIDADE_MAXIMA } from '../dominio/estoque.js';
+import { ITEM_ALIMENTOS, cardVazio, lerQuantidade, mudancasNoEstoque, numeroEstoque, proximaMedida, resumoEstoque, sugerirMedida, textoResumoEstoque, conferirEstoque, QUANTIDADE_MAXIMA } from '../dominio/estoque.js';
 import { salvarEstoque } from '../fluxos/doacoes-caixinha.js';
 import { escopoPorChave } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
@@ -26,9 +30,12 @@ function salvos() {
 // o nome e a quantidade) saem aqui.
 function cards() {
   if (!state.estoqueCards) {
-    state.estoqueCards = salvos().map(x => ({ item: x.item, quantidade: x.quantidade, medida: x.medida, medidaManual: true }));
+    // `base`: quanto o card dos alimentos tinha ao abrir (ver salvarEstoque
+    // no Code.gs).
+    state.estoqueCards = salvos().map(x => ({ item: x.item, quantidade: x.quantidade, medida: x.medida, medidaManual: true,
+      ...(x.automatico ? { automatico: true, base: x.quantidade } : {}) }));
   }
-  const cheios = state.estoqueCards.filter(c => !cardVazio(c));
+  const cheios = state.estoqueCards.filter(c => c.automatico || !cardVazio(c));
   state.estoqueCards = cheios.concat(novoCard());
   return state.estoqueCards;
 }
@@ -51,7 +58,25 @@ function textoMudancas(n) {
 
 const LIXEIRA = i => `<button class="estoque-remover" data-action="estoque-remover" data-id="${i}" aria-label="Tirar o item da lista">🗑️</button>`;
 
+// O card dos alimentos dos eventos: nome e medida fixos, sem lixeira.
+function cardAlimentos(c, i) {
+  return `
+    <div class="card estoque-card estoque-alimentos" data-i="${i}">
+      <div class="estoque-alimentos-titulo">🥫 ${escapeHtml(ITEM_ALIMENTOS)}</div>
+      <div class="estoque-alimentos-explica">Soma sozinho cada doação salva em "Por evento". Quando o alimento sair, diminua aqui.</div>
+      <div class="estoque-controles">
+        <span class="estoque-medida" style="cursor:default;">kg</span>
+        <button class="kg-botao" data-action="estoque-menos" data-id="${i}" aria-label="Menos 1 kg">−</button>
+        <input type="text" inputmode="decimal" class="estoque-qtd" data-i="${i}" maxlength="8" autocomplete="off"
+               value="${numeroEstoque(c.quantidade)}" placeholder="0" aria-label="Quilos de alimento">
+        <button class="kg-botao" data-action="estoque-mais" data-id="${i}" aria-label="Mais 1 kg">+</button>
+      </div>
+    </div>
+  `;
+}
+
 function cardItem(c, i, lista) {
+  if (c.automatico) return cardAlimentos(c, i);
   const vazio = i === lista.length - 1 && cardVazio(c);
   const acabou = !vazio && String(c.item).trim() && !c.quantidade;
   return `
@@ -77,8 +102,8 @@ export function renderEstoque() {
   return `
     ${aviso()}
     <div class="card">
-      <div class="painel-titulo">📦 Outras doações</div>
-      <div class="fin-explica">O estoque do clube: roupas, cobertores, sapatos, alimentos… o que vocês têm guardado hoje, item por item.${state.adminEscopo === 'regional' ? '' : ' O 1 kg de alimento de cada evento continua em "Por evento".'}</div>
+      <div class="painel-titulo">📦 Estoque</div>
+      <div class="fin-explica">O que o clube tem guardado hoje: alimentos, roupas, cobertores, sapatos… item por item.${state.adminEscopo === 'regional' ? '' : ' Os alimentos dos eventos entram sozinhos, pelo "Por evento".'}</div>
       <div class="doacao-total" id="estoque-resumo">${resumoHtml(lista)}</div>
       <button class="btn secondary block no-print" style="margin-top:12px;" data-action="imagem-estoque">🖼️ Imagem pro grupo</button>
     </div>
@@ -149,7 +174,7 @@ export const acoes = {
   'estoque-medida': async (id, target, action, e) => {
     const c = cards()[Number(id)];
     // un -> par -> kg -> un. Saindo do kg, a quantidade perde a casa decimal.
-    if (c) {
+    if (c && !c.automatico) {
       c.medida = proximaMedida(c.medida);
       c.quantidade = lerQuantidade(String(c.quantidade), c.medida);
       c.medidaManual = true;
@@ -157,7 +182,9 @@ export const acoes = {
     return render();
   },
   'estoque-remover': async (id, target, action, e) => {
-    cards().splice(Number(id), 1);
+    const lista = cards();
+    if (lista[Number(id)] && lista[Number(id)].automatico) return;
+    lista.splice(Number(id), 1);
     return render();
   },
   'salvar-estoque': async (id, target, action, e) => {

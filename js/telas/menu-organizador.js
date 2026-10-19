@@ -39,8 +39,8 @@ const SECOES = [
   // No Regional as duas tem jeito proprio: das Doacoes so o estoque, e a
   // Caixinha vem das divisoes - "noRegional" troca a aba de entrada e a
   // explicacao.
-  { aba: 'doacoes', nome: 'Doações', desc: 'Alimento de cada evento, o rank e o estoque de doações', icone: '🥫', cor: '#4CAF6E',
-    noRegional: { aba: 'doacoes-estoque', desc: 'O estoque de doações do Regional' },
+  { aba: 'doacoes', nome: 'Doações', desc: 'Alimento de cada evento, o rank e o estoque', icone: '🥫', cor: '#4CAF6E',
+    noRegional: { aba: 'doacoes-estoque', desc: 'O estoque do Regional' },
     visivel: () => temDoacoesECaixinha(state.adminEscopo) },
   { aba: 'caixinha', nome: 'Caixinha', desc: 'Quem pagou, quanto entrou e saiu, e o saldo do caixa', icone: '💰', cor: '#C9A227',
     noRegional: { desc: 'O que cada divisão contribuiu, entradas, saídas e o saldo' },

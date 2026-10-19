@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-10-19-v-caixinha-regional';
+var VERSAO = '2026-10-19-v-estoque-alimentos';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -119,7 +119,14 @@ var TIPOS_LANCAMENTO = { saldoInicial: 'Saldo inicial', entrada: 'Entrada', said
 // troca a lista inteira da divisao, entao a aba e sempre igual a tela.
 // "Medida" e 'un', 'par' ou 'kg' (alimento) - so o kg aceita uma casa
 // decimal (2,5 kg).
-var CAB_ESTOQUE = ['Divisao', 'Item', 'Quantidade', 'Medida', 'Atualizado em'];
+//
+// "Automatico" = 'Sim' marca o card dos alimentos dos eventos (um por
+// divisao, ITEM_ALIMENTOS): ele soma sozinho cada vez que as doacoes de um
+// evento sao salvas, e desconta quando sao corrigidas ou o evento sai (ver
+// ajustarAlimentosDoEstoque). So nas divisoes - o Regional nao tem doacao
+// por evento. Decisao do clube, 19/10/2026: comeca em 0, daqui pra frente.
+var CAB_ESTOQUE = ['Divisao', 'Item', 'Quantidade', 'Medida', 'Atualizado em', 'Automatico'];
+var ITEM_ALIMENTOS = 'Alimentos (dos eventos)';
 // O livro de Entrada/Saida de integrantes: uma linha por movimentacao, e
 // nada aqui e apagado. "Tipo" e Entrada, Afastamento, Retorno ou
 // Desligamento; "Divisao" e a chave ('barra'...) e "Membro"/"Grau" um
@@ -1452,6 +1459,9 @@ function instalarGatilhoDeEncerramentoManual() {
 }
 
 function removerEvento(id) {
+  // Os kg doados nesse evento saem do estoque de alimentos da divisao dele.
+  var ev = acharLinha(aba(ABA_EVENTOS, CAB_EVENTOS), function (l) { return String(l[0]) === String(id); });
+  if (ev) ajustarAlimentosDoEstoque(categoriaDaLinha(ev.valores), -kgDoEvento(id));
   apagarLinhas(aba(ABA_EVENTOS, CAB_EVENTOS), function (l) { return String(l[0]) === String(id); });
   apagarLinhas(aba(ABA_PRESENCAS, CAB_PRESENCAS), function (l) { return String(l[0]) === String(id); });
   // Sem o evento, a doacao dele nao tem a que se referir: sairia no rank
@@ -1700,14 +1710,56 @@ function lerDoacoes(divisao, pin) {
 }
 
 // Os itens do estoque da divisao, na ordem em que foram salvos.
+// O card dos alimentos vem sempre primeiro, e nas divisoes existe mesmo
+// antes da primeira doacao (em 0 kg).
 function lerEstoque(divisao) {
-  return linhas(aba(ABA_ESTOQUE, CAB_ESTOQUE))
+  var itens = linhas(aba(ABA_ESTOQUE, CAB_ESTOQUE))
     .filter(function (l) { return String(l[0]) === divisao && String(l[1]).trim(); })
     .map(function (l) {
-      var medida = MEDIDAS_ESTOQUE.indexOf(String(l[3])) !== -1 ? String(l[3]) : 'un';
+      var automatico = ehLinhaDeAlimentos(l);
+      var medida = automatico ? 'kg' : (MEDIDAS_ESTOQUE.indexOf(String(l[3])) !== -1 ? String(l[3]) : 'un');
       var q = quantidadeDoEstoque(Number(String(l[2]).replace(',', '.')), medida);
-      return { item: String(l[1]).trim(), quantidade: q === null || q < 0 ? 0 : q, medida: medida };
+      var x = { item: automatico ? ITEM_ALIMENTOS : String(l[1]).trim(), quantidade: q === null || q < 0 ? 0 : q, medida: medida };
+      if (automatico) x.automatico = true;
+      return x;
     });
+  var alimentos = itens.filter(function (x) { return x.automatico; });
+  var outros = itens.filter(function (x) { return !x.automatico; });
+  if (!alimentos.length && temAlimentosDosEventos(divisao)) {
+    alimentos = [{ item: ITEM_ALIMENTOS, quantidade: 0, medida: 'kg', automatico: true }];
+  }
+  return alimentos.slice(0, 1).concat(outros);
+}
+
+function temAlimentosDosEventos(divisao) { return divisao !== 'regional'; }
+
+function ehLinhaDeAlimentos(l) {
+  return ehSim(l[5]) || chaveDoItem(l[1]) === chaveDoItem(ITEM_ALIMENTOS);
+}
+
+// Soma (ou desconta) kg no card dos alimentos da divisao - chamado quando
+// as doacoes de um evento sao salvas, corrigidas ou o evento sai. Nunca
+// fica abaixo de zero: o que ja foi entregue nao volta a dever.
+function ajustarAlimentosDoEstoque(divisao, delta) {
+  if (!temAlimentosDosEventos(divisao) || !delta) return;
+  var s = aba(ABA_ESTOQUE, CAB_ESTOQUE);
+  var achado = acharLinha(s, function (l) { return String(l[0]) === divisao && ehLinhaDeAlimentos(l); });
+  var atual = achado ? (Number(String(achado.valores[2]).replace(',', '.')) || 0) : 0;
+  var novo = Math.max(0, Math.round((atual + delta) * 10) / 10);
+  var linha = [divisao, ITEM_ALIMENTOS, novo, 'kg', agora(), 'Sim'];
+  if (achado) {
+    s.getRange(achado.indice, 1, 1, CAB_ESTOQUE.length).setValues([linha]);
+  } else {
+    s.getRange(s.getLastRow() + 1, 1, 1, 2).setNumberFormat('@');
+    s.getRange(s.getLastRow() + 1, 1, 1, CAB_ESTOQUE.length).setValues([linha]);
+  }
+}
+
+// O total de kg ja gravado pras doacoes de um evento.
+function kgDoEvento(eventoId) {
+  return linhas(aba(ABA_DOACOES, CAB_DOACOES)).reduce(function (soma, l) {
+    return String(l[0]) === String(eventoId) ? soma + kgValido(l[5]) : soma;
+  }, 0);
 }
 
 var MEDIDAS_ESTOQUE = ['un', 'par', 'kg'];
@@ -1728,6 +1780,11 @@ function chaveDoItem(nome) {
 // Grava o estoque inteiro da divisao: itens = [{ item, quantidade, medida }].
 // Confere tudo ANTES de apagar - uma lista com erro nao pode levar embora a
 // que estava salva.
+//
+// O card dos alimentos e especial: ele pode ter mudado na planilha depois
+// que a tela abriu (alguem salvou as doacoes de um evento). Por isso o app
+// manda tambem `base` - quanto ele tinha quando a tela abriu - e o que se
+// grava e o de agora MAIS a mudanca feita na tela. Ninguem perde nada.
 function salvarEstoque(p) {
   var divisao = String(p.divisao || '');
   if (!podeNaDivisao(divisao, String(p.pin || ''))) return SEM_PERMISSAO_DIVISAO;
@@ -1736,7 +1793,28 @@ function salvarEstoque(p) {
   if (itens.length > 300) throw new Error('Itens demais (no maximo 300)');
   var vistos = {};
   var momento = agora();
-  var novas = itens.map(function (x) {
+  var s = aba(ABA_ESTOQUE, CAB_ESTOQUE);
+  var alimentosHoje = 0;
+  linhas(s).forEach(function (l) {
+    if (String(l[0]) === divisao && ehLinhaDeAlimentos(l)) alimentosHoje = Number(String(l[2]).replace(',', '.')) || 0;
+  });
+  var linhaAlimentos = null;
+  var comuns = [];
+  itens.forEach(function (x) {
+    var nome = String((x && x.item) || '');
+    if ((x && x.automatico) || chaveDoItem(nome) === chaveDoItem(ITEM_ALIMENTOS)) {
+      if (!temAlimentosDosEventos(divisao)) throw new Error('O Regional nao tem o card de alimentos dos eventos');
+      var q = Number(x.quantidade);
+      // Sem `base` (um app antigo), a mudanca nao da pra saber: fica o de agora.
+      var base = x.base === undefined || x.base === null || x.base === '' ? q : Number(x.base);
+      if (!isFinite(q) || q < 0 || !isFinite(base)) throw new Error('Quantidade invalida em ' + ITEM_ALIMENTOS);
+      var novo = Math.max(0, Math.round((alimentosHoje + (q - base)) * 10) / 10);
+      linhaAlimentos = [divisao, ITEM_ALIMENTOS, novo, 'kg', momento, 'Sim'];
+      return;
+    }
+    comuns.push(x);
+  });
+  var novas = comuns.map(function (x) {
     var item = String((x && x.item) || '').trim().replace(/\s+/g, ' ').slice(0, 60);
     if (!item) throw new Error('Item sem nome');
     var medida = MEDIDAS_ESTOQUE.indexOf(x.medida) !== -1 ? x.medida : 'un';
@@ -1746,9 +1824,15 @@ function salvarEstoque(p) {
     var chave = chaveDoItem(item);
     if (vistos[chave]) throw new Error('Item repetido: ' + item);
     vistos[chave] = true;
-    return [divisao, item, q, medida, momento];
+    return [divisao, item, q, medida, momento, ''];
   });
-  var s = aba(ABA_ESTOQUE, CAB_ESTOQUE);
+  // O card dos alimentos nao sai com o salvar - mesmo que nao tenha vindo,
+  // ele continua (e so muda pelo que a tela mexeu nele).
+  if (!linhaAlimentos && temAlimentosDosEventos(divisao)) {
+    var guardada = acharLinha(s, function (l) { return String(l[0]) === divisao && ehLinhaDeAlimentos(l); });
+    if (guardada) linhaAlimentos = guardada.valores.slice(0, CAB_ESTOQUE.length);
+  }
+  if (linhaAlimentos) novas.unshift(linhaAlimentos);
   apagarLinhas(s, function (l) { return String(l[0]) === divisao; });
   if (novas.length) {
     var faixa = s.getRange(s.getLastRow() + 1, 1, novas.length, CAB_ESTOQUE.length);
@@ -1786,8 +1870,12 @@ function salvarDoacoesEvento(p) {
   });
 
   var s = aba(ABA_DOACOES, CAB_DOACOES);
+  // Quanto o evento tinha antes: o estoque de alimentos muda so pela
+  // diferenca - salvar de novo o mesmo evento nao soma duas vezes.
+  var antes = kgDoEvento(eventoId);
   apagarLinhas(s, function (l) { return String(l[0]) === eventoId; });
   if (novas.length) s.getRange(s.getLastRow() + 1, 1, novas.length, CAB_DOACOES.length).setValues(novas);
+  ajustarAlimentosDoEstoque(divisao, Math.round((totalKg - antes) * 10) / 10);
   return { ok: true, doadores: novas.length, totalKg: Math.round(totalKg * 10) / 10 };
 }
 

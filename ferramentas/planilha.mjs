@@ -630,7 +630,8 @@ log('=== outras doações: o estoque do clube ===');
   const p = montaPlanilha([], []);
   const { contexto } = carregaCodeGs(p, { PIN_REGIONAL: '0418', PIN_BARRA: '1801', PIN_OESTE: '1802' });
   const barra = { escopo: 'barra', pin: '1801', divisao: 'barra' };
-  const ler = () => contexto.executar('doacoes', barra).estoque;
+  // Os itens comuns - o card dos alimentos dos eventos tem bloco proprio.
+  const ler = () => contexto.executar('doacoes', barra).estoque.filter(x => !x.automatico);
   const salvar = (itens, extra) => contexto.executar('estoqueSalvar', { ...barra, ...extra, itens: JSON.stringify(itens) });
   const tentar = (fn) => { try { const r = fn(); return r.ok === false ? r.erro : 'ok'; } catch (e) { return e.message; } };
   const linhasEstoque = () => (p.abas.EstoqueDoacoes ? p.abas.EstoqueDoacoes.dados.slice(1) : []);
@@ -642,7 +643,7 @@ log('=== outras doações: o estoque do clube ===');
   confere('salva os itens, na ordem da tela', [r.itens, ler()], [3, [
     { item: 'Cobertor', quantidade: 12, medida: 'un' }, { item: 'Sapato', quantidade: 6, medida: 'par' }, { item: 'Blusa', quantidade: 0, medida: 'un' }]]);
   confere('a aba nasce sozinha, com a quantidade como número', [p.abas.EstoqueDoacoes.dados[0], typeof linhasEstoque()[0][2]],
-    [['Divisao', 'Item', 'Quantidade', 'Medida', 'Atualizado em'], 'number']);
+    [['Divisao', 'Item', 'Quantidade', 'Medida', 'Atualizado em', 'Automatico'], 'number']);
 
   salvar([{ item: 'Cobertor', quantidade: 10, medida: 'un' }]);
   confere('salvar de novo troca a lista inteira, não acumula', [ler(), linhasEstoque().length], [[{ item: 'Cobertor', quantidade: 10, medida: 'un' }], 1]);
@@ -663,6 +664,54 @@ log('=== outras doações: o estoque do clube ===');
   confere('o Regional salva no Oeste, e a Barra não vê', ler().map(x => x.item), ['Meia']);
   salvar([]);
   confere('salvar a lista vazia limpa só a divisão', linhasEstoque().map(l => l[0]), ['oeste']);
+}
+
+log('');
+log('=== estoque: os alimentos dos eventos entram sozinhos ===');
+{
+  const p = montaPlanilha([ev('b1', '2026-10-05', 'encerrado'), ev('b2', '2026-10-12', 'ativo')], []);
+  p.abas.Membros = novaAba('Membros', [['ID', 'Nome', 'Grau', 'Divisao', 'Funcoes', 'Cargo'],
+    ['m1', 'Costa', 'VI', 'Barra - RJ4', '', ''], ['m2', 'Bull', 'X', 'Barra - RJ4', '', '']]);
+  const { contexto } = carregaCodeGs(p, { PIN_REGIONAL: '0418', PIN_BARRA: '1801' });
+  const barra = { escopo: 'barra', pin: '1801', divisao: 'barra' };
+  const estoque = () => contexto.executar('doacoes', barra).estoque;
+  const alimentos = () => estoque().find(x => x.automatico).quantidade;
+  const doar = (eventoId, kgs) => contexto.executar('doacoesSalvar', { ...barra, eventoId, kgs: JSON.stringify(kgs) });
+  const salvar = (itens) => contexto.executar('estoqueSalvar', { ...barra, itens: JSON.stringify(itens) });
+
+  confere('a divisão já nasce com o card dos alimentos, em 0 kg, no topo', estoque(),
+    [{ item: 'Alimentos (dos eventos)', quantidade: 0, medida: 'kg', automatico: true }]);
+  confere('o Regional não tem o card dos alimentos', contexto.executar('doacoes', { escopo: 'regional', pin: '0418', divisao: 'regional' }).estoque, []);
+
+  doar('b1', { m1: 1, m2: 2 });
+  confere('salvar as doações de um evento soma no estoque', alimentos(), 3);
+  doar('b1', { m1: 1, m2: 2 });
+  confere('salvar de novo o mesmo evento não soma duas vezes', alimentos(), 3);
+  doar('b2', { m1: 1.5 });
+  confere('outro evento soma junto', alimentos(), 4.5);
+  doar('b1', { m1: 1 });
+  confere('corrigir o evento pra menos desconta a diferença', alimentos(), 2.5);
+
+  // Saiu alimento (entrega): diminui no card, com a base de quando a tela abriu.
+  salvar([{ item: 'Alimentos (dos eventos)', quantidade: 0.5, medida: 'kg', automatico: true, base: 2.5 }, { item: 'Cobertor', quantidade: 3, medida: 'un' }]);
+  confere('diminuir no card e salvar o estoque registra a saída', [alimentos(), estoque().map(x => x.item)], [0.5, ['Alimentos (dos eventos)', 'Cobertor']]);
+
+  // Duas coisas ao mesmo tempo: a tela abriu com 0,5 kg; enquanto isso
+  // alguem salvou 2 kg num evento; a tela tira 0,5 kg e salva.
+  doar('b2', { m1: 1.5, m2: 2 });
+  salvar([{ item: 'Alimentos (dos eventos)', quantidade: 0, medida: 'kg', automatico: true, base: 0.5 }, { item: 'Cobertor', quantidade: 3, medida: 'un' }]);
+  confere('a mudança da tela soma à da planilha, sem sobrescrever (0,5 + 2 − 0,5)', alimentos(), 2);
+  salvar([{ item: 'Cobertor', quantidade: 4, medida: 'un' }]);
+  confere('salvar sem o card não apaga os alimentos', alimentos(), 2);
+  salvar([{ item: 'Alimentos (dos eventos)', quantidade: 99, medida: 'kg' }]);
+  confere('app antigo, sem a base: os alimentos ficam como estavam', alimentos(), 2);
+
+  contexto.executar('eventoRemover', { ...barra, id: 'b2' });
+  confere('remover um evento tira os kg dele, sem ficar negativo', alimentos(), 0);
+  doar('b1', { m1: 1, m2: 1 });
+  confere('e volta a somar no evento seguinte', alimentos(), 1);
+  confere('a linha na planilha fica marcada como automática', p.abas.EstoqueDoacoes.dados.slice(1).filter(l => l[5] === 'Sim').map(l => [l[0], l[1], l[2], l[3]]),
+    [['barra', 'Alimentos (dos eventos)', 1, 'kg']]);
 }
 
 log('');

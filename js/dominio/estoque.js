@@ -1,7 +1,8 @@
-// Outras doacoes: o estoque do clube (roupas, cobertores, sapatos...). Nao e
-// de cada integrante - e o que o clube tem guardado, item por item, com a
-// quantidade de hoje. A obrigacao de cada um (1 kg por evento) continua em
-// dominio/doacoes.js.
+// O Estoque (aba de Doacoes): o que o clube tem guardado - alimentos,
+// roupas, cobertores, sapatos... Nao e de cada integrante: e do clube, item
+// por item, com a quantidade de hoje. A obrigacao de cada um (1 kg por
+// evento) continua em dominio/doacoes.js, e o que ela arrecada entra aqui
+// sozinho, no card dos alimentos (ITEM_ALIMENTOS).
 //
 // Cada item: { item, quantidade, medida } - medida 'un', 'par' ou 'kg' (so
 // o kg aceita uma casa decimal: 2,5 kg). Os dados
@@ -16,6 +17,12 @@ export function proximaMedida(medida) {
   return MEDIDAS[(MEDIDAS.indexOf(medida) + 1) % MEDIDAS.length];
 }
 export const QUANTIDADE_MAXIMA = 100000;
+
+// O card dos alimentos dos eventos (so nas divisoes): o Code.gs soma nele
+// sozinho cada doacao salva em "Por evento" e desconta as correcoes. Na
+// tela ele nao muda de nome nem de medida e nao sai da lista - so a
+// quantidade, quando o alimento sai (entrega). Vem com `automatico: true`.
+export const ITEM_ALIMENTOS = 'Alimentos (dos eventos)';
 
 // O que se conta em pares, e o que se pesa. Quem digitar "Tênis infantil"
 // ja ve "par"; quem digitar "Arroz", "kg".
@@ -65,6 +72,15 @@ export function conferirEstoque(cards) {
   const itens = [];
   const vistos = {};
   for (const c of cards) {
+    // O card dos alimentos vai como esta, com a quantidade de quando a tela
+    // abriu (`base`): o Code.gs grava o de agora mais a mudanca da tela.
+    if (c.automatico) {
+      const q = Math.round(Number(c.quantidade) * 10) / 10;
+      if (!isFinite(q) || q < 0 || q > QUANTIDADE_MAXIMA) return { erro: `A quantidade de "${ITEM_ALIMENTOS}" não está certa.` };
+      vistos[chaveDoItem(ITEM_ALIMENTOS)] = true;
+      itens.push({ item: ITEM_ALIMENTOS, quantidade: q, medida: 'kg', automatico: true, base: Number(c.base) || 0 });
+      continue;
+    }
     if (cardVazio(c)) continue;
     const item = String(c.item || '').trim().replace(/\s+/g, ' ');
     if (!item) return { erro: `Um card tem quantidade (${c.quantidade}) mas está sem o nome do item.` };
@@ -75,7 +91,11 @@ export function conferirEstoque(cards) {
       return { erro: `A quantidade de "${item}" não está certa.` };
     }
     const chave = chaveDoItem(item);
-    if (vistos[chave]) return { erro: `"${item}" aparece duas vezes. Junte as quantidades num card só.` };
+    if (vistos[chave]) {
+      return { erro: chave === chaveDoItem(ITEM_ALIMENTOS)
+        ? `"${item}" já é o card automático dos eventos. Use outro nome, como "Arroz".`
+        : `"${item}" aparece duas vezes. Junte as quantidades num card só.` };
+    }
     vistos[chave] = true;
     itens.push({ item, quantidade: q, medida });
   }
@@ -91,7 +111,9 @@ export function resumoEstoque(itens) {
     unidades: soma('un'),
     pares: soma('par'),
     kg: Math.round(soma('kg') * 10) / 10,
-    acabaram: validos.filter(c => !Number(c.quantidade)).length,
+    // O card dos alimentos nao entra aqui: ele comeca em 0 kg, e "acabou"
+    // no primeiro dia so confundiria.
+    acabaram: validos.filter(c => !c.automatico && !Number(c.quantidade)).length,
   };
 }
 
@@ -113,7 +135,7 @@ export function mudancasNoEstoque(salvos, cards) {
   let n = 0;
   atuais.forEach(c => {
     const a = antes[chaveDoItem(c.item)];
-    if (!a || a.item !== String(c.item).trim() || Number(a.quantidade) !== Number(c.quantidade) || a.medida !== c.medida) n++;
+    if (!a || a.item !== String(c.item).trim() || Number(a.quantidade) !== Number(c.quantidade) || (a.medida || 'un') !== (c.medida || 'un')) n++;
   });
   Object.keys(antes).forEach(k => { if (!agora[k]) n++; });
   return n;

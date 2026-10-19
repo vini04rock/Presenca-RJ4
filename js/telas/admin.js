@@ -57,7 +57,7 @@ export const SECOES_ORGANIZADOR = {
       // de cada integrante, que e coisa de divisao (soNasDivisoes).
       { chave: 'doacoes', label: 'Por evento', soNasDivisoes: true },
       { chave: 'doacoes-rank', label: 'Rank', soNasDivisoes: true },
-      { chave: 'doacoes-estoque', label: 'Outras doações' },
+      { chave: 'doacoes-estoque', label: 'Estoque' },
     ],
   },
   caixinha: {

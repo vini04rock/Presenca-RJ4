@@ -127,7 +127,7 @@ sem controlar o servidor.
 | `TextosChamada` | Regras do clube e Atenção personalizadas pelo Regional; sem linha = o padrão |
 | `Movimentacoes` | o livro de Entrada/Saída: uma linha por entrada, afastamento, retorno ou desligamento. Nada é apagado |
 | `Doacoes` | uma linha por evento × integrante que levou alimento, com os kg; sem linha = não levou |
-| `EstoqueDoacoes` | as outras doações (roupas, cobertores, sapatos…): uma linha por item da divisão, com a quantidade de hoje, em unidades ou pares |
+| `EstoqueDoacoes` | o estoque (alimentos, roupas, cobertores, sapatos…): uma linha por item da divisão, com a quantidade de hoje, em unidades, pares ou kg; a linha com "Automatico" = Sim é a dos alimentos dos eventos |
 | `Caixinha` | uma linha por divisão × mês × integrante que devia pagar, com Sim/Não e o **valor** pago |
 | `CaixinhaFinanceiro` | o controle financeiro da caixinha: uma linha por entrada ou saída lançada, e o saldo inicial de cada divisão |
 
@@ -463,10 +463,27 @@ regra do clube é levar 1 kg de alimento em todo evento.
   Doação de quem não estava como Confirmado soma no kg, mas fica fora do
   cumprimento.
 
-**Outras doações** (`telas/admin-doacoes-estoque.js`, regras em
-`dominio/estoque.js`): a 3ª aba de Doações, criada em 19/10/2026. É o
-**estoque do clube**, que não é de integrante nenhum: roupas, cobertores,
-sapatos e o que mais vier, com a quantidade de hoje.
+**Estoque** (`telas/admin-doacoes-estoque.js`, regras em
+`dominio/estoque.js`): a 3ª aba de Doações, criada em 19/10/2026 como
+"Outras doações" e renomeada no mesmo dia. É o **estoque do clube**, que
+não é de integrante nenhum: alimentos, roupas, cobertores, sapatos e o que
+mais vier, com a quantidade de hoje.
+
+- **Os alimentos dos eventos entram sozinhos** (só nas divisões). O
+  primeiro card é fixo, "🥫 Alimentos (dos eventos)", em kg: cada vez que
+  as doações de um evento são salvas em "Por evento", o `Code.gs` soma a
+  **diferença** em relação ao que o evento tinha (salvar de novo não soma
+  duas vezes; corrigir para menos desconta), e remover um evento tira os kg
+  dele, nunca abaixo de zero (`ajustarAlimentosDoEstoque`). Começou em 0
+  kg em 19/10/2026: o que foi doado antes não entra. A saída (entrega) é
+  diminuir no próprio card; ele não muda de nome nem de medida e não tem
+  lixeira.
+- **Ninguém sobrescreve ninguém:** a tela manda também a quantidade que o
+  card tinha quando abriu (`base`), e o `Code.gs` grava o de agora **mais**
+  a mudança da tela. Se alguém salvou doações de um evento no meio do
+  caminho, os dois valem. Salvar o estoque sem o card não o apaga.
+- O Remover de integrante apaga as doações dele, mas não desconta do card:
+  é cadastro feito errado, que não deveria ter doação.
 
 - **Um card por item**, com o nome, a medida (**un**, **par** ou **kg**)
   e − / quantidade / +. O "par" é sugerido sozinho quando o nome tem
@@ -749,7 +766,7 @@ a cada mudança:
 | `servidor.py` | serve o app local com o cache desligado |
 | `estrutura.py` | 7 verificações: imports circulares, hierarquia de camadas, sintaxe, nome sem import, import sobrando, ações sem tratador |
 | `regras.mjs` | as regras do clube que, se quebrarem, saem erradas numa convocação sem ninguém perceber |
-| `telas.mjs` | desenha as 162 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
+| `telas.mjs` | desenha as 163 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
 | `planilha.mjs` | roda o `Code.gs` de verdade contra uma planilha de mentira: encerramento automático, PIN, relatório individual, responsável, textos, chamada do evento, doações, caixinha e entrada/saída |
 
 O `--html` do `telas.mjs` é a rede de proteção mais útil: captura o HTML de
@@ -875,7 +892,7 @@ ferramentas, acima):
 
     py ferramentas/estrutura.py     # imports, camadas, sintaxe, ações
     node ferramentas/regras.mjs     # ordem hierárquica e formato da convocação
-    node ferramentas/telas.mjs      # desenha as 162 telas e abas
+    node ferramentas/telas.mjs      # desenha as 163 telas e abas
     node ferramentas/planilha.mjs   # o encerramento automático, no Code.gs
 
 Eles dizem que o app **não quebrou**, não que está bonito: não cobrem

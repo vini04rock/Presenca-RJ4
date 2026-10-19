@@ -219,7 +219,7 @@ export let state = {
   doacoesQtdEncerrados: 8,
   // Janela do rank, em meses (0 = desde sempre). Ver PERIODOS.
   doacoesPeriodo: 3,
-  // Aba "Outras doacoes" (o estoque do clube). estoqueCards e o rascunho da
+  // Aba "Estoque" de Doacoes (o que o clube tem guardado). estoqueCards e o rascunho da
   // tela: [{ item, quantidade, medida, medidaManual }], com um card vazio no
   // fim; null = ainda nao montado (comeca do que esta salvo). medidaManual:
   // a pessoa escolheu un/par, e a sugestao pelo nome para de mexer.
