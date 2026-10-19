@@ -186,13 +186,20 @@ export async function loadReportData() {
 // Sempre recarrega ao entrar na aba: e um numero que muda a cada evento
 // encerrado, diferente do relatorio por evento que so busca o que falta.
 export async function loadEstatisticas() {
+  const escopo = state.adminEscopo;
   state.estatisticasLoading = true;
   state.estatisticasError = null;
+  // Nada da divisao anterior fica na tela enquanto a nova carrega.
+  state.estatisticas = null;
   render();
   try {
-    const r = await api('estatisticas', { categoria: state.adminEscopo });
+    const r = await api('estatisticas', { categoria: escopo });
+    // Trocou de divisao antes da resposta chegar: a resposta velha e jogada
+    // fora (a mesma regra de carregarDoacoes/carregarCaixinha).
+    if (state.adminEscopo !== escopo) return;
     state.estatisticas = r.membros || [];
   } catch (e) {
+    if (state.adminEscopo !== escopo) return;
     state.estatisticasError = e.message;
   }
   state.estatisticasLoading = false;

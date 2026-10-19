@@ -1081,8 +1081,12 @@ log('=== entrada/saída: transferência de divisão e grau a confirmar ===');
   confere('nos eventos do Oeste ele entra como Aguardando',
     p.abas.Presencas.dados.filter(l => l[2] === 'm1' && l[0] === 'abertoO').map(l => [l[3], l[4]]), [['Costa', 'Aguardando']]);
 
-  // Um celular com a lista velha edita o nome: a divisao nao volta.
-  contexto.executar('membroSalvar', { ...barra, id: 'm1', nome: 'Costa Jr', grau: 'VI', divisao: 'Barra - RJ4', funcoes: 'batedor', cargo: '' });
+  // Um celular da Barra com a lista velha tenta editar quem ja foi pro Oeste:
+  // agora e do Oeste, e a Barra nao mexe mais nele.
+  confere('a Barra não edita quem já foi transferido', contexto.executar('membroSalvar',
+    { ...barra, id: 'm1', nome: 'Costa Jr', grau: 'VI', divisao: 'Barra - RJ4', funcoes: 'batedor', cargo: '' }).ok, false);
+  // O Oeste edita, e mandar outra divisao no pedido nao troca a dele.
+  contexto.executar('membroSalvar', { ...oeste, id: 'm1', nome: 'Costa Jr', grau: 'VI', divisao: 'Barra - RJ4', funcoes: 'batedor', cargo: '' });
   confere('o Editar não troca a divisão', [membro('m1').nome, membro('m1').divisao, membro('m1').grauPendente], ['Costa Jr', 'Oeste - RJ4', true]);
 
   const livro = (cred, divisao) => contexto.executar('movimentos', { ...cred, divisao }).movimentos;
@@ -1112,8 +1116,67 @@ log('=== entrada/saída: transferência de divisão e grau a confirmar ===');
   confere('o Regional transfere em qualquer divisão',
     transferir({ escopo: 'barra', pin: '0418' }, { membroId: 'o9', destino: 'regional' }).ok, true);
   confere('quem vai pro Regional entra nos eventos abertos do Regional', eventosDe('o9'), ['abertoR']);
-  confere('o Remover apaga a transferência do livro', (contexto.executar('membroRemover', { ...barra, id: 'm1' }),
+  confere('o Remover apaga a transferência do livro', (contexto.executar('membroRemover', { ...oeste, id: 'm1' }),
     livro({ escopo: 'regional', pin: '0418' }, 'regional').filter(m => m.membroId === 'm1').length), 0);
+}
+
+log('');
+log('=== isolamento: cada divisão só mexe no que é dela ===');
+{
+  const evc = (id, categoria) => { const l = ev(id, daquiA(5), 'ativo'); l[8] = categoria; return l; };
+  const p = montaPlanilha([evc('b1', 'barra'), evc('o1', 'oeste'), evc('r1', 'regional')], [pr('o1', 'o9', 'Aguardando')]);
+  p.abas.Membros = novaAba('Membros', [['ID', 'Nome', 'Grau', 'Divisao', 'Funcoes', 'Cargo'],
+    ['m1', 'Costa', 'VI', 'Barra - RJ4', '', ''], ['o9', 'Fabiano', 'IX', 'Oeste - RJ4', '', '']]);
+  const { contexto } = carregaCodeGs(p, { PIN_REGIONAL: '0418', PIN_BARRA: '1801', PIN_OESTE: '1802' });
+  const barra = { escopo: 'barra', pin: '1801' };
+  const regional = { escopo: 'regional', pin: '0418' };
+  const chaveMestra = { escopo: 'barra', pin: '0418' };
+  const ok = (acao, params) => { try { return contexto.executar(acao, params).ok !== false; } catch (e) { return 'erro: ' + e.message; } };
+  const eventos = () => contexto.executar('dados', {}).eventos.map(e => e.id).sort();
+  const nomeDe = (id) => (contexto.executar('dados', {}).membros.find(m => m.id === id) || {}).nome;
+
+  // Eventos.
+  confere('a Barra NÃO apaga evento do Oeste', [ok('eventoRemover', { ...barra, id: 'o1' }), eventos()], [false, ['b1', 'o1', 'r1']]);
+  confere('a Barra NÃO apaga evento do Regional', ok('eventoRemover', { ...barra, id: 'r1' }), false);
+  confere('a Barra NÃO edita evento do Oeste', ok('eventoSalvar', { ...barra, id: 'o1', nome: 'Invadido', categoria: 'barra', status: 'ativo' }), false);
+  confere('e o evento do Oeste continua como era', contexto.executar('dados', {}).eventos.find(e => e.id === 'o1').nome, 'Evento o1');
+  confere('a Barra NÃO cria evento no Oeste', ok('eventoSalvar', { ...barra, nome: 'Novo', categoria: 'oeste' }), false);
+  confere('a Barra NÃO muda o evento dela pro Oeste', ok('eventoSalvar', { ...barra, id: 'b1', nome: 'Evento b1', categoria: 'oeste' }), false);
+  confere('a Barra edita o evento dela', ok('eventoSalvar', { ...barra, id: 'b1', nome: 'Pub da Barra', categoria: 'barra', status: 'ativo' }), true);
+  confere('a Barra NÃO cola convocação no Oeste', ok('criarEventoDeTexto', { ...barra, nome: 'X', categoria: 'oeste', membros: [] }), false);
+  confere('a Barra NÃO corrige convocação de evento do Oeste', ok('criarEventoDeTexto', { ...barra, id: 'o1', nome: 'X', categoria: 'barra', membros: [] }), false);
+  confere('a Barra NÃO marca no calendário do Oeste', ok('criarEventosDeCalendario', { ...barra, categoria: 'oeste', eventos: [{ data: daquiA(9), tipo: 'Pub' }] }), false);
+  confere('a Barra marca no calendário dela', ok('criarEventosDeCalendario', { ...barra, categoria: 'barra', eventos: [{ data: daquiA(9), tipo: 'Pub' }] }), true);
+
+  // Membros.
+  confere('a Barra NÃO edita integrante do Oeste', [ok('membroSalvar', { ...barra, id: 'o9', nome: 'Invadido', divisao: 'Oeste - RJ4' }), nomeDe('o9')], [false, 'Fabiano']);
+  confere('a Barra NÃO remove integrante do Oeste', [ok('membroRemover', { ...barra, id: 'o9' }), nomeDe('o9')], [false, 'Fabiano']);
+  confere('a Barra NÃO cadastra integrante no Oeste', ok('membroSalvar', { ...barra, id: 'n1', nome: 'Novo', divisao: 'Oeste - RJ4' }), false);
+  confere('a Barra cadastra na Barra', [ok('membroSalvar', { ...barra, id: 'n2', nome: 'Novo', divisao: 'Barra - RJ4' }), nomeDe('n2')], [true, 'Novo']);
+  confere('remover quem não existe avisa', ok('membroRemover', { ...barra, id: 'nao-existe' }), false);
+
+  // Insight e o relatorio da planilha: so o Regional.
+  confere('a Barra NÃO registra rodada de Insight', ok('insightSalvar', { ...barra, marcacoes: '{}' }), false);
+  confere('a Barra NÃO tira ninguém do Insight', ok('insightMembroRemover', { ...barra, id: 'o9' }), false);
+  confere('a Barra NÃO gera o relatório da planilha', ok('relatorio', barra), false);
+  confere('o Regional registra rodada de Insight', ok('insightSalvar', { ...regional, marcacoes: JSON.stringify({ m1: true }) }), true);
+
+  // Responsavel (tem telefone).
+  confere('a Barra NÃO lê o responsável do Oeste', ok('responsavel', { ...barra, categoria: 'oeste' }), false);
+  confere('a Barra lê o dela', ok('responsavel', { ...barra, categoria: 'barra' }), true);
+
+  // O que ja era protegido continua.
+  confere('doações, caixinha e Entrada/Saída do Oeste continuam fechadas pra Barra',
+    [ok('doacoes', { ...barra, divisao: 'oeste' }), ok('caixinha', { ...barra, divisao: 'oeste' }), ok('movimentos', { ...barra, divisao: 'oeste' }),
+      ok('estoqueDoacoesMovimentar', { ...barra, divisao: 'oeste', tipo: 'entrada', itemNome: 'X', quantidade: 1 })],
+    [false, false, false, false]);
+
+  // A chave-mestra do Regional passa em tudo.
+  confere('o Regional (chave-mestra) mexe em qualquer divisão',
+    [ok('eventoSalvar', { ...chaveMestra, id: 'o1', nome: 'Evento o1', categoria: 'oeste', status: 'ativo' }),
+      ok('membroSalvar', { ...chaveMestra, id: 'o9', nome: 'Fabiano', divisao: 'Oeste - RJ4' }),
+      ok('responsavel', { ...chaveMestra, categoria: 'oeste' }), ok('eventoRemover', { ...chaveMestra, id: 'o1' })],
+    [true, true, true, true]);
 }
 
 log('');

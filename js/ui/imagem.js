@@ -917,8 +917,8 @@ export async function imagensRelatorioCaixinha(r, nomeDivisao, rotuloPeriodo, v)
 // ---------------------------------------------------------------------------
 // O Estoque do clube pro grupo - o resumo e a lista de itens
 // com a quantidade, "acabou" em vermelho. Varias imagens do mesmo tamanho
-// quando a lista nao cabe, como no relatorio da Caixinha. `itens` ja vem
-// conferido (conferirEstoque), na ordem da tela.
+// quando a lista nao cabe, como no relatorio da Caixinha. `itens` vem do
+// saldo de hoje de cada item (aba Estoque), na ordem da tela.
 const TOPO_ESTOQUE = 360, FIM_ESTOQUE = 1190, ALTURA_ITEM = 64;
 
 function paginaEstoque(ctx, logo, itens, resumo, nomeDivisao, pagina, paginas) {

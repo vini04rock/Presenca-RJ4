@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-10-19-y-estoque-livro';
+var VERSAO = '2026-10-19-z-guarda-divisao';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -273,6 +273,8 @@ function executar(action, p) {
   if (ACOES_PROTEGIDAS.indexOf(action) !== -1) {
     var conferencia = verificarPin(String(p.escopo || ''), String(p.pin || ''));
     if (!conferencia.valido) return { ok: false, erro: 'Sem permissao - entre no modo organizador de novo' };
+    var recusa = guardaDaDivisao(action, p);
+    if (recusa) return recusa;
   }
   if (action === 'versao') return { ok: true, versao: VERSAO };
   if (action === 'dados') return { ok: true, membros: lerMembros(), eventos: lerEventos() };
@@ -344,6 +346,51 @@ function executar(action, p) {
   if (action === 'estoqueAdmMovimentar') return comTrava(function () { return movimentarEstoqueAdm(p); });
   if (action === 'estoqueAdmAnular') return comTrava(function () { return anularMovimentoEstoqueAdm(p); });
   throw new Error('Acao desconhecida: ' + action);
+}
+
+// A guarda geral (logo acima, em executar) so confere se o PIN vale pra
+// divisao em que a pessoa ENTROU. Ate 19/10/2026 isso bastava pras acoes de
+// membros, eventos e Insight - e quem tinha o PIN da Barra conseguia, montando
+// o endereco a mao (fora dos botoes do app), apagar um evento ou um
+// integrante do Oeste. Doacoes, caixinha, estoque e Entrada/Saida ja
+// conferiam a divisao DOS DADOS (podeNaDivisao); esta guarda leva a mesma
+// regra pro resto:
+//   - membros: a divisao do integrante (e a do cadastro novo);
+//   - eventos: a categoria do evento gravado e a que vem no pedido - um
+//     evento da Barra nao vira do Oeste, nem o contrario;
+//   - Insight e "Gerar relatorio na planilha": so o Regional (decisao do
+//     clube - o Insight e da RJ4 inteira, registrado pelo Regional);
+//   - responsavel: so o da propria divisao (devolve telefone).
+// O PIN do Regional continua sendo chave-mestra: passa em todas. Devolve
+// null (pode seguir) ou a recusa.
+var ACOES_SO_DO_REGIONAL = ['insightSalvar', 'insightRodadaAjustar', 'insightRodadaRemover',
+  'insightMembroRemover', 'insightMembroReincluir', 'relatorio'];
+
+function guardaDaDivisao(action, p) {
+  var pin = String(p.pin || '');
+  var pode = function (chave) { return ESCOPOS_VALIDOS.indexOf(chave) !== -1 && verificarPin(chave, pin).valido; };
+  if (ACOES_SO_DO_REGIONAL.indexOf(action) !== -1) return pode('regional') ? null : SEM_PERMISSAO_DIVISAO;
+
+  if (action === 'membroSalvar' || action === 'membroRemover') {
+    var id = String(p.id || '');
+    var achado = id ? acharLinha(aba(ABA_MEMBROS, CAB_MEMBROS), function (l) { return String(l[0]) === id; }) : null;
+    if (achado && !pode(CHAVE_POR_NOME_DIVISAO[String(achado.valores[3] || '')])) return SEM_PERMISSAO_DIVISAO;
+    if (action === 'membroRemover') return achado ? null : { ok: false, erro: 'Integrante nao encontrado' };
+    // Cadastro novo: a divisao que vem no pedido.
+    if (!achado && !pode(CHAVE_POR_NOME_DIVISAO[String(p.divisao || '')])) return SEM_PERMISSAO_DIVISAO;
+    return null;
+  }
+
+  if (action === 'eventoSalvar' || action === 'eventoRemover' || action === 'criarEventoDeTexto') {
+    var eid = String(p.id || '');
+    var ev = eid ? acharLinha(aba(ABA_EVENTOS, CAB_EVENTOS), function (l) { return String(l[0]) === eid; }) : null;
+    if (ev && !pode(categoriaDaLinha(ev.valores))) return SEM_PERMISSAO_DIVISAO;
+    if (action !== 'eventoRemover' && !pode(String(p.categoria || 'barra'))) return SEM_PERMISSAO_DIVISAO;
+    return null;
+  }
+  if (action === 'criarEventosDeCalendario') return pode(String(p.categoria || 'barra')) ? null : SEM_PERMISSAO_DIVISAO;
+  if (action === 'responsavel') return pode(String(p.categoria || '')) ? null : SEM_PERMISSAO_DIVISAO;
+  return null;
 }
 
 // Sem a trava, duas gravacoes simultaneas podem escolher a mesma linha vazia.

@@ -160,6 +160,23 @@ recebe de volta só um sim/não (`verificarPin` no `Code.gs`).
 
 O PIN do **Regional é chave-mestra**: abre qualquer divisão.
 
+**Cada divisão só mexe no que é dela — também no servidor.** O PIN é
+conferido duas vezes: contra a divisão em que a pessoa entrou e contra a
+divisão **dos dados**. Assim, mesmo montando o endereço do Apps Script à
+mão (fora dos botões do app), quem tem o PIN da Barra não lê nem grava
+nada do Oeste ou do Regional. Doações, caixinha, estoque e Entrada/Saída
+fazem isso desde que nasceram (`podeNaDivisao`); membros, eventos
+(inclusive convocação colada e Calendário), o responsável da chamada,
+o Insight e o "Gerar relatório na planilha" ganharam a mesma guarda em
+19/10/2026 (`guardaDaDivisao`, no `Code.gs`). Insight e o relatório da
+planilha são só do Regional. O bloco "isolamento" do
+`ferramentas/planilha.mjs` tenta cada ação da Barra contra o Oeste e o
+Regional.
+
+Ficam públicas, de propósito, as leituras que a tela inicial usa (lista
+de eventos e membros, presenças, ranks, relatório individual) e a
+gravação da própria presença — a confirmação é sem PIN.
+
 Trocar um PIN é editar a propriedade correspondente na planilha, sem mexer
 em código nem publicar nada. Os valores em uso estão no [LINK.md](LINK.md).
 
