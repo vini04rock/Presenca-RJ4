@@ -35,6 +35,9 @@ export let state = {
   // calendarioDiaAbrindo marca o redesenho em que ela acabou de abrir (so
   // nesse ela entra deslizando - igual o pickerAbrindo).
   calendarioDiaAberto: null,
+  // O "Relatar dias vazios" do Copiar pro WhatsApp do Calendario: com ele,
+  // o texto vai do dia 1 ao ultimo, com os sem evento em branco.
+  calendarioDiasVazios: false,
   calendarioDiaAbrindo: false,
   // Quais divisoes estao abertas na lista de um evento regional - comeca
   // vazio (tudo fechado), so mostra os nomes da divisao que a pessoa clicar.

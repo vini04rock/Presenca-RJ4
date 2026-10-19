@@ -182,6 +182,15 @@ nas grades de ver e de editar). Dia com mais de um evento continua com
 "2 eventos". O rótulo é de 9px, com as letras um pouco mais juntas, para
 "Regional" e "Gardênia" caberem inteiros num celular comum.
 
+O Calendário também sai **em texto pro WhatsApp** ("📋 Copiar pro
+WhatsApp", ao lado do "Gerar imagem"; `dominio/calendario-texto.js`): os
+mesmos eventos e a mesma ordem da imagem do mês, no formato que o clube já
+usava no grupo - "📍 *Dia 07 · Ter*", e embaixo "🍻 Div. Barra: Pub" para
+evento de divisão ou o nome em destaque para evento do Regional ("🏍️
+*BATE E VOLTA - SERRA*"); mais de um no mesmo dia vira itens com "•". A
+caixa **"Relatar dias vazios"** leva do dia 1 ao último, com os sem evento
+em branco; desmarcada (o padrão), só os dias com evento.
+
 **Status** — os 4 do seletor manual (⚠️ Aguardando, ✅ Confirmado, ❌ Família,
 ❌ Trabalho) e mais 2 que só nascem da convocação colada (❌ Justificada,
 ⭕ Não justificada).
@@ -841,7 +850,7 @@ a cada mudança:
 | `servidor.py` | serve o app local com o cache desligado |
 | `estrutura.py` | 7 verificações: imports circulares, hierarquia de camadas, sintaxe, nome sem import, import sobrando, ações sem tratador |
 | `regras.mjs` | as regras do clube que, se quebrarem, saem erradas numa convocação sem ninguém perceber |
-| `telas.mjs` | desenha as 168 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
+| `telas.mjs` | desenha as 187 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
 | `planilha.mjs` | roda o `Code.gs` de verdade contra uma planilha de mentira: encerramento automático, PIN, relatório individual, responsável, textos, chamada do evento, doações, caixinha e entrada/saída |
 
 O `--html` do `telas.mjs` é a rede de proteção mais útil: captura o HTML de
@@ -967,7 +976,7 @@ ferramentas, acima):
 
     py ferramentas/estrutura.py     # imports, camadas, sintaxe, ações
     node ferramentas/regras.mjs     # ordem hierárquica e formato da convocação
-    node ferramentas/telas.mjs      # desenha as 186 telas e abas
+    node ferramentas/telas.mjs      # desenha as 187 telas e abas
     node ferramentas/planilha.mjs   # o encerramento automático, no Code.gs
 
 Eles dizem que o app **não quebrou**, não que está bonito: não cobrem

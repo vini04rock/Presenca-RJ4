@@ -5,11 +5,12 @@ import { apiPost } from '../nucleo/api.js';
 import { DIAS_SEMANA_LETRA, NOMES_MESES, TIPOS_EVENTO, corTipoEvento, emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
-import { dataDoCampoOuAvisar, diaDaSemana, escapeHtml, formatDataBR, hexParaRgba, pastilhaQuando } from '../nucleo/util.js';
+import { copiarTexto, dataDoCampoOuAvisar, diaDaSemana, escapeHtml, formatDataBR, hexParaRgba, pastilhaQuando } from '../nucleo/util.js';
 import { renderEscolhaDivisao, renderTelaPin, subtituloDoEvento } from '../ui/comuns.js';
 import { loadInitial, salvarOuAvisar } from '../dados/carregar.js';
 import { conferirPin } from '../dados/pin.js';
 import { paramsDeEvento } from '../fila/presenca.js';
+import { textoCalendario } from '../dominio/calendario-texto.js';
 import { imagensCalendario } from '../ui/calendario-imagem.js';
 import { mostrarPreviaImagem } from '../ui/imagem.js';
 
@@ -93,6 +94,11 @@ export function renderCalendario(app) {
       </div>
     </div>
     <button class="btn block" style="margin-top:14px;" data-action="calendario-gerar-imagem">🖼️ Gerar imagem</button>
+    <div class="row-gap" style="margin-top:10px; align-items:center;">
+      <button class="btn secondary" style="flex:1;" data-action="calendario-copiar-texto">📋 Copiar pro WhatsApp</button>
+      <button class="toggle-chip ${state.calendarioDiasVazios ? 'active' : ''}" style="flex:none; padding:8px 12px;" data-action="calendario-dias-vazios"
+              aria-pressed="${state.calendarioDiasVazios ? 'true' : 'false'}">${state.calendarioDiasVazios ? '☑️' : '☐'} Relatar dias vazios</button>
+    </div>
     <button class="btn secondary block" style="margin-top:14px;" data-action="abrir-calendario-organizar">🗂️ Organizar</button>
     ${folhaDoDia(marcacoesEscopo)}
   `;
@@ -304,6 +310,16 @@ export async function checkCalendarioPin() {
 // Cada entrada e o corpo do antigo "if (action === ...)" do app.js, tal
 // e qual. O app.js so olha o nome da acao neste mapa e chama.
 export const acoes = {
+  // O mes aberto em texto pro WhatsApp - os mesmos eventos da imagem.
+  'calendario-copiar-texto': async (id, target, action, e) => {
+    const escopo = state.calendarioEscopo;
+    return copiarTexto(textoCalendario({ ano: state.calendarioAno, mes: state.calendarioMes, escopo,
+      eventos: eventosCalendarioVisiveis(escopo), diasVazios: state.calendarioDiasVazios }));
+  },
+  'calendario-dias-vazios': async (id, target, action, e) => {
+    state.calendarioDiasVazios = !state.calendarioDiasVazios;
+    return render();
+  },
   'calendario-gerar-imagem': async (id, target, action, e) => {
     if (target.disabled) return;
     target.disabled = true;

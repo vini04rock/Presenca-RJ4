@@ -208,6 +208,7 @@ add('calendario (escolha)',           {}, T.renderCalendarioDivisoes);
 // Social do dia 10), entao a grade sai com conteudo mesmo assim.
 const cal = { calendarioEscopo:'barra', calendarioAno:2026, calendarioMes:6 };
 add('calendario (grade)',             { ...cal }, T.renderCalendario);
+add('calendario / com dias vazios marcado', { ...cal, calendarioDiasVazios:true }, T.renderCalendario);
 add('calendario (organizar: pin)',    { ...cal, calendarioOrganizarEtapa:'pin' }, T.renderCalendario);
 add('calendario (pin com erro)',      { ...cal, calendarioOrganizarEtapa:'pin', calendarioPinErro:'PIN incorreto.' }, T.renderCalendario);
 add('calendario (org: adicionar)',    { ...cal, calendarioOrganizarEtapa:'texto', calendarioOrganizarSubTab:'adicionar' }, T.renderCalendario);
@@ -674,7 +675,7 @@ const LIMPO = {
   relIndMembroId:null, relIndDados:null, relIndCarregando:false, relIndErro:null,
   relIndFiltroInicio:'', relIndFiltroFim:'', relIndDivisoesAbertas:new Set(),
   relIndCopiado:false, relIndSelecionando:false, relIndMarcados:new Set(), relIndVarios:null,
-  relIndVariosCarregando:false, relIndVariosErro:null, obrigatoriedadeAberta:null,
+  relIndVariosCarregando:false, relIndVariosErro:null, obrigatoriedadeAberta:null, calendarioDiasVazios:false,
   doacoesDados:null, doacoesDadosEscopo:null, doacoesErro:null, doacoesEventoId:null, doacoesMarcacoes:{},
   doacoesMsg:null, doacoesSalvando:false, doacoesQtdEncerrados:8, doacoesPeriodo:0,
   estoqueCards:null, estoqueSalvando:false, estoqueMsg:null,

@@ -1059,6 +1059,33 @@ log('=== data de ingresso e tempo de clube ===');
 }
 
 log('');
+log('=== calendário do mês em texto pro WhatsApp ===');
+{
+  const { textoCalendario } = await import(url('dominio/calendario-texto.js'));
+  const e = (categoria, tipo, data, nome, horario) => ({ id: categoria + data + tipo, categoria, tipo, data, nome, horario: horario || '' });
+  const eventos = [
+    e('barra', 'Pub', '2026-10-07', 'Pub da Barra'),
+    e('regional', 'Bate e Volta', '2026-10-11', 'Bate e Volta - Serra'),
+    e('regional', 'Reunião', '2026-10-20', 'Reunião Diretor Regional & Diretores', '20:00'),
+    e('gardenia', 'Pub', '2026-10-20', 'Pub Gardênia', '19:00'),
+    // Fora do mes: nao entra.
+    e('barra', 'Reunião', '2026-11-03', 'Reunião'),
+  ];
+  const so = textoCalendario({ ano: 2026, mes: 9, escopo: 'regional', eventos, diasVazios: false }).split('\n');
+  confere('só os dias com evento, na ordem', so, [
+    '📝 *CALENDÁRIO · OUTUBRO/2026*', '*REGIONAL RJ4*',
+    '', '📍 *Dia 07 · Qua*', '🍻 Div. Barra: Pub',
+    '', '📍 *Dia 11 · Dom*', '🏍️ *BATE E VOLTA - SERRA*',
+    '', '📍 *Dia 20 · Ter*', '• 🍻 Div. Gardênia: Pub', '• 📊 *REUNIÃO DIRETOR REGIONAL & DIRETORES*',
+  ]);
+  const todos = textoCalendario({ ano: 2026, mes: 9, escopo: 'barra', eventos, diasVazios: true }).split('\n');
+  confere('relatar dias vazios: do dia 1 ao 31', [todos.filter(l => l.startsWith('📍')).length, todos[1], todos.slice(2, 5)],
+    [31, '*BARRA - RJ4*', ['', '📍 *Dia 01 · Qui*', '']]);
+  confere('mês sem evento avisa', textoCalendario({ ano: 2026, mes: 11, escopo: 'barra', eventos, diasVazios: false }).split('\n').slice(-1),
+    ['Nenhum evento marcado.']);
+}
+
+log('');
 log('=== obrigatoriedades do mês: os 4 eventos de cada divisão ===');
 {
   const { obrigatoriedadesDoMes, textoFaltam, textoDiasRestantes, textoEventoMarcado, textoCobrancaObrigatoriedades } = await import(url('dominio/obrigatoriedades.js'));
