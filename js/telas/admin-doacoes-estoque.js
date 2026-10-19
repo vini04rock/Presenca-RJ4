@@ -149,7 +149,7 @@ function extrato(itens, { limite, titulo } = {}) {
     <div class="card fin-bloco" style="padding: 4px 16px;">
       <div class="division-subheader"><span>${escapeHtml(titulo || 'EXTRATO')}</span><span class="division-counts">${itens.length}</span></div>
       ${itens.length
-        ? mostrar.map(linhaExtrato).join('') + '<div class="fin-nota no-print" style="margin:6px 0 10px;">Toque numa entrada avulsa ou saída pra anular. O que veio dos eventos se corrige nas doações do evento.</div>'
+        ? mostrar.map(linhaExtrato).join('') + `<div class="fin-nota no-print" style="margin:6px 0 10px;">Toque numa entrada avulsa ou saída pra anular.${state.adminEscopo === 'regional' ? '' : ' O que veio dos eventos se corrige nas doações do evento.'}</div>`
         : '<div class="empty">Nada lançado ainda neste item.</div>'}
       ${limite && itens.length > limite ? `<button class="btn ghost block no-print" style="margin:8px 0;" data-action="estoque-mais-extrato">Mostrar mais (${itens.length - limite})</button>` : ''}
     </div>
