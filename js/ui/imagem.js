@@ -12,7 +12,7 @@ import { IMG_FUNDO, LOGO_SRC } from '../nucleo/imagens.js';
 import { diaDaSemana, formatDataBR, mostrarAviso } from '../nucleo/util.js';
 import { formatReais, nomeCurtoDoMes, nomeDoMes } from '../dominio/caixinha.js';
 import { formatKg } from '../dominio/doacoes.js';
-import { textoQuantidade } from '../dominio/estoque.js';
+import { destinoPorChave, numeroEstoque, resumoDaLinha, textoQuantidade } from '../dominio/estoque.js';
 import { posicoesDoPodio } from './comuns.js';
 
 const L = 1080, A = 1350; // retrato 4:5, o formato que o WhatsApp mostra maior
@@ -627,7 +627,8 @@ const reaisCurto = v => formatReais(v).replace(/,00$/, '');
 // e na mesma escala as barras sumiriam). As barras ficam na metade de baixo
 // e a linha na faixa de cima, pra um nunca cobrir o outro; os valores de
 // cada mes vao embaixo do nome dele. No maximo os 12 ultimos meses.
-function graficoCaixa(ctx, serie, x, y, largura, altura) {
+// `fmt` escreve os valores (o estoque passa o dele, em kg/un).
+function graficoCaixa(ctx, serie, x, y, largura, altura, fmt = reaisCurto) {
   const meses = serie.slice(-12);
   if (!meses.length) return;
   const n = meses.length;
@@ -658,9 +659,9 @@ function graficoCaixa(ctx, serie, x, y, largura, altura) {
     if (comValores) {
       fonte(ctx, 18, 700);
       ctx.fillStyle = COR.confirmado;
-      ctx.fillText('+' + reaisCurto(m.entradas), cx, base + 54);
+      ctx.fillText('+' + fmt(m.entradas), cx, base + 54);
       ctx.fillStyle = COR.infracional;
-      ctx.fillText('−' + reaisCurto(m.saidas), cx, base + 77);
+      ctx.fillText('−' + fmt(m.saidas), cx, base + 77);
     }
   });
 
@@ -694,7 +695,7 @@ function graficoCaixa(ctx, serie, x, y, largura, altura) {
       fonte(ctx, 19, 700);
       ctx.textAlign = 'center';
       ctx.fillStyle = COR.marfim;
-      ctx.fillText(reaisCurto(m.saldo), px, py - 18);
+      ctx.fillText(fmt(m.saldo), px, py - 18);
     }
   });
 }
@@ -720,8 +721,8 @@ function legendaGrafico(ctx, y) {
 
 // A pizza das categorias, a esquerda, e a legenda a direita: cor, nome,
 // valor e %. Passando de 6 categorias, as menores viram "Outras".
-function pizzaCategorias(ctx, cats, total, y) {
-  let fatias = cats.map((c, i) => ({ nome: c.categoria, valor: c.valor, cor: CORES_CATEGORIA[i % CORES_CATEGORIA.length] }));
+function pizzaCategorias(ctx, cats, total, y, fmt = formatReais, cores = null) {
+  let fatias = cats.map((c, i) => ({ nome: c.categoria, valor: c.valor, cor: (cores && cores[i]) || CORES_CATEGORIA[i % CORES_CATEGORIA.length] }));
   if (fatias.length > 6) {
     const resto = fatias.slice(5);
     fatias = fatias.slice(0, 5).concat({ nome: `Outras (${resto.length})`, valor: resto.reduce((s, f) => s + f.valor, 0), cor: COR.apagado });
@@ -734,7 +735,7 @@ function pizzaCategorias(ctx, cats, total, y) {
     const meio = topo + i * alturaLinha + alturaLinha / 2;
     ctx.fillStyle = f.cor;
     ctx.beginPath(); retangulo(ctx, 420, meio - 9, 18, 18, 4); ctx.fill();
-    const valor = `${formatReais(f.valor)} · ${Math.round((f.valor / total) * 100)}%`;
+    const valor = `${fmt(f.valor)} · ${Math.round((f.valor / total) * 100)}%`;
     fonte(ctx, 22, 700);
     ctx.textAlign = 'right';
     ctx.fillStyle = COR.marfim;
@@ -750,10 +751,10 @@ function pizzaCategorias(ctx, cats, total, y) {
 }
 
 // O topo de cada pagina: emblema, titulo, divisao, periodo e "1/3".
-function cabecalhoRelatorio(ctx, logo, titulo, nomeDivisao, rotuloPeriodo, pagina, paginas) {
+function cabecalhoRelatorio(ctx, logo, titulo, nomeDivisao, rotuloPeriodo, pagina, paginas, topo = 'RELATÓRIO FINANCEIRO') {
   emblema(ctx, logo, 28, 104);
   const y = tituloMetal(ctx, titulo, 196, 50, 980);
-  rotuloEspacado(ctx, `RELATÓRIO FINANCEIRO  ·  ${nomeDivisao.toUpperCase()}`, y + 4, 20, COR.ouro);
+  rotuloEspacado(ctx, `${topo}  ·  ${nomeDivisao.toUpperCase()}`, y + 4, 20, COR.ouro);
   const linha = rotuloPeriodo + (paginas > 1 ? `   ·   página ${pagina} de ${paginas}` : '');
   fonteQueCabe(ctx, linha, 960, 26, 600);
   ctx.fillStyle = COR.apagado;
@@ -966,6 +967,170 @@ export async function imagensEstoqueDoacoes(itens, resumo, nomeDivisao) {
     paginaEstoque(t.ctx, t.logo, paginas[p], resumo, nomeDivisao, p + 1, paginas.length);
     rodape(t.ctx);
     telas.push(t.canvas);
+  }
+  return telas;
+}
+
+// ---------------------------------------------------------------------------
+// O relatorio do Estoque das Doacoes, no molde do relatorio da Caixinha:
+// varias imagens do mesmo tamanho. A 1a e o item escolhido (saldo no inicio
+// -> no fim, entrou e saiu, o grafico Entrou x Saiu x Saldo e a pizza "Para
+// onde foi"); a 2a, a tabela de todos os itens; as seguintes, as saidas do
+// periodo, uma por linha, com o destino. `r` vem de relatorioEstoque.
+const CORES_DESTINO_IMG = { acao_social: '#4CAF6E', familia: '#E0B24D', instituicao: '#4C86D9', outro: '#8FA3B8' };
+const TOPO_TABELA_ESTOQUE = 330, FIM_TABELA_ESTOQUE = 1195, ALTURA_LINHA_ESTOQUE = 74;
+
+function paginaResumoEstoque(ctx, logo, r, nomeDivisao, rotuloPeriodo, paginas) {
+  const it = r.item;
+  const q = v => textoQuantidade(v, it.medida);
+  cabecalhoRelatorio(ctx, logo, '📦 Estoque', nomeDivisao, `${it.item}  ·  ${rotuloPeriodo}`, 1, paginas, 'ESTOQUE DE DOAÇÕES');
+
+  [['NO INÍCIO', it.saldoAnterior, 290, 46, COR.apagado], ['NO FIM', it.saldoFinal, 790, 64, COR.marfim]].forEach(([rotulo, v, cx, tam, cor]) => {
+    rotuloEspacado(ctx, rotulo, 366, 20, COR.ouro, cx);
+    const t = q(v);
+    fonteQueCabe(ctx, t, 420, tam, 400, 'rye');
+    ctx.fillStyle = cor;
+    ctx.textAlign = 'center';
+    ctx.fillText(t, cx, 440);
+  });
+  fonte(ctx, 52, 400, 'rye');
+  ctx.fillStyle = COR.ouroEscuro;
+  ctx.fillText('→', L / 2 - 10, 430);
+
+  fonteQueCabe(ctx, `🟢 Entrou ${q(r.entradas.total)}`, 440, 32, 700);
+  ctx.fillStyle = COR.confirmado;
+  ctx.fillText(`🟢 Entrou ${q(r.entradas.total)}`, 290, 515);
+  fonteQueCabe(ctx, `🔴 Saiu ${q(r.saidas.total)}`, 440, 32, 700);
+  ctx.fillStyle = COR.infracional;
+  ctx.fillText(`🔴 Saiu ${q(r.saidas.total)}`, 790, 515);
+  if (it.automatico && (r.entradas.eventos || r.entradas.avulsas)) {
+    const origem = [`eventos ${q(r.entradas.eventos)}`].concat(r.entradas.avulsas ? [`avulsas ${q(r.entradas.avulsas)}`] : [])
+      .concat(r.correcoes ? [`correções ${q(r.correcoes)}`] : []).join(' · ');
+    fonteQueCabe(ctx, origem, 460, 19, 600);
+    ctx.fillStyle = COR.apagado;
+    ctx.fillText(origem, 290, 548);
+  }
+
+  rotuloEspacado(ctx, '📊 ENTROU × SAIU × SALDO', 615, 22, COR.ouro);
+  if (r.serie.some(m => m.entradas || m.saidas)) {
+    graficoCaixa(ctx, r.serie, 120, 650, L - 240, 190, v => numeroEstoque(v));
+    legendaGrafico(ctx, 952);
+  } else {
+    fonte(ctx, 26, 600);
+    ctx.fillStyle = COR.apagado;
+    ctx.fillText('Nada no período', L / 2, 760);
+  }
+
+  rotuloEspacado(ctx, '🔴 PARA ONDE FOI', 1004, 22, COR.ouro);
+  const destinos = r.saidas.porDestino;
+  if (destinos.length) {
+    pizzaCategorias(ctx, destinos.map(d => ({ categoria: `${d.emoji} ${d.label}`, valor: d.valor })), r.saidas.total, 1010, q,
+      destinos.map(d => CORES_DESTINO_IMG[d.chave]));
+  } else {
+    fonte(ctx, 26, 600);
+    ctx.fillStyle = COR.apagado;
+    ctx.fillText('Nenhuma saída no período', L / 2, 1110);
+  }
+}
+
+// A tabela de todos os itens: nome, inicio -> fim, e embaixo + e -.
+function paginaTabelaEstoque(ctx, logo, linhas, nomeDivisao, rotuloPeriodo, pagina, paginas) {
+  cabecalhoRelatorio(ctx, logo, '📦 Todos os itens', nomeDivisao, rotuloPeriodo, pagina, paginas, 'ESTOQUE DE DOAÇÕES');
+  ctx.textBaseline = 'middle';
+  linhas.forEach((t, i) => {
+    const topo = TOPO_TABELA_ESTOQUE + i * ALTURA_LINHA_ESTOQUE;
+    if (i % 2 === 0) {
+      ctx.fillStyle = 'rgba(255,255,255,0.05)';
+      ctx.beginPath(); retangulo(ctx, 90, topo + 4, L - 180, ALTURA_LINHA_ESTOQUE - 8, 14); ctx.fill();
+    }
+    const fim = textoQuantidade(t.saldoFinal, t.medida);
+    fonte(ctx, 30, 700);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = t.saldoFinal ? COR.marfim : COR.infracional;
+    ctx.fillText(fim, L - 120, topo + 28);
+    const larguraFim = ctx.measureText(fim).width;
+    fonte(ctx, 28, 600);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = COR.texto;
+    ctx.fillText(caber(ctx, t.item, L - 240 - larguraFim - 30), 120, topo + 28);
+    fonte(ctx, 19, 600);
+    ctx.fillStyle = COR.apagado;
+    ctx.fillText(caber(ctx, resumoDaLinha(t), L - 240), 120, topo + 56);
+  });
+  ctx.textBaseline = 'alphabetic';
+  ctx.textAlign = 'center';
+}
+
+// As saidas detalhadas: o cabecalho de cada mes e uma linha por saida -
+// dia, item, destino e quantidade. A mesma reparticao do relatorio da
+// Caixinha (paginasDeSaidas).
+function paginaSaidasEstoque(ctx, logo, linhas, nomeDivisao, rotuloPeriodo, pagina, paginas) {
+  cabecalhoRelatorio(ctx, logo, '🔴 Saídas', nomeDivisao, rotuloPeriodo, pagina, paginas, 'ESTOQUE DE DOAÇÕES');
+  let y = TOPO_DETALHE;
+  ctx.textBaseline = 'middle';
+  linhas.forEach(l => {
+    if (l.tipo === 'mes') {
+      ctx.fillStyle = 'rgba(255,255,255,0.06)';
+      ctx.beginPath(); retangulo(ctx, 90, y + 8, L - 180, ALTURA_MES - 16, 16); ctx.fill();
+      fonte(ctx, 30, 400, 'rye');
+      ctx.textAlign = 'left';
+      ctx.fillStyle = COR.marfim;
+      ctx.fillText(nomeDoMes(l.mes.mes) + (l.continua ? ' (continua)' : ''), 120, y + ALTURA_MES / 2);
+      fonte(ctx, 24, 700);
+      ctx.textAlign = 'right';
+      ctx.fillStyle = COR.infracional;
+      ctx.fillText(`${l.mes.itens.length} ${l.mes.itens.length === 1 ? 'saída' : 'saídas'}`, L - 120, y + ALTURA_MES / 2);
+      y += ALTURA_MES;
+      return;
+    }
+    const x = l.x;
+    const meio = y + ALTURA_SAIDA / 2;
+    ctx.fillStyle = CORES_DESTINO_IMG[x.destino] || COR.apagado;
+    ctx.beginPath(); ctx.arc(126, meio, 8, 0, Math.PI * 2); ctx.fill();
+    fonte(ctx, 22, 700);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = COR.ouro;
+    ctx.fillText(formatDataBR(x.data).slice(0, 5), 148, meio);
+    const valor = textoQuantidade(x.quantidade, x.medida);
+    fonte(ctx, 26, 700);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = COR.marfim;
+    ctx.fillText(valor, L - 120, meio);
+    const espaco = L - 120 - ctx.measureText(valor).width - 30 - 225;
+    fonte(ctx, 25, 600);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = COR.texto;
+    const nome = caber(ctx, x.item, espaco);
+    ctx.fillText(nome, 225, meio);
+    const largura = ctx.measureText(nome).width;
+    const destino = destinoPorChave(x.destino);
+    fonte(ctx, 22, 600);
+    ctx.fillStyle = COR.apagado;
+    const resto = espaco - largura - 12;
+    if (resto > 60) ctx.fillText(caber(ctx, `· ${destino.label}${x.descricao ? ' · ' + x.descricao : ''}`, resto), 225 + largura + 12, meio);
+    ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(110, y + ALTURA_SAIDA); ctx.lineTo(L - 110, y + ALTURA_SAIDA); ctx.stroke();
+    y += ALTURA_SAIDA;
+  });
+  ctx.textBaseline = 'alphabetic';
+  ctx.textAlign = 'center';
+}
+
+export async function imagensRelatorioEstoque(r, nomeDivisao, rotuloPeriodo) {
+  const porPagina = Math.floor((FIM_TABELA_ESTOQUE - TOPO_TABELA_ESTOQUE) / ALTURA_LINHA_ESTOQUE);
+  const tabela = [];
+  if (r.tabela.length > 1) for (let i = 0; i < r.tabela.length; i += porPagina) tabela.push(r.tabela.slice(i, i + porPagina));
+  const saidas = paginasDeSaidas(r.saidasPorMes);
+  const paginas = 1 + tabela.length + saidas.length;
+  const telas = [];
+  const desenhar = async (fn) => { const t = await novaTela(); fn(t.ctx, t.logo); rodape(t.ctx); telas.push(t.canvas); };
+  await desenhar((ctx, logo) => paginaResumoEstoque(ctx, logo, r, nomeDivisao, rotuloPeriodo, paginas));
+  for (let i = 0; i < tabela.length; i++) {
+    await desenhar((ctx, logo) => paginaTabelaEstoque(ctx, logo, tabela[i], nomeDivisao, rotuloPeriodo, 2 + i, paginas));
+  }
+  for (let i = 0; i < saidas.length; i++) {
+    await desenhar((ctx, logo) => paginaSaidasEstoque(ctx, logo, saidas[i], nomeDivisao, rotuloPeriodo, 2 + tabela.length + i, paginas));
   }
   return telas;
 }

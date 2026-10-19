@@ -23,7 +23,7 @@ import { atualizarConfirmacoes } from './fluxos/evento.js';
 import { acoes as acoesAdminMembros } from './telas/admin-membros.js';
 import { acoes as acoesAdminInsights } from './telas/admin-insights.js';
 import { acoes as acoesAdminDoacoes } from './telas/admin-doacoes.js';
-import { acoes as acoesAdminDoacoesEstoque, atualizarCampoEstoque } from './telas/admin-doacoes-estoque.js';
+import { acoes as acoesAdminDoacoesEstoque, atualizarCampoEstoque, escolherNoEstoque } from './telas/admin-doacoes-estoque.js';
 import { acoes as acoesAdminCaixinha, atualizarValorCaixinha } from './telas/admin-caixinha.js';
 import { acoes as acoesAdminCaixinhaFinanceiro, escolherMesDoPeriodo } from './telas/admin-caixinha-financeiro.js';
 import { acoes as acoesAdminMovimentos } from './telas/admin-movimentos.js';
@@ -282,6 +282,7 @@ document.getElementById('app').addEventListener('input', (e) => {
     if (e.target.id === 'mov-data') state.movData = e.target.value;
     if (e.target.dataset && e.target.dataset.entradaId) state.entradasRascunho[e.target.dataset.entradaId] = e.target.value;
     if (e.target.id === 'fin-data' && state.caixinhaFinForm) state.caixinhaFinForm.data = e.target.value;
+    if (e.target.id === 'est-data' && state.estoqueForm) state.estoqueForm.data = e.target.value;
     atualizarCampoEstoqueAdm(e.target);
     return;
   }
@@ -307,10 +308,14 @@ document.getElementById('app').addEventListener('input', (e) => {
     escolherMesDoPeriodo(e.target);
     return;
   }
-  // O nome e a quantidade de um item do Estoque (aba de Doacoes): acerta o
-  // resto por fora, sem redesenhar.
-  if (e.target.classList && (e.target.classList.contains('estoque-nome') || e.target.classList.contains('estoque-qtd'))) {
+  // O formulario de entrada/saida do Estoque (aba de Doacoes): os campos de
+  // texto so lembram, sem redesenhar; os seletores (item, De/Ate) redesenham.
+  if (e.target.classList && e.target.classList.contains('estoque-campo')) {
     atualizarCampoEstoque(e.target, document.getElementById('app'));
+    return;
+  }
+  if (e.target.id === 'est-item' || e.target.id === 'est-de' || e.target.id === 'est-ate') {
+    escolherNoEstoque(e.target);
     return;
   }
   // O valor do saldo inicial (o card do painel) e o PIN do Regional da

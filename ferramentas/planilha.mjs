@@ -712,93 +712,87 @@ log('=== doações: por evento, atrás do PIN da divisão ===');
 }
 
 log('');
-log('=== outras doações: o estoque do clube ===');
-{
-  const p = montaPlanilha([], []);
-  const { contexto } = carregaCodeGs(p, { PIN_REGIONAL: '0418', PIN_BARRA: '1801', PIN_OESTE: '1802' });
-  const barra = { escopo: 'barra', pin: '1801', divisao: 'barra' };
-  // Os itens comuns - o card dos alimentos dos eventos tem bloco proprio.
-  const ler = () => contexto.executar('doacoes', barra).estoque.filter(x => !x.automatico);
-  const salvar = (itens, extra) => contexto.executar('estoqueSalvar', { ...barra, ...extra, itens: JSON.stringify(itens) });
-  const tentar = (fn) => { try { const r = fn(); return r.ok === false ? r.erro : 'ok'; } catch (e) { return e.message; } };
-  const linhasEstoque = () => (p.abas.EstoqueDoacoes ? p.abas.EstoqueDoacoes.dados.slice(1) : []);
-
-  confere('salvar sem PIN é recusado', contexto.executar('estoqueSalvar', { divisao: 'barra', itens: '[]' }).ok, false);
-  confere('nada salvo: estoque vazio, junto da leitura das doações', ler(), []);
-
-  const r = salvar([{ item: '  Cobertor  ', quantidade: 12, medida: 'un' }, { item: 'Sapato', quantidade: 6, medida: 'par' }, { item: 'Blusa', quantidade: 0, medida: 'un' }]);
-  confere('salva os itens, na ordem da tela', [r.itens, ler()], [3, [
-    { item: 'Cobertor', quantidade: 12, medida: 'un' }, { item: 'Sapato', quantidade: 6, medida: 'par' }, { item: 'Blusa', quantidade: 0, medida: 'un' }]]);
-  confere('a aba nasce sozinha, com a quantidade como número', [p.abas.EstoqueDoacoes.dados[0], typeof linhasEstoque()[0][2]],
-    [['Divisao', 'Item', 'Quantidade', 'Medida', 'Atualizado em', 'Automatico'], 'number']);
-
-  salvar([{ item: 'Cobertor', quantidade: 10, medida: 'un' }]);
-  confere('salvar de novo troca a lista inteira, não acumula', [ler(), linhasEstoque().length], [[{ item: 'Cobertor', quantidade: 10, medida: 'un' }], 1]);
-
-  const antes = linhasEstoque().length;
-  confere('item repetido (maiúscula e acento não diferenciam) é recusado',
-    tentar(() => salvar([{ item: 'Cobertor', quantidade: 1 }, { item: 'cobertôr', quantidade: 2 }])), 'Item repetido: cobertôr');
-  confere('item sem nome é recusado', tentar(() => salvar([{ item: '  ', quantidade: 1 }])), 'Item sem nome');
-  confere('quantidade quebrada é recusada', tentar(() => salvar([{ item: 'Roupa', quantidade: 1.5 }])), 'Quantidade invalida em Roupa');
-  confere('quantidade negativa é recusada', tentar(() => salvar([{ item: 'Roupa', quantidade: -1 }])), 'Quantidade invalida em Roupa');
-  confere('lista que não é lista é recusada', tentar(() => contexto.executar('estoqueSalvar', { ...barra, itens: 'nada' })), 'Lista de itens invalida');
-  confere('e uma lista com erro não apaga a que estava salva', linhasEstoque().length, antes);
-  salvar([{ item: 'Meia', quantidade: 3, medida: 'qualquer' }]);
-  confere('medida que não é un nem par vira un', ler()[0].medida, 'un');
-
-  confere('a Barra NÃO salva o estoque do Oeste', salvar([{ item: 'X', quantidade: 1 }], { divisao: 'oeste' }).ok, false);
-  contexto.executar('estoqueSalvar', { escopo: 'barra', pin: '0418', divisao: 'oeste', itens: JSON.stringify([{ item: 'Calça', quantidade: 4 }]) });
-  confere('o Regional salva no Oeste, e a Barra não vê', ler().map(x => x.item), ['Meia']);
-  salvar([]);
-  confere('salvar a lista vazia limpa só a divisão', linhasEstoque().map(l => l[0]), ['oeste']);
-}
-
-log('');
-log('=== estoque: os alimentos dos eventos entram sozinhos ===');
+log('=== estoque das doações: o livro de entradas e saídas ===');
 {
   const p = montaPlanilha([ev('b1', '2026-10-05', 'encerrado'), ev('b2', '2026-10-12', 'ativo')], []);
   p.abas.Membros = novaAba('Membros', [['ID', 'Nome', 'Grau', 'Divisao', 'Funcoes', 'Cargo'],
     ['m1', 'Costa', 'VI', 'Barra - RJ4', '', ''], ['m2', 'Bull', 'X', 'Barra - RJ4', '', '']]);
-  const { contexto } = carregaCodeGs(p, { PIN_REGIONAL: '0418', PIN_BARRA: '1801' });
+  const { contexto } = carregaCodeGs(p, { PIN_REGIONAL: '0418', PIN_BARRA: '1801', PIN_OESTE: '1802' });
   const barra = { escopo: 'barra', pin: '1801', divisao: 'barra' };
-  const estoque = () => contexto.executar('doacoes', barra).estoque;
-  const alimentos = () => estoque().find(x => x.automatico).quantidade;
+  const tentar = (fn) => { try { const r = fn(); return r.ok === false ? r.erro : 'ok'; } catch (e) { return e.message; } };
+  const estoque = (cred = barra) => contexto.executar('doacoes', cred).estoque;
+  const saldo = (nome, cred) => (estoque(cred).itens.find(x => x.nome === nome) || {}).saldo;
+  const mover = (extra) => contexto.executar('estoqueDoacoesMovimentar', { ...barra, ...extra });
+  const anular = (id, cred = barra) => contexto.executar('estoqueDoacoesAnular', { ...cred, id });
   const doar = (eventoId, kgs) => contexto.executar('doacoesSalvar', { ...barra, eventoId, kgs: JSON.stringify(kgs) });
-  const salvar = (itens) => contexto.executar('estoqueSalvar', { ...barra, itens: JSON.stringify(itens) });
+  const doEvento = (id) => estoque().movimentos.filter(m => m.eventoId === id).map(m => [m.tipo, m.quantidade, m.descricao]).reverse();
 
-  confere('a divisão já nasce com o card dos alimentos, em 0 kg, no topo', estoque(),
-    [{ item: 'Alimentos (dos eventos)', quantidade: 0, medida: 'kg', automatico: true }]);
-  confere('o Regional não tem o card dos alimentos', contexto.executar('doacoes', { escopo: 'regional', pin: '0418', divisao: 'regional' }).estoque, []);
+  confere('movimentar sem PIN é recusado', contexto.executar('estoqueDoacoesMovimentar', { divisao: 'barra', tipo: 'entrada', itemNome: 'X', quantidade: 1 }).ok, false);
+  confere('começa do zero, com o item dos alimentos (0 kg) já existindo', estoque(),
+    { itens: [{ id: 'alimentos-barra', nome: 'Alimentos (dos eventos)', medida: 'kg', automatico: true, saldo: 0 }], movimentos: [] });
+  confere('o Regional não tem o item dos alimentos', estoque({ escopo: 'regional', pin: '0418', divisao: 'regional' }).itens, []);
 
+  // Entradas avulsas.
+  const r = mover({ tipo: 'entrada', itemNome: '  Cobertor ', medida: 'un', quantidade: 12, data: '2026-10-10', descricao: 'família do Costa' });
+  confere('entrada de item novo: cadastra o item e soma', [r.ok, saldo('Cobertor')], [true, 12]);
+  const linha = estoque().movimentos[0];
+  confere('a linha do livro', [linha.tipo, linha.origem, linha.data, linha.item, linha.medida, linha.quantidade, linha.descricao],
+    ['entrada', 'avulsa', '2026-10-10', 'Cobertor', 'un', 12, 'família do Costa']);
+  mover({ tipo: 'entrada', itemNome: 'cobertôr', quantidade: 3 });
+  confere('mesmo nome (sem acento/maiúscula) é o mesmo item', [saldo('Cobertor'), estoque().itens.length], [15, 2]);
+  mover({ tipo: 'entrada', itemNome: 'Arroz', medida: 'kg', quantidade: '2,5' });
+  confere('kg com uma casa decimal', saldo('Arroz'), 2.5);
+  confere('kg com duas casas é recusado', tentar(() => mover({ tipo: 'entrada', itemNome: 'Arroz', quantidade: 2.55 })), 'Quantidade invalida (kg, com ate uma casa decimal)');
+  confere('unidade quebrada é recusada', tentar(() => mover({ tipo: 'entrada', itemNome: 'Cobertor', quantidade: 1.5 })), 'Quantidade invalida (numero inteiro)');
+  confere('data no futuro é recusada', tentar(() => mover({ tipo: 'entrada', itemNome: 'Cobertor', quantidade: 1, data: daquiA(2) })), 'A data nao pode ser no futuro');
+  confere('entrada sem nome é recusada', tentar(() => mover({ tipo: 'entrada', itemNome: '  ', quantidade: 1 })), 'Escreva o nome do item');
+
+  // Saidas.
+  const cobertor = estoque().itens.find(x => x.nome === 'Cobertor').id;
+  const s1 = mover({ tipo: 'saida', itemId: cobertor, quantidade: 5, destino: 'instituicao', descricao: 'Abrigo São José' });
+  confere('saída tira do saldo', [s1.ok, saldo('Cobertor')], [true, 10]);
+  confere('saída maior que o saldo é recusada', tentar(() => mover({ tipo: 'saida', itemId: cobertor, quantidade: 11, destino: 'familia' })), 'Quantidade maior que o saldo do item');
+  confere('saída sem destino é recusada', tentar(() => mover({ tipo: 'saida', itemId: cobertor, quantidade: 1 })), 'Escolha o destino da saida');
+  confere('destino "Outro" pede a descrição', tentar(() => mover({ tipo: 'saida', itemId: cobertor, quantidade: 1, destino: 'outro' })), 'Escreva para onde foi');
+  confere('saída precisa de um item que existe', tentar(() => mover({ tipo: 'saida', itemNome: 'Cobertor', quantidade: 1, destino: 'familia' })), 'Escolha o item');
+
+  // Anular.
+  const idSaida = estoque().movimentos.find(m => m.tipo === 'saida').id;
+  anular(idSaida);
+  confere('anular a saída devolve ao saldo, e a linha fica marcada', [saldo('Cobertor'), estoque().movimentos.find(m => m.id === idSaida).anulado], [15, true]);
+  confere('anular de novo é recusado', tentar(() => anular(idSaida)), 'Este lancamento ja foi anulado');
+  mover({ tipo: 'saida', itemId: cobertor, quantidade: 14, destino: 'acao_social' });
+  const idEntrada12 = estoque().movimentos.find(m => m.tipo === 'entrada' && m.quantidade === 12).id;
+  confere('entrada que já saiu não pode ser anulada (o saldo ficaria negativo)', tentar(() => anular(idEntrada12)), 'Esta entrada ja foi usada em saidas e nao pode ser anulada');
+
+  // Os alimentos dos eventos.
   doar('b1', { m1: 1, m2: 2 });
-  confere('salvar as doações de um evento soma no estoque', alimentos(), 3);
+  confere('as doações de um evento entram sozinhas, com a data do evento', [saldo('Alimentos (dos eventos)'), estoque().movimentos.find(m => m.eventoId === 'b1').data], [3, '2026-10-05']);
   doar('b1', { m1: 1, m2: 2 });
-  confere('salvar de novo o mesmo evento não soma duas vezes', alimentos(), 3);
-  doar('b2', { m1: 1.5 });
-  confere('outro evento soma junto', alimentos(), 4.5);
+  confere('salvar de novo o mesmo evento não soma duas vezes', [saldo('Alimentos (dos eventos)'), doEvento('b1').length], [3, 1]);
   doar('b1', { m1: 1 });
-  confere('corrigir o evento pra menos desconta a diferença', alimentos(), 2.5);
+  confere('corrigir pra menos grava uma linha de correção', [saldo('Alimentos (dos eventos)'), doEvento('b1')],
+    [1, [['entrada', 3, 'Evento b1'], ['correcao', -2, 'Correção · Evento b1']]]);
+  doar('b1', { m1: 1, m2: 3 });
+  confere('corrigir pra mais grava um acréscimo', [saldo('Alimentos (dos eventos)'), doEvento('b1')[2]], [4, ['entrada', 3, 'Evento b1 (acréscimo)']]);
+  const auto = estoque().movimentos.find(m => m.eventoId === 'b1').id;
+  confere('o que veio do evento não se anula na mão', tentar(() => anular(auto)), 'Lancamento automatico do evento: corrija pelas doacoes do evento');
+  doar('b2', { m1: 2 });
+  contexto.executar('eventoRemover', { ...barra, id: 'b1' });
+  confere('remover o evento tira os kg dele, numa correção', [saldo('Alimentos (dos eventos)'), doEvento('b1').pop()], [2, ['correcao', -4, 'Evento removido · Evento b1']]);
+  mover({ tipo: 'saida', itemId: 'alimentos-barra', quantidade: 1.5, destino: 'familia' });
+  confere('saída de alimentos', saldo('Alimentos (dos eventos)'), 0.5);
+  confere('nada no livro é apagado (3 entradas, 2 saídas, 5 dos eventos, 1 saída de alimentos)', estoque().movimentos.length, 11);
 
-  // Saiu alimento (entrega): diminui no card, com a base de quando a tela abriu.
-  salvar([{ item: 'Alimentos (dos eventos)', quantidade: 0.5, medida: 'kg', automatico: true, base: 2.5 }, { item: 'Cobertor', quantidade: 3, medida: 'un' }]);
-  confere('diminuir no card e salvar o estoque registra a saída', [alimentos(), estoque().map(x => x.item)], [0.5, ['Alimentos (dos eventos)', 'Cobertor']]);
-
-  // Duas coisas ao mesmo tempo: a tela abriu com 0,5 kg; enquanto isso
-  // alguem salvou 2 kg num evento; a tela tira 0,5 kg e salva.
-  doar('b2', { m1: 1.5, m2: 2 });
-  salvar([{ item: 'Alimentos (dos eventos)', quantidade: 0, medida: 'kg', automatico: true, base: 0.5 }, { item: 'Cobertor', quantidade: 3, medida: 'un' }]);
-  confere('a mudança da tela soma à da planilha, sem sobrescrever (0,5 + 2 − 0,5)', alimentos(), 2);
-  salvar([{ item: 'Cobertor', quantidade: 4, medida: 'un' }]);
-  confere('salvar sem o card não apaga os alimentos', alimentos(), 2);
-  salvar([{ item: 'Alimentos (dos eventos)', quantidade: 99, medida: 'kg' }]);
-  confere('app antigo, sem a base: os alimentos ficam como estavam', alimentos(), 2);
-
-  contexto.executar('eventoRemover', { ...barra, id: 'b2' });
-  confere('remover um evento tira os kg dele, sem ficar negativo', alimentos(), 0);
-  doar('b1', { m1: 1, m2: 1 });
-  confere('e volta a somar no evento seguinte', alimentos(), 1);
-  confere('a linha na planilha fica marcada como automática', p.abas.EstoqueDoacoes.dados.slice(1).filter(l => l[5] === 'Sim').map(l => [l[0], l[1], l[2], l[3]]),
-    [['barra', 'Alimentos (dos eventos)', 1, 'kg']]);
+  // Cada divisao no seu.
+  confere('a Barra NÃO lança no Oeste', mover({ divisao: 'oeste', tipo: 'entrada', itemNome: 'Calça', quantidade: 1 }).ok, false);
+  const doOeste = contexto.executar('estoqueDoacoesMovimentar', { escopo: 'barra', pin: '0418', divisao: 'oeste', tipo: 'entrada', itemNome: 'Calça', quantidade: 4 });
+  confere('o Regional lança no Oeste, e a Barra não vê', [doOeste.ok, estoque().itens.map(x => x.nome).includes('Calça')], [true, false]);
+  const idOeste = doOeste.estoque.movimentos[0].id;
+  confere('a Barra NÃO anula o do Oeste', anular(idOeste).ok, false);
+  confere('o livro na planilha: a aba nasce sozinha, e a quantidade é número',
+    [p.abas.EstoqueDoacoesMov.dados[0].slice(0, 8), typeof p.abas.EstoqueDoacoesMov.dados[1][7]],
+    [['ID', 'Divisao', 'Data', 'Tipo', 'ID Item', 'Item', 'Medida', 'Quantidade'], 'number']);
 }
 
 log('');
@@ -1144,12 +1138,13 @@ log('=== caixinha do Regional (das divisões) e o kg no estoque ===');
   confere('a Barra não mexe na caixinha do Regional',
     contexto.executar('caixinhaSalvar', { escopo: 'barra', pin: '1801', divisao: 'regional', mes: '2026-11', membroIds: 'barra' }).ok, false);
 
-  const salvar = (itens) => contexto.executar('estoqueSalvar', { ...regional, itens: JSON.stringify(itens) });
-  salvar([{ item: 'Arroz', quantidade: 20.5, medida: 'kg' }, { item: 'Cobertor', quantidade: 3, medida: 'un' }]);
-  confere('o estoque do Regional, com kg e casa decimal', contexto.executar('doacoes', regional).estoque,
-    [{ item: 'Arroz', quantidade: 20.5, medida: 'kg' }, { item: 'Cobertor', quantidade: 3, medida: 'un' }]);
-  confere('kg com duas casas decimais é recusado', tentar(() => salvar([{ item: 'Feijão', quantidade: 2.55, medida: 'kg' }])), 'Quantidade invalida em Feijão');
-  confere('un com decimal continua recusado', tentar(() => salvar([{ item: 'Blusa', quantidade: 1.5, medida: 'un' }])), 'Quantidade invalida em Blusa');
+  const entrar = (extra) => contexto.executar('estoqueDoacoesMovimentar', { ...regional, tipo: 'entrada', ...extra });
+  entrar({ itemNome: 'Arroz', medida: 'kg', quantidade: 20.5 });
+  entrar({ itemNome: 'Cobertor', medida: 'un', quantidade: 3 });
+  confere('o estoque do Regional, com kg e casa decimal (e sem os alimentos dos eventos)',
+    contexto.executar('doacoes', regional).estoque.itens.map(x => [x.nome, x.medida, x.saldo]), [['Arroz', 'kg', 20.5], ['Cobertor', 'un', 3]]);
+  confere('kg com duas casas decimais é recusado', tentar(() => entrar({ itemNome: 'Feijão', medida: 'kg', quantidade: 2.55 })), 'Quantidade invalida (kg, com ate uma casa decimal)');
+  confere('un com decimal continua recusado', tentar(() => entrar({ itemNome: 'Blusa', quantidade: 1.5 })), 'Quantidade invalida (numero inteiro)');
 }
 
 log('');

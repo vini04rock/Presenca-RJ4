@@ -26,7 +26,8 @@ const ACOES_PROTEGIDAS = [
   'insightMembroRemover', 'insightMembroReincluir',
   'responsavel', 'responsavelSalvar', 'textoChamadaSalvar',
   'doacoes', 'doacoesSalvar', 'caixinha', 'caixinhaSalvar', 'caixinhaRemover',
-  'caixinhaLancamentoSalvar', 'caixinhaLancamentoRemover', 'estoqueSalvar', 'membrosEntradaSalvar',
+  'caixinhaLancamentoSalvar', 'caixinhaLancamentoRemover', 'membrosEntradaSalvar',
+  'estoqueDoacoesMovimentar', 'estoqueDoacoesAnular',
   'membroMovimentar', 'movimentos', 'membroConfirmarGrau',
   'estoqueAdm', 'estoqueAdmMovimentar', 'estoqueAdmAnular',
 ];

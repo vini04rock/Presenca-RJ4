@@ -488,8 +488,18 @@ const doacoesFalsas = { eventos: [
   { id:'e4', nome:'Acao Social', data:'2026-07-10', tipo:'Ação Social', status:'encerrado',
     convocados:['m1','m2'], confirmados:['m1','m2'], doacoes:{ m1:1 } },
 ], nomes:{ m1:'Costa', m3:'Almeida' },
-  estoque:[{ item:'Alimentos (dos eventos)', quantidade:23.5, medida:'kg', automatico:true },
-    { item:'Cobertor', quantidade:12, medida:'un' }, { item:'Sapato', quantidade:6, medida:'par' }, { item:'Blusa', quantidade:0, medida:'un' }] };
+  estoque:{
+    itens:[{ id:'alimentos-barra', nome:'Alimentos (dos eventos)', medida:'kg', automatico:true, saldo:23.5 },
+      { id:'it1', nome:'Cobertor', medida:'un', saldo:12 }, { id:'it2', nome:'Sapato', medida:'par', saldo:6 }, { id:'it3', nome:'Blusa', medida:'un', saldo:0 }],
+    movimentos:[
+      { id:'v6', data:'2026-10-05', tipo:'saida', itemId:'alimentos-barra', item:'Alimentos (dos eventos)', medida:'kg', quantidade:1.5, origem:'', destino:'familia', descricao:'', eventoId:'', anulado:false },
+      { id:'v5', data:'2026-10-04', tipo:'saida', itemId:'it1', item:'Cobertor', medida:'un', quantidade:3, origem:'', destino:'instituicao', descricao:'Abrigo São José', eventoId:'', anulado:true },
+      { id:'v4', data:'2026-10-02', tipo:'correcao', itemId:'alimentos-barra', item:'Alimentos (dos eventos)', medida:'kg', quantidade:-1, origem:'evento', destino:'', descricao:'Correção · Pub', eventoId:'e1', anulado:false },
+      { id:'v3', data:'2026-09-20', tipo:'entrada', itemId:'alimentos-barra', item:'Alimentos (dos eventos)', medida:'kg', quantidade:6, origem:'avulsa', destino:'', descricao:'família do Costa', eventoId:'', anulado:false },
+      { id:'v2', data:'2026-09-12', tipo:'entrada', itemId:'alimentos-barra', item:'Alimentos (dos eventos)', medida:'kg', quantidade:20, origem:'evento', destino:'', descricao:'Pub', eventoId:'e1', anulado:false },
+      { id:'v1', data:'2026-09-01', tipo:'entrada', itemId:'it1', item:'Cobertor', medida:'un', quantidade:12, origem:'avulsa', destino:'', descricao:'', eventoId:'', anulado:false },
+      { id:'v0', data:'2026-09-01', tipo:'entrada', itemId:'it2', item:'Sapato', medida:'par', quantidade:6, origem:'avulsa', destino:'', descricao:'', eventoId:'', anulado:false },
+    ] } };
 const caixinhaFalsa = { meses: [
   { mes:'2026-10', membros:[{ id:'m1', nome:'Costa', pagou:true, valor:30 }, { id:'m2', nome:'Bull', pagou:false, valor:0 }, { id:'m3', nome:'Almeida', pagou:true, valor:35.5 }] },
   // m9 saiu do clube: aparece pelo nome gravado no mes.
@@ -518,16 +528,26 @@ add('doações / carregando',            { ...dc, adminTab:'doacoes', doacoesDad
 // Dados de outra divisao na memoria: nao podem aparecer dentro da Barra.
 add('doações / dados de outra divisão', { ...dc, adminTab:'doacoes', doacoesDadosEscopo:'oeste' }, T.renderAdmin);
 add('doações / erro',                  { ...dc, adminTab:'doacoes', doacoesErro:'A conexao demorou demais' }, T.renderAdmin);
-add('outras doações / estoque',         { ...dc, adminTab:'doacoes-estoque' }, T.renderAdmin);
-add('outras doações / alimentos em 0 kg', { ...dc, adminTab:'doacoes-estoque',
-  doacoesDados:{ eventos:[], nomes:{}, estoque:[{ item:'Alimentos (dos eventos)', quantidade:0, medida:'kg', automatico:true }] } }, T.renderAdmin);
-add('outras doações / estoque com kg',  { ...dc, adminTab:'doacoes-estoque', estoqueCards:[
-  { item:'Arroz', quantidade:20.5, medida:'kg', medidaManual:false }, { item:'Cobertor', quantidade:3, medida:'un', medidaManual:true },
-  { item:'', quantidade:0, medida:'un' }] }, T.renderAdmin);
+add('estoque / painel (alimentos)',      { ...dc, adminTab:'doacoes-estoque' }, T.renderAdmin);
+add('estoque / painel de outro item',    { ...dc, adminTab:'doacoes-estoque', estoqueItemId:'it1' }, T.renderAdmin);
+add('estoque / confirmando anular',      { ...dc, adminTab:'doacoes-estoque', estoqueItemId:'it1', estoqueAnularId:'v1' }, T.renderAdmin);
+add('estoque / alimentos em 0 kg',       { ...dc, adminTab:'doacoes-estoque',
+  doacoesDados:{ eventos:[], nomes:{}, estoque:{ itens:[{ id:'alimentos-barra', nome:'Alimentos (dos eventos)', medida:'kg', automatico:true, saldo:0 }], movimentos:[] } } }, T.renderAdmin);
+add('estoque / lançando entrada',        { ...dc, adminTab:'doacoes-estoque', estoqueForm:{ tipo:'entrada', itemId:'it1', itemNome:'', medida:'un',
+  medidaManual:false, quantidade:'4', data:'18/10/2026', destino:'', descricao:'' } }, T.renderAdmin);
+add('estoque / entrada de item novo',    { ...dc, adminTab:'doacoes-estoque', estoqueForm:{ tipo:'entrada', itemId:'novo', itemNome:'Arroz', medida:'kg',
+  medidaManual:false, quantidade:'2,5', data:'', destino:'', descricao:'' } }, T.renderAdmin);
+add('estoque / lançando saída',          { ...dc, adminTab:'doacoes-estoque', estoqueForm:{ tipo:'saida', itemId:'alimentos-barra', itemNome:'', medida:'un',
+  medidaManual:false, quantidade:'3', data:'18/10/2026', destino:'outro', descricao:'' }, estoqueMsg:{ ok:false, texto:'Escreva pra onde foi.' } }, T.renderAdmin);
+add('estoque / relatório (tudo)',        { ...dc, adminTab:'doacoes-estoque', estoqueRelatorio:true, estoquePeriodo:0 }, T.renderAdmin);
+add('estoque / relatório de um mês',     { ...dc, adminTab:'doacoes-estoque', estoqueRelatorio:true, estoquePeriodo:'2026-10' }, T.renderAdmin);
+add('estoque / relatório de mês a mês',  { ...dc, adminTab:'doacoes-estoque', estoqueRelatorio:true, estoquePeriodo:{ de:'2026-09', ate:'2026-10' }, estoqueItemId:'it1' }, T.renderAdmin);
 // O Regional: das Doacoes so o estoque (sem as abas Por evento e Rank, e a
 // aba "doacoes" tambem cai no estoque); a Caixinha vem das divisoes.
 const rg = { isAdmin:true, adminEscopo:'regional', doacoesDadosEscopo:'regional', caixinhaDadosEscopo:'regional',
-  doacoesDados:{ eventos:[], nomes:{}, estoque:[{ item:'Arroz', quantidade:40, medida:'kg' }, { item:'Cobertor', quantidade:12, medida:'un' }] },
+  doacoesDados:{ eventos:[], nomes:{}, estoque:{ itens:[{ id:'r1', nome:'Arroz', medida:'kg', saldo:40 }, { id:'r2', nome:'Cobertor', medida:'un', saldo:12 }],
+    movimentos:[{ id:'rv1', data:'2026-10-01', tipo:'entrada', itemId:'r1', item:'Arroz', medida:'kg', quantidade:40, origem:'avulsa', destino:'', descricao:'', eventoId:'', anulado:false },
+      { id:'rv2', data:'2026-10-01', tipo:'entrada', itemId:'r2', item:'Cobertor', medida:'un', quantidade:12, origem:'avulsa', destino:'', descricao:'', eventoId:'', anulado:false }] } },
   caixinhaDados:{ meses:[{ mes:'2026-10', membros:[
     { id:'oeste', nome:'Oeste - RJ4', pagou:true, valor:90 }, { id:'barra', nome:'Barra - RJ4', pagou:true, valor:70 },
     { id:'recreio', nome:'Recreio - RJ4', pagou:false, valor:0 }] }],
@@ -542,14 +562,14 @@ add('regional / caixinha mês novo',      { ...rg, adminTab:'caixinha', caixinha
 add('regional / caixinha rank',          { ...rg, adminTab:'caixinha-rank' }, T.renderAdmin);
 add('regional / caixinha controle',      { ...rg, adminTab:'caixinha-financeiro' }, T.renderAdmin);
 add('regional / caixinha relatório',     { ...rg, adminTab:'caixinha-financeiro', caixinhaFinRelatorio:true, caixinhaFinPeriodo:'2026-10' }, T.renderAdmin);
-add('outras doações / estoque vazio',   { ...dc, adminTab:'doacoes-estoque', doacoesDados:{ eventos:[], nomes:{}, estoque:[] } }, T.renderAdmin);
-add('outras doações / mexendo (não salvo)', { ...dc, adminTab:'doacoes-estoque', estoqueCards:[
-  { item:'Cobertor', quantidade:10, medida:'un', medidaManual:true }, { item:'Tênis', quantidade:2, medida:'par', medidaManual:false },
-  { item:'', quantidade:0, medida:'un' }] }, T.renderAdmin);
-add('outras doações / item repetido',   { ...dc, adminTab:'doacoes-estoque',
-  estoqueMsg:{ ok:false, texto:'"cobertôr" aparece duas vezes. Junte as quantidades num card só.' } }, T.renderAdmin);
-add('outras doações / salvando',        { ...dc, adminTab:'doacoes-estoque', estoqueSalvando:true }, T.renderAdmin);
-add('outras doações / sem estoque na resposta', { ...dc, adminTab:'doacoes-estoque', doacoesDados:{ eventos:[], nomes:{} } }, T.renderAdmin);
+add('estoque / vazio (regional sem nada)', { ...dc, adminEscopo:'regional', doacoesDadosEscopo:'regional', adminTab:'doacoes-estoque',
+  doacoesDados:{ eventos:[], nomes:{}, estoque:{ itens:[], movimentos:[] } } }, T.renderAdmin);
+add('estoque / saída sem item com saldo', { ...dc, adminTab:'doacoes-estoque', estoqueForm:{ tipo:'saida', itemId:'', itemNome:'', medida:'un',
+  medidaManual:false, quantidade:'', data:'', destino:'', descricao:'' },
+  doacoesDados:{ eventos:[], nomes:{}, estoque:{ itens:[{ id:'alimentos-barra', nome:'Alimentos (dos eventos)', medida:'kg', automatico:true, saldo:0 }], movimentos:[] } } }, T.renderAdmin);
+add('estoque / lançando (salvando)',     { ...dc, adminTab:'doacoes-estoque', estoqueSalvando:true, estoqueForm:{ tipo:'entrada', itemId:'it1', itemNome:'', medida:'un',
+  medidaManual:false, quantidade:'1', data:'', destino:'', descricao:'' } }, T.renderAdmin);
+add('estoque / sem estoque na resposta', { ...dc, adminTab:'doacoes-estoque', doacoesDados:{ eventos:[], nomes:{} } }, T.renderAdmin);
 add('caixinha / mês a mês',            { ...dc, adminTab:'caixinha' }, T.renderAdmin);
 add('caixinha / corrigindo mês lançado', { ...dc, adminTab:'caixinha', caixinhaMes:'2026-09',
   caixinhaMembroIds:['m1','m2','m9'], caixinhaValores:{ m1:30 }, caixinhaInfo:{ m9:{ nome:'Antigo' } } }, T.renderAdmin);
@@ -697,7 +717,8 @@ const LIMPO = {
   relIndVariosCarregando:false, relIndVariosErro:null, obrigatoriedadeAberta:null, calendarioDiasVazios:false,
   doacoesDados:null, doacoesDadosEscopo:null, doacoesErro:null, doacoesEventoId:null, doacoesMarcacoes:{},
   doacoesMsg:null, doacoesSalvando:false, doacoesQtdEncerrados:8, doacoesPeriodo:0,
-  estoqueCards:null, estoqueSalvando:false, estoqueMsg:null,
+  estoqueItemId:null, estoqueForm:null, estoqueSalvando:false, estoqueMsg:null, estoqueRelatorio:false, estoquePeriodo:0,
+  estoqueAnularId:null, estoqueQtdExtrato:15,
   caixinhaDados:null, caixinhaDadosEscopo:null, caixinhaErro:null, caixinhaMes:null, caixinhaMembroIds:[],
   caixinhaValores:{}, caixinhaValoresTexto:{}, caixinhaInfo:{}, caixinhaMostrarAdicionar:false, caixinhaConfirmarRemover:false,
   caixinhaSalvando:false, caixinhaMsg:null, caixinhaPeriodo:0,

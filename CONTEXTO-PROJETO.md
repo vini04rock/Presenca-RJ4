@@ -136,7 +136,8 @@ sem controlar o servidor.
 | `TextosChamada` | Regras do clube e Atenção personalizadas pelo Regional; sem linha = o padrão |
 | `Movimentacoes` | o livro de Entrada/Saída: uma linha por entrada, afastamento, retorno, desligamento ou ponta de transferência (com o `De/Para`). Nada é apagado |
 | `Doacoes` | uma linha por evento × integrante que levou alimento, com os kg; sem linha = não levou |
-| `EstoqueDoacoes` | o estoque (alimentos, roupas, cobertores, sapatos…): uma linha por item da divisão, com a quantidade de hoje, em unidades, pares ou kg; a linha com "Automatico" = Sim é a dos alimentos dos eventos |
+| `EstoqueDoacoesItens` | os itens do estoque das doações de cada divisão, com a medida (un, par ou kg); o dos alimentos dos eventos não precisa de linha |
+| `EstoqueDoacoesMov` | o livro do estoque das doações: uma linha por entrada (avulsa ou dos eventos), saída (com o destino) ou correção automática; corrigir é anular. Nada é apagado. A aba antiga `EstoqueDoacoes` fica só como backup |
 | `EstoqueADMItens` | cadastro dos materiais administrativos do Regional; uma linha por material |
 | `EstoqueADMMovimentacoes` | livro permanente de entradas, saídas e anulações do Estoque ADM; o saldo é calculado a partir dele |
 | `Caixinha` | uma linha por divisão × mês × integrante que devia pagar, com Sim/Não e o **valor** pago |
@@ -572,52 +573,52 @@ regra do clube é levar 1 kg de alimento em todo evento.
   Doação de quem não estava como Confirmado soma no kg, mas fica fora do
   cumprimento.
 
-**Estoque** (`telas/admin-doacoes-estoque.js`, regras em
-`dominio/estoque.js`): a 3ª aba de Doações, criada em 19/10/2026 como
-"Outras doações" e renomeada no mesmo dia. É o **estoque do clube**, que
+**Estoque** (`telas/admin-doacoes-estoque.js`, contas em
+`dominio/estoque.js`): a 3ª aba de Doações. É o **estoque do clube**, que
 não é de integrante nenhum: alimentos, roupas, cobertores, sapatos e o que
-mais vier, com a quantidade de hoje.
+mais vier. Desde 19/10/2026 é um **livro de entradas e saídas**, no molde
+do Estoque ADM e do Controle financeiro da Caixinha (antes era um retrato
+da quantidade de hoje, sem histórico; o clube começou o livro do zero).
 
-- **Os alimentos dos eventos entram sozinhos** (só nas divisões). O
-  primeiro card é fixo, "🥫 Alimentos (dos eventos)", em kg: cada vez que
-  as doações de um evento são salvas em "Por evento", o `Code.gs` soma a
-  **diferença** em relação ao que o evento tinha (salvar de novo não soma
-  duas vezes; corrigir para menos desconta), e remover um evento tira os kg
-  dele, nunca abaixo de zero (`ajustarAlimentosDoEstoque`). Começou em 0
-  kg em 19/10/2026: o que foi doado antes não entra. A saída (entrega) é
-  diminuir no próprio card; ele não muda de nome nem de medida e não tem
-  lixeira.
-- **Ninguém sobrescreve ninguém:** a tela manda também a quantidade que o
-  card tinha quando abriu (`base`), e o `Code.gs` grava o de agora **mais**
-  a mudança da tela. Se alguém salvou doações de um evento no meio do
-  caminho, os dois valem. Salvar o estoque sem o card não o apaga.
-- O Remover de integrante apaga as doações dele, mas não desconta do card:
+- **O saldo nunca é digitado:** é a soma do livro, que o `Code.gs` devolve
+  pronto (`dadosEstoqueDoacoes`), na mesma leitura das Doações.
+- **Entra** pelo **🟢 Lançar entrada** (item já cadastrado ou novo, com a
+  medida **un**, **par** ou **kg** sugerida pelo nome — `sugerirMedida`;
+  quantidade, data e "de onde veio") e, **sozinho, pelos eventos**: o item
+  "🥫 Alimentos (dos eventos)" existe em toda divisão (não no Regional), e
+  cada vez que as doações de um evento são salvas em "Por evento" o
+  `Code.gs` grava no livro só a **diferença** do que o evento já tinha
+  posto (`registrarAlimentosDoEvento`). A primeira entrada leva a data do
+  evento. Mais kg vira um "acréscimo"; **menos kg, ou o evento removido,
+  vira uma linha de correção** (com sinal), que fica no histórico.
+- **Sai só pelo 🔴 Lançar saída:** item com saldo (nunca mais do que tem),
+  quantidade, data e **pra onde foi** — 🤝 Ação social, 👨‍👩‍👧 Família,
+  🏠 Instituição ou 📦 Outro (este pede a descrição) — mais a descrição.
+  O destino é o que agrupa a pizza "Para onde foi".
+- **Corrigir é anular** (tocar na linha do extrato): a linha fica, riscada,
+  e sai do saldo. Uma entrada que já foi usada em saídas não se anula se o
+  saldo ficaria negativo. O que veio dos eventos não se anula na mão:
+  corrige-se pelas doações do evento.
+- **A tela**, no molde do Controle financeiro: botões com os itens no
+  topo (as medidas não se somam, então o painel mostra um item por vez;
+  o padrão é Alimentos), o saldo atual, Entrou × Saiu com a pizza, as
+  barras mês a mês, "De onde veio" (eventos × avulsas) e "Para onde foi",
+  todos os itens com o saldo e o extrato do item.
+- **O relatório** (📊 Relatório): período de 3, 6 ou 12 meses, tudo, ou de
+  um mês a outro; a tabela de todos os itens (início → fim, com entrou,
+  correções e saiu — `resumoDaLinha`); o item escolhido com a conta, os
+  gráficos e as saídas do período. **As correções ficam numa linha à
+  parte**, e não descontadas do "Entrou": início + entrou + correções −
+  saiu = fim. Sai em texto pro WhatsApp, PDF e **imagens do mesmo tamanho**
+  (`imagensRelatorioEstoque`): o resumo do item com o gráfico Entrou ×
+  Saiu × Saldo e a pizza "Para onde foi", a tabela de todos os itens e as
+  saídas detalhadas. Nenhum nome de integrante. A 🖼️ imagem do estoque
+  (o saldo de hoje de cada item) continua.
+- Na planilha: `EstoqueDoacoesItens` (os itens, com a medida) e
+  `EstoqueDoacoesMov` (o livro). A aba antiga `EstoqueDoacoes` fica só
+  como backup; nada a lê.
+- O Remover de integrante apaga as doações dele, mas não mexe no livro:
   é cadastro feito errado, que não deveria ter doação.
-
-- **Um card por item**, com o nome, a medida (**un**, **par** ou **kg**)
-  e − / quantidade / +. O "par" é sugerido sozinho quando o nome tem
-  sapato, tênis, chinelo, sandália, bota ou meia, e o "kg" com arroz,
-  feijão, açúcar, macarrão, farinha, fubá, café, sal ou alimento
-  (`sugerirMedida`); tocar na medida gira un → par → kg, e daí a sugestão
-  para de mexer naquele card. Só o **kg aceita uma casa decimal** (2,5 kg),
-  no app e no `Code.gs`; o número aparece sem ponto de milhar, pra o ponto
-  nunca se confundir com a vírgula decimal.
-- **Sempre um card vazio só, no fim.** Começou a escrever nele, aparece
-  outro embaixo. Escrever **não redesenha a tela** (o teclado fecharia):
-  `atualizarCampoEstoque` põe o card novo, o resumo e o contador de
-  mudanças por fora.
-- **Sem histórico** (decisão do clube): só a quantidade de hoje. Item com
-  0 continua na lista, marcado "acabou", até sair pela 🗑️.
-- **💾 Salvar estoque** grava a lista inteira de uma vez, por POST (com
-  muitos itens não cabe numa URL), e a planilha fica igual à tela. Até
-  salvar, o rascunho fica no state (`estoqueCards`), com o contador de
-  mudanças e o Desfazer. Item repetido (sem diferenciar maiúscula e
-  acento) e quantidade sem nome são avisados antes; o `Code.gs` confere de
-  novo, e uma lista com erro não apaga a que estava salva.
-- O estoque vem **na mesma leitura das Doações** (`lerDoacoes` devolve
-  também `estoque`). A **🖼️ imagem pro grupo** mostra o que está salvo
-  (com mudança pendente, pede pra salvar antes) e vira várias imagens
-  quando a lista não cabe.
 
 **Caixinha** (`telas/admin-caixinha.js`, contas em `dominio/caixinha.js`).
 Três abas: Mês a mês, Rank e Controle financeiro. Desde 18/10/2026 guarda
@@ -898,7 +899,7 @@ a cada mudança:
 | `servidor.py` | serve o app local com o cache desligado |
 | `estrutura.py` | 7 verificações: imports circulares, hierarquia de camadas, sintaxe, nome sem import, import sobrando, ações sem tratador |
 | `regras.mjs` | as regras do clube que, se quebrarem, saem erradas numa convocação sem ninguém perceber |
-| `telas.mjs` | desenha as 196 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
+| `telas.mjs` | desenha as 202 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
 | `planilha.mjs` | roda o `Code.gs` de verdade contra uma planilha de mentira: encerramento automático, PIN, relatório individual, responsável, textos, chamada do evento, doações, caixinha e entrada/saída |
 
 O `--html` do `telas.mjs` é a rede de proteção mais útil: captura o HTML de
@@ -1024,7 +1025,7 @@ ferramentas, acima):
 
     py ferramentas/estrutura.py     # imports, camadas, sintaxe, ações
     node ferramentas/regras.mjs     # ordem hierárquica e formato da convocação
-    node ferramentas/telas.mjs      # desenha as 196 telas e abas
+    node ferramentas/telas.mjs      # desenha as 202 telas e abas
     node ferramentas/planilha.mjs   # o encerramento automático, no Code.gs
 
 Eles dizem que o app **não quebrou**, não que está bonito: não cobrem

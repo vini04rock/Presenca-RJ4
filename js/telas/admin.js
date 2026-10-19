@@ -159,9 +159,12 @@ export async function abrirAbaOrganizador(aba) {
   state.doacoesEventoId = null;
   state.doacoesMarcacoes = {};
   state.doacoesMsg = null;
-  // O rascunho do estoque fica entre as abas da secao (mexeu, foi ver o
-  // Rank, voltou: continua la). Ao entrar de novo na secao, a busca recomeca.
+  // O estoque abre no painel, sem formulario nem relatorio aberto.
   state.estoqueMsg = null;
+  state.estoqueForm = null;
+  state.estoqueRelatorio = false;
+  state.estoqueAnularId = null;
+  state.estoqueQtdExtrato = 15;
   fecharMesCaixinha();
   state.caixinhaMsg = null;
   fecharFormFinanceiro();

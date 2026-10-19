@@ -102,12 +102,14 @@ Abas em uso:
 - `Doacoes` — quem levou alimento em cada evento, com os kg (seção Doações
   do organizador). Uma linha por evento × integrante que levou. É dado de
   verdade, gravado pelo app. Nasce sozinha no primeiro uso.
-- `EstoqueDoacoes` — o estoque (aba "Estoque" de Doações). A linha com
-  "Automatico" = Sim é a dos alimentos dos eventos: o app soma nela
-  sozinho as doações salvas em "Por evento". O resto:
-  uma linha por item da divisão, com a quantidade de hoje e a medida (un,
-  par ou kg; só o kg com casa decimal). Salvar pelo app troca a lista
-  inteira da divisão. Nasce sozinha no primeiro uso.
+- `EstoqueDoacoesItens` e `EstoqueDoacoesMov` — o estoque das Doações
+  (aba "Estoque"), como livro de entradas e saídas: a primeira guarda os
+  itens de cada divisão com a medida (un, par ou kg); a segunda, uma linha
+  por entrada, saída ou correção, e nada é apagado (corrigir é anular, na
+  coluna "Anulado em"). As doações salvas em "Por evento" entram sozinhas
+  no item dos alimentos. Nascem sozinhas no primeiro uso.
+- `EstoqueDoacoes` — o formato antigo do estoque (um retrato da quantidade
+  de hoje). Mantida só como backup; nada lê dela desde 19/10/2026.
 - `Caixinha` — nas linhas com Divisao = `regional`, o "ID Membro" é a
   chave de uma divisão (`barra`, `oeste`...): a caixinha do Regional vem
   das divisões, não de integrantes.

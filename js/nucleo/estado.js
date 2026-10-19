@@ -222,13 +222,22 @@ export let state = {
   doacoesQtdEncerrados: 8,
   // Janela do rank, em meses (0 = desde sempre). Ver PERIODOS.
   doacoesPeriodo: 3,
-  // Aba "Estoque" de Doacoes (o que o clube tem guardado). estoqueCards e o rascunho da
-  // tela: [{ item, quantidade, medida, medidaManual }], com um card vazio no
-  // fim; null = ainda nao montado (comeca do que esta salvo). medidaManual:
-  // a pessoa escolheu un/par, e a sugestao pelo nome para de mexer.
-  estoqueCards: null,
+  // Aba "Estoque" de Doacoes: o livro de entradas e saidas (ver
+  // dominio/estoque.js). estoqueItemId: o item que o painel mostra (null =
+  // o primeiro). estoqueForm: a entrada ou saida sendo lancada
+  //   { tipo, itemId ('novo' = item novo), itemNome, medida, quantidade,
+  //     data, destino, descricao }.
+  // estoqueRelatorio/estoquePeriodo: o relatorio aberto e o periodo dele
+  // (o mesmo formato do Controle financeiro). estoqueAnularId: o lancamento
+  // com a confirmacao do "Anular" aberta.
+  estoqueItemId: null,
+  estoqueForm: null,
   estoqueSalvando: false,
   estoqueMsg: null,
+  estoqueRelatorio: false,
+  estoquePeriodo: 0,
+  estoqueAnularId: null,
+  estoqueQtdExtrato: 15,
 
   // Estoque ADM, exclusivo do Regional. O saldo e calculado no backend a
   // partir do livro de entradas/saidas; o formulario guarda uma movimentacao

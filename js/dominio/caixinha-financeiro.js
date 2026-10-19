@@ -82,7 +82,7 @@ const comSinal = x => (x.tipo === 'saida' ? -x.valor : x.valor);
 // o atual, igual aos ranks); 'yyyy-mm' = so aquele mes; { de, ate } = de um
 // mes a outro ('yyyy-mm', os dois inclusos - escolhidos ao contrario, vale
 // a ordem certa).
-function faixaDoPeriodo(periodo, base) {
+export function faixaDoPeriodo(periodo, base) {
   if (typeof periodo === 'string') return { de: periodo, ate: periodo };
   if (periodo && typeof periodo === 'object') {
     const [de, ate] = [periodo.de || '', periodo.ate || ''].sort();

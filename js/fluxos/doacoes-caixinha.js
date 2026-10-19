@@ -1,6 +1,7 @@
 // Acoes que gravam na planilha nas secoes Doacoes e Caixinha: salvar as
 // doacoes de um evento, lancar/corrigir um mes da caixinha, excluir um mes,
-// e os lancamentos do controle financeiro (entrada, saida, saldo inicial).
+// os lancamentos do controle financeiro (entrada, saida, saldo inicial) e
+// os do estoque das doacoes (entrada, saida, anular).
 //
 // Cada uma grava e busca tudo de novo em seguida, igual ao Insight: o rank
 // e as listas sao contas em cima do que a planilha tem, e reler e o jeito
@@ -9,8 +10,8 @@
 import { carregarCaixinha, carregarDoacoes } from '../dados/carregar.js';
 import { divisoesContribuintes, formatReais, lerValor, nomeDoMes, vocabularioCaixinha } from '../dominio/caixinha.js';
 import { formatKg } from '../dominio/doacoes.js';
-import { conferirEstoque } from '../dominio/estoque.js';
-import { api, apiPost } from '../nucleo/api.js';
+import { lerQuantidade, textoQuantidade } from '../dominio/estoque.js';
+import { api } from '../nucleo/api.js';
 import { CATEGORIA_ENTRADA_CAIXINHA } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
@@ -233,28 +234,69 @@ export async function removerLancamentoFinanceiro(id) {
   render();
 }
 
-// ---------- outras doacoes (o estoque) ----------
+// ---------- o estoque das doacoes (o livro) ----------
 
-// Grava a lista inteira do estoque da divisao. Vai por POST: com muitos
-// itens, a lista nao cabe numa URL.
-export async function salvarEstoque() {
-  const c = conferirEstoque(state.estoqueCards || []);
-  if (c.erro) {
-    state.estoqueMsg = { ok: false, texto: c.erro };
-    return render();
+// O formulario de entrada ou saida da aba Estoque (state.estoqueForm):
+// confere aqui o que da pra conferir, grava, e o Code.gs devolve o estoque
+// inteiro de novo - a tela troca o que tinha pelo que voltou.
+export async function lancarNoEstoque() {
+  const f = state.estoqueForm;
+  if (!f) return;
+  const bruto = String(f.data || '').trim();
+  const data = bruto ? dataISOdeBR(bruto) : hojeISO();
+  const erro = msg => { state.estoqueMsg = { ok: false, texto: msg }; return render(); };
+  if (!data) return erro(`"${bruto}" não é uma data válida - escreva como 18/10/2026.`);
+  if (data > hojeISO()) return erro('A data não pode ser no futuro.');
+  const itens = (state.doacoesDados && state.doacoesDados.estoque && state.doacoesDados.estoque.itens) || [];
+  const novo = f.itemId === 'novo';
+  const item = novo ? null : itens.find(x => x.id === f.itemId);
+  if (!novo && !item) return erro('Escolha o item.');
+  if (novo && !String(f.itemNome || '').trim()) return erro('Escreva o nome do item novo.');
+  const medida = novo ? f.medida : item.medida;
+  const quantidade = lerQuantidade(f.quantidade, medida);
+  if (!quantidade) return erro(medida === 'kg' ? 'Escreva a quantidade em kg (até uma casa decimal, ex.: 2,5).' : 'Escreva a quantidade (número inteiro).');
+  if (f.tipo === 'saida') {
+    if (quantidade > item.saldo + 1e-9) return erro(`Só tem ${textoQuantidade(item.saldo, item.medida)} de ${item.nome}.`);
+    if (!f.destino) return erro('Escolha pra onde foi.');
+    if (f.destino === 'outro' && !String(f.descricao || '').trim()) return erro('Escreva pra onde foi.');
   }
   state.estoqueSalvando = true;
   state.estoqueMsg = null;
   render();
   try {
-    const r = await apiPost('estoqueSalvar', { divisao: state.adminEscopo, itens: JSON.stringify(c.itens) });
-    mostrarAviso('📦 Estoque salvo');
-    state.estoqueMsg = { ok: true, texto: `✅ Estoque salvo: ${r.itens} ${r.itens === 1 ? 'item' : 'itens'}.` };
-    state.estoqueSalvando = false;
-    return carregarDoacoes();
+    const r = await api('estoqueDoacoesMovimentar', {
+      divisao: state.adminEscopo, tipo: f.tipo, data, quantidade,
+      ...(novo ? { itemNome: f.itemNome.trim(), medida } : { itemId: item.id }),
+      ...(f.tipo === 'saida' ? { destino: f.destino } : {}),
+      descricao: String(f.descricao || '').trim(),
+    });
+    state.doacoesDados = { ...state.doacoesDados, estoque: r.estoque };
+    const nome = novo ? f.itemNome.trim() : item.nome;
+    mostrarAviso(`${f.tipo === 'saida' ? '🔴 Saída' : '🟢 Entrada'} lançada — ${nome}`);
+    // O painel passa a mostrar o item que acabou de mexer.
+    const doItem = r.estoque.itens.find(x => x.nome === nome);
+    if (doItem) state.estoqueItemId = doItem.id;
+    state.estoqueForm = null;
+    state.estoqueMsg = null;
   } catch (e) {
-    // O rascunho fica na tela como estava: a pessoa tenta de novo.
-    state.estoqueMsg = { ok: false, texto: textoDoErro(e, 'salvar') };
+    state.estoqueMsg = { ok: false, texto: textoDoErro(e, 'lançar') };
+  }
+  state.estoqueSalvando = false;
+  render();
+}
+
+// Anular uma entrada avulsa ou uma saida: a linha fica no extrato, riscada.
+export async function anularNoEstoque(id) {
+  state.estoqueSalvando = true;
+  state.estoqueMsg = null;
+  render();
+  try {
+    const r = await api('estoqueDoacoesAnular', { divisao: state.adminEscopo, id });
+    state.doacoesDados = { ...state.doacoesDados, estoque: r.estoque };
+    mostrarAviso('↩️ Lançamento anulado');
+    state.estoqueAnularId = null;
+  } catch (e) {
+    state.estoqueMsg = { ok: false, texto: textoDoErro(e, 'anular') };
   }
   state.estoqueSalvando = false;
   render();

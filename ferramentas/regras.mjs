@@ -949,68 +949,88 @@ log('=== caixinha: controle financeiro (saldo, entradas, saídas, período) ==='
 }
 
 log('');
-log('=== outras doações: o estoque do clube ===');
+log('=== estoque das doações: medidas e quantidades ===');
 {
-  const { sugerirMedida, textoQuantidade, conferirEstoque, resumoEstoque, textoResumoEstoque, mudancasNoEstoque, cardVazio } = await import(url('dominio/estoque.js'));
+  const { sugerirMedida, proximaMedida, lerQuantidade, numeroEstoque, textoQuantidade } = await import(url('dominio/estoque.js'));
   confere('o que se conta em par', ['Sapato', 'Tênis infantil', 'chinelos', 'Sandália', 'Botas', 'Meia', 'Cobertor', 'Botão', 'Blusa'].map(sugerirMedida),
     ['par', 'par', 'par', 'par', 'par', 'par', 'un', 'un', 'un']);
-  confere('como a quantidade se escreve', [textoQuantidade(12, 'un'), textoQuantidade(1, 'par'), textoQuantidade(6, 'par'), textoQuantidade(0, 'un')],
-    ['12 un', '1 par', '6 pares', '0 un']);
-  confere('card vazio é o sem nome e sem quantidade', [cardVazio({ item: ' ', quantidade: 0 }), cardVazio({ item: '', quantidade: 2 }), cardVazio({ item: 'X', quantidade: 0 })],
-    [true, false, false]);
-
-  const cards = [
-    { item: ' Cobertor  de lã ', quantidade: 12, medida: 'un' },
-    { item: 'Sapato', quantidade: 6, medida: 'par' },
-    { item: 'Blusa', quantidade: 0, medida: 'un' },
-    { item: '', quantidade: 0, medida: 'un' },
-  ];
-  confere('conferir: limpa o nome e deixa o card vazio de fora', conferirEstoque(cards).itens, [
-    { item: 'Cobertor de lã', quantidade: 12, medida: 'un' }, { item: 'Sapato', quantidade: 6, medida: 'par' }, { item: 'Blusa', quantidade: 0, medida: 'un' }]);
-  confere('conferir: repetido (sem diferença de maiúscula e acento) é avisado',
-    conferirEstoque([{ item: 'Cobertor', quantidade: 1 }, { item: 'cobertôr', quantidade: 2 }]).erro, '"cobertôr" aparece duas vezes. Junte as quantidades num card só.');
-  confere('conferir: quantidade sem nome é avisada', conferirEstoque([{ item: '', quantidade: 3 }]).erro, 'Um card tem quantidade (3) mas está sem o nome do item.');
-  confere('conferir: sem medida, sugere pelo nome', conferirEstoque([{ item: 'Chinelo', quantidade: 2 }]).itens[0].medida, 'par');
-
-  const r = resumoEstoque(cards);
-  confere('o resumo: itens, unidades, pares, kg e quantos acabaram', r, { itens: 3, unidades: 12, pares: 6, kg: 0, acabaram: 1 });
-  confere('o resumo escrito', [textoResumoEstoque(r), textoResumoEstoque({ itens: 1, unidades: 1, pares: 0 })], ['3 itens · 12 unidades · 6 pares', '1 item · 1 unidade']);
-
-  const salvos = [{ item: 'Cobertor', quantidade: 12, medida: 'un' }, { item: 'Sapato', quantidade: 6, medida: 'par' }];
-  confere('sem mexer, nenhuma mudança (o card vazio não conta)', mudancasNoEstoque(salvos, [...salvos, { item: '', quantidade: 0 }]), 0);
-  confere('mudou um, tirou outro e criou um: 3 mudanças',
-    mudancasNoEstoque(salvos, [{ item: 'Cobertor', quantidade: 11, medida: 'un' }, { item: 'Roupa', quantidade: 5, medida: 'un' }]), 3);
+  confere('o que se pesa em kg', ['Arroz', 'Feijão preto', 'Açúcar', 'Macarrão', 'Alimentos', 'Sal', 'Cobertor', 'Salgadinho'].map(sugerirMedida),
+    ['kg', 'kg', 'kg', 'kg', 'kg', 'kg', 'un', 'un']);
+  confere('a medida gira un, par, kg', [proximaMedida('un'), proximaMedida('par'), proximaMedida('kg')], ['par', 'kg', 'un']);
+  confere('kg aceita uma casa decimal; un e par, só inteiro; o resto vira 0',
+    [lerQuantidade('2,5', 'kg'), lerQuantidade('2.55', 'kg'), lerQuantidade('2,5', 'un'), lerQuantidade('3', 'par'), lerQuantidade('', 'kg'), lerQuantidade('-3', 'un')],
+    [2.5, 0, 0, 3, 0, 0]);
+  confere('como a quantidade se escreve', [textoQuantidade(12, 'un'), textoQuantidade(1, 'par'), textoQuantidade(6, 'par'), textoQuantidade(2.5, 'kg'), numeroEstoque(1000)],
+    ['12 un', '1 par', '6 pares', '2,5 kg', '1000']);
 }
 
 log('');
-log('=== estoque: o kg, com casa decimal ===');
+log('=== estoque das doações: o relatório (livro, período, gráficos, texto) ===');
 {
-  const { sugerirMedida, proximaMedida, lerQuantidade, numeroEstoque, textoQuantidade, conferirEstoque, resumoEstoque, textoResumoEstoque } = await import(url('dominio/estoque.js'));
-  confere('o que se pesa em kg', ['Arroz', 'Feijão preto', 'Açúcar', 'Macarrão', 'Alimentos', 'Sal', 'Cobertor', 'Salgadinho'].map(sugerirMedida),
-    ['kg', 'kg', 'kg', 'kg', 'kg', 'kg', 'un', 'un']);
-  confere('o toque na medida gira un, par, kg', [proximaMedida('un'), proximaMedida('par'), proximaMedida('kg')], ['par', 'kg', 'un']);
-  confere('kg aceita uma casa decimal; un e par, só inteiro',
-    [lerQuantidade('2,5', 'kg'), lerQuantidade('2.55', 'kg'), lerQuantidade('2,5', 'un'), lerQuantidade('', 'kg'), lerQuantidade('-3', 'un')], [2.5, 2.6, 2, 0, 0]);
-  confere('o número no jeito brasileiro, sem ponto de milhar', [numeroEstoque(2.5), numeroEstoque(1000), textoQuantidade(2.5, 'kg'), textoQuantidade(40, 'kg')],
-    ['2,5', '1000', '2,5 kg', '40 kg']);
-  confere('conferir: kg com decimal passa; un com decimal não',
-    [conferirEstoque([{ item: 'Arroz', quantidade: 2.5, medida: 'kg' }]).itens[0].quantidade, conferirEstoque([{ item: 'Blusa', quantidade: 1.5, medida: 'un' }]).erro],
-    [2.5, 'A quantidade de "Blusa" não está certa.']);
-  const r = resumoEstoque([{ item: 'Arroz', quantidade: 20.5, medida: 'kg' }, { item: 'Feijão', quantidade: 10, medida: 'kg' }, { item: 'Blusa', quantidade: 3, medida: 'un' }]);
-  confere('o resumo soma os kg', [r.kg, textoResumoEstoque(r)], [30.5, '3 itens · 3 unidades · 30,5 kg']);
+  const { relatorioEstoque, textoRelatorioEstoque, podeAnular, tituloDoMovimento, ITEM_ALIMENTOS } = await import(url('dominio/estoque.js'));
+  const base = new Date(2026, 9, 18); // 18/10/2026
+  const mv = (id, itemId, item, medida, data, tipo, quantidade, extra) => ({ id, itemId, item, medida, data, tipo, quantidade,
+    origem: '', destino: '', descricao: '', eventoId: '', anulado: false, ...extra });
+  const dados = {
+    itens: [{ id: 'al', nome: ITEM_ALIMENTOS, medida: 'kg', automatico: true, saldo: 3.5 }, { id: 'cb', nome: 'Cobertor', medida: 'un', saldo: 8 }],
+    movimentos: [
+      mv('1', 'al', ITEM_ALIMENTOS, 'kg', '2026-08-10', 'entrada', 3, { origem: 'evento', eventoId: 'e1', descricao: 'Pub' }),
+      mv('2', 'al', ITEM_ALIMENTOS, 'kg', '2026-09-05', 'entrada', 4, { origem: 'avulsa', descricao: 'família do Costa' }),
+      mv('3', 'al', ITEM_ALIMENTOS, 'kg', '2026-09-06', 'correcao', -1, { origem: 'evento', eventoId: 'e1', descricao: 'Correção · Pub' }),
+      mv('4', 'al', ITEM_ALIMENTOS, 'kg', '2026-10-02', 'saida', 0.5, { destino: 'familia' }),
+      mv('5', 'al', ITEM_ALIMENTOS, 'kg', '2026-10-03', 'saida', 2, { destino: 'instituicao', descricao: 'Abrigo' }),
+      mv('6', 'al', ITEM_ALIMENTOS, 'kg', '2026-10-04', 'saida', 9, { destino: 'familia', anulado: true }),
+      mv('7', 'cb', 'Cobertor', 'un', '2026-10-01', 'entrada', 10, { origem: 'avulsa' }),
+      mv('8', 'cb', 'Cobertor', 'un', '2026-10-05', 'saida', 2, { destino: 'acao_social', descricao: 'Natal' }),
+    ],
+  };
 
-  // O card dos alimentos dos eventos.
-  const { ITEM_ALIMENTOS, mudancasNoEstoque } = await import(url('dominio/estoque.js'));
-  const auto = { item: ITEM_ALIMENTOS, quantidade: 7.5, medida: 'kg', automatico: true, base: 10 };
-  confere('conferir: o card dos alimentos vai com a base de quando a tela abriu', conferirEstoque([auto, { item: 'Blusa', quantidade: 2, medida: 'un' }]).itens[0],
-    { item: ITEM_ALIMENTOS, quantidade: 7.5, medida: 'kg', automatico: true, base: 10 });
-  confere('conferir: ninguém cria outro card com o nome do automático',
-    conferirEstoque([auto, { item: 'alimentos (dos eventos)', quantidade: 2, medida: 'kg' }]).erro,
-    '"alimentos (dos eventos)" já é o card automático dos eventos. Use outro nome, como "Arroz".');
-  confere('o resumo conta os kg dele, mas em 0 kg ele não "acabou"',
-    [resumoEstoque([{ ...auto, quantidade: 0 }]).acabaram, resumoEstoque([auto]).kg], [0, 7.5]);
-  confere('mexer no card dos alimentos conta como mudança',
-    mudancasNoEstoque([{ item: ITEM_ALIMENTOS, quantidade: 10, medida: 'kg', automatico: true }], [auto]), 1);
+  const tudo = relatorioEstoque(dados, 'al', 0, base);
+  confere('tudo: início, entrou, correções (à parte), saiu e fim',
+    [tudo.item.saldoAnterior, tudo.entradas.total, tudo.correcoes, tudo.saidas.total, tudo.item.saldoFinal], [0, 7, -1, 2.5, 3.5]);
+  confere('o anulado não conta em nada', tudo.saidas.total, 2.5);
+  confere('de onde veio: eventos e avulsas (a correção não entra aqui)', [tudo.entradas.eventos, tudo.entradas.avulsas], [3, 4]);
+  confere('para onde foi, do maior pro menor', tudo.saidas.porDestino.map(d => [d.chave, d.valor]), [['instituicao', 2], ['familia', 0.5]]);
+  confere('mês a mês, sem pular mês, com o saldo do fim de cada um', tudo.serie,
+    [{ mes: '2026-08', entradas: 3, saidas: 0, saldo: 3 }, { mes: '2026-09', entradas: 4, saidas: 0, saldo: 6 }, { mes: '2026-10', entradas: 0, saidas: 2.5, saldo: 3.5 }]);
+  confere('sem item escolhido, vale o primeiro', relatorioEstoque(dados, null, 0, base).item.id, 'al');
+
+  const out = relatorioEstoque(dados, 'al', '2026-10', base);
+  confere('um mês: o saldo no início leva o que veio antes', [out.item.saldoAnterior, out.entradas.total, out.saidas.total, out.item.saldoFinal], [6, 0, 2.5, 3.5]);
+  confere('a tabela traz todos os itens, cada um na sua medida', out.tabela.map(t => [t.item, t.medida, t.saldoAnterior, t.entrou, t.correcoes, t.saiu, t.saldoFinal]),
+    [[ITEM_ALIMENTOS, 'kg', 6, 0, 0, 2.5, 3.5], ['Cobertor', 'un', 0, 10, 0, 2, 8]]);
+  const set = relatorioEstoque(dados, 'al', '2026-09', base);
+  confere('um mês só com correção: entrou continua positivo, a correção vem à parte', [set.entradas.total, set.correcoes, set.item.saldoFinal], [4, -1, 6]);
+  const { resumoDaLinha } = await import(url('dominio/estoque.js'));
+  confere('a linha de um item, com e sem correção', [resumoDaLinha(set.tabela[0]), resumoDaLinha(out.tabela[1])],
+    ['início 3 kg · 🟢 +4 · ↩️ −1 · 🔴 −0', 'início 0 un · 🟢 +10 · 🔴 −2']);
+  confere('as saídas do período, de todos os itens, por dia (sem a anulada)', out.saidasPorMes.map(m => [m.mes, m.itens.map(x => x.id)]), [['2026-10', ['4', '5', '8']]]);
+  confere('o extrato do item mostra a anulada (riscada na tela)', out.extrato.map(x => x.id), ['4', '5', '6']);
+  confere('de agosto a setembro', relatorioEstoque(dados, 'al', { de: '2026-08', ate: '2026-09' }, base).item.saldoFinal, 6);
+  confere('estoque vazio não quebra', [relatorioEstoque({ itens: [], movimentos: [] }, null, 0, base).item, relatorioEstoque(null, null, 0, base).tabela], [null, []]);
+
+  confere('anula-se a entrada avulsa e a saída; o que veio do evento, não',
+    dados.movimentos.map(podeAnular), [false, true, false, true, true, false, true, true]);
+  confere('o título de cada linha do extrato', [tituloDoMovimento(dados.movimentos[0]), tituloDoMovimento(dados.movimentos[3]), tituloDoMovimento(dados.movimentos[4]), tituloDoMovimento(dados.movimentos[2])],
+    ['🥫 Pub', '👨‍👩‍👧 Família', '🏠 Instituição · Abrigo', 'Correção · Pub']);
+
+  const texto = textoRelatorioEstoque(out, 'barra', 'Outubro/2026').split('\n');
+  confere('o texto pro WhatsApp', texto, [
+    '📦 *ESTOQUE DE DOAÇÕES* 📦',
+    '*BARRA - RJ4* · Outubro/2026',
+    '',
+    `• *${ITEM_ALIMENTOS}*: 3,5 kg`,
+    '   ↳ início 6 kg · 🟢 +0 · 🔴 −2,5',
+    '• *Cobertor*: 8 un',
+    '   ↳ início 0 un · 🟢 +10 · 🔴 −2',
+    '',
+    '🔴 *SAÍDAS: 3*',
+    '_Outubro/2026_',
+    `   ↳ 02/10 · ${ITEM_ALIMENTOS} 0,5 kg · 👨‍👩‍👧 Família`,
+    `   ↳ 03/10 · ${ITEM_ALIMENTOS} 2 kg · 🏠 Instituição · Abrigo`,
+    '   ↳ 05/10 · Cobertor 2 un · 🤝 Ação social · Natal',
+  ]);
+  confere('período sem nada diz que não houve', textoRelatorioEstoque(relatorioEstoque(dados, 'al', '2026-01', base), 'barra', 'Janeiro/2026').includes('• Nenhuma saída'), true);
 }
 
 log('');
