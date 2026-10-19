@@ -128,7 +128,7 @@ h1, h2, h3, .display {
   display: flex; align-items: center; justify-content: center;
   font-size: 17px; flex-shrink: 0;
 }
-/* Mural de avisos, no topo do menu do organizador (avisoEventosProximos) -
+/* Mural de avisos, no topo do menu do organizador (muralDeAvisos) -
    o que acontece nos proximos dias, com uma linha por evento. E lembrete,
    nao destino: precisa ser visto de relance, mas nao pode ter o peso dos
    cards de secao logo abaixo, que sao pra onde a pessoa de fato vai. Por
@@ -167,6 +167,8 @@ h1, h2, h3, .display {
 }
 .aviso-linha:first-child { border-top: none; }
 .aviso-linha:active { background: var(--surface-alt); }
+.aviso-linha.aviso-honraria { cursor: default; }
+.aviso-linha.aviso-honraria:active { background: transparent; }
 .aviso-icone {
   width: 26px; height: 26px; border-radius: 50%; border: 1.5px solid;
   display: flex; align-items: center; justify-content: center;

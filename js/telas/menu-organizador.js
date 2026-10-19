@@ -9,7 +9,8 @@
 // em Eventos troca pra Membros sem passar por aqui. Este menu e a porta de
 // entrada, nao o unico caminho.
 
-import { JANELA_DIAS, eventosProximos, semResposta } from '../dominio/pendencias.js';
+import { eventosProximos, semResposta } from '../dominio/pendencias.js';
+import { alertasHonrarias, textoPrazoHonraria } from '../dominio/honrarias.js';
 import { carregarTextosChamada, loadPresencasProximas } from '../dados/carregar.js';
 import { escopoPorChave, escoposAtivos, temDoacoesECaixinha } from '../nucleo/config.js';
 import { TIPOS_OBRIGATORIOS, obrigatoriedadesDoMes, rotuloTipo, textoCobrancaObrigatoriedades, textoDiasRestantes, textoEventoMarcado, textoFaltam } from '../dominio/obrigatoriedades.js';
@@ -143,6 +144,36 @@ function linhaAviso({ ev, dias }) {
   `;
 }
 
+function linhaHonraria(h) {
+  const regional = state.adminEscopo === 'regional';
+  const detalhe = [regional ? h.membro.divisao : '', formatDataBR(h.data)].filter(Boolean).join(' · ');
+  return `
+    <div class="aviso-linha aviso-honraria" style="border-left-color:#E0B24D;">
+      <div class="aviso-icone" style="border-color:#E0B24D;">🏅</div>
+      <div class="aviso-texto">
+        <div class="aviso-nome">Medalha de ${h.anos} anos — ${escapeHtml(h.membro.nome)}</div>
+        <div class="aviso-meta">${escapeHtml(detalhe)}</div>
+        <div class="aviso-contagem" style="color:#E0B24D;">${escapeHtml(textoPrazoHonraria(h.dias))}</div>
+      </div>
+    </div>
+  `;
+}
+
+function avisosDoMural() {
+  const eventos = eventosProximos(state.adminEscopo).map(dados => {
+    const r = semResposta(dados.ev);
+    // Evento que ainda pode ter pendencia fica no topo. Se todos ja
+    // responderam, vira o lembrete tranquilo do fim da lista.
+    const prioridade = r === null || r.faltam > 0 ? 0 : 3;
+    return { tipo:'evento', prioridade, ordem:dados.ev.data + '|' + (dados.ev.horario || ''), dados };
+  });
+  const honrarias = alertasHonrarias(state.roster, state.adminEscopo).map(h => ({
+    tipo:'honraria', prioridade:h.dias <= 30 ? 1 : 2,
+    ordem:String(h.dias + 1000).padStart(4, '0') + '|' + h.membro.nome, dados:h,
+  }));
+  return eventos.concat(honrarias).sort((a, b) => a.prioridade - b.prioridade || a.ordem.localeCompare(b.ordem));
+}
+
 // O mural fica na tela mesmo sem nenhum aviso, com a mesma altura de
 // sempre: e um quadro fixo na parede, e os avisos e que vao e vem. Vazio,
 // ele diz que nao ha nada - silencio informado, diferente do bloco que
@@ -150,11 +181,11 @@ function linhaAviso({ ev, dias }) {
 //
 // O rotulo nao muda com a contagem, justamente porque o mural e permanente:
 // "Mural de avisos" continua verdade com zero, um ou cinco eventos.
-function avisoEventosProximos() {
-  const proximos = eventosProximos(state.adminEscopo);
-  const conteudo = proximos.length
-    ? proximos.map(linhaAviso).join('')
-    : `<div class="aviso-vazio">Nada nos próximos ${JANELA_DIAS} dias</div>`;
+function muralDeAvisos() {
+  const avisos = avisosDoMural();
+  const conteudo = avisos.length
+    ? avisos.map(a => a.tipo === 'evento' ? linhaAviso(a.dados) : linhaHonraria(a.dados)).join('')
+    : '<div class="aviso-vazio">Nenhum aviso no momento</div>';
   return `
     <div class="rotulo-secao">Mural de avisos</div>
     <div class="card aviso-painel">${conteudo}</div>
@@ -249,7 +280,7 @@ export function renderMenuOrganizador(app) {
       <h1 style="font-size: 20px;">Organizador</h1>
       <div class="count-box">${escapeHtml(escopoPorChave(state.adminEscopo).nome.toUpperCase())}</div>
     </div>
-    ${avisoEventosProximos()}
+    ${muralDeAvisos()}
     ${state.adminEscopo === 'regional' ? cardObrigatoriedades() : ''}
     <div class="rotulo-secao">Áreas</div>
     ${areasVisiveis().map(cardArea).join('')}

@@ -29,6 +29,7 @@ const { eventosProximos, semResposta } = await import(url('dominio/pendencias.js
 const { state: st } = await import(url('nucleo/estado.js'));
 const { hojeISO } = await import(url('nucleo/util.js'));
 const { quantidadeEstoqueAdm, resumoEstoqueAdm, textoResumoEstoqueAdm, filtrarMovimentosEstoqueAdm } = await import(url('dominio/estoque-adm.js'));
+const { alertasHonrarias, dataDaHonraria, textoPrazoHonraria } = await import(url('dominio/honrarias.js'));
 
 let falhas = 0;
 function confere(nome, obtido, esperado) {
@@ -53,6 +54,37 @@ confere('resumo escrito', textoResumoEstoqueAdm(resumoAdm), '3 materiais · 10 u
 const movAdm = [{ id:'e', tipo:'entrada' }, { id:'s', tipo:'saida' }];
 confere('filtro de entradas', filtrarMovimentosEstoqueAdm(movAdm, 'entrada').map(x => x.id), ['e']);
 confere('filtro tudo preserva o livro', filtrarMovimentosEstoqueAdm(movAdm, 'todos').map(x => x.id), ['e','s']);
+
+log('');
+
+log('=== honrarias por tempo de clube ===');
+{
+  const base = new Date(2026, 9, 19); // 19/10/2026
+  const m = (id, entrada, divisao = 'Barra - RJ4', extra = {}) => ({ id, nome:id, grau:'X', entrada, divisao, ...extra });
+  const membrosHonraria = [
+    m('limite60', '2023-12-18'), m('fora61', '2023-12-19'),
+    m('amanha', '2023-10-20'), m('hoje', '2023-10-19'),
+    m('limite30', '2023-09-19'), m('fora31', '2023-09-18'),
+    m('seis', '2020-11-01'), m('nove', '2017-10-19', 'Oeste - RJ4'),
+    m('afastado', '2023-11-02', 'Barra - RJ4', { situacao:'afastado' }),
+    m('semData', ''), m('invalida', '2023-02-31'), m('futura', '2027-01-01'),
+  ];
+  const barra = alertasHonrarias(membrosHonraria, 'barra', base);
+  confere('a janela inclui 60 dias antes e 30 depois, sem passar das bordas',
+    barra.map(x => x.membro.id), ['limite30', 'hoje', 'amanha', 'seis', 'afastado', 'limite60']);
+  confere('cada integrante recebe apenas o proximo marco',
+    barra.map(x => [x.membro.id, x.anos]),
+    [['limite30',3],['hoje',3],['amanha',3],['seis',6],['afastado',3],['limite60',3]]);
+  confere('a divisao nao ve integrante do Oeste', barra.some(x => x.membro.id === 'nove'), false);
+  const regional = alertasHonrarias(membrosHonraria, 'regional', base).map(x => x.membro.id);
+  confere('o Regional ve toda a RJ4, inclusive afastado', regional.includes('nove') && regional.includes('afastado'), true);
+  confere('sem data, data invalida e entrada futura ficam fora',
+    barra.some(x => ['semData','invalida','futura'].includes(x.membro.id)), false);
+  confere('29 de fevereiro vira 28 no ano da honraria', dataDaHonraria('2020-02-29', 3), '2023-02-28');
+  confere('os textos antes, no dia e depois',
+    [textoPrazoHonraria(42), textoPrazoHonraria(1), textoPrazoHonraria(0), textoPrazoHonraria(-1), textoPrazoHonraria(-5)],
+    ['Completa em 42 dias', 'Completa amanhã', 'Completa hoje', 'Completou há 1 dia', 'Completou há 5 dias']);
+}
 
 log('');
 

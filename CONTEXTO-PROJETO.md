@@ -237,6 +237,17 @@ Três decisões que valem lembrar antes de mexer nele:
   valor velho seria pior que não mostrar. Até chegarem, o aviso diz que
   está vendo — sem os dados, todo mundo pareceria não ter respondido.
 
+O mural também avisa as **honrarias por tempo de clube**
+(`js/dominio/honrarias.js`): medalhas de 3, 6 e 9 anos, calculadas a partir
+da coluna Entrada de `Membros`, sem dado novo na planilha. O aviso começa 60
+dias antes e fica até 30 dias depois da data. Cada divisão vê os próprios
+integrantes; o Regional vê toda a RJ4, com a divisão na linha. Afastados
+continuam contando e desligados já não estão no cadastro. Eventos com gente
+sem resposta vêm antes; depois vêm medalhas até 30 dias, medalhas entre 31 e
+60 dias e eventos em que todos responderam. Quem entrou em 29/02 completa a
+honraria em 28/02 nos anos correspondentes. Sem nenhum evento ou honraria, o
+mural diz **"Nenhum aviso no momento"**.
+
 > **A armadilha da data vazia:** evento sem data fica de fora do mural de
 > propósito. Na comparação de texto `''` é anterior a qualquer data, então
 > sem essa guarda ele apareceria sempre. O encerramento automático, abaixo,
@@ -948,7 +959,7 @@ ferramentas, acima):
 
     py ferramentas/estrutura.py     # imports, camadas, sintaxe, ações
     node ferramentas/regras.mjs     # ordem hierárquica e formato da convocação
-    node ferramentas/telas.mjs      # desenha as 182 telas e abas
+    node ferramentas/telas.mjs      # desenha as 186 telas e abas
     node ferramentas/planilha.mjs   # o encerramento automático, no Code.gs
 
 Eles dizem que o app **não quebrou**, não que está bonito: não cobrem

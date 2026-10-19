@@ -249,7 +249,19 @@ add('organizador / menu (mural transbordando)', { isAdmin:true, adminEscopo:'bar
   events:[evHoje, evProximo, evDepois],
   reportData:{ ep1:{ m1:{ status:'confirmado' } }, ep2:{}, ep3:{ m1:{ status:'confirmado' },
     m2:{ status:'familia' }, m3:{ status:'trabalho' } } } }, T.renderMenuOrganizador);
-// O mural vazio ("Nada nos proximos 2 dias") ja e desenhado pelos tres casos
+const entradaParaHonraria = dias => {
+  const d = new Date(); d.setDate(d.getDate() + dias); d.setFullYear(d.getFullYear() - 3);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+};
+add('organizador / menu (medalha em 42 dias)', { isAdmin:true, adminEscopo:'barra', events:[],
+  roster:membros.map(m => m.id === 'm1' ? { ...m, entrada:entradaParaHonraria(42) } : m) }, T.renderMenuOrganizador);
+add('organizador / menu (medalha hoje)', { isAdmin:true, adminEscopo:'barra', events:[],
+  roster:membros.map(m => m.id === 'm2' ? { ...m, entrada:entradaParaHonraria(0), situacao:'afastado' } : m) }, T.renderMenuOrganizador);
+add('organizador / menu (regional vê medalhas da RJ4)', { isAdmin:true, adminEscopo:'regional', events:[],
+  roster:membros.map((m, i) => i < 2 ? { ...m, entrada:entradaParaHonraria(10 + i) } : m) }, T.renderMenuOrganizador);
+add('organizador / menu (evento urgente antes da medalha)', { isAdmin:true, adminEscopo:'barra', events:[evProximo],
+  roster:membros.map(m => m.id === 'm1' ? { ...m, entrada:entradaParaHonraria(5) } : m), reportData:{ ep1:{} } }, T.renderMenuOrganizador);
+// O mural vazio ("Nenhum aviso no momento") ja e desenhado pelos tres casos
 // logo abaixo: os eventos dos dados falsos tem data fixa e nenhum cai na
 // janela, entao o menu de qualquer divisao nasce com o mural vazio.
 add('organizador / menu (regional)', { isAdmin:true, adminEscopo:'regional' }, T.renderMenuOrganizador);
