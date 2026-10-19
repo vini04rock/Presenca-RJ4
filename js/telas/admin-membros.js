@@ -275,16 +275,18 @@ function linhaCadastro(m) {
             ${selinhoIniciais(m)}
             <span class="member-name">${escapeHtml(m.nome)}</span>
             ${m.grau ? `<span class="grade-box">${escapeHtml(m.grau)}</span>` : ''}
-            ${botoesMovimento(m)}
+            ${m.cargo ? `<span class="member-cargo-inline">${escapeHtml(m.cargo)}</span>` : ''}
           </div>
           ${afastado ? `<div class="selo-afastado">⏸️ Afastado${m.situacaoDesde ? ` desde ${escapeHtml(formatDataBR(m.situacaoDesde))}` : ''}</div>` : ''}
-          ${m.cargo ? `<div class="confirmado-divisao">${escapeHtml(m.cargo)}</div>` : ''}
+          <div class="cadastro-controles">
+            ${botoesMovimento(m)}
+            <div class="acoes-cadastro">
+              <button class="btn-mini" data-action="edit-member" data-id="${m.id}">✏️ Editar</button>
+              <button class="btn-mini perigo" data-action="remove-member" data-id="${m.id}" title="Para cadastro feito errado: apaga também o histórico. Quem saiu do clube é Desligamento.">Remover</button>
+            </div>
+          </div>
           ${m.entrada ? `<div class="confirmado-divisao" style="white-space:nowrap;">Ingresso: ${escapeHtml(formatDataBR(m.entrada))}</div>` : ''}
           ${linhaFuncoes(m.funcoes)}
-        </div>
-        <div class="acoes-cadastro">
-          <button class="btn-mini" data-action="edit-member" data-id="${m.id}">✏️ Editar</button>
-          <button class="btn-mini perigo" data-action="remove-member" data-id="${m.id}" title="Para cadastro feito errado: apaga também o histórico. Quem saiu do clube é Desligamento.">Remover</button>
         </div>
       </div>
       ${state.movMembroId === m.id ? painelMovimento(m) : ''}

@@ -1773,7 +1773,7 @@ body.rolou .barra-fixa-nome { opacity: 1; transform: none; }
 .iniciais-bronze { --anel: #C4804A; }
 .iniciais-base { box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.35); }
 
-/* As linhas de baixo (cargo, funcoes) comecam embaixo do nome, e nao
+/* As linhas de baixo (ingresso, funcoes) comecam embaixo do nome, e nao
    embaixo das iniciais - nas listas sem numero (cadastro, relatorio
    individual). Na lista do evento o numero vem antes e fica como esta. */
 .member-info-wrap:has(> .member-info:first-child > .iniciais:first-child) > .confirmado-divisao,
@@ -1782,6 +1782,18 @@ body.rolou .barra-fixa-nome { opacity: 1; transform: none; }
 /* ---- Cadastro de membros: um card por grau, botoes pequenos ---- */
 .lista-cadastro { padding: 4px 16px; }
 .linha-cadastro .member-head { cursor: default; align-items: center; }
+.member-cargo-inline {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.cadastro-controles {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 7px;
+  flex-wrap: wrap;
+}
 .linha-cadastro.editando {
   margin: 0 -16px; padding-left: 16px; padding-right: 16px;
   background-color: rgba(224, 178, 60, 0.08);
