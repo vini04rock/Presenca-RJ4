@@ -28,6 +28,7 @@ const ACOES_PROTEGIDAS = [
   'doacoes', 'doacoesSalvar', 'caixinha', 'caixinhaSalvar', 'caixinhaRemover',
   'caixinhaLancamentoSalvar', 'caixinhaLancamentoRemover', 'estoqueSalvar', 'membrosEntradaSalvar',
   'membroMovimentar', 'movimentos',
+  'estoqueAdm', 'estoqueAdmMovimentar', 'estoqueAdmAnular',
 ];
 
 // Anexa escopo+PIN quando a acao exige. Some do caminho nas demais, pra

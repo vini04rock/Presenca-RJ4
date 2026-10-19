@@ -66,12 +66,13 @@ provar que a hierarquia continua de pé.
 O Modo organizador é a exceção ao "uma tela por arquivo", porque é grande
 demais para uma: `js/telas/admin.js` ficou só com o esqueleto (cabeçalho,
 barra de abas, troca de aba), e cada seção tem o próprio arquivo —
-`admin-eventos.js`, `admin-membros.js` e `admin-insights.js`. O esqueleto
+`admin-eventos.js`, `admin-membros.js`, `admin-insights.js` e as demais
+seções administrativas. O esqueleto
 sabe **qual** aba desenhar, nunca **como**. Cada um exporta as próprias
-ações, e o `app.js` junta os quatro mapas.
+ações, e o `app.js` junta todos os mapas.
 
 O menu organiza essas seções em três áreas, sem mudar permissões: **ADM**
-(Caixinha, Entrada/Saída e Membros), **Operacional** (Relatórios, Relatório
+(Caixinha, Estoque ADM no Regional, Entrada/Saída e Membros), **Operacional** (Relatórios, Relatório
 individual, Insights e Eventos) e **Social** (Doações). Depois do PIN, o
 mural e os avisos continuam na raiz; tocar numa área abre apenas as
 ferramentas dela. Uma área sem nenhuma ferramenta liberada naquele escopo
@@ -136,6 +137,8 @@ sem controlar o servidor.
 | `Movimentacoes` | o livro de Entrada/Saída: uma linha por entrada, afastamento, retorno ou desligamento. Nada é apagado |
 | `Doacoes` | uma linha por evento × integrante que levou alimento, com os kg; sem linha = não levou |
 | `EstoqueDoacoes` | o estoque (alimentos, roupas, cobertores, sapatos…): uma linha por item da divisão, com a quantidade de hoje, em unidades, pares ou kg; a linha com "Automatico" = Sim é a dos alimentos dos eventos |
+| `EstoqueADMItens` | cadastro dos materiais administrativos do Regional; uma linha por material |
+| `EstoqueADMMovimentacoes` | livro permanente de entradas, saídas e anulações do Estoque ADM; o saldo é calculado a partir dele |
 | `Caixinha` | uma linha por divisão × mês × integrante que devia pagar, com Sim/Não e o **valor** pago |
 | `CaixinhaFinanceiro` | o controle financeiro da caixinha: uma linha por entrada ou saída lançada, e o saldo inicial de cada divisão |
 
@@ -660,6 +663,25 @@ Regras que valem para as duas:
   "Por evento" e "Rank" são o mesmo dado visto de dois jeitos.
 - Remover um evento apaga as doações dele.
 
+## Estoque ADM do Regional
+
+O card **Estoque ADM** aparece somente em Regional → ADM. A seção tem três
+abas: **Movimentar**, **Estoque** e **Relatório**. Movimentar abre com dois
+cards lado a lado, Entrada e Saída, e mostra apenas o formulário escolhido.
+
+- Entrada recebe material, quantidade, data e observação opcional. Um nome
+  já cadastrado é reconhecido mesmo com diferença de acento ou maiúscula.
+- Saída exige um material com saldo, quantidade, data e destino: uma divisão
+  ou um integrante. O nome do destino fica congelado no histórico.
+- O saldo não é editável. Ele é sempre a soma das entradas menos as saídas
+  ativas, e o servidor bloqueia retirada acima do disponível.
+- Corrigir significa **anular** o lançamento. A linha continua no relatório;
+  uma entrada que já sustenta saídas não pode ser anulada se isso deixaria o
+  saldo negativo.
+- As ações `estoqueAdm`, `estoqueAdmMovimentar` e `estoqueAdmAnular` pedem
+  PIN e também exigem `escopo=regional`. A chave-mestra usada dentro de uma
+  divisão não abre este estoque.
+
 ## A convocação: o app lê e escreve
 
 Este é um ciclo fechado que vale entender junto, porque as duas pontas usam
@@ -926,7 +948,7 @@ ferramentas, acima):
 
     py ferramentas/estrutura.py     # imports, camadas, sintaxe, ações
     node ferramentas/regras.mjs     # ordem hierárquica e formato da convocação
-    node ferramentas/telas.mjs      # desenha as 168 telas e abas
+    node ferramentas/telas.mjs      # desenha as 182 telas e abas
     node ferramentas/planilha.mjs   # o encerramento automático, no Code.gs
 
 Eles dizem que o app **não quebrou**, não que está bonito: não cobrem
@@ -934,7 +956,7 @@ aparência, impressão/PDF, o caminho de rede real nem o resto do `Code.gs` —
 o `planilha.mjs` só alcança o encerramento automático, a guarda de PIN, o
 relatório individual, o responsável, os textos da chamada, a chamada
 guardada no evento, as doações, a caixinha (com os valores e o controle
-financeiro) e a entrada/saída de integrantes.
+financeiro), o Estoque ADM e a entrada/saída de integrantes.
 
 Se a mudança mexeu no `Code.gs`, ele precisa ser **republicado à parte** no
 Apps Script — não vai junto no `git push`. Confira depois chamando a URL do

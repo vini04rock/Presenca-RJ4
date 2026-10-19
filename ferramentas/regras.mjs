@@ -28,6 +28,7 @@ const { mascaraData, dataISOdeBR, formatDataBR } = await import(url('nucleo/util
 const { eventosProximos, semResposta } = await import(url('dominio/pendencias.js'));
 const { state: st } = await import(url('nucleo/estado.js'));
 const { hojeISO } = await import(url('nucleo/util.js'));
+const { quantidadeEstoqueAdm, resumoEstoqueAdm, textoResumoEstoqueAdm, filtrarMovimentosEstoqueAdm } = await import(url('dominio/estoque-adm.js'));
 
 let falhas = 0;
 function confere(nome, obtido, esperado) {
@@ -40,6 +41,20 @@ function confere(nome, obtido, esperado) {
   }
 }
 const nomes = (l) => l.map(m => m.nome);
+
+log('=== estoque ADM: quantidade, resumo e filtros ===');
+confere('quantidade aceita apenas inteiro positivo',
+  ['12', '0', '-2', '2,5', '100001'].map(quantidadeEstoqueAdm), [12, 0, 2, 25, 0]);
+const resumoAdm = resumoEstoqueAdm([
+  { nome:'Cones', quantidade:8 }, { nome:'Radios', quantidade:2 }, { nome:'Coletes', quantidade:0 },
+]);
+confere('resumo soma materiais, unidades e zerados', resumoAdm, { materiais:3, unidades:10, zerados:1 });
+confere('resumo escrito', textoResumoEstoqueAdm(resumoAdm), '3 materiais · 10 unidades · 1 zerado');
+const movAdm = [{ id:'e', tipo:'entrada' }, { id:'s', tipo:'saida' }];
+confere('filtro de entradas', filtrarMovimentosEstoqueAdm(movAdm, 'entrada').map(x => x.id), ['e']);
+confere('filtro tudo preserva o livro', filtrarMovimentosEstoqueAdm(movAdm, 'todos').map(x => x.id), ['e','s']);
+
+log('');
 
 log('=== aviso de evento próximo ===');
 

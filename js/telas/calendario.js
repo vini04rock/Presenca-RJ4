@@ -306,7 +306,7 @@ export async function checkCalendarioPin() {
 // Cada entrada e o corpo do antigo "if (action === ...)" do app.js, tal
 // e qual. O app.js so olha o nome da acao neste mapa e chama.
 export const acoes = {
-  'calendario-gerar-imagem': async (id, target) => {
+  'calendario-gerar-imagem': async (id, target, action, e) => {
     if (target.disabled) return;
     target.disabled = true;
     const ano = state.calendarioAno, mes = state.calendarioMes, escopo = state.calendarioEscopo;

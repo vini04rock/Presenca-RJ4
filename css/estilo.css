@@ -2451,6 +2451,44 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 /* O botao de salvar fica preso no pe da tela enquanto a lista rola. */
 .estoque-salvar { position: sticky; bottom: 10px; z-index: 5; }
 
+/* ---- Estoque ADM do Regional ----
+   Entrada e Saida ficam lado a lado como portas para um unico formulario.
+   No celular continuam com uma area de toque larga sem ocupar duas telas. */
+.estoque-adm-escolhas {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;
+}
+.estoque-adm-escolha {
+  appearance: none; width: 100%; min-width: 0; margin: 0; padding: 13px 10px;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
+  cursor: pointer; color: var(--text-muted); font: inherit; text-align: left;
+}
+.estoque-adm-escolha b { color: var(--white-strong); font-size: 14px; }
+.estoque-adm-escolha span { font-size: 11.5px; }
+.estoque-adm-escolha.entrada.ativa { border-color: var(--status-confirmado); background-color: rgba(95, 201, 141, 0.09); }
+.estoque-adm-escolha.saida.ativa { border-color: var(--status-infracional); background-color: rgba(217, 99, 90, 0.09); }
+.estoque-adm-escolha:active { transform: scale(0.97); }
+.estoque-adm-form { margin-top: 0; border-left-width: 3px; }
+.estoque-adm-form.entrada { border-left-color: var(--status-confirmado); }
+.estoque-adm-form.saida { border-left-color: var(--status-infracional); }
+.estoque-adm-destinos { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin: 5px 0 10px; }
+.estoque-adm-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.estoque-adm-item b { min-width: 0; overflow-wrap: anywhere; color: var(--white-strong); }
+.estoque-adm-item strong { flex-shrink: 0; color: var(--white-strong); }
+.estoque-adm-movimento { padding: 12px 14px; margin-bottom: 8px; border-left-width: 3px; }
+.estoque-adm-movimento.entrada { border-left-color: var(--status-confirmado); }
+.estoque-adm-movimento.saida { border-left-color: var(--status-infracional); }
+.estoque-adm-mov-topo { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 5px; }
+.estoque-adm-mov-topo b { color: var(--white-strong); font-size: 13px; }
+.estoque-adm-mov-topo span { flex-shrink: 0; color: var(--text-muted); font-size: 11.5px; }
+.estoque-adm-movimento.anulado { opacity: 0.58; border-left-color: var(--line-strong); }
+.estoque-adm-movimento.anulado .name, .estoque-adm-movimento.anulado .meta { text-decoration: line-through; }
+.estoque-adm-anulado { margin-top: 7px; color: #E0B24D; font-size: 11.5px; font-weight: 700; }
+@media (max-width: 360px) {
+  .estoque-adm-escolha { padding: 11px 8px; }
+  .estoque-adm-escolha b { font-size: 13px; }
+  .estoque-adm-mov-topo { align-items: flex-start; }
+}
+
 /* O valor pago no mes: o botao do valor padrao e a caixa de outro valor,
    embaixo do nome. O botao e grande de proposito - e o toque mais comum. */
 .valor-mes { color: var(--white-strong); font-weight: 700; }

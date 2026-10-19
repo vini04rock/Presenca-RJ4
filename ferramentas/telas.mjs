@@ -610,6 +610,29 @@ add('entrada/saída / quadro regional',   { ...mvs, adminEscopo:'regional', movi
 add('entrada/saída / regional abriu barra', { ...mvs, adminEscopo:'regional', movimentosDadosEscopo:'regional', movimentosDivisaoAberta:'barra' }, T.renderAdmin);
 add('entrada/saída / carregando',        { ...mvs, adminEscopo:'barra', movimentosDados:null }, T.renderAdmin);
 add('entrada/saída / erro',              { ...mvs, adminEscopo:'barra', movimentosErro:'Sem permissao para os dados desta divisao' }, T.renderAdmin);
+const estoqueAdmDados = {
+  itens:[{ id:'mat1', nome:'Cones', quantidade:7 }, { id:'mat2', nome:'Rádios', quantidade:0 }],
+  movimentos:[
+    { id:'ea3', data:'2026-10-18', tipo:'saida', materialId:'mat1', material:'Cones', quantidade:3,
+      destinoTipo:'membro', destinoId:'m1', destinoNome:'Costa', observacao:'Evento', anulado:false },
+    { id:'ea2', data:'2026-10-17', tipo:'saida', materialId:'mat1', material:'Cones', quantidade:2,
+      destinoTipo:'divisao', destinoId:'barra', destinoNome:'Barra - RJ4', observacao:'', anulado:true, anuladoEm:'18/10/2026 10:00' },
+    { id:'ea1', data:'2026-10-16', tipo:'entrada', materialId:'mat1', material:'Cones', quantidade:10,
+      destinoTipo:'', destinoId:'', destinoNome:'', observacao:'Compra', anulado:false },
+  ],
+};
+const eadm = { isAdmin:true, adminEscopo:'regional', estoqueAdmDados, estoqueAdmCarregando:false, estoqueAdmErro:null };
+add('estoque ADM / movimentar',           { ...eadm, adminTab:'estoque-adm-movimentar', estoqueAdmForm:null }, T.renderAdmin);
+add('estoque ADM / formulario entrada',   { ...eadm, adminTab:'estoque-adm-movimentar', estoqueAdmForm:{
+  tipo:'entrada', materialId:'novo', materialNome:'Colete', quantidade:'5', data:'19/10/2026', destinoTipo:'divisao', destinoId:'barra', observacao:'Doação' } }, T.renderAdmin);
+add('estoque ADM / formulario saída',     { ...eadm, adminTab:'estoque-adm-movimentar', estoqueAdmForm:{
+  tipo:'saida', materialId:'mat1', materialNome:'', quantidade:'2', data:'19/10/2026', destinoTipo:'membro', destinoId:'m1', observacao:'' } }, T.renderAdmin);
+add('estoque ADM / estoque atual',        { ...eadm, adminTab:'estoque-adm-estoque' }, T.renderAdmin);
+add('estoque ADM / relatório',            { ...eadm, adminTab:'estoque-adm-relatorio', estoqueAdmFiltroTipo:'todos' }, T.renderAdmin);
+add('estoque ADM / relatório entradas',   { ...eadm, adminTab:'estoque-adm-relatorio', estoqueAdmFiltroTipo:'entrada' }, T.renderAdmin);
+add('estoque ADM / confirmar anulação',   { ...eadm, adminTab:'estoque-adm-relatorio', estoqueAdmAnularId:'ea3' }, T.renderAdmin);
+add('estoque ADM / carregando',           { ...eadm, adminTab:'estoque-adm-movimentar', estoqueAdmCarregando:true }, T.renderAdmin);
+add('estoque ADM / erro',                 { ...eadm, adminTab:'estoque-adm-movimentar', estoqueAdmErro:'Falha de conexão' }, T.renderAdmin);
 
 const LIMPO = {
   // A lista de eventos volta ao padrao entre um caso e outro: o card de
@@ -651,6 +674,8 @@ const LIMPO = {
   caixinhaFinQtdExtrato:15, caixinhaFinRelatorio:false, caixinhaFinPeriodo:0,
   roster:membros, newMemberEntrada:'', movMembroId:null, movTipo:null, movData:'', movMotivo:'', movSalvando:false, movErro:null, removerMembroId:null, preencherEntradasIds:null, entradasRascunho:{}, entradasSalvando:false, entradasMsg:null,
   movimentosDados:null, movimentosDadosEscopo:null, movimentosErro:null, movimentosPeriodo:0, movimentosDivisaoAberta:null,
+  estoqueAdmDados:null, estoqueAdmCarregando:false, estoqueAdmErro:null, estoqueAdmForm:null,
+  estoqueAdmSalvando:false, estoqueAdmMsg:null, estoqueAdmFiltroTipo:'todos', estoqueAdmAnularId:null,
 };
 log('');
 log('=== 2. desenhar cada tela e aba ===');

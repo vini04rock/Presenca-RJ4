@@ -385,6 +385,80 @@ log('=== permissao: quem pode gravar na planilha ===');
 }
 
 log('');
+log('=== estoque ADM do Regional: entradas, saidas, saldo e historico ===');
+{
+  const p = montaPlanilha([], []);
+  p.abas.Membros = novaAba('Membros', [['ID', 'Nome', 'Grau', 'Divisao', 'Funcoes', 'Cargo', 'Situacao', 'Situacao Desde', 'Entrada'],
+    ['m1', 'Costa', 'X', 'Barra - RJ4', '', '', '', '', '2026-01-01']]);
+  const props = { PIN_REGIONAL:'0418', PIN_BARRA:'1234' };
+  const { contexto } = carregaCodeGs(p, props);
+  const cred = { escopo:'regional', pin:'0418' };
+  const tentar = (fn) => { try { const r = fn(); return r.ok === false ? r.erro : 'ok'; } catch (e) { return e.message; } };
+
+  confere('ler sem PIN e recusado', contexto.executar('estoqueAdm', {}).ok, false);
+  confere('PIN Regional dentro de uma divisao nao abre este estoque',
+    tentar(() => contexto.executar('estoqueAdm', { escopo:'barra', pin:'0418' })),
+    'O Estoque ADM e exclusivo do Regional');
+  confere('o estoque nasce vazio', contexto.executar('estoqueAdm', cred).itens, []);
+
+  let r = contexto.executar('estoqueAdmMovimentar', {
+    ...cred, tipo:'entrada', materialNome:'Rádio', quantidade:10, data:daquiA(-2), observacao:'Compra inicial',
+  });
+  const materialId = r.itens[0].id;
+  confere('entrada nova cadastra o material e soma o saldo',
+    [r.itens[0].nome, r.itens[0].quantidade, r.movimentos.length], ['Rádio', 10, 1]);
+  confere('as duas abas nascem com cabecalhos legiveis',
+    [p.abas.EstoqueADMItens.dados[0], p.abas.EstoqueADMMovimentacoes.dados[0]],
+    [Array.from(contexto.CAB_ESTOQUE_ADM_ITENS), Array.from(contexto.CAB_ESTOQUE_ADM_MOV)]);
+
+  r = contexto.executar('estoqueAdmMovimentar', {
+    ...cred, tipo:'entrada', materialNome:' radio ', quantidade:2, data:daquiA(-1),
+  });
+  confere('nome repetido sem acento reutiliza o mesmo material', [r.itens.length, r.itens[0].quantidade], [1, 12]);
+
+  r = contexto.executar('estoqueAdmMovimentar', {
+    ...cred, tipo:'saida', materialId, quantidade:3, data:daquiA(-1), destinoTipo:'divisao', destinoId:'barra',
+  });
+  confere('saida para divisao desconta e guarda o nome do destino',
+    [r.itens[0].quantidade, r.movimentos[0].destinoNome], [9, 'Barra - RJ4']);
+  r = contexto.executar('estoqueAdmMovimentar', {
+    ...cred, tipo:'saida', materialId, quantidade:2, data:daquiA(-1), destinoTipo:'membro', destinoId:'m1',
+  });
+  confere('saida para integrante desconta e guarda o nome',
+    [r.itens[0].quantidade, r.movimentos[0].destinoNome], [7, 'Costa']);
+
+  confere('nao deixa retirar acima do saldo',
+    tentar(() => contexto.executar('estoqueAdmMovimentar', {
+      ...cred, tipo:'saida', materialId, quantidade:8, data:daquiA(-1), destinoTipo:'divisao', destinoId:'barra',
+    })), 'Quantidade maior que o saldo disponivel');
+  confere('quantidade quebrada e recusada',
+    tentar(() => contexto.executar('estoqueAdmMovimentar', {
+      ...cred, tipo:'entrada', materialId, quantidade:1.5, data:daquiA(-1),
+    })), 'Informe uma quantidade inteira entre 1 e 100000');
+  confere('data que nao existe e recusada',
+    tentar(() => contexto.executar('estoqueAdmMovimentar', {
+      ...cred, tipo:'entrada', materialId, quantidade:1, data:'2026-02-31',
+    })), 'Data invalida');
+  confere('data futura e recusada',
+    tentar(() => contexto.executar('estoqueAdmMovimentar', {
+      ...cred, tipo:'entrada', materialId, quantidade:1, data:daquiA(1),
+    })), 'A data nao pode ser no futuro');
+
+  const entradaGrande = r.movimentos.filter(m => m.tipo === 'entrada' && m.quantidade === 10)[0];
+  confere('entrada ja usada nao pode ser anulada',
+    tentar(() => contexto.executar('estoqueAdmAnular', { ...cred, id:entradaGrande.id })),
+    'Esta entrada ja cobre materiais retirados e nao pode ser anulada');
+  const saidaMembro = r.movimentos.filter(m => m.tipo === 'saida' && m.destinoTipo === 'membro')[0];
+  r = contexto.executar('estoqueAdmAnular', { ...cred, id:saidaMembro.id });
+  confere('anular uma saida devolve o saldo sem apagar o historico',
+    [r.itens[0].quantidade, r.movimentos.length, r.movimentos.find(m => m.id === saidaMembro.id).anulado],
+    [9, 4, true]);
+  confere('anular de novo e recusado',
+    tentar(() => contexto.executar('estoqueAdmAnular', { ...cred, id:saidaMembro.id })),
+    'Este lancamento ja foi anulado');
+}
+
+log('');
 log('=== Rank de Insights: os números de cada divisão ===');
 {
   // O caso real de 25/09/2026, na Gardênia: 4 integrantes, 7 rodadas, 3

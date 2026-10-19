@@ -128,6 +128,11 @@ Abas em uso:
   (cadastro de Membros). Nada é apagado dela. Nasce sozinha no primeiro uso.
   A aba `Membros` também ganhou as colunas Situação, Situação Desde e
   Entrada, acrescentadas sozinhas.
+- `EstoqueADMItens` — cadastro dos materiais administrativos do Regional.
+  Uma linha por material; nasce no primeiro acesso ao Estoque ADM.
+- `EstoqueADMMovimentacoes` — livro de entradas e saídas do Estoque ADM,
+  com data, quantidade e destino. Lançamentos corrigidos ficam na aba com
+  a data de anulação; o saldo é calculado a partir das linhas ativas.
 - `KV` — formato antigo, mantido apenas como backup da migração inicial.
 
 Todas as abas de resumo (`Calendário`, `Insight RJ4`, `Regional RJ4` e as

@@ -227,6 +227,18 @@ export let state = {
   estoqueSalvando: false,
   estoqueMsg: null,
 
+  // Estoque ADM, exclusivo do Regional. O saldo e calculado no backend a
+  // partir do livro de entradas/saidas; o formulario guarda uma movimentacao
+  // por vez e o relatorio pode filtrar o tipo.
+  estoqueAdmDados: null,
+  estoqueAdmCarregando: false,
+  estoqueAdmErro: null,
+  estoqueAdmForm: null,
+  estoqueAdmSalvando: false,
+  estoqueAdmMsg: null,
+  estoqueAdmFiltroTipo: 'todos',
+  estoqueAdmAnularId: null,
+
   // Secao Caixinha do organizador. Mesma ideia: os meses lancados da
   // divisao (e o controle financeiro dela, que vem junto), e o mes aberto
   // pra lancar ou corrigir.

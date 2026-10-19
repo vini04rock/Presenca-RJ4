@@ -264,6 +264,27 @@ export async function carregarMovimentos() {
   render();
 }
 
+// Estoque de materiais administrativos, exclusivo do Regional. Entradas e
+// saidas podem ser registradas por outro organizador, por isso recarrega ao
+// entrar na secao.
+export async function carregarEstoqueAdm() {
+  state.estoqueAdmCarregando = true;
+  state.estoqueAdmErro = null;
+  render();
+  try {
+    const r = await api('estoqueAdm');
+    if (state.adminEscopo !== 'regional') return;
+    state.estoqueAdmDados = { itens: r.itens || [], movimentos: r.movimentos || [] };
+    state.estoqueAdmForm = null;
+    state.estoqueAdmMsg = null;
+  } catch (e) {
+    if (state.adminEscopo !== 'regional') return;
+    state.estoqueAdmErro = e.message;
+  }
+  state.estoqueAdmCarregando = false;
+  render();
+}
+
 // Carrega as estatisticas (% de cada um + medias por divisao) e o historico
 // curto de rodadas juntos. As marcacoes comecam tudo zerado (ninguem fez) -
 // o administrador so marca quem fez, que costuma ser menos toque que marcar

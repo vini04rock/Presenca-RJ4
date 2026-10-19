@@ -45,6 +45,8 @@ const SECOES = [
   { area: 'adm', aba: 'caixinha', nome: 'Caixinha', desc: 'Quem pagou, quanto entrou e saiu, e o saldo do caixa', icone: '💰', cor: '#C9A227',
     noRegional: { desc: 'O que cada divisão contribuiu, entradas, saídas e o saldo' },
     visivel: () => temDoacoesECaixinha(state.adminEscopo) },
+  { area: 'adm', aba: 'estoque-adm-movimentar', nome: 'Estoque ADM', desc: 'Materiais, entradas, saídas e histórico', icone: '📦', cor: '#C47A3D',
+    visivel: () => state.adminEscopo === 'regional' },
   // Nas 7: cada divisao ve o proprio livro, e o Regional o quadro de todas.
   { area: 'adm', aba: 'movimentos', nome: 'Entrada/Saída', desc: 'Quem entrou, quem está afastado e quem saiu', icone: '🔄', cor: '#8FA3B8' },
   // Os Relatorios seguem so no Regional e na Barra - decisao do clube, que
@@ -60,7 +62,7 @@ const AREAS = [
   { chave: 'social', nome: 'Social', desc: 'Doações e estoque', icone: '🤝', cor: '#4CAF6E' },
 ];
 const ORDEM_POR_AREA = {
-  adm: ['caixinha', 'movimentos', 'membros'],
+  adm: ['caixinha', 'estoque-adm-movimentar', 'movimentos', 'membros'],
   operacional: ['abrir-relatorios-organizador', 'abrir-relatorio-individual', 'insights', 'eventos'],
   social: ['doacoes'],
 };

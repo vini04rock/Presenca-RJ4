@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-10-19-v-data-de-ingresso';
+var VERSAO = '2026-10-19-v-estoque-adm';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -41,6 +41,8 @@ var ABA_CAIXINHA = 'Caixinha';
 var ABA_CAIXINHA_FINANCEIRO = 'CaixinhaFinanceiro';
 var ABA_ESTOQUE = 'EstoqueDoacoes';
 var ABA_MOVIMENTOS = 'Movimentacoes';
+var ABA_ESTOQUE_ADM_ITENS = 'EstoqueADMItens';
+var ABA_ESTOQUE_ADM_MOV = 'EstoqueADMMovimentacoes';
 
 // "Cargo" so faz sentido nos graus VI e V (ver CARGOS no js/nucleo/config.js):
 // sao os graus em que varios integrantes dividem o mesmo grau ocupando
@@ -135,6 +137,12 @@ var ITEM_ALIMENTOS = 'Alimentos (dos eventos)';
 var CAB_MOVIMENTOS = ['ID', 'Data', 'Divisao', 'ID Membro', 'Membro', 'Grau', 'Tipo', 'Motivo', 'Registrado em'];
 var TIPOS_MOVIMENTO = { entrada: 'Entrada', afastamento: 'Afastamento', retorno: 'Retorno', desligamento: 'Desligamento' };
 var SITUACAO_AFASTADO = 'Afastado';
+// Estoque de materiais administrativos do Regional. A primeira aba e o
+// cadastro dos materiais; a segunda e um livro permanente. O saldo exibido
+// nunca e digitado: e a soma das entradas menos as saidas nao anuladas.
+var CAB_ESTOQUE_ADM_ITENS = ['ID', 'Material', 'Criado em'];
+var CAB_ESTOQUE_ADM_MOV = ['ID', 'Data', 'Tipo', 'ID Material', 'Material', 'Quantidade',
+  'Destino Tipo', 'Destino ID', 'Destino Nome', 'Observacao', 'Registrado em', 'Anulado em'];
 
 // Na planilha fica o rotulo legivel; o app continua falando em chaves.
 var STATUS_ROTULO = {
@@ -229,7 +237,9 @@ var ACOES_PROTEGIDAS = [
   'doacoes', 'doacoesSalvar', 'caixinha', 'caixinhaSalvar', 'caixinhaRemover',
   'caixinhaLancamentoSalvar', 'caixinhaLancamentoRemover', 'estoqueSalvar', 'membrosEntradaSalvar',
   // Entrada/Saida: o motivo de um afastamento pode ser assunto pessoal.
-  'membroMovimentar', 'movimentos'
+  'membroMovimentar', 'movimentos',
+  // Estoque administrativo: inclusive a leitura e exclusiva do Regional.
+  'estoqueAdm', 'estoqueAdmMovimentar', 'estoqueAdmAnular'
 ];
 
 function executar(action, p) {
@@ -303,6 +313,9 @@ function executar(action, p) {
   if (action === 'caixinhaLancamentoRemover') return comTrava(function () { return removerLancamentoCaixinha(p); });
   if (action === 'membroMovimentar') return comTrava(function () { return registrarMovimento(p); });
   if (action === 'movimentos') return lerMovimentos(String(p.divisao || ''), String(p.pin || ''));
+  if (action === 'estoqueAdm') return lerEstoqueAdm(p);
+  if (action === 'estoqueAdmMovimentar') return comTrava(function () { return movimentarEstoqueAdm(p); });
+  if (action === 'estoqueAdmAnular') return comTrava(function () { return anularMovimentoEstoqueAdm(p); });
   throw new Error('Acao desconhecida: ' + action);
 }
 
@@ -1847,6 +1860,161 @@ function quantidadeDoEstoque(q, medida) {
 // "Cobertor" e "cobertôr " sao o mesmo item - a mesma regra do app.
 function chaveDoItem(nome) {
   return String(nome).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().replace(/\s+/g, ' ');
+}
+
+// ---------- ESTOQUE ADMINISTRATIVO DO REGIONAL ----------
+
+function exigirRegionalEstoqueAdm(p) {
+  // A guarda geral aceita o PIN Regional como chave-mestra em qualquer
+  // escopo. Aqui o escopo tambem precisa ser Regional: o recurso nao existe
+  // dentro das divisoes, mesmo quando quem entrou conhece a chave-mestra.
+  if (String((p && p.escopo) || '') !== 'regional') {
+    throw new Error('O Estoque ADM e exclusivo do Regional');
+  }
+}
+
+function quantidadeEstoqueAdmValida(v) {
+  var n = Number(v);
+  return isFinite(n) && n > 0 && n <= 100000 && Math.floor(n) === n ? n : 0;
+}
+
+function dataISOValidaEstoqueAdm(v) {
+  var t = String(v || '');
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t);
+  if (!m) return '';
+  var d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  if (d.getFullYear() !== Number(m[1]) || d.getMonth() !== Number(m[2]) - 1 || d.getDate() !== Number(m[3])) return '';
+  return t;
+}
+
+function dadosEstoqueAdm() {
+  var itens = linhas(aba(ABA_ESTOQUE_ADM_ITENS, CAB_ESTOQUE_ADM_ITENS))
+    .filter(function (l) { return l[0] && String(l[1] || '').trim(); })
+    .map(function (l) { return { id: String(l[0]), nome: String(l[1]).trim(), quantidade: 0 }; });
+  var porId = {};
+  itens.forEach(function (x) { porId[x.id] = x; });
+
+  var movimentos = linhas(aba(ABA_ESTOQUE_ADM_MOV, CAB_ESTOQUE_ADM_MOV))
+    .filter(function (l) { return l[0] && l[3]; })
+    .map(function (l, i) {
+      var tipo = String(l[2] || '').toLowerCase() === 'saida' ? 'saida' : 'entrada';
+      var quantidade = quantidadeEstoqueAdmValida(l[5]);
+      var anuladoEm = String(l[11] || '');
+      if (!anuladoEm && quantidade && porId[String(l[3])]) {
+        porId[String(l[3])].quantidade += tipo === 'entrada' ? quantidade : -quantidade;
+      }
+      return {
+        id: String(l[0]), data: formatarData(l[1]), tipo: tipo,
+        materialId: String(l[3]), material: String(l[4] || ''), quantidade: quantidade,
+        destinoTipo: String(l[6] || ''), destinoId: String(l[7] || ''),
+        destinoNome: String(l[8] || ''), observacao: String(l[9] || ''),
+        registradoEm: String(l[10] || ''), anulado: !!anuladoEm, anuladoEm: anuladoEm,
+        _ordem: i
+      };
+    });
+  itens.forEach(function (x) { if (x.quantidade < 0) x.quantidade = 0; });
+  itens.sort(function (a, b) { return a.nome.localeCompare(b.nome); });
+  movimentos.sort(function (a, b) {
+    return b.data.localeCompare(a.data) || b._ordem - a._ordem;
+  });
+  movimentos.forEach(function (m) { delete m._ordem; });
+  return { ok: true, itens: itens, movimentos: movimentos };
+}
+
+function lerEstoqueAdm(p) {
+  exigirRegionalEstoqueAdm(p);
+  return dadosEstoqueAdm();
+}
+
+function materialEstoqueAdm(materialId, materialNome) {
+  var s = aba(ABA_ESTOQUE_ADM_ITENS, CAB_ESTOQUE_ADM_ITENS);
+  var cadastro = linhas(s);
+  var id = String(materialId || '');
+  if (id) {
+    var existente = cadastro.filter(function (l) { return String(l[0]) === id; })[0];
+    if (!existente) throw new Error('Material nao encontrado');
+    return { id: id, nome: String(existente[1] || '').trim() };
+  }
+
+  var nome = String(materialNome || '').trim().replace(/\s+/g, ' ').slice(0, 60);
+  if (!nome) throw new Error('Informe o nome do material');
+  var chave = chaveDoItem(nome);
+  var repetido = cadastro.filter(function (l) { return chaveDoItem(l[1]) === chave; })[0];
+  if (repetido) return { id: String(repetido[0]), nome: String(repetido[1]).trim() };
+
+  var novo = { id: novoId(), nome: nome };
+  var linha = s.getLastRow() + 1;
+  s.getRange(linha, 1, 1, CAB_ESTOQUE_ADM_ITENS.length).setNumberFormat('@');
+  s.getRange(linha, 1, 1, CAB_ESTOQUE_ADM_ITENS.length).setValues([[novo.id, novo.nome, agora()]]);
+  return novo;
+}
+
+function destinoEstoqueAdm(tipo, id) {
+  tipo = String(tipo || '');
+  id = String(id || '');
+  if (tipo === 'divisao') {
+    if (id === 'regional' || ESCOPOS_VALIDOS.indexOf(id) === -1) throw new Error('Escolha uma divisao valida');
+    return { tipo: tipo, id: id, nome: ESCOPOS_NOME[id] };
+  }
+  if (tipo === 'membro') {
+    var membro = lerMembros().filter(function (m) { return m.id === id; })[0];
+    if (!membro) throw new Error('Escolha um integrante valido');
+    return { tipo: tipo, id: id, nome: membro.nome };
+  }
+  throw new Error('Escolha o destino da saida');
+}
+
+function saldoMaterialEstoqueAdm(materialId) {
+  var item = dadosEstoqueAdm().itens.filter(function (x) { return x.id === String(materialId); })[0];
+  return item ? Number(item.quantidade) : 0;
+}
+
+function movimentarEstoqueAdm(p) {
+  exigirRegionalEstoqueAdm(p);
+  var tipo = String(p.tipo || '').toLowerCase();
+  if (tipo !== 'entrada' && tipo !== 'saida') throw new Error('Tipo de movimentacao invalido');
+  var quantidade = quantidadeEstoqueAdmValida(p.quantidade);
+  if (!quantidade) throw new Error('Informe uma quantidade inteira entre 1 e 100000');
+  var data = dataISOValidaEstoqueAdm(p.data);
+  if (!data) throw new Error('Data invalida');
+  var hoje = Utilities.formatDate(new Date(), fuso(), 'yyyy-MM-dd');
+  if (data > hoje) throw new Error('A data nao pode ser no futuro');
+
+  var material = materialEstoqueAdm(p.materialId, tipo === 'entrada' ? p.materialNome : '');
+  var destino = { tipo: '', id: '', nome: '' };
+  if (tipo === 'saida') {
+    if (saldoMaterialEstoqueAdm(material.id) < quantidade) throw new Error('Quantidade maior que o saldo disponivel');
+    destino = destinoEstoqueAdm(p.destinoTipo, p.destinoId);
+  }
+  var observacao = String(p.observacao || '').trim().replace(/\s+/g, ' ').slice(0, 200);
+  var valores = [novoId(), data, tipo, material.id, material.nome, quantidade,
+    destino.tipo, destino.id, destino.nome, observacao, agora(), ''];
+  var s = aba(ABA_ESTOQUE_ADM_MOV, CAB_ESTOQUE_ADM_MOV);
+  var linha = s.getLastRow() + 1;
+  s.getRange(linha, 1, 1, CAB_ESTOQUE_ADM_MOV.length).setNumberFormat('@');
+  s.getRange(linha, 6).setNumberFormat('0');
+  s.getRange(linha, 1, 1, CAB_ESTOQUE_ADM_MOV.length).setValues([valores]);
+  return dadosEstoqueAdm();
+}
+
+function anularMovimentoEstoqueAdm(p) {
+  exigirRegionalEstoqueAdm(p);
+  var id = String(p.id || '');
+  var s = aba(ABA_ESTOQUE_ADM_MOV, CAB_ESTOQUE_ADM_MOV);
+  var achado = acharLinha(s, function (l) { return String(l[0]) === id; });
+  if (!id || !achado) throw new Error('Lancamento nao encontrado');
+  if (String(achado.valores[11] || '')) throw new Error('Este lancamento ja foi anulado');
+
+  // Uma entrada so pode ser anulada se as saidas posteriores continuarem
+  // cobertas pelas demais entradas. Assim o historico nunca produz saldo
+  // negativo depois de uma correcao.
+  if (String(achado.valores[2]).toLowerCase() === 'entrada') {
+    var materialId = String(achado.valores[3]);
+    var saldoDepois = saldoMaterialEstoqueAdm(materialId) - quantidadeEstoqueAdmValida(achado.valores[5]);
+    if (saldoDepois < 0) throw new Error('Esta entrada ja cobre materiais retirados e nao pode ser anulada');
+  }
+  s.getRange(achado.indice, 12).setValue(agora());
+  return dadosEstoqueAdm();
 }
 
 // Grava o estoque inteiro da divisao: itens = [{ item, quantidade, medida }].

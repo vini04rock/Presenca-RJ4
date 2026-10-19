@@ -8,7 +8,7 @@
 import { escopoPorChave, temDoacoesECaixinha } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { escapeHtml } from '../nucleo/util.js';
-import { carregarCaixinha, carregarDoacoes, carregarMovimentos, loadEstatisticas, loadInsightStats, loadReportData } from '../dados/carregar.js';
+import { carregarCaixinha, carregarDoacoes, carregarEstoqueAdm, carregarMovimentos, loadEstatisticas, loadInsightStats, loadReportData } from '../dados/carregar.js';
 import { fecharFormFinanceiro, fecharMesCaixinha } from '../fluxos/doacoes-caixinha.js';
 import { fecharPainelMovimento } from '../fluxos/movimentos.js';
 import { render } from '../nucleo/render.js';
@@ -18,6 +18,7 @@ import { renderAdminInsights } from './admin-insights.js';
 import { renderAdminDoacoes } from './admin-doacoes.js';
 import { renderAdminCaixinha } from './admin-caixinha.js';
 import { renderAdminMovimentos } from './admin-movimentos.js';
+import { renderAdminEstoqueAdm } from './admin-estoque-adm.js';
 
 // As secoes do organizador. Cada card do menu abre uma secao, e a barra de
 // abas mostra so as abas daquela secao - antes era uma barra unica com as
@@ -72,6 +73,14 @@ export const SECOES_ORGANIZADOR = {
     titulo: 'Entrada/Saída',
     abas: [{ chave: 'movimentos', label: 'Entrada/Saída' }],
   },
+  estoqueAdm: {
+    titulo: 'Estoque ADM',
+    abas: [
+      { chave: 'estoque-adm-movimentar', label: 'Movimentar' },
+      { chave: 'estoque-adm-estoque', label: 'Estoque' },
+      { chave: 'estoque-adm-relatorio', label: 'Relatório' },
+    ],
+  },
 };
 
 // De qual secao e uma aba. Evita guardar "em que secao estou" no state:
@@ -118,6 +127,8 @@ export function renderAdmin(app) {
     content.innerHTML = renderAdminCaixinha();
   } else if (state.adminTab === 'movimentos') {
     content.innerHTML = renderAdminMovimentos();
+  } else if (state.adminTab.startsWith('estoque-adm') && state.adminEscopo === 'regional') {
+    content.innerHTML = renderAdminEstoqueAdm();
   } else {
     content.innerHTML = renderAdminMembros();
   }
@@ -159,6 +170,7 @@ export async function abrirAbaOrganizador(aba) {
   state.caixinhaFinQtdExtrato = 15;
   fecharPainelMovimento();
   state.movimentosDivisaoAberta = null;
+  state.estoqueAdmAnularId = null;
   state.preencherEntradasIds = null;
   state.entradasRascunho = {};
   state.entradasMsg = null;
@@ -171,6 +183,7 @@ export async function abrirAbaOrganizador(aba) {
   // O livro tambem fica velho quando se movimenta alguem no cadastro (o
   // fluxo zera movimentosDados) - por isso busca tambem quando nao ha nada.
   if (aba === 'movimentos' && (entrandoNaSecao || !state.movimentosDados)) await carregarMovimentos();
+  if (aba.startsWith('estoque-adm') && entrandoNaSecao) await carregarEstoqueAdm();
 }
 
 // A unica acao do esqueleto: trocar de aba. Todas as outras moram no arquivo
