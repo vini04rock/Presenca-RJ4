@@ -138,17 +138,16 @@ function renderEventForm() {
       </div>
     </div>
 
-    ${quadroTipo({ campos: ch, attr: 'data-evc', categoria: state.adminEscopo, tipo: state.newEventTipo, acaoTipo: 'pick-tipo-evento' })}
-
-    ${state.adminEscopo === 'regional' ? `
-      <div class="card">
-        <div class="checkbox-row">
-          <input type="checkbox" id="evento-regional" data-evf="dispensaObrigatoriedade" ${f.dispensaObrigatoriedade !== false ? 'checked' : ''} aria-describedby="evento-regional-ajuda">
-          <label for="evento-regional" style="margin:0; color:var(--text);">Evento regional</label>
-        </div>
-        <div id="evento-regional-ajuda" style="font-size:12px; color:var(--text-muted); line-height:1.5;">Marcado: atende à obrigação deste tipo de evento para todas as divisões no mês. Desmarcado: cada divisão continua precisando realizar o seu.</div>
-      </div>
-    ` : ''}
+    ${quadroTipo({
+      campos: ch, attr: 'data-evc', categoria: state.adminEscopo,
+      tipo: state.newEventTipo, acaoTipo: 'pick-tipo-evento',
+      tituloExtra: state.adminEscopo === 'regional' ? `
+        <label class="evento-regional-opcao" for="evento-regional" title="Marcado: este tipo de evento atende à obrigação de todas as divisões no mês.">
+          <input type="checkbox" id="evento-regional" data-evf="dispensaObrigatoriedade" ${f.dispensaObrigatoriedade !== false ? 'checked' : ''}>
+          <span>Evento regional</span>
+        </label>
+      ` : ''
+    })}
 
     ${quadro(2, 'Informações', `
       ${caixa({ rotulo: 'Destino', valor: ch.destino, atributos: 'data-evc="destino"', dica: 'Ex: Bandas Bar - Paraíba do Sul' })}

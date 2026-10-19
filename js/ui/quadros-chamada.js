@@ -10,10 +10,13 @@ import { TIPOS_EVENTO, emojiTipoEvento } from '../nucleo/config.js';
 import { escapeHtml } from '../nucleo/util.js';
 import { linhaDoBonde } from '../dominio/convocacao.js';
 
-export function quadro(numero, titulo, corpo, nota) {
+export function quadro(numero, titulo, corpo, nota, tituloExtra) {
   return `
     <div class="card chamada-quadro">
-      <div class="chamada-quadro-titulo"><span>${numero}</span>${escapeHtml(titulo)}</div>
+      <div class="chamada-quadro-cabecalho">
+        <div class="chamada-quadro-titulo"><span>${numero}</span>${escapeHtml(titulo)}</div>
+        ${tituloExtra || ''}
+      </div>
       ${nota ? `<div class="chamada-quadro-nota">${nota}</div>` : ''}
       ${corpo}
     </div>
@@ -43,7 +46,7 @@ function campo(campos, attr, chave, rotulo, dica, linhas) {
 
 // Quadro 1. `tipo` e a ação dos chips vêm de fora: na chamada o tipo é um
 // campo dela, no evento é o tipo do próprio evento.
-export function quadroTipo({ campos, attr, categoria, tipo, acaoTipo }) {
+export function quadroTipo({ campos, attr, categoria, tipo, acaoTipo, tituloExtra }) {
   return quadro(1, 'Tipo de chamada', `
     <div class="chip-grid wide" style="margin-bottom:12px;">
       ${TIPOS_EVENTO.map(t => `
@@ -52,7 +55,7 @@ export function quadroTipo({ campos, attr, categoria, tipo, acaoTipo }) {
     </div>
     <div class="info-line chamada-auto">${escapeHtml(linhaDoBonde(categoria))}</div>
     ${campo(campos, attr, 'subtitulo', 'Subtítulo', 'Se ficar em branco, vai o nome do evento')}
-  `, 'O tipo vai no topo e a linha do bonde logo abaixo.');
+  `, 'O tipo vai no topo e a linha do bonde logo abaixo.', tituloExtra);
 }
 
 // Os três horários lado a lado, pra não ocupar três linhas com três números.

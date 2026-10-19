@@ -769,6 +769,13 @@ label {
 }
 .calendario-legenda-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
 .calendario-legenda-emoji { font-size: 14px; }
+.chamada-quadro-cabecalho { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.evento-regional-opcao {
+  display:flex; align-items:center; gap:6px; margin:0;
+  color:var(--text); font-size:11.5px; font-weight:600; white-space:nowrap;
+  cursor:pointer;
+}
+.evento-regional-opcao input { margin:0; }
 .presenca-pct {
   font-size: 15px;
   font-weight: 700;
