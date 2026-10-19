@@ -27,35 +27,65 @@ import { entrarNosRelatorios } from './relatorios.js';
 const SECOES = [
   // Cada card leva a PRIMEIRA aba da secao; as outras ficam na barra de
   // abas la dentro (ver SECOES_ORGANIZADOR em admin.js).
-  { aba: 'eventos', nome: 'Eventos', desc: 'Criar, editar, encerrar e ver os encerrados', icone: '🏍️', cor: '#E0B23C' },
-  { aba: 'membros', nome: 'Membros', desc: 'Cadastro, grau, cargo, funções e presenças', icone: '👥', cor: '#4C86D9' },
+  { area: 'operacional', aba: 'eventos', nome: 'Eventos', desc: 'Criar, editar, encerrar e ver os encerrados', icone: '🏍️', cor: '#E0B23C' },
+  { area: 'adm', aba: 'membros', nome: 'Membros', desc: 'Cadastro, grau, cargo, funções e presenças', icone: '👥', cor: '#4C86D9' },
   // Em todas as 7 divisoes: cada uma ve os proprios integrantes, e o
   // Regional escolhe a divisao antes do nome.
-  { acao: 'abrir-relatorio-individual', nome: 'Relatório individual', desc: 'Presença e Insight de cada integrante', icone: '📄', cor: '#D4A24C' },
+  { area: 'operacional', acao: 'abrir-relatorio-individual', nome: 'Relatório individual', desc: 'Presença e Insight de cada integrante', icone: '📄', cor: '#D4A24C' },
   // Insight e rodada do Regional - nao existe no nivel da divisao.
-  { aba: 'insights', nome: 'Insights', desc: 'Rodadas de Insight', icone: '💡', cor: '#B57EDC', visivel: () => state.adminEscopo === 'regional' },
+  { area: 'operacional', aba: 'insights', nome: 'Insights', desc: 'Rodadas de Insight', icone: '💡', cor: '#B57EDC', visivel: () => state.adminEscopo === 'regional' },
   // Doacoes e Caixinha so nas divisoes liberadas - decisao que mora em
   // temDoacoesECaixinha(), pra replicar pras outras num lugar so.
   // No Regional as duas tem jeito proprio: das Doacoes so o estoque, e a
   // Caixinha vem das divisoes - "noRegional" troca a aba de entrada e a
   // explicacao.
-  { aba: 'doacoes', nome: 'Doações', desc: 'Alimento de cada evento, o rank e o estoque', icone: '🥫', cor: '#4CAF6E',
+  { area: 'social', aba: 'doacoes', nome: 'Doações', desc: 'Alimento de cada evento, o rank e o estoque', icone: '🥫', cor: '#4CAF6E',
     noRegional: { aba: 'doacoes-estoque', desc: 'O estoque do Regional' },
     visivel: () => temDoacoesECaixinha(state.adminEscopo) },
-  { aba: 'caixinha', nome: 'Caixinha', desc: 'Quem pagou, quanto entrou e saiu, e o saldo do caixa', icone: '💰', cor: '#C9A227',
+  { area: 'adm', aba: 'caixinha', nome: 'Caixinha', desc: 'Quem pagou, quanto entrou e saiu, e o saldo do caixa', icone: '💰', cor: '#C9A227',
     noRegional: { desc: 'O que cada divisão contribuiu, entradas, saídas e o saldo' },
     visivel: () => temDoacoesECaixinha(state.adminEscopo) },
   // Nas 7: cada divisao ve o proprio livro, e o Regional o quadro de todas.
-  { aba: 'movimentos', nome: 'Entrada/Saída', desc: 'Quem entrou, quem está afastado e quem saiu', icone: '🔄', cor: '#8FA3B8' },
+  { area: 'adm', aba: 'movimentos', nome: 'Entrada/Saída', desc: 'Quem entrou, quem está afastado e quem saiu', icone: '🔄', cor: '#8FA3B8' },
   // Os Relatorios seguem so no Regional e na Barra - decisao do clube, que
   // mora em escoposAtivos() para nao ficar repetida aqui. Como a divisao e
   // o PIN ja vieram do organizador, nao ha PIN de novo.
-  { acao: 'abrir-relatorios-organizador', nome: 'Relatórios', desc: 'Resumo, colar convocação e painéis por tipo', icone: '📋', cor: '#5FA0C4',
+  { area: 'operacional', acao: 'abrir-relatorios-organizador', nome: 'Relatórios', desc: 'Resumo, colar convocação e painéis por tipo', icone: '📋', cor: '#5FA0C4',
     visivel: () => escoposAtivos().some(e => e.chave === state.adminEscopo) },
 ];
 
-function secoesVisiveis() {
-  return SECOES.filter(s => !s.visivel || s.visivel());
+const AREAS = [
+  { chave: 'adm', nome: 'ADM', desc: 'Membros, caixinha e movimentações', icone: '🗂️', cor: '#4C86D9' },
+  { chave: 'operacional', nome: 'Operacional', desc: 'Eventos, relatórios e Insights', icone: '🏍️', cor: '#E0B23C' },
+  { chave: 'social', nome: 'Social', desc: 'Doações e estoque', icone: '🤝', cor: '#4CAF6E' },
+];
+const ORDEM_POR_AREA = {
+  adm: ['caixinha', 'movimentos', 'membros'],
+  operacional: ['abrir-relatorios-organizador', 'abrir-relatorio-individual', 'insights', 'eventos'],
+  social: ['doacoes'],
+};
+
+function secoesVisiveis(area) {
+  const lista = SECOES.filter(s => (!area || s.area === area) && (!s.visivel || s.visivel()));
+  if (!area) return lista;
+  const ordem = ORDEM_POR_AREA[area] || [];
+  return lista.sort((a, b) => ordem.indexOf(a.acao || a.aba) - ordem.indexOf(b.acao || b.aba));
+}
+
+function areasVisiveis() {
+  return AREAS.filter(a => secoesVisiveis(a.chave).length);
+}
+
+function cardArea(area) {
+  return `
+    <div class="card event-card menu-org-card menu-org-area" style="border-left:3px solid ${area.cor};" data-action="abrir-area-organizador" data-value="${area.chave}">
+      <div class="menu-org-linha">
+        <div class="menu-org-icone" style="border-color:${area.cor};">${area.icone}</div>
+        <div><div class="name">${escapeHtml(area.nome)}</div><div class="meta">${escapeHtml(area.desc)}</div></div>
+      </div>
+      <div class="arrow">›</div>
+    </div>
+  `;
 }
 
 function cardSecao(secao) {
@@ -189,7 +219,8 @@ function cardObrigatoriedades() {
 // em seguida, sem travar a tela - ate elas chegarem o aviso diz que esta
 // vendo. Quem chama e o PIN (primeira entrada) e o "‹ Menu" de dentro das
 // secoes, porque o numero muda enquanto a pessoa trabalha.
-export async function entrarNoMenuOrganizador() {
+export async function entrarNoMenuOrganizador(naRaiz = false) {
+  if (naRaiz) state.organizadorArea = null;
   state.view = 'admin-menu';
   render();
   carregarTextosChamada();
@@ -197,6 +228,19 @@ export async function entrarNoMenuOrganizador() {
 }
 
 export function renderMenuOrganizador(app) {
+  const area = AREAS.find(a => a.chave === state.organizadorArea);
+  if (area) {
+    app.innerHTML = `
+      <div class="back-link on-photo" data-action="voltar-areas-organizador">‹ Menu do organizador</div>
+      <div class="event-header">
+        <h1 style="font-size:20px;">${escapeHtml(area.nome)}</h1>
+        <div class="count-box">${escapeHtml(escopoPorChave(state.adminEscopo).nome.toUpperCase())}</div>
+      </div>
+      <div class="rotulo-secao">Ferramentas</div>
+      ${secoesVisiveis(area.chave).map(cardSecao).join('')}
+    `;
+    return;
+  }
   app.innerHTML = `
     <div class="back-link on-photo" data-action="go-divisoes">‹ Trocar divisão</div>
     <div class="event-header">
@@ -205,7 +249,8 @@ export function renderMenuOrganizador(app) {
     </div>
     ${avisoEventosProximos()}
     ${state.adminEscopo === 'regional' ? cardObrigatoriedades() : ''}
-    ${secoesVisiveis().map(cardSecao).join('')}
+    <div class="rotulo-secao">Áreas</div>
+    ${areasVisiveis().map(cardArea).join('')}
   `;
 }
 
@@ -213,6 +258,14 @@ export function renderMenuOrganizador(app) {
 export const acoes = {
   'go-menu-organizador': async (id, target, action, e) => {
     return entrarNoMenuOrganizador();
+  },
+  'abrir-area-organizador': async (id, target, action, e) => {
+    state.organizadorArea = target.dataset.value;
+    return render();
+  },
+  'voltar-areas-organizador': async (id, target, action, e) => {
+    state.organizadorArea = null;
+    return render();
   },
   'abrir-secao-organizador': async (id, target, action, e) => {
     return abrirAbaOrganizador(target.dataset.tab);

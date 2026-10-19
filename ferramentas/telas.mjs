@@ -265,6 +265,11 @@ add('organizador / obrigatoriedades (tudo em dia)', { isAdmin:true, adminEscopo:
     ['Reunião', 'Pub', 'Bate e Volta', 'Ação Social'].map(t => evMes(c, t))) }, T.renderMenuOrganizador);
 add('organizador / menu (barra)',    { isAdmin:true, adminEscopo:'barra' }, T.renderMenuOrganizador);
 add('organizador / menu (oeste)',    { isAdmin:true, adminEscopo:'oeste' }, T.renderMenuOrganizador);
+add('organizador / área ADM (regional)', { isAdmin:true, adminEscopo:'regional', organizadorArea:'adm' }, T.renderMenuOrganizador);
+add('organizador / área Operacional (regional)', { isAdmin:true, adminEscopo:'regional', organizadorArea:'operacional' }, T.renderMenuOrganizador);
+add('organizador / área Social (regional)', { isAdmin:true, adminEscopo:'regional', organizadorArea:'social' }, T.renderMenuOrganizador);
+add('organizador / área ADM (oeste)', { isAdmin:true, adminEscopo:'oeste', organizadorArea:'adm' }, T.renderMenuOrganizador);
+add('organizador / área Operacional (oeste)', { isAdmin:true, adminEscopo:'oeste', organizadorArea:'operacional' }, T.renderMenuOrganizador);
 for (const aba of ['eventos','membros','encerrados','presencas','insights','insights-rodadas','insights-relatorio']) {
   add(`organizador / ${aba}`, { isAdmin:true, adminEscopo:'regional', adminTab:aba }, T.renderAdmin);
 }

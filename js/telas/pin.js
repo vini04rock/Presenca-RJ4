@@ -49,7 +49,7 @@ export async function checkPin() {
       // Depois do PIN a pessoa escolhe a secao no menu, em vez de cair
       // direto em Eventos - ver telas/menu-organizador.js. A entrada busca
       // as presencas dos eventos proximos, pro aviso do topo.
-      entrarNoMenuOrganizador();
+      entrarNoMenuOrganizador(true);
     },
   });
 }
@@ -59,6 +59,7 @@ export async function checkPin() {
 // e qual. O app.js so olha o nome da acao neste mapa e chama.
 export const acoes = {
   'go-divisoes': async (id, target, action, e) => {
+    state.organizadorArea = null;
     state.view = 'admin-divisoes'; return render();
   },
   'select-divisao': async (id, target, action, e) => {

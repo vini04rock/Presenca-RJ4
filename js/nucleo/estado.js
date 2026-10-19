@@ -293,6 +293,10 @@ export let state = {
   // A divisao aberta no card de obrigatoriedades do mes (menu do organizador
   // do Regional), com o detalhe dos tipos; null = nenhuma.
   obrigatoriedadeAberta: null,
+  // null = painel inicial do organizador; 'adm' | 'operacional' | 'social'
+  // = submenu com as ferramentas daquela area. E so organizacao visual:
+  // o PIN e as permissoes continuam sendo os da divisao escolhida.
+  organizadorArea: null,
 
   // Secao Entrada/Saida do organizador: o livro de movimentacoes da divisao
   // (ou de todas, no Regional) e o periodo. No Regional, a divisao aberta

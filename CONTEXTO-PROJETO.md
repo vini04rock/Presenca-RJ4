@@ -70,6 +70,14 @@ barra de abas, troca de aba), e cada seção tem o próprio arquivo —
 sabe **qual** aba desenhar, nunca **como**. Cada um exporta as próprias
 ações, e o `app.js` junta os quatro mapas.
 
+O menu organiza essas seções em três áreas, sem mudar permissões: **ADM**
+(Caixinha, Entrada/Saída e Membros), **Operacional** (Relatórios, Relatório
+individual, Insights e Eventos) e **Social** (Doações). Depois do PIN, o
+mural e os avisos continuam na raiz; tocar numa área abre apenas as
+ferramentas dela. Uma área sem nenhuma ferramenta liberada naquele escopo
+fica escondida. O PIN continua sendo um só por divisão — essa separação é
+visual, não um controle de acesso por cargo.
+
 O `render()` em `js/nucleo/render.js` é só um interruptor de 4 linhas: o
 roteador de verdade vive no `app.js`, que é quem conhece as telas, e se
 registra com `definirRender()` na partida. Sem esse desvio haveria ciclo —
