@@ -225,7 +225,8 @@ export function renderAdminDoacoes() {
   if (!d) return `<div class="card">${esqueletoLista(5)}</div>`;
 
   if (state.adminTab === 'doacoes-rank') return renderRank(d);
-  if (state.adminTab === 'doacoes-estoque') return renderEstoque();
+  // No Regional, das Doacoes so existe o estoque.
+  if (state.adminTab === 'doacoes-estoque' || state.adminEscopo === 'regional') return renderEstoque();
   const ev = eventoAberto();
   if (ev) return painelMarcar(ev);
   return aviso() + listaEventos(d);

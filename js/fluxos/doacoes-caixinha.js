@@ -7,7 +7,7 @@
 // mais simples de garantir que a tela mostra o que ficou gravado.
 
 import { carregarCaixinha, carregarDoacoes } from '../dados/carregar.js';
-import { formatReais, lerValor, nomeDoMes } from '../dominio/caixinha.js';
+import { divisoesContribuintes, formatReais, lerValor, nomeDoMes, vocabularioCaixinha } from '../dominio/caixinha.js';
 import { formatKg } from '../dominio/doacoes.js';
 import { conferirEstoque } from '../dominio/estoque.js';
 import { api, apiPost } from '../nucleo/api.js';
@@ -50,7 +50,7 @@ export async function salvarCaixinha() {
   // Valor que nao e valor ("3o", "50000"): avisa quem, em vez de gravar 0.
   const invalido = state.caixinhaMembroIds.find(id => state.caixinhaValores[id] === null);
   if (invalido) {
-    const m = state.roster.find(x => x.id === invalido) || state.caixinhaInfo[invalido] || {};
+    const m = state.roster.find(x => x.id === invalido) || divisoesContribuintes().find(x => x.id === invalido) || state.caixinhaInfo[invalido] || {};
     state.caixinhaMsg = { ok: false, texto: `O valor de ${m.nome || 'um integrante'} não está certo. Escreva só o número, como 30 ou 35,50.` };
     return render();
   }
@@ -73,7 +73,7 @@ export async function salvarCaixinha() {
       marcacoes: JSON.stringify(marcacoes),
     });
     const total = r.totalValor === undefined ? '' : ` · ${formatReais(r.totalValor)}`;
-    state.caixinhaMsg = { ok: true, texto: `✅ ${nomeDoMes(mes)}: ${r.pagaram} de ${r.total} pagaram${total}.` };
+    state.caixinhaMsg = { ok: true, texto: `✅ ${nomeDoMes(mes)}: ${r.pagaram} de ${r.total} ${vocabularioCaixinha(state.adminEscopo).pagaram}${total}.` };
     fecharMesCaixinha();
     mostrarAviso('💰 Caixinha salva');
     state.caixinhaSalvando = false;

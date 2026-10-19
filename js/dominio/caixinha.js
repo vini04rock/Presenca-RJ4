@@ -10,7 +10,7 @@
 // O saldo inicial e os lancamentos sao do controle financeiro (ver
 // dominio/caixinha-financeiro.js).
 
-import { VALOR_CAIXINHA_PADRAO, escopoPorChave } from '../nucleo/config.js';
+import { VALOR_CAIXINHA_PADRAO, escopoPorChave, escoposNaOrdemOficial } from '../nucleo/config.js';
 import { ordenarPorHierarquia } from '../nucleo/util.js';
 import { nomeDoPeriodo } from './doacoes.js';
 
@@ -62,6 +62,48 @@ export function lerValor(texto, maximo = VALOR_MAXIMO) {
 export function valorPago(m) {
   if (typeof m.valor === 'number') return m.valor;
   return m.pagou ? VALOR_CAIXINHA_PADRAO : 0;
+}
+
+// ---- a caixinha do Regional -------------------------------------------
+// A caixinha do Regional nao vem de integrantes: vem das DIVISOES, que
+// contribuem pra ela (decisao do clube, 19/10/2026). O resto e igual -
+// meses, valores, rank, controle financeiro - so que cada "participante" e
+// uma divisao: id = a chave dela ('barra'), nome = o nome ('Barra - RJ4').
+// Os textos mudam junto, e moram todos aqui pra tela, texto e imagem
+// falarem igual.
+
+export function ehCaixinhaDeDivisoes(escopo) { return escopo === 'regional'; }
+
+// As 6 divisoes, na ordem oficial: quem contribui pra caixinha do Regional.
+export function divisoesContribuintes() {
+  return escoposNaOrdemOficial().filter(e => e.chave !== 'regional').map(e => ({ id: e.chave, nome: e.nome }));
+}
+
+const VOCABULARIO = {
+  integrantes: {
+    quem: 'integrante', quemPlural: 'integrantes', pagou: 'pagou', pagaram: 'pagaram',
+    naoPagou: 'não pagou', naoPagaram: 'não pagaram', faltaPagar: 'falta pagar', faltamPagar: 'faltam pagar',
+    todosPagaram: 'todos pagaram', pagamento: 'pagamento', pagamentos: 'pagamentos',
+    mensalidades: 'Mensalidades', deCadaMes: 'Caixinha de',
+  },
+  divisoes: {
+    quem: 'divisão', quemPlural: 'divisões', pagou: 'contribuiu', pagaram: 'contribuíram',
+    naoPagou: 'não contribuiu', naoPagaram: 'não contribuíram', faltaPagar: 'falta contribuir', faltamPagar: 'faltam contribuir',
+    todosPagaram: 'todas contribuíram', pagamento: 'contribuição', pagamentos: 'contribuições',
+    mensalidades: 'Contribuições das divisões', deCadaMes: 'Contribuições de', regional: true,
+  },
+};
+export function vocabularioCaixinha(escopo) {
+  return ehCaixinhaDeDivisoes(escopo) ? VOCABULARIO.divisoes : VOCABULARIO.integrantes;
+}
+
+// Na ordem certa pra caixinha: divisoes na ordem oficial; integrantes na
+// hierarquica.
+export function ordenarParticipantes(lista, escopo) {
+  if (!ehCaixinhaDeDivisoes(escopo)) return ordenarPorHierarquia(lista);
+  const ordem = divisoesContribuintes().map(d => d.id);
+  const pos = id => { const i = ordem.indexOf(id); return i === -1 ? ordem.length : i; };
+  return lista.slice().sort((a, b) => pos(a.id) - pos(b.id) || String(a.nome).localeCompare(String(b.nome)));
 }
 
 // "out/26" - pros graficos, onde nao cabe o nome inteiro.
@@ -135,21 +177,22 @@ export function somaReais(valores) {
 }
 
 // Os integrantes de um mes, na ordem hierarquica, com o grau do cadastro.
-// Quem ja saiu do clube entra pelo nome que ficou gravado no mes.
-function integrantesDoMes(mesLancado, roster, pagou) {
-  return ordenarPorHierarquia((mesLancado.membros || []).filter(m => m.pagou === pagou)
-    .map(m => roster.find(r => r.id === m.id) || { id: m.id, nome: m.nome }));
+// Quem ja saiu do clube entra pelo nome que ficou gravado no mes. Na
+// caixinha do Regional, as divisoes, na ordem oficial.
+function integrantesDoMes(mesLancado, roster, pagou, escopo) {
+  return ordenarParticipantes((mesLancado.membros || []).filter(m => m.pagou === pagou)
+    .map(m => roster.find(r => r.id === m.id) || { id: m.id, nome: m.nome }), escopo);
 }
 
-export function quemNaoPagou(mesLancado, roster) {
-  return integrantesDoMes(mesLancado, roster, false);
+export function quemNaoPagou(mesLancado, roster, escopo) {
+  return integrantesDoMes(mesLancado, roster, false, escopo);
 }
 
 // O relatorio de um mes: quem pagou, quem nao pagou e o %. E o que a imagem
 // e o texto do mes mostram - os dois saem daqui pra nunca discordarem.
-export function relatorioMesCaixinha(mesLancado, roster) {
-  const pagaram = integrantesDoMes(mesLancado, roster, true);
-  const naoPagaram = integrantesDoMes(mesLancado, roster, false);
+export function relatorioMesCaixinha(mesLancado, roster, escopo) {
+  const pagaram = integrantesDoMes(mesLancado, roster, true, escopo);
+  const naoPagaram = integrantesDoMes(mesLancado, roster, false, escopo);
   const total = pagaram.length + naoPagaram.length;
   return { mes: mesLancado.mes, pagaram, naoPagaram, total,
     pct: total ? Math.round((pagaram.length / total) * 100) : null };
@@ -161,17 +204,18 @@ const listaDeMeses = l => l.map(nomeCurtoDoMes).join(', ');
 // O panorama do periodo pro grupo: o % da divisao, quem esta em dia e quem
 // esta devendo (com quais meses).
 export function textoCaixinha(rank, escopo, janela) {
+  const v = vocabularioCaixinha(escopo);
   const partes = [
     '💰 *CAIXINHA* 💰',
     `*${escopoPorChave(escopo).nome.toUpperCase()}* · ${nomeDoPeriodo(janela)}`,
     '',
   ];
-  if (rank.pct !== null) partes.push(`Em dia: *${rank.pct}%* dos pagamentos (${rank.pagamentos} de ${rank.cobrancas})`);
+  if (rank.pct !== null) partes.push(`Em dia: *${rank.pct}%* ${v.regional ? 'das' : 'dos'} ${v.pagamentos} (${rank.pagamentos} de ${rank.cobrancas})`);
   if (rank.arrecadado) partes.push(`Arrecadado: *${formatReais(rank.arrecadado)}*`);
-  rank.meses.slice().reverse().forEach(m => partes.push(`• ${nomeDoMes(m.mes)}: ${m.pagaram} de ${m.total} pagaram`));
+  rank.meses.slice().reverse().forEach(m => partes.push(`• ${nomeDoMes(m.mes)}: ${m.pagaram} de ${m.total} ${v.pagaram}`));
   if (rank.emDia.length) {
     partes.push('', '✅ *EM DIA*');
-    ordenarPorHierarquia(rank.emDia).forEach((m, i) => partes.push(`${i + 1}. ${linhaNome(m)}`));
+    ordenarParticipantes(rank.emDia, escopo).forEach((m, i) => partes.push(`${i + 1}. ${linhaNome(m)}`));
   }
   if (rank.devendo.length) {
     partes.push('', '⚠️ *PENDENTES*');
@@ -185,14 +229,15 @@ export function textoCaixinha(rank, escopo, janela) {
 // (18/10/2026), o relatorio do mes leva os nomes dos dois lados - na
 // imagem tambem.
 export function textoRelatorioMesCaixinha(mesLancado, roster, escopo) {
-  const r = relatorioMesCaixinha(mesLancado, roster);
+  const r = relatorioMesCaixinha(mesLancado, roster, escopo);
+  const v = vocabularioCaixinha(escopo);
   const partes = [
     '💰 *CAIXINHA* 💰',
     `*${escopoPorChave(escopo).nome.toUpperCase()}* · ${nomeDoMes(r.mes)}`,
     '',
-    `*${r.pagaram.length} de ${r.total}* pagaram${r.pct === null ? '' : ` (${r.pct}%)`}`,
+    `*${r.pagaram.length} de ${r.total}* ${v.pagaram}${r.pct === null ? '' : ` (${r.pct}%)`}`,
   ];
-  if (r.pagaram.length) partes.push('', `✅ *PAGARAM (${r.pagaram.length})*`, ...r.pagaram.map(m => `✅ ${linhaNome(m)}`));
-  if (r.naoPagaram.length) partes.push('', `❌ *NÃO PAGARAM (${r.naoPagaram.length})*`, ...r.naoPagaram.map(m => `❌ ${linhaNome(m)}`));
+  if (r.pagaram.length) partes.push('', `✅ *${v.pagaram.toUpperCase()} (${r.pagaram.length})*`, ...r.pagaram.map(m => `✅ ${linhaNome(m)}`));
+  if (r.naoPagaram.length) partes.push('', `❌ *${v.naoPagaram.toUpperCase()} (${r.naoPagaram.length})*`, ...r.naoPagaram.map(m => `❌ ${linhaNome(m)}`));
   return partes.join('\n');
 }

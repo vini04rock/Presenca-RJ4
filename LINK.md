@@ -103,9 +103,12 @@ Abas em uso:
   do organizador). Uma linha por evento × integrante que levou. É dado de
   verdade, gravado pelo app. Nasce sozinha no primeiro uso.
 - `EstoqueDoacoes` — as outras doações (aba "Outras doações" de Doações):
-  uma linha por item da divisão, com a quantidade de hoje e a medida (un
-  ou par). Salvar pelo app troca a lista inteira da divisão. Nasce sozinha
-  no primeiro uso.
+  uma linha por item da divisão, com a quantidade de hoje e a medida (un,
+  par ou kg; só o kg com casa decimal). Salvar pelo app troca a lista
+  inteira da divisão. Nasce sozinha no primeiro uso.
+- `Caixinha` — nas linhas com Divisao = `regional`, o "ID Membro" é a
+  chave de uma divisão (`barra`, `oeste`...): a caixinha do Regional vem
+  das divisões, não de integrantes.
 - `Caixinha` — quem pagou a caixinha em cada mês (seção Caixinha do
   organizador). Uma linha por divisão × mês × integrante que devia pagar,
   com Sim/Não e o Valor pago. Nasce sozinha no primeiro uso. A coluna

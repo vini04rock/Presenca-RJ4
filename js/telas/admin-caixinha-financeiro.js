@@ -8,8 +8,8 @@
 // sao os mesmos da secao inteira (state.caixinhaDados), buscados ao entrar
 // nela.
 
-import { formatReais, mesesParaEscolher, nomeCurtoDoMes, nomeDoMes } from '../dominio/caixinha.js';
-import { CATEGORIA_MENSALIDADES, controleCaixinha, mesesDoPeriodoFinanceiro, periodoDeUmMes, quandoDoSaldoInicial, rotuloDoPeriodoFinanceiro, textoControleCaixinha } from '../dominio/caixinha-financeiro.js';
+import { formatReais, mesesParaEscolher, nomeCurtoDoMes, nomeDoMes, vocabularioCaixinha } from '../dominio/caixinha.js';
+import { controleCaixinha, mesesDoPeriodoFinanceiro, periodoDeUmMes, quandoDoSaldoInicial, rotuloDoPeriodoFinanceiro, textoControleCaixinha } from '../dominio/caixinha-financeiro.js';
 import { PERIODOS, rotuloPilula } from '../dominio/doacoes.js';
 import { conferirSaldoInicial, definirSaldoInicial, fecharFormFinanceiro, removerLancamentoFinanceiro, salvarLancamentoFinanceiro } from '../fluxos/doacoes-caixinha.js';
 import { CATEGORIAS_SAIDA_CAIXINHA, CATEGORIA_ENTRADA_CAIXINHA, escopoPorChave } from '../nucleo/config.js';
@@ -21,6 +21,9 @@ import { imagensRelatorioCaixinha, mostrarPreviaImagem } from '../ui/imagem.js';
 
 const COR_ENTRADA = 'var(--status-confirmado)';
 const COR_SAIDA = 'var(--status-infracional)';
+
+// Na caixinha do Regional quem contribui sao as divisoes: os textos mudam junto.
+const vocab = () => vocabularioCaixinha(state.adminEscopo);
 
 function dadosCaixinha() {
   return state.caixinhaDadosEscopo === state.adminEscopo ? state.caixinhaDados : null;
@@ -88,9 +91,9 @@ function saidasPorCategoria(r, comItens) {
 function linhaExtrato(x) {
   const mensalidade = x.origem === 'mensalidade';
   const emoji = mensalidade ? '💵' : x.tipo === 'saida' ? '🔴' : '🟢';
-  const titulo = mensalidade ? x.descricao : (x.tipo === 'saida' ? x.categoria : (x.descricao || x.categoria));
+  const titulo = mensalidade ? `${vocab().deCadaMes} ${nomeDoMes(x.mes)}` : (x.tipo === 'saida' ? x.categoria : (x.descricao || x.categoria));
   const detalhe = mensalidade
-    ? `${x.pagaram} ${x.pagaram === 1 ? 'pagamento' : 'pagamentos'}`
+    ? `${x.pagaram} ${x.pagaram === 1 ? vocab().pagamento : vocab().pagamentos}`
     : `${formatDataBR(x.data)}${x.tipo === 'saida' && x.descricao ? ' · ' + x.descricao : ''}`;
   // Mensalidade se corrige no "Mes a mes"; lancamento abre aqui mesmo.
   const toque = mensalidade ? 'style="cursor:default;"' : `data-action="editar-lancamento-caixinha" data-id="${escapeHtml(x.id)}"`;
@@ -115,7 +118,7 @@ function extrato(itens, { limite, titulo } = {}) {
       <div class="division-subheader"><span>${escapeHtml(titulo || 'EXTRATO')}</span><span class="division-counts">${itens.length}</span></div>
       ${itens.length
         ? mostrar.map(linhaExtrato).join('')
-        : '<div class="empty">Nada lançado ainda.<br>Lance as saídas e as entradas pelos botões acima; as mensalidades vêm do Mês a mês.</div>'}
+        : `<div class="empty">Nada lançado ainda.<br>Lance as saídas e as entradas pelos botões acima; ${vocab().regional ? 'as contribuições das divisões' : 'as mensalidades'} vêm do Mês a mês.</div>`}
       ${limite && itens.length > limite ? `<button class="btn ghost block no-print" style="margin:8px 0;" data-action="mais-extrato-caixinha">Mostrar mais (${itens.length - limite})</button>` : ''}
     </div>
   `;
@@ -130,7 +133,7 @@ function cardDefinirSaldo() {
   return `
     <div class="card fin-saldo-inicial">
       <div class="painel-titulo">💼 Quanto tem na caixinha agora?</div>
-      <div class="fin-explica">É o ponto de partida do controle, informado <b>uma vez só</b>. O valor já inclui tudo deste mês: daqui pra frente o app soma as mensalidades a partir do mês que vem, e as entradas e saídas lançadas a partir de amanhã.</div>
+      <div class="fin-explica">É o ponto de partida do controle, informado <b>uma vez só</b>. O valor já inclui tudo deste mês: daqui pra frente o app soma ${vocab().regional ? 'as contribuições das divisões' : 'as mensalidades'} a partir do mês que vem, e as entradas e saídas lançadas a partir de amanhã.</div>
       ${confirmando && !c.erro ? `
         <div class="alert" style="margin-bottom:10px;">
           <div class="alert-msg">Confere: <b>${reais(c.valor)}</b> na caixinha hoje? Depois de salvo, o valor fica <b>travado</b> — só o PIN do Regional corrige.</div>
@@ -335,7 +338,7 @@ function relatorio(d) {
       ${r.periodoAntesDoInicio ? `<div class="alert info" style="margin-top:12px;"><div class="alert-msg">${escapeHtml(rotulo)} é de antes do saldo inicial (${escapeHtml(nomeDoMes(r.inicio))}): fica fora da conta.</div></div>` : ''}
       <div class="fin-conta">
         <div class="fin-conta-linha"><span>💼 Saldo no início</span><b>${reais(r.saldoAnterior)}</b></div>
-        <div class="fin-conta-linha entrada"><span>+ ${CATEGORIA_MENSALIDADES} <small>(${r.entradas.pagamentos} ${r.entradas.pagamentos === 1 ? 'pagamento' : 'pagamentos'})</small></span><b>${reais(r.entradas.mensalidades)}</b></div>
+        <div class="fin-conta-linha entrada"><span>+ ${escapeHtml(vocab().mensalidades)} <small>(${r.entradas.pagamentos} ${r.entradas.pagamentos === 1 ? vocab().pagamento : vocab().pagamentos})</small></span><b>${reais(r.entradas.mensalidades)}</b></div>
         <div class="fin-conta-linha entrada"><span>+ ${escapeHtml(CATEGORIA_ENTRADA_CAIXINHA)}</span><b>${reais(r.entradas.outras)}</b></div>
         <div class="fin-conta-linha saida"><span>− Saídas</span><b>${reais(r.saidas.total)}</b></div>
         <div class="fin-conta-linha total${r.saldoFinal < 0 ? ' negativo' : ''}"><span>💰 Saldo ${periodoDeUmMes(state.caixinhaFinPeriodo) ? 'no fim do mês' : 'final'}</span><b>${reais(r.saldoFinal)}</b></div>
@@ -462,7 +465,7 @@ export const acoes = {
     if (!r) return;
     const nome = escopoPorChave(state.adminEscopo).nome;
     const rotulo = rotuloDoPeriodoFinanceiro(state.caixinhaFinPeriodo);
-    return mostrarPreviaImagem(() => imagensRelatorioCaixinha(r, nome, rotulo), 'caixinha-relatorio.png');
+    return mostrarPreviaImagem(() => imagensRelatorioCaixinha(r, nome, rotulo, vocab()), 'caixinha-relatorio.png');
   },
   'pdf-controle-caixinha': async (id, target, action, e) => {
     window.print();

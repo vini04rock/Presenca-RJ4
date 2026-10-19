@@ -912,6 +912,36 @@ log('=== entrada/saída: afastamento, retorno e desligamento ===');
 }
 
 log('');
+log('=== caixinha do Regional (das divisões) e o kg no estoque ===');
+{
+  const p = montaPlanilha([], []);
+  const { contexto } = carregaCodeGs(p, { PIN_REGIONAL: '0418', PIN_BARRA: '1801' });
+  const regional = { escopo: 'regional', pin: '0418', divisao: 'regional' };
+  const tentar = (fn) => { try { const r = fn(); return r.ok === false ? r.erro : 'ok'; } catch (e) { return e.message; } };
+
+  const r = contexto.executar('caixinhaSalvar', { ...regional, mes: '2026-10', membroIds: 'oeste,barra,recreio',
+    valores: JSON.stringify({ oeste: 90, barra: 70 }) });
+  confere('o Regional lança o mês das divisões', [r.pagaram, r.total, r.totalValor], [2, 3, 160]);
+  confere('cada linha guarda a divisão e o nome dela', p.abas.Caixinha.dados.slice(1).map(l => [l[0], l[2], l[3], l[4], l[6]]), [
+    ['regional', 'oeste', 'Oeste - RJ4', 'Sim', 90], ['regional', 'barra', 'Barra - RJ4', 'Sim', 70], ['regional', 'recreio', 'Recreio - RJ4', 'Nao', '']]);
+  confere('e é lido de volta', contexto.executar('caixinha', regional).meses[0].membros.map(m => [m.id, m.nome, m.valor]),
+    [['oeste', 'Oeste - RJ4', 90], ['barra', 'Barra - RJ4', 70], ['recreio', 'Recreio - RJ4', 0]]);
+  confere('na caixinha do Regional só entram divisões', tentar(() => contexto.executar('caixinhaSalvar', { ...regional, mes: '2026-11', membroIds: 'm1' })),
+    'Divisao desconhecida: m1');
+  confere('o Regional não contribui pra ele mesmo', tentar(() => contexto.executar('caixinhaSalvar', { ...regional, mes: '2026-11', membroIds: 'regional' })),
+    'Divisao desconhecida: regional');
+  confere('a Barra não mexe na caixinha do Regional',
+    contexto.executar('caixinhaSalvar', { escopo: 'barra', pin: '1801', divisao: 'regional', mes: '2026-11', membroIds: 'barra' }).ok, false);
+
+  const salvar = (itens) => contexto.executar('estoqueSalvar', { ...regional, itens: JSON.stringify(itens) });
+  salvar([{ item: 'Arroz', quantidade: 20.5, medida: 'kg' }, { item: 'Cobertor', quantidade: 3, medida: 'un' }]);
+  confere('o estoque do Regional, com kg e casa decimal', contexto.executar('doacoes', regional).estoque,
+    [{ item: 'Arroz', quantidade: 20.5, medida: 'kg' }, { item: 'Cobertor', quantidade: 3, medida: 'un' }]);
+  confere('kg com duas casas decimais é recusado', tentar(() => salvar([{ item: 'Feijão', quantidade: 2.55, medida: 'kg' }])), 'Quantidade invalida em Feijão');
+  confere('un com decimal continua recusado', tentar(() => salvar([{ item: 'Blusa', quantidade: 1.5, medida: 'un' }])), 'Quantidade invalida em Blusa');
+}
+
+log('');
 log('=== remover: cadastro feito errado some de tudo ===');
 {
   const p = montaPlanilha([ev('b1', '2026-09-05', 'encerrado')], [pr('b1', 'm1', 'Confirmado'), pr('b1', 'm2', 'Confirmado')]);

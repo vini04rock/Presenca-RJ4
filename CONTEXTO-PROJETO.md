@@ -426,10 +426,26 @@ livro).
 Duas seções do menu do organizador, criadas em 18/10/2026 para dar número
 à conversa do clube: quem está bem e onde dá para melhorar. **Só aparecem
 nas divisões de `DIVISOES_COM_DOACOES_E_CAIXINHA`** (`js/nucleo/config.js`),
-hoje só a Barra. Replicar para outra divisão é acrescentar a chave dela
-ali, e mais nada: telas, planilha e PIN já funcionam para qualquer uma. O
-Regional fica de fora até ganhar uma visão própria, com todas as divisões
-juntas.
+hoje a Barra e o Regional. Replicar para outra divisão é acrescentar a
+chave dela ali, e mais nada: telas, planilha e PIN já funcionam para
+qualquer uma.
+
+**No Regional as duas têm jeito próprio** (decisão do clube, 19/10/2026):
+
+- **A caixinha do Regional vem das divisões**, não de integrantes: as
+  divisões contribuem para ela. A lista de cada mês são as 6 divisões, na
+  ordem oficial (`divisoesContribuintes`), cada uma com o valor que
+  contribuiu, **sempre digitado**, sem botão de valor padrão. Na planilha,
+  a linha guarda a chave da divisão no lugar do ID do integrante, e o
+  `Code.gs` só aceita divisão ali. Rank, controle financeiro e relatórios
+  são os mesmos, e os textos mudam junto: "contribuíram",
+  "Contribuições das divisões", "divisões com tudo em dia"
+  (`vocabularioCaixinha`, em `dominio/caixinha.js`, usado pela tela, pelo
+  texto e pela imagem). **Cada caixa lança o seu:** marcar que a Barra
+  contribuiu não mexe no caixa da Barra, que lança a própria saída.
+- **Das Doações, o Regional tem só o estoque:** as abas "Por evento" e
+  "Rank" (o 1 kg de cada integrante) são de divisão (`soNasDivisoes`, em
+  `telas/admin.js`), e o card do menu abre direto no estoque.
 
 **Doações** (`telas/admin-doacoes.js`, contas em `dominio/doacoes.js`). A
 regra do clube é levar 1 kg de alimento em todo evento.
@@ -452,10 +468,14 @@ regra do clube é levar 1 kg de alimento em todo evento.
 **estoque do clube**, que não é de integrante nenhum: roupas, cobertores,
 sapatos e o que mais vier, com a quantidade de hoje.
 
-- **Um card por item**, com o nome, a medida (**un** ou **par**) e − /
-  quantidade / +. O "par" é sugerido sozinho quando o nome tem sapato,
-  tênis, chinelo, sandália, bota ou meia (`sugerirMedida`); tocar na
-  medida troca, e daí a sugestão para de mexer naquele card.
+- **Um card por item**, com o nome, a medida (**un**, **par** ou **kg**)
+  e − / quantidade / +. O "par" é sugerido sozinho quando o nome tem
+  sapato, tênis, chinelo, sandália, bota ou meia, e o "kg" com arroz,
+  feijão, açúcar, macarrão, farinha, fubá, café, sal ou alimento
+  (`sugerirMedida`); tocar na medida gira un → par → kg, e daí a sugestão
+  para de mexer naquele card. Só o **kg aceita uma casa decimal** (2,5 kg),
+  no app e no `Code.gs`; o número aparece sem ponto de milhar, pra o ponto
+  nunca se confundir com a vírgula decimal.
 - **Sempre um card vazio só, no fim.** Começou a escrever nele, aparece
   outro embaixo. Escrever **não redesenha a tela** (o teclado fecharia):
   `atualizarCampoEstoque` põe o card novo, o resumo e o contador de
@@ -729,7 +749,7 @@ a cada mudança:
 | `servidor.py` | serve o app local com o cache desligado |
 | `estrutura.py` | 7 verificações: imports circulares, hierarquia de camadas, sintaxe, nome sem import, import sobrando, ações sem tratador |
 | `regras.mjs` | as regras do clube que, se quebrarem, saem erradas numa convocação sem ninguém perceber |
-| `telas.mjs` | desenha as 153 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
+| `telas.mjs` | desenha as 162 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
 | `planilha.mjs` | roda o `Code.gs` de verdade contra uma planilha de mentira: encerramento automático, PIN, relatório individual, responsável, textos, chamada do evento, doações, caixinha e entrada/saída |
 
 O `--html` do `telas.mjs` é a rede de proteção mais útil: captura o HTML de
@@ -855,7 +875,7 @@ ferramentas, acima):
 
     py ferramentas/estrutura.py     # imports, camadas, sintaxe, ações
     node ferramentas/regras.mjs     # ordem hierárquica e formato da convocação
-    node ferramentas/telas.mjs      # desenha as 153 telas e abas
+    node ferramentas/telas.mjs      # desenha as 162 telas e abas
     node ferramentas/planilha.mjs   # o encerramento automático, no Code.gs
 
 Eles dizem que o app **não quebrou**, não que está bonito: não cobrem

@@ -494,6 +494,27 @@ add('doações / carregando',            { ...dc, adminTab:'doacoes', doacoesDad
 add('doações / dados de outra divisão', { ...dc, adminTab:'doacoes', doacoesDadosEscopo:'oeste' }, T.renderAdmin);
 add('doações / erro',                  { ...dc, adminTab:'doacoes', doacoesErro:'A conexao demorou demais' }, T.renderAdmin);
 add('outras doações / estoque',         { ...dc, adminTab:'doacoes-estoque' }, T.renderAdmin);
+add('outras doações / estoque com kg',  { ...dc, adminTab:'doacoes-estoque', estoqueCards:[
+  { item:'Arroz', quantidade:20.5, medida:'kg', medidaManual:false }, { item:'Cobertor', quantidade:3, medida:'un', medidaManual:true },
+  { item:'', quantidade:0, medida:'un' }] }, T.renderAdmin);
+// O Regional: das Doacoes so o estoque (sem as abas Por evento e Rank, e a
+// aba "doacoes" tambem cai no estoque); a Caixinha vem das divisoes.
+const rg = { isAdmin:true, adminEscopo:'regional', doacoesDadosEscopo:'regional', caixinhaDadosEscopo:'regional',
+  doacoesDados:{ eventos:[], nomes:{}, estoque:[{ item:'Arroz', quantidade:40, medida:'kg' }, { item:'Cobertor', quantidade:12, medida:'un' }] },
+  caixinhaDados:{ meses:[{ mes:'2026-10', membros:[
+    { id:'oeste', nome:'Oeste - RJ4', pagou:true, valor:90 }, { id:'barra', nome:'Barra - RJ4', pagou:true, valor:70 },
+    { id:'recreio', nome:'Recreio - RJ4', pagou:false, valor:0 }] }],
+    saldoInicial:{ mes:'2026-09', data:'2026-09-30', valor:500 }, lancamentos:[] }, caixinhaPeriodo:0 };
+add('regional / doações (só estoque)',   { ...rg, adminTab:'doacoes-estoque' }, T.renderAdmin);
+add('regional / doações pela aba antiga', { ...rg, adminTab:'doacoes' }, T.renderAdmin);
+add('regional / caixinha mês a mês',     { ...rg, adminTab:'caixinha' }, T.renderAdmin);
+add('regional / caixinha mês das divisões', { ...rg, adminTab:'caixinha', caixinhaMes:'2026-10',
+  caixinhaMembroIds:['oeste','barra','recreio'], caixinhaValores:{ oeste:90, barra:70 } }, T.renderAdmin);
+add('regional / caixinha mês novo',      { ...rg, adminTab:'caixinha', caixinhaMes:'2026-11',
+  caixinhaMembroIds:['oeste','recreio','barra','curicica','taquara','gardenia'] }, T.renderAdmin);
+add('regional / caixinha rank',          { ...rg, adminTab:'caixinha-rank' }, T.renderAdmin);
+add('regional / caixinha controle',      { ...rg, adminTab:'caixinha-financeiro' }, T.renderAdmin);
+add('regional / caixinha relatório',     { ...rg, adminTab:'caixinha-financeiro', caixinhaFinRelatorio:true, caixinhaFinPeriodo:'2026-10' }, T.renderAdmin);
 add('outras doações / estoque vazio',   { ...dc, adminTab:'doacoes-estoque', doacoesDados:{ eventos:[], nomes:{}, estoque:[] } }, T.renderAdmin);
 add('outras doações / mexendo (não salvo)', { ...dc, adminTab:'doacoes-estoque', estoqueCards:[
   { item:'Cobertor', quantidade:10, medida:'un', medidaManual:true }, { item:'Tênis', quantidade:2, medida:'par', medidaManual:false },

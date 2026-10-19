@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-10-19-v-remover-de-tudo';
+var VERSAO = '2026-10-19-v-caixinha-regional';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -117,7 +117,8 @@ var TIPOS_LANCAMENTO = { saldoInicial: 'Saldo inicial', entrada: 'Entrada', said
 // nao e de integrante nenhum. Uma linha por item da divisao, com a
 // quantidade de HOJE - sem historico (decisao do clube, 19/10/2026). Salvar
 // troca a lista inteira da divisao, entao a aba e sempre igual a tela.
-// "Medida" e 'un' ou 'par'.
+// "Medida" e 'un', 'par' ou 'kg' (alimento) - so o kg aceita uma casa
+// decimal (2,5 kg).
 var CAB_ESTOQUE = ['Divisao', 'Item', 'Quantidade', 'Medida', 'Atualizado em'];
 // O livro de Entrada/Saida de integrantes: uma linha por movimentacao, e
 // nada aqui e apagado. "Tipo" e Entrada, Afastamento, Retorno ou
@@ -1703,9 +1704,20 @@ function lerEstoque(divisao) {
   return linhas(aba(ABA_ESTOQUE, CAB_ESTOQUE))
     .filter(function (l) { return String(l[0]) === divisao && String(l[1]).trim(); })
     .map(function (l) {
-      var q = Math.floor(Number(l[2]));
-      return { item: String(l[1]).trim(), quantidade: isFinite(q) && q > 0 ? q : 0, medida: String(l[3]) === 'par' ? 'par' : 'un' };
+      var medida = MEDIDAS_ESTOQUE.indexOf(String(l[3])) !== -1 ? String(l[3]) : 'un';
+      var q = quantidadeDoEstoque(Number(String(l[2]).replace(',', '.')), medida);
+      return { item: String(l[1]).trim(), quantidade: q === null || q < 0 ? 0 : q, medida: medida };
     });
+}
+
+var MEDIDAS_ESTOQUE = ['un', 'par', 'kg'];
+
+// A quantidade valida pra medida: un e par sao inteiros; kg aceita uma casa
+// decimal. null = nao e quantidade.
+function quantidadeDoEstoque(q, medida) {
+  if (!isFinite(q)) return null;
+  if (medida === 'kg') return Math.round(q * 10) / 10;
+  return Math.floor(q) === q ? q : null;
 }
 
 // "Cobertor" e "cobertôr " sao o mesmo item - a mesma regra do app.
@@ -1727,12 +1739,14 @@ function salvarEstoque(p) {
   var novas = itens.map(function (x) {
     var item = String((x && x.item) || '').trim().replace(/\s+/g, ' ').slice(0, 60);
     if (!item) throw new Error('Item sem nome');
-    var q = Number(x.quantidade);
-    if (!isFinite(q) || q < 0 || q > 100000 || Math.floor(q) !== q) throw new Error('Quantidade invalida em ' + item);
+    var medida = MEDIDAS_ESTOQUE.indexOf(x.medida) !== -1 ? x.medida : 'un';
+    var bruto = Number(x.quantidade);
+    var q = quantidadeDoEstoque(bruto, medida);
+    if (q === null || q < 0 || q > 100000 || (medida === 'kg' && Math.abs(q - bruto) > 1e-9)) throw new Error('Quantidade invalida em ' + item);
     var chave = chaveDoItem(item);
     if (vistos[chave]) throw new Error('Item repetido: ' + item);
     vistos[chave] = true;
-    return [divisao, item, q, x.medida === 'par' ? 'par' : 'un', momento];
+    return [divisao, item, q, medida, momento];
   });
   var s = aba(ABA_ESTOQUE, CAB_ESTOQUE);
   apagarLinhas(s, function (l) { return String(l[0]) === divisao; });
@@ -1868,11 +1882,21 @@ function salvarCaixinhaMes(p) {
   var ids = listaDe(p.membroIds);
   // Confere ANTES de apagar: um mes salvo sem ninguem apagaria o que havia.
   if (!ids.length) throw new Error('O mes precisa ter pelo menos 1 integrante');
+  // A caixinha do Regional vem das DIVISOES, nao de integrantes (decisao do
+  // clube, 19/10/2026): cada "membro" e a chave de uma divisao ('barra'), e
+  // o nome gravado e o dela.
+  var deDivisoes = divisao === 'regional';
+  if (deDivisoes) {
+    ids.forEach(function (id) {
+      if (id === 'regional' || ESCOPOS_VALIDOS.indexOf(id) === -1) throw new Error('Divisao desconhecida: ' + id);
+    });
+  }
   var marcacoes = typeof p.marcacoes === 'string' ? parseOuVazio(p.marcacoes, {}) : (p.marcacoes || {});
   var temValores = p.valores !== undefined && p.valores !== null && p.valores !== '';
   var valores = typeof p.valores === 'string' ? parseOuVazio(p.valores, {}) : (p.valores || {});
   var nomes = {};
-  lerMembros().forEach(function (m) { nomes[m.id] = m.nome; });
+  if (deDivisoes) nomes = ESCOPOS_NOME;
+  else lerMembros().forEach(function (m) { nomes[m.id] = m.nome; });
   var momento = agora();
   var pagaram = 0;
   var totalValor = 0;

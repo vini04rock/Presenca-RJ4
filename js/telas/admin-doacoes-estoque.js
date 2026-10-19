@@ -7,7 +7,7 @@
 // O rascunho (state.estoqueCards) nasce do que esta salvo na primeira vez
 // que a aba desenha, e fica ate salvar, desfazer ou entrar de novo na secao.
 
-import { cardVazio, mudancasNoEstoque, resumoEstoque, sugerirMedida, textoResumoEstoque, conferirEstoque, QUANTIDADE_MAXIMA } from '../dominio/estoque.js';
+import { cardVazio, lerQuantidade, mudancasNoEstoque, numeroEstoque, proximaMedida, resumoEstoque, sugerirMedida, textoResumoEstoque, conferirEstoque, QUANTIDADE_MAXIMA } from '../dominio/estoque.js';
 import { salvarEstoque } from '../fluxos/doacoes-caixinha.js';
 import { escopoPorChave } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
@@ -59,10 +59,10 @@ function cardItem(c, i, lista) {
       <input type="text" class="estoque-nome" data-i="${i}" maxlength="60" autocomplete="off"
              value="${escapeHtml(c.item)}" placeholder="${vazio ? '+ Novo item (ex.: Cobertor)' : 'Nome do item'}">
       <div class="estoque-controles">
-        <button class="estoque-medida" data-action="estoque-medida" data-id="${i}" aria-label="Trocar entre unidade e par">${c.medida === 'par' ? 'par' : 'un'}</button>
+        <button class="estoque-medida" data-action="estoque-medida" data-id="${i}" aria-label="Trocar a medida: unidade, par ou kg">${escapeHtml(c.medida || 'un')}</button>
         <button class="kg-botao" data-action="estoque-menos" data-id="${i}" aria-label="Menos 1">−</button>
-        <input type="text" inputmode="numeric" class="estoque-qtd" data-i="${i}" maxlength="6" autocomplete="off"
-               value="${vazio && !c.quantidade ? '' : c.quantidade}" placeholder="0" aria-label="Quantidade">
+        <input type="text" inputmode="${c.medida === 'kg' ? 'decimal' : 'numeric'}" class="estoque-qtd" data-i="${i}" maxlength="8" autocomplete="off"
+               value="${vazio && !c.quantidade ? '' : numeroEstoque(c.quantidade)}" placeholder="0" aria-label="Quantidade">
         <button class="kg-botao" data-action="estoque-mais" data-id="${i}" aria-label="Mais 1">+</button>
         ${vazio ? '' : LIXEIRA(i)}
       </div>
@@ -78,7 +78,7 @@ export function renderEstoque() {
     ${aviso()}
     <div class="card">
       <div class="painel-titulo">📦 Outras doações</div>
-      <div class="fin-explica">O estoque do clube: roupas, cobertores, sapatos… o que vocês têm guardado hoje, item por item. O 1 kg de alimento de cada evento continua em "Por evento".</div>
+      <div class="fin-explica">O estoque do clube: roupas, cobertores, sapatos, alimentos… o que vocês têm guardado hoje, item por item.${state.adminEscopo === 'regional' ? '' : ' O 1 kg de alimento de cada evento continua em "Por evento".'}</div>
       <div class="doacao-total" id="estoque-resumo">${resumoHtml(lista)}</div>
       <button class="btn secondary block no-print" style="margin-top:12px;" data-action="imagem-estoque">🖼️ Imagem pro grupo</button>
     </div>
@@ -108,9 +108,12 @@ export function atualizarCampoEstoque(campo, raiz) {
       if (botao) botao.textContent = c.medida;
     }
   } else {
-    const digitos = campo.value.replace(/\D/g, '').slice(0, 6);
-    if (digitos !== campo.value) campo.value = digitos;
-    c.quantidade = digitos === '' ? 0 : Math.min(QUANTIDADE_MAXIMA, Number(digitos));
+    // kg aceita uma casa decimal (com virgula); un e par, so digitos.
+    const limpo = c.medida === 'kg'
+      ? campo.value.replace(/[^\d,.]/g, '').replace('.', ',').replace(/(,\d?).*$/, '$1').slice(0, 8)
+      : campo.value.replace(/\D/g, '').slice(0, 6);
+    if (limpo !== campo.value) campo.value = limpo;
+    c.quantidade = Math.min(QUANTIDADE_MAXIMA, lerQuantidade(limpo, c.medida));
   }
   if (i === lista.length - 1 && !cardVazio(c)) {
     lista.push(novoCard());
@@ -135,17 +138,22 @@ export function atualizarCampoEstoque(campo, raiz) {
 export const acoes = {
   'estoque-mais': async (id, target, action, e) => {
     const c = cards()[Number(id)];
-    if (c) c.quantidade = Math.min(QUANTIDADE_MAXIMA, (Number(c.quantidade) || 0) + 1);
+    if (c) c.quantidade = Math.min(QUANTIDADE_MAXIMA, Math.round(((Number(c.quantidade) || 0) + 1) * 10) / 10);
     return render();
   },
   'estoque-menos': async (id, target, action, e) => {
     const c = cards()[Number(id)];
-    if (c) c.quantidade = Math.max(0, (Number(c.quantidade) || 0) - 1);
+    if (c) c.quantidade = Math.max(0, Math.round(((Number(c.quantidade) || 0) - 1) * 10) / 10);
     return render();
   },
   'estoque-medida': async (id, target, action, e) => {
     const c = cards()[Number(id)];
-    if (c) { c.medida = c.medida === 'par' ? 'un' : 'par'; c.medidaManual = true; }
+    // un -> par -> kg -> un. Saindo do kg, a quantidade perde a casa decimal.
+    if (c) {
+      c.medida = proximaMedida(c.medida);
+      c.quantidade = lerQuantidade(String(c.quantidade), c.medida);
+      c.medidaManual = true;
+    }
     return render();
   },
   'estoque-remover': async (id, target, action, e) => {

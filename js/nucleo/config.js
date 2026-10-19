@@ -60,9 +60,13 @@ export function escoposAtivos() {
 // Doacoes e Caixinha, no menu do organizador: liberadas so nas divisoes
 // desta lista. Comecam pela Barra, a unica em uso; replicar pra outra e
 // acrescentar a chave dela aqui, e mais nada - telas, planilha e PIN ja
-// funcionam pra qualquer divisao. O Regional nao entra enquanto nao tiver
-// uma visao propria (o quadro de todas as divisoes juntas).
-const DIVISOES_COM_DOACOES_E_CAIXINHA = ['barra'];
+// funcionam pra qualquer divisao.
+//
+// O Regional entra com um jeito proprio (decisao do clube, 19/10/2026): a
+// caixinha dele vem das DIVISOES, nao de integrantes (ver
+// vocabularioCaixinha em dominio/caixinha.js), e das Doacoes ele tem so o
+// estoque (ver soNasDivisoes em telas/admin.js).
+const DIVISOES_COM_DOACOES_E_CAIXINHA = ['barra', 'regional'];
 export function temDoacoesECaixinha(chave) { return DIVISOES_COM_DOACOES_E_CAIXINHA.includes(chave); }
 
 // O valor comum da caixinha: o botao "💵 R$ 30" de cada integrante marca

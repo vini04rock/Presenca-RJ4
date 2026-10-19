@@ -23,7 +23,7 @@
 
 import { CATEGORIA_ENTRADA_CAIXINHA, escopoPorChave } from '../nucleo/config.js';
 import { formatDataBR } from '../nucleo/util.js';
-import { formatReais, mesISO, nomeDoMes, somaReais, valorPago } from './caixinha.js';
+import { formatReais, mesISO, nomeDoMes, somaReais, valorPago, vocabularioCaixinha } from './caixinha.js';
 import { nomeDoPeriodo } from './doacoes.js';
 
 export const CATEGORIA_MENSALIDADES = 'Mensalidades';
@@ -227,7 +227,8 @@ export function textoControleCaixinha(r, escopo) {
     `🟢 *ENTRADAS: ${formatReais(r.entradas.total)}*`,
   ];
   if (r.entradas.mensalidades) {
-    partes.push(`• ${CATEGORIA_MENSALIDADES}: ${formatReais(r.entradas.mensalidades)} (${r.entradas.pagamentos} ${r.entradas.pagamentos === 1 ? 'pagamento' : 'pagamentos'})`);
+    const v = vocabularioCaixinha(escopo);
+    partes.push(`• ${v.mensalidades}: ${formatReais(r.entradas.mensalidades)} (${r.entradas.pagamentos} ${r.entradas.pagamentos === 1 ? v.pagamento : v.pagamentos})`);
   }
   if (r.entradas.outras) {
     partes.push(`• ${CATEGORIA_ENTRADA_CAIXINHA}: ${formatReais(r.entradas.outras)}`);

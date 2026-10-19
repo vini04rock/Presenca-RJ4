@@ -4,10 +4,13 @@
 // (o caixa: saldo, entradas e saidas - em admin-caixinha-financeiro.js).
 // As contas moram em dominio/caixinha.js.
 //
-// So aparece nas divisoes de temDoacoesECaixinha (ver config.js).
+// So aparece nas divisoes de temDoacoesECaixinha (ver config.js). No
+// Regional, quem contribui sao as DIVISOES, e nao integrantes: a lista do
+// mes sao as 6 divisoes, sem valor padrao, e os textos mudam junto
+// (vocabularioCaixinha, em dominio/caixinha.js).
 
 import { carregarCaixinha } from '../dados/carregar.js';
-import { formatReais, lerValor, mesesParaEscolher, nomeCurtoDoMes, nomeDoMes, rankCaixinha, relatorioMesCaixinha, somaReais, textoCaixinha, textoRelatorioMesCaixinha, valorPago } from '../dominio/caixinha.js';
+import { divisoesContribuintes, ehCaixinhaDeDivisoes, formatReais, lerValor, mesesParaEscolher, nomeCurtoDoMes, nomeDoMes, ordenarParticipantes, rankCaixinha, relatorioMesCaixinha, somaReais, textoCaixinha, textoRelatorioMesCaixinha, valorPago, vocabularioCaixinha } from '../dominio/caixinha.js';
 import { PERIODOS, nomeDoPeriodo, rotuloPilula } from '../dominio/doacoes.js';
 import { membrosDoEscopo } from '../dominio/estatisticas.js';
 import { soAtivos } from '../dominio/movimentos.js';
@@ -15,7 +18,7 @@ import { fecharFormFinanceiro, fecharMesCaixinha, removerMesCaixinha, salvarCaix
 import { VALOR_CAIXINHA_PADRAO, escopoPorChave } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
-import { copiarTexto, escapeHtml, ordenarPorHierarquia } from '../nucleo/util.js';
+import { copiarTexto, escapeHtml } from '../nucleo/util.js';
 import { anelConfirmados, medalha, posicoesDoPodio, selinhoIniciais } from '../ui/comuns.js';
 import { esqueletoLista, renderDonutChart } from '../ui/graficos.js';
 import { imagemCaixinha, imagemMesCaixinha, mostrarPreviaImagem } from '../ui/imagem.js';
@@ -36,10 +39,25 @@ function aviso() {
   return `<div class="alert ${m.ok ? 'ok' : ''}" style="margin-bottom:14px;"><div class="alert-msg">${escapeHtml(m.texto)}</div></div>`;
 }
 
+const deDivisoes = () => ehCaixinhaDeDivisoes(state.adminEscopo);
+const vocab = () => vocabularioCaixinha(state.adminEscopo);
+const maiuscula = t => t.charAt(0).toUpperCase() + t.slice(1);
+const ordenar = lista => ordenarParticipantes(lista, state.adminEscopo);
+// O selinho de iniciais. Divisao entra pelo nome curto ("Oeste", sem o
+// " - RJ4"), senao as iniciais sairiam "O-".
+const seloIniciais = m => selinhoIniciais(deDivisoes() ? { nome: String(m.nome).split(' - ')[0] } : m);
+
+// Quem participa da caixinha: os integrantes atuais da divisao, ou, no
+// Regional, as 6 divisoes.
+function participantes() {
+  return deDivisoes() ? divisoesContribuintes() : membrosDoEscopo();
+}
+
 // Quem esta na lista do mes aberto, com nome e grau - do cadastro, ou do
 // nome gravado no mes pra quem ja saiu do clube.
 function membroDaLista(id) {
-  return state.roster.find(m => m.id === id) || { id, ...(state.caixinhaInfo[id] || { nome: '(sem nome)' }) };
+  return participantes().find(m => m.id === id) || state.roster.find(m => m.id === id)
+    || { id, ...(state.caixinhaInfo[id] || { nome: '(sem nome)' }) };
 }
 
 // ---------- aba "Mês a mês" ----------
@@ -77,7 +95,7 @@ function cardMesLancado(l) {
           <div class="nome-evento-card">💰 ${escapeHtml(nomeDoMes(l.mes))}</div>
           <div class="meta-card-evento">
             <span class="selo-confirmados">${anelConfirmados(pagaram, l.membros.length)}${pagaram}/${l.membros.length}</span>
-            <span>${faltam ? `${faltam} ${faltam === 1 ? 'falta pagar' : 'faltam pagar'}` : 'todos pagaram'}</span>
+            <span>${faltam ? `${faltam} ${faltam === 1 ? vocab().faltaPagar : vocab().faltamPagar}` : vocab().todosPagaram}</span>
             <span class="valor-mes">${escapeHtml(formatReais(valor))}</span>
           </div>
         </div>
@@ -110,36 +128,40 @@ function valorParaCampo(v) {
 function seloValor(v) {
   if (v === null) return { classe: 'status-nao-fez', texto: '⚠️ Valor?' };
   if (v > 0) return { classe: 'status-confirmado', texto: '✅ ' + formatReais(v) };
-  return { classe: 'status-nao-fez', texto: '⬜ Não pagou' };
+  return { classe: 'status-nao-fez', texto: '⬜ ' + maiuscula(vocab().naoPagou) };
 }
 
 // "12 de 18 pagaram · R$ 365,00" - o cabecalho do mes aberto.
 function resumoDoMesAberto() {
   const ids = state.caixinhaMembroIds;
   const valores = ids.map(id => state.caixinhaValores[id]).filter(v => v > 0);
-  return `<b>${valores.length} de ${ids.length}</b> pagaram · <b>${escapeHtml(formatReais(somaReais(valores)))}</b>`;
+  return `<b>${valores.length} de ${ids.length}</b> ${vocab().pagaram} · <b>${escapeHtml(formatReais(somaReais(valores)))}</b>`;
 }
 
+// Na caixinha das divisoes (Regional) nao ha valor padrao: cada divisao
+// contribui com o que contribuiu, sempre digitado - sem o botao 💵 e sem
+// o toque no nome marcando o padrao.
 function linhaPagamento(m) {
   const v = state.caixinhaValores[m.id] === undefined ? 0 : state.caixinhaValores[m.id];
   const selo = seloValor(v);
+  const comPadrao = !deDivisoes();
   const texto = state.caixinhaValoresTexto[m.id] !== undefined
     ? state.caixinhaValoresTexto[m.id]
-    : (v && v !== VALOR_CAIXINHA_PADRAO ? valorParaCampo(v) : '');
+    : (v && (!comPadrao || v !== VALOR_CAIXINHA_PADRAO) ? valorParaCampo(v) : '');
   return `
     <div class="member-row">
-      <div class="member-head" data-action="caixinha-alternar" data-id="${m.id}">
+      <div class="member-head" ${comPadrao ? `data-action="caixinha-alternar" data-id="${m.id}"` : 'style="cursor:default;"'}>
         <div class="member-info">
-          ${selinhoIniciais(m)}
+          ${seloIniciais(m)}
           <span class="member-name">${escapeHtml(m.nome)}</span>
           ${m.grau ? `<span class="grade-box">${escapeHtml(m.grau)}</span>` : ''}
         </div>
         <span class="status-badge ${selo.classe}" data-selo-valor="${m.id}" data-muda="caixinha:${m.id}" data-valor="${v}">${escapeHtml(selo.texto)}</span>
       </div>
       <div class="caixinha-valor-linha">
-        <button class="btn-valor-padrao${v === VALOR_CAIXINHA_PADRAO ? ' ativo' : ''}" data-action="caixinha-alternar" data-id="${m.id}">💵 R$ ${VALOR_CAIXINHA_PADRAO}</button>
+        ${comPadrao ? `<button class="btn-valor-padrao${v === VALOR_CAIXINHA_PADRAO ? ' ativo' : ''}" data-action="caixinha-alternar" data-id="${m.id}">💵 R$ ${VALOR_CAIXINHA_PADRAO}</button>` : ''}
         <input type="text" inputmode="decimal" class="caixinha-valor" data-id="${m.id}" value="${escapeHtml(texto)}"
-               placeholder="Outro valor" aria-label="Outro valor pago por ${escapeHtml(m.nome)}" autocomplete="off">
+               placeholder="${comPadrao ? 'Outro valor' : 'Valor (R$)'}" aria-label="Valor de ${escapeHtml(m.nome)}" autocomplete="off">
         <button class="btn ghost" data-action="caixinha-tirar" data-id="${m.id}" style="padding:4px 10px; font-size:11px;">Tirar deste mês</button>
       </div>
     </div>
@@ -149,21 +171,23 @@ function linhaPagamento(m) {
 function painelMes() {
   const mes = state.caixinhaMes;
   const jaLancado = !!mesLancado(mes);
-  const lista = ordenarPorHierarquia(state.caixinhaMembroIds.map(membroDaLista));
+  const lista = ordenar(state.caixinhaMembroIds.map(membroDaLista));
   // Quem e da divisao e nao esta na lista deste mes (entrou depois, ou foi
   // tirado) - da pra pôr de volta.
-  const fora = ordenarPorHierarquia(membrosDoEscopo().filter(m => !state.caixinhaMembroIds.includes(m.id)));
+  const fora = ordenar(participantes().filter(m => !state.caixinhaMembroIds.includes(m.id)));
 
   return `
     <div class="btn ghost" style="margin-bottom:10px;" data-action="fechar-mes-caixinha">‹ Voltar aos meses</div>
     <div class="card">
       <div class="nome-evento-card">💰 ${escapeHtml(nomeDoMes(mes))}</div>
-      <div style="color:var(--text-muted); font-size:12.5px; margin-top:5px;">${jaLancado ? 'Mês já lançado — salvar corrige.' : 'Mês novo — a lista começa com a divisão inteira, menos os afastados.'}</div>
+      <div style="color:var(--text-muted); font-size:12.5px; margin-top:5px;">${jaLancado ? 'Mês já lançado — salvar corrige.' : (deDivisoes() ? 'Mês novo — a lista começa com as 6 divisões.' : 'Mês novo — a lista começa com a divisão inteira, menos os afastados.')}</div>
       <div class="doacao-total" id="caixinha-total">${resumoDoMesAberto()}</div>
     </div>
     ${state.caixinhaMsg && !state.caixinhaMsg.ok ? aviso() : ''}
     <div class="alert info" style="margin-bottom:12px;">
-      <div class="alert-msg">Toque no nome (ou em 💵) de quem pagou os ${escapeHtml(formatReais(VALOR_CAIXINHA_PADRAO))}. Quem pagou outro valor, escreva na caixa ao lado. Quem não devia pagar este mês, use "Tirar deste mês".</div>
+      <div class="alert-msg">${deDivisoes()
+        ? 'Escreva quanto cada divisão contribuiu este mês. Divisão que não precisava contribuir, use "Tirar deste mês".'
+        : `Toque no nome (ou em 💵) de quem pagou os ${escapeHtml(formatReais(VALOR_CAIXINHA_PADRAO))}. Quem pagou outro valor, escreva na caixa ao lado. Quem não devia pagar este mês, use "Tirar deste mês".`}</div>
     </div>
     <div class="tabs no-print">
       <div class="tab ${state.caixinhaMostrarAdicionar ? '' : 'active'}" data-action="caixinha-aba-lista" data-tab="lista">Na lista (${lista.length})</div>
@@ -175,14 +199,14 @@ function painelMes() {
             <div class="member-row">
               <div class="member-head" style="cursor:default;">
                 <div class="member-info">
-                  ${selinhoIniciais(m)}
+                  ${seloIniciais(m)}
                   <span class="member-name">${escapeHtml(m.nome)}</span>
                   ${m.grau ? `<span class="grade-box">${escapeHtml(m.grau)}</span>` : ''}
                 </div>
                 <button class="btn ghost" data-action="caixinha-adicionar" data-id="${m.id}" style="padding:4px 10px; font-size:11px;">+ Adicionar</button>
               </div>
             </div>
-          `).join('') : '<div class="empty">A divisão inteira já está na lista.</div>')
+          `).join('') : `<div class="empty">${deDivisoes() ? 'Todas as divisões já estão na lista.' : 'A divisão inteira já está na lista.'}</div>`)
         : (lista.length ? lista.map(linhaPagamento).join('') : '<div class="empty">Ninguém na lista. Use "Adicionar".</div>')}
     </div>
     <div class="row-gap" style="margin-bottom:12px;">
@@ -228,7 +252,7 @@ function barrasMeses(meses) {
 }
 
 function renderRank(d) {
-  const r = rankCaixinha(d, membrosDoEscopo(), state.caixinhaPeriodo);
+  const r = rankCaixinha(d, participantes(), state.caixinhaPeriodo);
   const comMeses = r.membros.filter(m => m.devia > 0);
   // Pódio so pra quem pagou alguma coisa: 0% nao e lugar de medalha, mesmo
   // sendo o segundo valor da lista.
@@ -239,10 +263,10 @@ function renderRank(d) {
       <div class="painel-titulo">💰 Caixinha</div>
       ${pilulas()}
       ${renderDonutChart([
-        { label: 'Pagos', value: r.pagamentos, cor: 'var(--status-confirmado)' },
+        { label: deDivisoes() ? 'Contribuições' : 'Pagos', value: r.pagamentos, cor: 'var(--status-confirmado)' },
         { label: 'Em aberto', value: r.cobrancas - r.pagamentos, cor: 'var(--status-infracional)' },
       ], r.pct === null ? '—' : r.pct + '%', 'em dia', 150)}
-      <div class="doacao-total" style="text-align:center;"><b>${r.emDia.length}</b> ${r.emDia.length === 1 ? 'integrante' : 'integrantes'} com tudo em dia · <b>${r.devendo.length}</b> ${r.devendo.length === 1 ? 'pendente' : 'pendentes'}</div>
+      <div class="doacao-total" style="text-align:center;"><b>${r.emDia.length}</b> ${r.emDia.length === 1 ? vocab().quem : vocab().quemPlural} com tudo em dia · <b>${r.devendo.length}</b> ${r.devendo.length === 1 ? 'pendente' : 'pendentes'}</div>
       <div class="doacao-total" style="text-align:center; margin-top:4px;"><b>${escapeHtml(formatReais(r.arrecadado))}</b> arrecadados no período</div>
       ${barrasMeses(r.meses)}
       <div class="row-gap no-print" style="margin-top:12px;">
@@ -263,14 +287,14 @@ function renderRank(d) {
         <div class="member-row${lugares[i] ? ' podio podio-' + lugares[i] : ''}">
           <div class="member-head" style="cursor:default;">
             <div class="member-info">
-              ${medalha(lugares[i])}${selinhoIniciais(m)}
+              ${medalha(lugares[i])}${seloIniciais(m)}
               <span class="member-name">${escapeHtml(m.nome)}</span>
               ${m.grau ? `<span class="grade-box">${escapeHtml(m.grau)}</span>` : ''}
             </div>
             <span class="status-badge ${m.devia && !m.devendo.length ? 'status-confirmado' : 'status-nao-fez'}">${m.pct === null ? '—' : m.pct + '%'}</span>
           </div>
           <div class="doacao-detalhe">${m.devia
-            ? `Pagou ${m.pagou} de ${m.devia} ${m.devia === 1 ? 'mês' : 'meses'}${m.valor ? ` · ${escapeHtml(formatReais(m.valor))}` : ''}${m.devendo.length ? ` · <b class="falta-cumprir">deve ${escapeHtml(m.devendo.map(nomeCurtoDoMes).join(', '))}</b>` : ''}`
+            ? `${deDivisoes() ? 'Contribuiu em' : 'Pagou'} ${m.pagou} de ${m.devia} ${m.devia === 1 ? 'mês' : 'meses'}${m.valor ? ` · ${escapeHtml(formatReais(m.valor))}` : ''}${m.devendo.length ? ` · <b class="falta-cumprir">deve ${escapeHtml(m.devendo.map(nomeCurtoDoMes).join(', '))}</b>` : ''}`
             : 'Não estava na lista de nenhum mês do período'}</div>
         </div>
       `).join('')}
@@ -338,7 +362,7 @@ export const acoes = {
     } else {
       // Afastado nao entra num mes novo; se pagar mesmo assim, o
       // "Adicionar" poe ele na lista.
-      state.caixinhaMembroIds = soAtivos(membrosDoEscopo()).map(m => m.id);
+      state.caixinhaMembroIds = deDivisoes() ? divisoesContribuintes().map(m => m.id) : soAtivos(membrosDoEscopo()).map(m => m.id);
     }
     state.caixinhaMsg = null;
     window.scrollTo(0, 0);
@@ -389,13 +413,13 @@ export const acoes = {
   'imagem-mes-caixinha': async (id, target, action, e) => {
     const l = mesLancado(target.dataset.value);
     if (!l) return;
-    const r = relatorioMesCaixinha(l, state.roster);
-    return mostrarPreviaImagem(() => imagemMesCaixinha(r, escopoPorChave(state.adminEscopo).nome), `caixinha-${l.mes}.png`);
+    const r = relatorioMesCaixinha(l, deDivisoes() ? divisoesContribuintes() : state.roster, state.adminEscopo);
+    return mostrarPreviaImagem(() => imagemMesCaixinha(r, escopoPorChave(state.adminEscopo).nome, vocab()), `caixinha-${l.mes}.png`);
   },
   'texto-mes-caixinha': async (id, target, action, e) => {
     const l = mesLancado(target.dataset.value);
     if (!l) return;
-    return copiarTexto(textoRelatorioMesCaixinha(l, state.roster, state.adminEscopo));
+    return copiarTexto(textoRelatorioMesCaixinha(l, deDivisoes() ? divisoesContribuintes() : state.roster, state.adminEscopo));
   },
   // Do card do mes direto pro relatorio de controle daquele mes. A mesma
   // secao, entao nada e buscado de novo.
@@ -417,13 +441,13 @@ export const acoes = {
   'copiar-texto-caixinha': async (id, target, action, e) => {
     const d = dados();
     if (!d) return;
-    const r = rankCaixinha(d, membrosDoEscopo(), state.caixinhaPeriodo);
+    const r = rankCaixinha(d, participantes(), state.caixinhaPeriodo);
     return copiarTexto(textoCaixinha(r, state.adminEscopo, state.caixinhaPeriodo));
   },
   'imagem-caixinha': async (id, target, action, e) => {
     const d = dados();
     if (!d) return;
-    const r = rankCaixinha(d, membrosDoEscopo(), state.caixinhaPeriodo);
-    return mostrarPreviaImagem(() => imagemCaixinha(r, escopoPorChave(state.adminEscopo).nome, nomeDoPeriodo(state.caixinhaPeriodo)), 'caixinha.png');
+    const r = rankCaixinha(d, participantes(), state.caixinhaPeriodo);
+    return mostrarPreviaImagem(() => imagemCaixinha(r, escopoPorChave(state.adminEscopo).nome, nomeDoPeriodo(state.caixinhaPeriodo), vocab()), 'caixinha.png');
   },
 };

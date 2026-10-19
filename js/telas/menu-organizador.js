@@ -36,9 +36,14 @@ const SECOES = [
   { aba: 'insights', nome: 'Insights', desc: 'Rodadas de Insight', icone: '💡', cor: '#B57EDC', visivel: () => state.adminEscopo === 'regional' },
   // Doacoes e Caixinha so nas divisoes liberadas - decisao que mora em
   // temDoacoesECaixinha(), pra replicar pras outras num lugar so.
+  // No Regional as duas tem jeito proprio: das Doacoes so o estoque, e a
+  // Caixinha vem das divisoes - "noRegional" troca a aba de entrada e a
+  // explicacao.
   { aba: 'doacoes', nome: 'Doações', desc: 'Alimento de cada evento, o rank e o estoque de doações', icone: '🥫', cor: '#4CAF6E',
+    noRegional: { aba: 'doacoes-estoque', desc: 'O estoque de doações do Regional' },
     visivel: () => temDoacoesECaixinha(state.adminEscopo) },
   { aba: 'caixinha', nome: 'Caixinha', desc: 'Quem pagou, quanto entrou e saiu, e o saldo do caixa', icone: '💰', cor: '#C9A227',
+    noRegional: { desc: 'O que cada divisão contribuiu, entradas, saídas e o saldo' },
     visivel: () => temDoacoesECaixinha(state.adminEscopo) },
   // Nas 7: cada divisao ve o proprio livro, e o Regional o quadro de todas.
   { aba: 'movimentos', nome: 'Entrada/Saída', desc: 'Quem entrou, quem está afastado e quem saiu', icone: '🔄', cor: '#8FA3B8' },
@@ -53,7 +58,8 @@ function secoesVisiveis() {
   return SECOES.filter(s => !s.visivel || s.visivel());
 }
 
-function cardSecao(s) {
+function cardSecao(secao) {
+  const s = state.adminEscopo === 'regional' && secao.noRegional ? { ...secao, ...secao.noRegional } : secao;
   const gatilho = s.acao ? `data-action="${s.acao}"` : `data-action="abrir-secao-organizador" data-tab="${s.aba}"`;
   return `
     <div class="card event-card menu-org-card" style="border-left:3px solid ${s.cor};" ${gatilho}>

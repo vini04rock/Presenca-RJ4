@@ -920,13 +920,63 @@ log('=== outras doações: o estoque do clube ===');
   confere('conferir: sem medida, sugere pelo nome', conferirEstoque([{ item: 'Chinelo', quantidade: 2 }]).itens[0].medida, 'par');
 
   const r = resumoEstoque(cards);
-  confere('o resumo: itens, unidades, pares e quantos acabaram', r, { itens: 3, unidades: 12, pares: 6, acabaram: 1 });
+  confere('o resumo: itens, unidades, pares, kg e quantos acabaram', r, { itens: 3, unidades: 12, pares: 6, kg: 0, acabaram: 1 });
   confere('o resumo escrito', [textoResumoEstoque(r), textoResumoEstoque({ itens: 1, unidades: 1, pares: 0 })], ['3 itens · 12 unidades · 6 pares', '1 item · 1 unidade']);
 
   const salvos = [{ item: 'Cobertor', quantidade: 12, medida: 'un' }, { item: 'Sapato', quantidade: 6, medida: 'par' }];
   confere('sem mexer, nenhuma mudança (o card vazio não conta)', mudancasNoEstoque(salvos, [...salvos, { item: '', quantidade: 0 }]), 0);
   confere('mudou um, tirou outro e criou um: 3 mudanças',
     mudancasNoEstoque(salvos, [{ item: 'Cobertor', quantidade: 11, medida: 'un' }, { item: 'Roupa', quantidade: 5, medida: 'un' }]), 3);
+}
+
+log('');
+log('=== estoque: o kg, com casa decimal ===');
+{
+  const { sugerirMedida, proximaMedida, lerQuantidade, numeroEstoque, textoQuantidade, conferirEstoque, resumoEstoque, textoResumoEstoque } = await import(url('dominio/estoque.js'));
+  confere('o que se pesa em kg', ['Arroz', 'Feijão preto', 'Açúcar', 'Macarrão', 'Alimentos', 'Sal', 'Cobertor', 'Salgadinho'].map(sugerirMedida),
+    ['kg', 'kg', 'kg', 'kg', 'kg', 'kg', 'un', 'un']);
+  confere('o toque na medida gira un, par, kg', [proximaMedida('un'), proximaMedida('par'), proximaMedida('kg')], ['par', 'kg', 'un']);
+  confere('kg aceita uma casa decimal; un e par, só inteiro',
+    [lerQuantidade('2,5', 'kg'), lerQuantidade('2.55', 'kg'), lerQuantidade('2,5', 'un'), lerQuantidade('', 'kg'), lerQuantidade('-3', 'un')], [2.5, 2.6, 2, 0, 0]);
+  confere('o número no jeito brasileiro, sem ponto de milhar', [numeroEstoque(2.5), numeroEstoque(1000), textoQuantidade(2.5, 'kg'), textoQuantidade(40, 'kg')],
+    ['2,5', '1000', '2,5 kg', '40 kg']);
+  confere('conferir: kg com decimal passa; un com decimal não',
+    [conferirEstoque([{ item: 'Arroz', quantidade: 2.5, medida: 'kg' }]).itens[0].quantidade, conferirEstoque([{ item: 'Blusa', quantidade: 1.5, medida: 'un' }]).erro],
+    [2.5, 'A quantidade de "Blusa" não está certa.']);
+  const r = resumoEstoque([{ item: 'Arroz', quantidade: 20.5, medida: 'kg' }, { item: 'Feijão', quantidade: 10, medida: 'kg' }, { item: 'Blusa', quantidade: 3, medida: 'un' }]);
+  confere('o resumo soma os kg', [r.kg, textoResumoEstoque(r)], [30.5, '3 itens · 3 unidades · 30,5 kg']);
+}
+
+log('');
+log('=== caixinha do Regional: quem contribui são as divisões ===');
+{
+  const { divisoesContribuintes, ehCaixinhaDeDivisoes, vocabularioCaixinha, ordenarParticipantes, rankCaixinha, relatorioMesCaixinha, textoRelatorioMesCaixinha, textoCaixinha } = await import(url('dominio/caixinha.js'));
+  const { controleCaixinha, textoControleCaixinha } = await import(url('dominio/caixinha-financeiro.js'));
+  confere('as 6 divisões, na ordem oficial', divisoesContribuintes().map(d => d.id), ['oeste', 'recreio', 'barra', 'curicica', 'taquara', 'gardenia']);
+  confere('só o Regional é caixinha de divisões', [ehCaixinhaDeDivisoes('regional'), ehCaixinhaDeDivisoes('barra')], [true, false]);
+  confere('o vocabulário', [vocabularioCaixinha('regional').pagaram, vocabularioCaixinha('barra').pagaram, vocabularioCaixinha('regional').mensalidades],
+    ['contribuíram', 'pagaram', 'Contribuições das divisões']);
+  confere('divisões na ordem oficial, não alfabética',
+    ordenarParticipantes([{ id: 'barra', nome: 'Barra - RJ4' }, { id: 'oeste', nome: 'Oeste - RJ4' }, { id: 'gardenia', nome: 'Gardênia - RJ4' }], 'regional').map(d => d.id),
+    ['oeste', 'barra', 'gardenia']);
+
+  const c = (id, valor) => ({ id, nome: divisoesContribuintes().find(d => d.id === id).nome, pagou: valor > 0, valor });
+  const dados = {
+    meses: [{ mes: '2026-10', membros: [c('barra', 70), c('oeste', 90), c('recreio', 0)] }],
+    saldoInicial: { mes: '2026-10', data: '2026-09-30', valor: 500 },
+    lancamentos: [{ id: 'x', tipo: 'saida', data: '2026-10-05', categoria: 'Outros', descricao: 'Bandeira', valor: 100 }],
+  };
+  const rel = relatorioMesCaixinha(dados.meses[0], divisoesContribuintes(), 'regional');
+  confere('o relatório do mês: quem contribuiu e quem não', [rel.pagaram.map(d => d.id), rel.naoPagaram.map(d => d.id)], [['oeste', 'barra'], ['recreio']]);
+  confere('o relatório do mês pro WhatsApp', textoRelatorioMesCaixinha(dados.meses[0], divisoesContribuintes(), 'regional').split('\n').slice(1), [
+    '*REGIONAL RJ4* · Outubro/2026', '', '*2 de 3* contribuíram (67%)', '', '✅ *CONTRIBUÍRAM (2)*', '✅ Oeste - RJ4', '✅ Barra - RJ4',
+    '', '❌ *NÃO CONTRIBUÍRAM (1)*', '❌ Recreio - RJ4']);
+  const rank = rankCaixinha(dados, divisoesContribuintes(), 0, new Date(2026, 9, 18));
+  confere('o rank: quanto cada divisão contribuiu e o total', [rank.arrecadado, rank.membros.find(d => d.id === 'oeste').valor], [160, 90]);
+  confere('o panorama fala em contribuições', textoCaixinha(rank, 'regional', 0).split('\n')[3], 'Em dia: *67%* das contribuições (2 de 3)');
+  const ctrl = controleCaixinha(dados, 0, new Date(2026, 9, 18));
+  confere('o controle: as contribuições entram no caixa', [ctrl.entradas.mensalidades, ctrl.saldoAtual], [160, 560]);
+  confere('o texto de controle fala em contribuições', textoControleCaixinha(ctrl, 'regional').split('\n')[6], '• Contribuições das divisões: R$ 160,00 (2 contribuições)');
 }
 
 log('');

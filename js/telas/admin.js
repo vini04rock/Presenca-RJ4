@@ -53,8 +53,10 @@ export const SECOES_ORGANIZADOR = {
   doacoes: {
     titulo: 'Doações',
     abas: [
-      { chave: 'doacoes', label: 'Por evento' },
-      { chave: 'doacoes-rank', label: 'Rank' },
+      // No Regional, das Doacoes so o estoque: as duas primeiras sao do 1 kg
+      // de cada integrante, que e coisa de divisao (soNasDivisoes).
+      { chave: 'doacoes', label: 'Por evento', soNasDivisoes: true },
+      { chave: 'doacoes-rank', label: 'Rank', soNasDivisoes: true },
       { chave: 'doacoes-estoque', label: 'Outras doações' },
     ],
   },
@@ -81,6 +83,11 @@ export function secaoDaAba(aba) {
   return SECOES_ORGANIZADOR[chave] || SECOES_ORGANIZADOR.eventos;
 }
 
+// As abas da secao que existem na divisao em que se entrou.
+function abasVisiveis(secao) {
+  return secao.abas.filter(a => !(a.soNasDivisoes && state.adminEscopo === 'regional'));
+}
+
 export function renderAdmin(app) {
   const secao = secaoDaAba(state.adminTab);
   app.innerHTML = `
@@ -89,9 +96,9 @@ export function renderAdmin(app) {
       <h1 style="font-size: 20px;">${escapeHtml(secao.titulo)}</h1>
       <div class="count-box">${escapeHtml(escopoPorChave(state.adminEscopo).nome.toUpperCase())}</div>
     </div>
-    ${secao.abas.length > 1 ? `
+    ${abasVisiveis(secao).length > 1 ? `
       <div class="tabs no-print">
-        ${secao.abas.map(a => `<div class="tab ${state.adminTab === a.chave ? 'active' : ''}" data-action="admin-tab" data-tab="${a.chave}">${escapeHtml(a.label)}</div>`).join('')}
+        ${abasVisiveis(secao).map(a => `<div class="tab ${state.adminTab === a.chave ? 'active' : ''}" data-action="admin-tab" data-tab="${a.chave}">${escapeHtml(a.label)}</div>`).join('')}
       </div>
     ` : ''}
     <div id="admin-content"></div>

@@ -445,7 +445,11 @@ export async function imagemDoacoes(r, nomeDivisao, rotuloPeriodo) {
 // Caixinha no periodo: o % em dia da divisao e quantos pagaram em cada mes.
 // Sem nome nenhum - nem de quem deve, nem de quem pagou: na caixinha o
 // numero do grupo e o que interessa mostrar. `r` e o rankCaixinha.
-export async function imagemCaixinha(r, nomeDivisao, rotuloPeriodo) {
+// `v` e o vocabularioCaixinha: na caixinha do Regional, "divisoes" e
+// "contribuiram" no lugar de "integrantes" e "pagaram".
+const VOCAB_PADRAO = { quem: 'integrante', quemPlural: 'integrantes', pagou: 'pagou', pagaram: 'pagaram', naoPagou: 'não pagou', naoPagaram: 'não pagaram' };
+
+export async function imagemCaixinha(r, nomeDivisao, rotuloPeriodo, v = VOCAB_PADRAO) {
   const { canvas, ctx, logo } = await novaTela();
   const meses = r.meses.slice(0, 6).reverse();
   const linhas = meses.map(m => ({ nome: nomeDoMes(m.mes), pct: m.pct, detalhe: `${m.pagaram} de ${m.total}` }));
@@ -461,7 +465,7 @@ export async function imagemCaixinha(r, nomeDivisao, rotuloPeriodo) {
   y = cy + raio + 62;
   fonte(ctx, 36, 700);
   ctx.fillStyle = COR.texto;
-  ctx.fillText(`${r.emDia.length} ${r.emDia.length === 1 ? 'integrante' : 'integrantes'} com tudo em dia`, L / 2, y);
+  ctx.fillText(`${r.emDia.length} ${r.emDia.length === 1 ? v.quem : v.quemPlural} com tudo em dia`, L / 2, y);
 
   if (linhas.length) {
     y += 46;
@@ -554,7 +558,7 @@ function colunaNomes(ctx, x, y, largura, alturaLinha, titulo, cor, emoji, membro
   return y + altura;
 }
 
-export async function imagemMesCaixinha(r, nomeDivisao) {
+export async function imagemMesCaixinha(r, nomeDivisao, v = VOCAB_PADRAO) {
   const alturaLinha = 46;
   const topoLista = 800;
   const maisLonga = Math.max(1, r.pagaram.length, r.naoPagaram.length);
@@ -572,16 +576,16 @@ export async function imagemMesCaixinha(r, nomeDivisao) {
   fonte(ctx, 120, 400, 'rye');
   ctx.fillStyle = COR.marfim;
   ctx.fillText(r.pct === null ? '—' : `${r.pct}%`, 760, cy - 20);
-  rotuloEspacado(ctx, 'PAGARAM', cy + 30, 24, COR.apagado, 760);
+  rotuloEspacado(ctx, v.pagaram.toUpperCase(), cy + 30, 24, COR.apagado, 760);
   fonte(ctx, 32, 700);
   ctx.fillStyle = COR.confirmado;
-  ctx.fillText(`✅ ${r.pagaram.length} ${r.pagaram.length === 1 ? 'pagou' : 'pagaram'}`, 760, cy + 95);
+  ctx.fillText(`✅ ${r.pagaram.length} ${r.pagaram.length === 1 ? v.pagou : v.pagaram}`, 760, cy + 95);
   ctx.fillStyle = COR.infracional;
-  ctx.fillText(`❌ ${r.naoPagaram.length} não ${r.naoPagaram.length === 1 ? 'pagou' : 'pagaram'}`, 760, cy + 145);
+  ctx.fillText(`❌ ${r.naoPagaram.length} ${r.naoPagaram.length === 1 ? v.naoPagou : v.naoPagaram}`, 760, cy + 145);
 
   const largura = (L - 80 * 2 - 30) / 2;
-  colunaNomes(ctx, 80, topoLista, largura, alturaLinha, `✅ PAGARAM (${r.pagaram.length})`, COR.confirmado, '✅', r.pagaram);
-  colunaNomes(ctx, 80 + largura + 30, topoLista, largura, alturaLinha, `❌ NÃO PAGARAM (${r.naoPagaram.length})`, COR.infracional, '❌', r.naoPagaram);
+  colunaNomes(ctx, 80, topoLista, largura, alturaLinha, `✅ ${v.pagaram.toUpperCase()} (${r.pagaram.length})`, COR.confirmado, '✅', r.pagaram);
+  colunaNomes(ctx, 80 + largura + 30, topoLista, largura, alturaLinha, `❌ ${v.naoPagaram.toUpperCase()} (${r.naoPagaram.length})`, COR.infracional, '❌', r.naoPagaram);
 
   rodape(ctx, altura);
   return canvas;
@@ -757,7 +761,7 @@ function cabecalhoRelatorio(ctx, logo, titulo, nomeDivisao, rotuloPeriodo, pagin
   ctx.fillText(linha, L / 2, y + 44);
 }
 
-function paginaResumo(ctx, logo, r, nomeDivisao, rotuloPeriodo, paginas) {
+function paginaResumo(ctx, logo, r, nomeDivisao, rotuloPeriodo, paginas, v) {
   cabecalhoRelatorio(ctx, logo, '💰 Caixinha', nomeDivisao, rotuloPeriodo, 1, paginas);
 
   // Saldo no inicio -> saldo no fim.
@@ -780,7 +784,7 @@ function paginaResumo(ctx, logo, r, nomeDivisao, rotuloPeriodo, paginas) {
   fonteQueCabe(ctx, `🔴 Saiu ${formatReais(r.saidas.total)}`, 440, 32, 700);
   ctx.fillStyle = COR.infracional;
   ctx.fillText(`🔴 Saiu ${formatReais(r.saidas.total)}`, 790, 515);
-  const origem = [`mensalidades ${formatReais(r.entradas.mensalidades)}`].concat(r.entradas.outras ? [`outras ${formatReais(r.entradas.outras)}`] : []).join(' · ');
+  const origem = [`${v && v.regional ? 'contribuições' : 'mensalidades'} ${formatReais(r.entradas.mensalidades)}`].concat(r.entradas.outras ? [`outras ${formatReais(r.entradas.outras)}`] : []).join(' · ');
   fonteQueCabe(ctx, origem, 460, 19, 600);
   ctx.fillStyle = COR.apagado;
   ctx.fillText(origem, 290, 548);
@@ -888,7 +892,7 @@ function paginaDetalhe(ctx, logo, linhas, cores, nomeDivisao, rotuloPeriodo, pag
   ctx.textAlign = 'center';
 }
 
-export async function imagensRelatorioCaixinha(r, nomeDivisao, rotuloPeriodo) {
+export async function imagensRelatorioCaixinha(r, nomeDivisao, rotuloPeriodo, v) {
   const detalhe = paginasDeSaidas(r.saidasPorMes);
   const paginas = 1 + detalhe.length;
   // A mesma cor da categoria na pizza e no detalhamento.
@@ -897,7 +901,7 @@ export async function imagensRelatorioCaixinha(r, nomeDivisao, rotuloPeriodo) {
 
   const telas = [];
   const primeira = await novaTela();
-  paginaResumo(primeira.ctx, primeira.logo, r, nomeDivisao, rotuloPeriodo, paginas);
+  paginaResumo(primeira.ctx, primeira.logo, r, nomeDivisao, rotuloPeriodo, paginas, v);
   rodape(primeira.ctx);
   telas.push(primeira.canvas);
   for (let i = 0; i < detalhe.length; i++) {
