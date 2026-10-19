@@ -499,7 +499,7 @@ const caixinhaFalsa = { meses: [
   lancamentos:[
     { id:'l1', tipo:'saida', data:'2026-10-05', categoria:'Kit Churrasco / lanches', descricao:'Carne do pub', valor:120.5 },
     { id:'l2', tipo:'entrada', data:'2026-09-15', categoria:'Outras entradas', descricao:'Rifa', valor:50 },
-    { id:'l3', tipo:'saida', data:'2026-09-10', categoria:'Adesivos', descricao:'', valor:20 },
+    { id:'l3', tipo:'saida', data:'2026-09-10', categoria:'Material gráfico', descricao:'', valor:20 },
   ] };
 const caixaVazio = { meses:[], saldoInicial:null, lancamentos:[] };
 const dc = { isAdmin:true, adminEscopo:'barra', doacoesDados:doacoesFalsas, doacoesDadosEscopo:'barra',
@@ -571,7 +571,7 @@ add('caixinha / controle vazio, sem saldo inicial', { ...fin, caixinhaDados:caix
 add('caixinha / controle no vermelho',        { ...fin, caixinhaDados:{ ...caixaVazio,
   lancamentos:[{ id:'x', tipo:'saida', data:'2026-10-01', categoria:'Outros', descricao:'', valor:80 }] } }, T.renderAdmin);
 add('caixinha / controle carregando',         { ...fin, caixinhaDados:null }, T.renderAdmin);
-add('caixinha / lançar saída',                { ...fin, caixinhaFinForm:{ tipo:'saida', data:'', categoria:'Adesivos', descricao:'Adesivo novo', valor:'45' } }, T.renderAdmin);
+add('caixinha / lançar saída',                { ...fin, caixinhaFinForm:{ tipo:'saida', data:'', categoria:'Material gráfico', descricao:'Adesivo novo', valor:'45' } }, T.renderAdmin);
 add('caixinha / lançar entrada',              { ...fin, caixinhaFinForm:{ tipo:'entrada', data:'15/10/2026', categoria:'', descricao:'', valor:'' } }, T.renderAdmin);
 add('caixinha / corrigir saída (excluir)',    { ...fin, caixinhaFinForm:{ tipo:'saida', id:'l1', data:'05/10/2026',
   categoria:'Kit Churrasco / lanches', descricao:'Carne do pub', valor:'120,5' }, caixinhaFinConfirmarRemover:'l1' }, T.renderAdmin);

@@ -638,7 +638,9 @@ controle que a Barra mantinha à mão.
   definido, e o mês desse dia já está dentro do valor: quem já pagou a
   caixinha daquele mês, o dinheiro já está no caixa. Por isso, para nada
   contar duas vezes, as **mensalidades contam do mês seguinte** e as
-  **entradas e saídas do dia seguinte** (`corteDoSaldo`, em
+  **entradas e saídas do próprio dia** do saldo em diante (até 19/10/2026
+  era do dia seguinte; mudou para o gasto lançado logo depois de informar
+  o saldo contar) (`corteDoSaldo`, em
   `dominio/caixinha-financeiro.js`). Quem pagar a caixinha daquele mês
   depois entra como entrada avulsa. O que fica de fora fica de fora da
   conta, e a tela diz quanto ficou. Sem saldo inicial, o caixa conta do

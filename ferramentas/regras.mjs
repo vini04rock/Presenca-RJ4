@@ -931,11 +931,13 @@ log('=== caixinha: controle financeiro (saldo, entradas, saídas, período) ==='
   const cd = controleCaixinha(comDia, 0, base);
   confere('saldo de hoje: a mensalidade do mês dele fica de fora, a do mês seguinte conta',
     cd.extrato.filter(x => x.origem === 'mensalidade').map(x => x.mes), ['2026-10']);
-  confere('saldo de hoje: lançamento do mesmo dia fica de fora, do dia seguinte conta',
-    cd.extrato.filter(x => x.origem === 'lancamento').map(x => x.id), ['d3', 'd2']);
-  confere('saldo de hoje: a conta', [cd.antesDoInicio, cd.saldoAtual], [2, 100 - 20 + 30 + 65]);
-  confere('o relatório de setembro começa no saldo e leva só o depois dele',
-    [controleCaixinha(comDia, '2026-09', base).saldoAnterior, controleCaixinha(comDia, '2026-09', base).saldoFinal], [100, 110]);
+  confere('saldo de hoje: lançamento do mesmo dia conta, e o do dia seguinte também',
+    cd.extrato.filter(x => x.origem === 'lancamento').map(x => x.id), ['d3', 'd2', 'd1']);
+  confere('saldo de hoje: a conta', [cd.antesDoInicio, cd.saldoAtual], [1, 100 - 10 - 20 + 30 + 65]);
+  confere('saldo de hoje: lançamento do dia anterior fica de fora',
+    movimentosDoCaixa({ ...comDia, lancamentos: [lc('d0', 'saida', '2026-09-14', 'Outros', 'na véspera', 5)] }).antesDoInicio, 2);
+  confere('o relatório de setembro começa no saldo e leva o do dia dele em diante',
+    [controleCaixinha(comDia, '2026-09', base).saldoAnterior, controleCaixinha(comDia, '2026-09', base).saldoFinal], [100, 100]);
   confere('como o saldo inicial é descrito', [quandoDoSaldoInicial(comDia.saldoInicial), quandoDoSaldoInicial({ mes: '2026-08', valor: 1 })],
     ['definido em 15/09/2026', 'no começo de Agosto/2026']);
   confere('o que é período de um mês só', [periodoDeUmMes('2026-10'), periodoDeUmMes({ de: '2026-10', ate: '2026-10' }), periodoDeUmMes({ de: '2026-09', ate: '2026-10' }), periodoDeUmMes(6)],

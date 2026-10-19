@@ -12,7 +12,9 @@
 // ja pagou a caixinha deste mes, esse dinheiro ja esta no caixa. Por isso,
 // pra nada contar duas vezes (decisao do clube, 18/10/2026):
 //   - mensalidades contam do mes SEGUINTE em diante;
-//   - entradas e saidas contam do dia SEGUINTE em diante.
+//   - entradas e saidas contam do PROPRIO DIA em diante (ate 19/10/2026 era
+//     do dia seguinte; o clube mudou: o saldo e informado e, em seguida,
+//     lancado o que se gastou naquele dia - e esse gasto tem que contar).
 // Quem ainda pagar a caixinha daquele mes depois, entra como entrada avulsa.
 //
 // Os saldos salvos antes disso tem so o mes (sem `data`) e valem do jeito
@@ -65,12 +67,7 @@ export function movimentosDoCaixa(dados) {
 // saldo inicial, tudo conta.
 function corteDoSaldo(s) {
   if (!s) return null;
-  if (s.data) {
-    const [a, m, d] = s.data.split('-').map(Number);
-    const amanha = new Date(a, m - 1, d + 1);
-    const iso = `${amanha.getFullYear()}-${String(amanha.getMonth() + 1).padStart(2, '0')}-${String(amanha.getDate()).padStart(2, '0')}`;
-    return { mes: mesSeguinte(s.data.slice(0, 7)), data: iso, inicio: s.data.slice(0, 7) };
-  }
+  if (s.data) return { mes: mesSeguinte(s.data.slice(0, 7)), data: s.data, inicio: s.data.slice(0, 7) };
   return { mes: s.mes, data: s.mes + '-01', inicio: s.mes };
 }
 

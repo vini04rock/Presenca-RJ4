@@ -133,7 +133,7 @@ function cardDefinirSaldo() {
   return `
     <div class="card fin-saldo-inicial">
       <div class="painel-titulo">💼 Quanto tem na caixinha agora?</div>
-      <div class="fin-explica">É o ponto de partida do controle, informado <b>uma vez só</b>. O valor já inclui tudo deste mês: daqui pra frente o app soma ${vocab().regional ? 'as contribuições das divisões' : 'as mensalidades'} a partir do mês que vem, e as entradas e saídas lançadas a partir de amanhã.</div>
+      <div class="fin-explica">É o ponto de partida do controle, informado <b>uma vez só</b>. O valor já inclui tudo deste mês: daqui pra frente o app soma ${vocab().regional ? 'as contribuições das divisões' : 'as mensalidades'} a partir do mês que vem, e as entradas e saídas lançadas a partir de hoje.</div>
       ${confirmando && !c.erro ? `
         <div class="alert" style="margin-bottom:10px;">
           <div class="alert-msg">Confere: <b>${reais(c.valor)}</b> na caixinha hoje? Depois de salvo, o valor fica <b>travado</b> — só o PIN do Regional corrige.</div>

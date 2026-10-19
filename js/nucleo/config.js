@@ -82,7 +82,7 @@ export const VALOR_CAIXINHA_PADRAO = 30;
 export const CATEGORIAS_SAIDA_CAIXINHA = [
   'Contribuição Caixinha Regional',
   'Kit Churrasco / lanches',
-  'Adesivos',
+  'Material gráfico',
   'Ação Social Externa',
   'Ação Social Interna',
   'Auxílio mensalidade',
