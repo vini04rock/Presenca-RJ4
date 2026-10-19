@@ -1073,14 +1073,14 @@ log('=== calendário do mês em texto pro WhatsApp ===');
   ];
   const so = textoCalendario({ ano: 2026, mes: 9, escopo: 'regional', eventos, diasVazios: false }).split('\n');
   confere('só os dias com evento, na ordem', so, [
-    '📝 *CALENDÁRIO · OUTUBRO/2026*', '*REGIONAL RJ4*',
+    '📝 *CALENDÁRIO · OUTUBRO/2026*', '*_Acompanhe aqui tudo que acontece na sua Regional_*', '*REGIONAL RJ4*',
     '', '📍 *Dia 07 · Qua*', '🍻 Div. Barra: Pub',
     '', '📍 *Dia 11 · Dom*', '🏍️ *BATE E VOLTA - SERRA*',
     '', '📍 *Dia 20 · Ter*', '• 🍻 Div. Gardênia: Pub', '• 📊 *REUNIÃO DIRETOR REGIONAL & DIRETORES*',
   ]);
   const todos = textoCalendario({ ano: 2026, mes: 9, escopo: 'barra', eventos, diasVazios: true }).split('\n');
-  confere('relatar dias vazios: do dia 1 ao 31', [todos.filter(l => l.startsWith('📍')).length, todos[1], todos.slice(2, 5)],
-    [31, '*BARRA - RJ4*', ['', '📍 *Dia 01 · Qui*', '']]);
+  confere('relatar dias vazios: do dia 1 ao 31', [todos.filter(l => l.startsWith('📍')).length, todos[1], todos[2], todos.slice(3, 6)],
+    [31, '*_Acompanhe aqui tudo que acontece na sua Divisão_*', '*BARRA - RJ4*', ['', '📍 *Dia 01 · Qui*', '']]);
   confere('mês sem evento avisa', textoCalendario({ ano: 2026, mes: 11, escopo: 'barra', eventos, diasVazios: false }).split('\n').slice(-1),
     ['Nenhum evento marcado.']);
 }

@@ -189,7 +189,9 @@ usava no grupo - "📍 *Dia 07 · Ter*", e embaixo "🍻 Div. Barra: Pub" para
 evento de divisão ou o nome em destaque para evento do Regional ("🏍️
 *BATE E VOLTA - SERRA*"); mais de um no mesmo dia vira itens com "•". A
 caixa **"Relatar dias vazios"** leva do dia 1 ao último, com os sem evento
-em branco; desmarcada (o padrão), só os dias com evento.
+em branco; desmarcada (o padrão), só os dias com evento. Abaixo do título
+"CALENDÁRIO" vai, em negrito e itálico, "Acompanhe aqui tudo que acontece
+na sua Regional" (no Regional) ou "... na sua Divisão" (numa divisão).
 
 **Status** — os 4 do seletor manual (⚠️ Aguardando, ✅ Confirmado, ❌ Família,
 ❌ Trabalho) e mais 2 que só nascem da convocação colada (❌ Justificada,

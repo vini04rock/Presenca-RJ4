@@ -2,6 +2,10 @@
 // tela do Calendario). Os mesmos eventos e a mesma ordem da imagem do mes
 // (ui/calendario-imagem.js): por data, horario e nome.
 //
+// No topo, abaixo do "CALENDARIO", a frase "Acompanhe aqui tudo que
+// acontece na sua Regional" (ou "na sua Divisao", no calendario de uma
+// divisao), em negrito e italico.
+//
 // No formato que o clube ja usava no grupo (19/10/2026): um bloco por dia,
 // "📍 Dia 07 · Ter", e embaixo os eventos -
 //   - de divisao: "🍻 Div. Barra: Pub";
@@ -36,6 +40,8 @@ export function textoCalendario({ ano, mes, escopo, eventos, diasVazios }) {
 
   const partes = [
     `📝 *CALENDÁRIO · ${NOMES_MESES[mes].toUpperCase()}/${ano}*`,
+    // Em negrito e italico no WhatsApp.
+    `*_Acompanhe aqui tudo que acontece na sua ${escopo === 'regional' ? 'Regional' : 'Divisão'}_*`,
     `*${escopoPorChave(escopo).nome.toUpperCase()}*`,
   ];
   if (!lista.length && !diasVazios) {
