@@ -210,6 +210,8 @@ export function camposDoEvento(ev) {
   const ch = ev && ev.chamada;
   if (!ch || typeof ch !== 'object') return camposIniciais(ev || {});
   const c = { tipo: ev.tipo || '', horario: comoHora(ev.horario) };
+  // Metadado do evento no JSON ja persistido. Preservar ao editar a chamada.
+  if (typeof ch.dispensaObrigatoriedade === 'boolean') c.dispensaObrigatoriedade = ch.dispensaObrigatoriedade;
   CAMPOS_GUARDADOS.forEach(k => { c[k] = String(ch[k] || ''); });
   // Subtítulo em branco é o nome do evento, como nas sugestões.
   if (!c.subtitulo.trim()) c.subtitulo = String(ev.nome || '').trim();
@@ -223,6 +225,7 @@ export function camposDoEvento(ev) {
 export function chamadaParaGuardar(campos) {
   const c = campos || {};
   const fora = {};
+  if (typeof c.dispensaObrigatoriedade === 'boolean') fora.dispensaObrigatoriedade = c.dispensaObrigatoriedade;
   CAMPOS_GUARDADOS.forEach(k => { fora[k] = String(c[k] || '').trim(); });
   fora.pes = (c.pes || [])
     .map(pe => {

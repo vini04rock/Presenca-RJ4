@@ -7,7 +7,9 @@
 //   - confere as 6 divisoes, na ordem oficial do clube;
 //   - MARCADO no calendario ja conta, mesmo que o evento ainda nao tenha
 //     acontecido - o que se cobra e a divisao ter planejado;
-//   - evento do Regional vale para todas: um Bate e Volta do Regional no
+//   - evento do Regional com "Evento regional" marcado vale para todas:
+//     por compatibilidade, eventos antigos sem a opcao tambem contam;
+//     um Bate e Volta do Regional no
 //     mes tira o Bate e Volta da pendencia de todas as divisoes;
 //   - nos ultimos 10 dias do mes a pendencia vira urgente (vermelho).
 //
@@ -34,6 +36,7 @@ export function obrigatoriedadesDoMes(eventos, base = new Date()) {
   // O primeiro do mes, se houver mais de um do mesmo tipo.
   const primeiro = (categoria, tipo) => doMes
     .filter(ev => ev.categoria === categoria && ev.tipo === tipo)
+    .filter(ev => categoria !== 'regional' || !ev.chamada || ev.chamada.dispensaObrigatoriedade !== false)
     .sort((a, b) => a.data.localeCompare(b.data))[0] || null;
 
   const divisoes = escoposNaOrdemOficial().filter(e => e.chave !== 'regional').map(e => {

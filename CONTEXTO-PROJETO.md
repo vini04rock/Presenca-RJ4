@@ -244,9 +244,15 @@ evento que cobre cada um. O **📋 Cobrar** copia as pendências pro grupo.
   usam o app: o retrato é o real.
 - **Marcado no calendário já conta**, mesmo que ainda não tenha
   acontecido: o que se cobra é a divisão ter planejado.
-- **Evento do Regional vale para todas:** um Bate e Volta do Regional no
+- **Evento do Regional com a caixa "Evento regional" marcada vale para todas:** um Bate e Volta do Regional no
   mês tira o Bate e Volta da pendência de todas as divisões (decisão do
   clube; o detalhe diz "pelo Regional").
+- No formulário de criar/editar evento do Regional, essa caixa começa
+  marcada. Desmarcar mantém o evento no Regional e no calendário, mas ele
+  não atende à obrigação das divisões. Eventos antigos sem essa opção
+  continuam contando. A escolha fica em `chamada.dispensaObrigatoriedade`,
+  no JSON já salvo na coluna Chamada; editar a convocação preserva o valor.
+  Não exige coluna nova nem alteração do Apps Script.
 - **A cor acompanha o mês:** amarelo enquanto há tempo, vermelho nos
   últimos 10 dias (`DIAS_URGENTES`), pra não gritar no dia 1º, quando todo
   mundo ainda "deve" tudo.

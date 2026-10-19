@@ -140,6 +140,16 @@ function renderEventForm() {
 
     ${quadroTipo({ campos: ch, attr: 'data-evc', categoria: state.adminEscopo, tipo: state.newEventTipo, acaoTipo: 'pick-tipo-evento' })}
 
+    ${state.adminEscopo === 'regional' ? `
+      <div class="card">
+        <div class="checkbox-row">
+          <input type="checkbox" id="evento-regional" data-evf="dispensaObrigatoriedade" ${f.dispensaObrigatoriedade !== false ? 'checked' : ''} aria-describedby="evento-regional-ajuda">
+          <label for="evento-regional" style="margin:0; color:var(--text);">Evento regional</label>
+        </div>
+        <div id="evento-regional-ajuda" style="font-size:12px; color:var(--text-muted); line-height:1.5;">Marcado: atende à obrigação deste tipo de evento para todas as divisões no mês. Desmarcado: cada divisão continua precisando realizar o seu.</div>
+      </div>
+    ` : ''}
+
     ${quadro(2, 'Informações', `
       ${caixa({ rotulo: 'Destino', valor: ch.destino, atributos: 'data-evc="destino"', dica: 'Ex: Bandas Bar - Paraíba do Sul' })}
       <div class="row-gap" style="margin-bottom: 0;">
@@ -191,7 +201,7 @@ function renderEventForm() {
 // digitado no formulario de evento; devolve true se o campo era dele.
 export function aoDigitarNoFormulario(el) {
   if (!state.newEventForm || !el.dataset) return false;
-  if (el.dataset.evf) { state.newEventForm[el.dataset.evf] = el.value; return true; }
+  if (el.dataset.evf) { state.newEventForm[el.dataset.evf] = el.type === 'checkbox' ? el.checked : el.value; return true; }
   if (el.classList && el.classList.contains('new-event-checkbox')) {
     if (el.checked) state.newEventSelected.add(el.dataset.id);
     else state.newEventSelected.delete(el.dataset.id);
@@ -236,6 +246,7 @@ function abrirFormulario(ev) {
     data: ev && ev.data ? formatDataBR(ev.data) : '',
     horario: ev ? ev.horario || '' : '',
     outros: ev ? ev.outros || '' : '',
+    dispensaObrigatoriedade: !(ev && ev.chamada && ev.chamada.dispensaObrigatoriedade === false),
   };
   const ch = camposDoEvento(ev || {});
   // No evento o subtitulo em branco ja quer dizer "o nome do evento" - nao
@@ -476,6 +487,7 @@ export const acoes = {
     const checked = [...(state.newEventSelected || [])];
     if (!nome || checked.length === 0) return;
     const chamada = chamadaParaGuardar(state.newEventChamada);
+    if (state.adminEscopo === 'regional') chamada.dispensaObrigatoriedade = f.dispensaObrigatoriedade !== false;
     const evento = {
       id: state.editingEventId || genId(),
       nome, memberIds: checked, data,

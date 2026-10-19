@@ -565,6 +565,19 @@ log('=== evento com a chamada guardada (coluna Chamada) ===');
   confere('salvar o evento antigo não quebra a linha dele', lido('antigo').nome, 'Evento antigo');
 }
 
+{
+  const { contexto } = carregaCodeGs(montaPlanilha([], []), { PIN_REGIONAL: 'teste-regional' });
+  const evento = { escopo: 'regional', pin: 'teste-regional', id: 'pub-opcional', nome: 'Pub regional', categoria: 'regional', tipo: 'Pub', data: '2026-11-10' };
+  const ler = () => contexto.executar('dados', {}).eventos.find(e => e.id === evento.id);
+  contexto.executar('eventoSalvar', { ...evento, chamada: { dispensaObrigatoriedade: false } });
+  confere('opcao regional desmarcada volta da planilha como false', ler().chamada.dispensaObrigatoriedade, false);
+  contexto.executar('eventoSalvar', { ...evento, status: 'encerrado' });
+  contexto.executar('eventoSalvar', { ...evento, status: 'ativo', data: '2026-11-15' });
+  confere('encerrar, reabrir e mudar data preservam opcao regional', ler().chamada.dispensaObrigatoriedade, false);
+  contexto.executar('eventoSalvar', { ...evento, chamada: { dispensaObrigatoriedade: true } });
+  confere('marcar de novo persiste opcao regional', ler().chamada.dispensaObrigatoriedade, true);
+}
+
 log('');
 log('=== doações: por evento, atrás do PIN da divisão ===');
 {

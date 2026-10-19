@@ -1046,6 +1046,14 @@ log('=== obrigatoriedades do mês: os 4 eventos de cada divisão ===');
     ['Reunião', 'Pub', 'Bate e Volta', 'Ação Social'].map(t => e(c, t, '2026-10-10'))), new Date(2026, 9, 31));
   confere('tudo em dia, no último dia', [tudoOk.devendo.length, textoCobrancaObrigatoriedades(tudoOk).split('\n')[2]],
     [0, '✅ Todas as divisões marcaram os 4 eventos do mês.']);
+  const pub = { ...e('regional', 'Pub', '2026-11-10'), chamada: { dispensaObrigatoriedade: false } };
+  const pendencias = lista => obrigatoriedadesDoMes(lista, new Date(2026, 10, 2));
+  confere('regional desmarcado nao dispensa nenhuma divisao', pendencias([pub]).divisoes.every(d => d.faltam.includes('Pub')), true);
+  confere('regional marcado dispensa todas no mes', pendencias([{ ...pub, chamada: { dispensaObrigatoriedade: true } }]).divisoes.every(d => !d.faltam.includes('Pub')), true);
+  confere('evento proprio continua atendendo mesmo com regional desmarcado', pendencias([pub, e('barra', 'Pub', '2026-11-15')]).divisoes.find(d => d.escopo.chave === 'barra').faltam.includes('Pub'), false);
+  confere('regional desmarcado nao esconde outro marcado do mesmo tipo', pendencias([pub, { ...pub, id: 'outro', data: '2026-11-20', chamada: { dispensaObrigatoriedade: true } }]).divisoes.every(d => !d.faltam.includes('Pub')), true);
+  confere('dispensa nao passa para outro mes', pendencias([{ ...pub, data: '2026-10-20', chamada: { dispensaObrigatoriedade: true } }]).divisoes.every(d => d.faltam.includes('Pub')), true);
+  confere('editar chamada preserva escolha desmarcada', chamadaParaGuardar(camposDoEvento(pub)).dispensaObrigatoriedade, false);
 }
 
 log('');
