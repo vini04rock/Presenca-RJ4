@@ -1155,6 +1155,21 @@ log('=== entrada/saída: o relatório de cada divisão e o quadro do Regional ==
   confere('linha do tempo do mais recente pro mais antigo', nomes(r.linhaDoTempo), ['Novo', 'Saiu']);
   confere('desde sempre pega tudo', resumoMovimentos(movimentos, roster, 'barra', 0).entradas.length, 2);
   confere('evento sem data só entra em desde sempre', movimentosDoPeriodo([mv('', 'barra', 'X', 'entrada')], 3).length, 0);
+  // O periodo do Entrada/Saida: "1 mes", "Tudo" e o "Por periodo" (datas).
+  const { rotuloPeriodoMovimentos, PERIODOS_MOVIMENTOS } = await import(url('dominio/movimentos.js'));
+  confere('os botões: 1 mês e Tudo', PERIODOS_MOVIMENTOS, [1, 0]);
+  confere('1 mês: os últimos 30 dias, do mais recente', nomes(movimentosDoPeriodo(movimentos, 1)), ['Outro', 'Novo', 'Saiu']);
+  const fixos = [mv('2026-08-01', 'barra', 'A', 'entrada'), mv('2026-08-31', 'barra', 'B', 'entrada'), mv('2026-09-01', 'barra', 'C', 'entrada'), mv('', 'barra', 'D', 'entrada')];
+  confere('por período: os dois dias entram, e sem data fica de fora',
+    nomes(movimentosDoPeriodo(fixos, { de: '2026-08-01', ate: '2026-08-31' })), ['B', 'A']);
+  confere('por período: só "De" ou só "Até"',
+    [nomes(movimentosDoPeriodo(fixos, { de: '2026-08-31', ate: '' })), nomes(movimentosDoPeriodo(fixos, { de: '', ate: '2026-08-01' }))],
+    [['C', 'B'], ['A']]);
+  confere('o rótulo do período', [rotuloPeriodoMovimentos(1), rotuloPeriodoMovimentos(0), rotuloPeriodoMovimentos({ de: '2026-08-01', ate: '2026-10-19' }),
+    rotuloPeriodoMovimentos({ de: '2026-08-01', ate: '' }), rotuloPeriodoMovimentos({ de: '', ate: '2026-10-19' })],
+    ['Último mês', 'Desde sempre', 'De 01/08/2026 a 19/10/2026', 'Desde 01/08/2026', 'Até 19/10/2026']);
+  confere('o texto pro WhatsApp leva o período escolhido',
+    textoMovimentos(resumoMovimentos(fixos, roster, 'barra', { de: '2026-08-01', ate: '2026-08-31' }), { de: '2026-08-01', ate: '2026-08-31' }).split('\n')[1].endsWith('· De 01/08/2026 a 31/08/2026'), true);
 
   const texto = textoMovimentos(r, 6);
   confere('o texto leva nome e data', /🟢 Novo \(X\) — /.test(texto) && /⏸️ Costa \(VI\) — desde 01\/08\/2026/.test(texto), true);

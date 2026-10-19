@@ -4,13 +4,13 @@
 // dominio/movimentos.js; o registro, no cadastro de membros.
 
 import { carregarMovimentos } from '../dados/carregar.js';
-import { PERIODOS, nomeDoPeriodo, rotuloPilula } from '../dominio/doacoes.js';
-import { TIPOS_MOVIMENTO, quadroRegional, resumoMovimentos, textoMovimentos, textoQuadroRegional } from '../dominio/movimentos.js';
+import { rotuloPilula } from '../dominio/doacoes.js';
+import { PERIODOS_MOVIMENTOS, TIPOS_MOVIMENTO, quadroRegional, rotuloPeriodoMovimentos, resumoMovimentos, textoMovimentos, textoQuadroRegional } from '../dominio/movimentos.js';
 import { escopoPorChave } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
-import { copiarTexto, escapeHtml, formatDataBR } from '../nucleo/util.js';
-import { selinhoIniciais } from '../ui/comuns.js';
+import { copiarTexto, dataDoCampoOuAvisar, escapeHtml, formatDataBR } from '../nucleo/util.js';
+import { campoData, selinhoIniciais } from '../ui/comuns.js';
 import { esqueletoLista, renderPizza } from '../ui/graficos.js';
 import { imagemMovimentos, imagemQuadroMovimentos, mostrarPreviaImagem } from '../ui/imagem.js';
 
@@ -25,10 +25,24 @@ function chaveAberta() {
   return state.movimentosDivisaoAberta;
 }
 
+// "1 mes" e "Tudo" em cima e, embaixo, "Por periodo": duas datas e o
+// Aplicar (decisao do clube, 19/10/2026 - antes eram 3, 6, 12 meses e
+// tudo, a lista das Doacoes e da Caixinha, que continua la). Com o periodo
+// aplicado, nenhum dos dois botoes fica marcado; tocar num volta a ele.
 function pilulas() {
+  const p = state.movimentosPeriodo;
+  const livre = p && typeof p === 'object' ? p : null;
   return `
-    <div class="pilulas-periodo no-print">
-      ${PERIODOS.map(m => `<button class="pilula ${state.movimentosPeriodo === m ? 'active' : ''}" data-action="movimentos-periodo" data-value="${m}">${rotuloPilula(m)}</button>`).join('')}
+    <div class="no-print">
+      <div class="pilulas-periodo">
+        ${PERIODOS_MOVIMENTOS.map(m => `<button class="pilula ${p === m ? 'active' : ''}" data-action="movimentos-periodo" data-value="${m}">${m === 1 ? '1 mês' : rotuloPilula(m)}</button>`).join('')}
+      </div>
+      <div class="fin-ou-mes">ou por período${livre ? `: <b>${escapeHtml(rotuloPeriodoMovimentos(livre))}</b>` : ''}</div>
+      <div class="row-gap">
+        ${campoData({ id: 'mov-periodo-de', rotulo: 'De', valor: livre ? livre.de : '', estilo: 'margin-bottom:0; flex:1;' })}
+        ${campoData({ id: 'mov-periodo-ate', rotulo: 'Até', valor: livre ? livre.ate : '', estilo: 'margin-bottom:0; flex:1;' })}
+      </div>
+      <button class="btn secondary block" style="margin:8px 0 14px;" data-action="movimentos-aplicar-periodo">Aplicar período</button>
     </div>
   `;
 }
@@ -173,6 +187,20 @@ export const acoes = {
     state.movimentosPeriodo = Number(target.dataset.value);
     return render();
   },
+  // "Por periodo": De em branco = desde o comeco; Ate em branco = ate hoje.
+  // Os dois em branco e o mesmo que "Tudo".
+  'movimentos-aplicar-periodo': async (id, target, action, e) => {
+    const de = dataDoCampoOuAvisar('mov-periodo-de', 'A data "De"');
+    if (de === null) return;
+    const ate = dataDoCampoOuAvisar('mov-periodo-ate', 'A data "Até"');
+    if (ate === null) return;
+    if (de && ate && de > ate) {
+      alert('A data "De" não pode ser depois da data "Até".');
+      return;
+    }
+    state.movimentosPeriodo = de || ate ? { de, ate } : 0;
+    return render();
+  },
   'abrir-movimentos-divisao': async (id, target, action, e) => {
     state.movimentosDivisaoAberta = target.dataset.value;
     window.scrollTo(0, 0);
@@ -193,7 +221,7 @@ export const acoes = {
     if (!d) return;
     const chave = target.dataset.value;
     const r = resumoMovimentos(d, state.roster, chave, state.movimentosPeriodo);
-    return mostrarPreviaImagem(() => imagemMovimentos(r, escopoPorChave(chave).nome, nomeDoPeriodo(state.movimentosPeriodo)), `entrada-saida-${chave}.png`);
+    return mostrarPreviaImagem(() => imagemMovimentos(r, escopoPorChave(chave).nome, rotuloPeriodoMovimentos(state.movimentosPeriodo)), `entrada-saida-${chave}.png`);
   },
   'copiar-quadro-movimentos': async (id, target, action, e) => {
     const d = dados();
@@ -204,6 +232,6 @@ export const acoes = {
     const d = dados();
     if (!d) return;
     const q = quadroRegional(d, state.roster, state.movimentosPeriodo);
-    return mostrarPreviaImagem(() => imagemQuadroMovimentos(q, nomeDoPeriodo(state.movimentosPeriodo)), 'entrada-saida-rj4.png');
+    return mostrarPreviaImagem(() => imagemQuadroMovimentos(q, rotuloPeriodoMovimentos(state.movimentosPeriodo)), 'entrada-saida-rj4.png');
   },
 };

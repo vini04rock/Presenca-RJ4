@@ -320,7 +320,8 @@ export let state = {
   movimentosDadosEscopo: null,
   movimentosCarregando: false,
   movimentosErro: null,
-  movimentosPeriodo: 6,
+  // 0 = tudo (o padrao), 1 = o ultimo mes, { de, ate } = o "Por periodo".
+  movimentosPeriodo: 0,
   movimentosDivisaoAberta: null,
 
   // Tela "Calendario" - divisao/regional escolhida e o mes/ano exibido

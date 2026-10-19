@@ -468,9 +468,14 @@ O que cada um faz (`registrarMovimento`, no `Code.gs`):
 (`telas/admin-movimentos.js`, contas em `dominio/movimentos.js`):
 
 - Numa divisão: três números (entraram, afastados agora, desligados), os
-  afastados de hoje e a linha do tempo, com período de 3, 6 ou 12 meses ou
-  tudo. **Entraram e desligados contam no período; afastados contam
-  agora**, porque afastamento é um estado e não um acontecimento.
+  afastados de hoje e a linha do tempo. O período (desde 19/10/2026) é
+  **1 mês** (os últimos 30 dias), **Tudo** (o padrão) ou **Por período**,
+  de uma data a outra, com "De" ou "Até" em branco valendo sem limite
+  daquele lado (`PERIODOS_MOVIMENTOS`/`rotuloPeriodoMovimentos`, em
+  `dominio/movimentos.js`). É uma lista própria: Doações e Caixinha
+  continuam com 3, 6, 12 meses e tudo. **Entraram e desligados contam no
+  período; afastados contam agora**, porque afastamento é um estado e não
+  um acontecimento.
 - Os três números também viram uma **pizza** (`renderPizza`, em
   `ui/graficos.js`), entre o placar e os botões: no Regional, a soma de
   todas as divisões; numa divisão, só a dela.
@@ -850,7 +855,7 @@ a cada mudança:
 | `servidor.py` | serve o app local com o cache desligado |
 | `estrutura.py` | 7 verificações: imports circulares, hierarquia de camadas, sintaxe, nome sem import, import sobrando, ações sem tratador |
 | `regras.mjs` | as regras do clube que, se quebrarem, saem erradas numa convocação sem ninguém perceber |
-| `telas.mjs` | desenha as 187 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
+| `telas.mjs` | desenha as 189 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
 | `planilha.mjs` | roda o `Code.gs` de verdade contra uma planilha de mentira: encerramento automático, PIN, relatório individual, responsável, textos, chamada do evento, doações, caixinha e entrada/saída |
 
 O `--html` do `telas.mjs` é a rede de proteção mais útil: captura o HTML de
@@ -976,7 +981,7 @@ ferramentas, acima):
 
     py ferramentas/estrutura.py     # imports, camadas, sintaxe, ações
     node ferramentas/regras.mjs     # ordem hierárquica e formato da convocação
-    node ferramentas/telas.mjs      # desenha as 187 telas e abas
+    node ferramentas/telas.mjs      # desenha as 189 telas e abas
     node ferramentas/planilha.mjs   # o encerramento automático, no Code.gs
 
 Eles dizem que o app **não quebrou**, não que está bonito: não cobrem

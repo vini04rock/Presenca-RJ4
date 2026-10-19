@@ -61,10 +61,29 @@ export function semDataDeIngresso(membros) {
 }
 
 // As movimentacoes da janela, do mais recente pro mais antigo.
-export function movimentosDoPeriodo(movimentos, meses) {
-  const corte = meses ? dataCorteMeses(meses) : null;
+// O periodo do Entrada/Saida (19/10/2026): 0 = tudo; um numero = os
+// ultimos N meses (o "1 mes" e o ultimo mes, de hoje pra tras); { de, ate }
+// = o "Por periodo", datas 'yyyy-mm-dd' com os dois dias inclusos - vazio
+// de um lado = sem limite daquele lado.
+export const PERIODOS_MOVIMENTOS = [1, 0];
+
+export function rotuloPeriodoMovimentos(periodo) {
+  if (periodo && typeof periodo === 'object') {
+    const { de, ate } = periodo;
+    if (de && ate) return `De ${formatDataBR(de)} a ${formatDataBR(ate)}`;
+    if (de) return `Desde ${formatDataBR(de)}`;
+    if (ate) return `Até ${formatDataBR(ate)}`;
+    return nomeDoPeriodo(0);
+  }
+  return nomeDoPeriodo(periodo);
+}
+
+export function movimentosDoPeriodo(movimentos, periodo) {
+  const porDatas = periodo && typeof periodo === 'object';
+  const de = porDatas ? periodo.de || '' : (periodo ? dataCorteMeses(periodo) : '');
+  const ate = porDatas ? periodo.ate || '' : '';
   return (movimentos || [])
-    .filter(m => !corte || (m.data && m.data >= corte))
+    .filter(m => (!de || (m.data && m.data >= de)) && (!ate || (m.data && m.data <= ate)))
     .slice()
     .sort((a, b) => (b.data || '').localeCompare(a.data || ''));
 }
@@ -104,7 +123,7 @@ const quandoFoi = m => (m.data ? ` — ${formatDataBR(m.data)}` : '');
 export function textoMovimentos(r, meses) {
   const partes = [
     '🔄 *ENTRADA E SAÍDA DE INTEGRANTES* 🔄',
-    `*${escopoPorChave(r.chave).nome.toUpperCase()}* · ${nomeDoPeriodo(meses)}`,
+    `*${escopoPorChave(r.chave).nome.toUpperCase()}* · ${rotuloPeriodoMovimentos(meses)}`,
     '',
     `🟢 Entraram: *${r.entradas.length}*`,
     `⏸️ Afastados agora: *${r.afastadosAgora.length}*`,
@@ -122,7 +141,7 @@ export function textoMovimentos(r, meses) {
 export function textoQuadroRegional(q, meses) {
   return [
     '🔄 *ENTRADA E SAÍDA — RJ4* 🔄',
-    nomeDoPeriodo(meses),
+    rotuloPeriodoMovimentos(meses),
     '',
     ...q.linhas.map(l => `*${l.e.nome}*: 🟢 ${l.entradas} · ⏸️ ${l.afastados} · 🚪 ${l.desligamentos}`),
     '',

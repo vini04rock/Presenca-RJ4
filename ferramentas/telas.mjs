@@ -620,6 +620,8 @@ const mvs = { isAdmin:true, adminTab:'movimentos', roster:rosterComAfastado, mov
 add('entrada/saída / divisão',           { ...mvs, adminEscopo:'barra', movimentosDadosEscopo:'barra' }, T.renderAdmin);
 add('entrada/saída / divisão vazia',     { ...mvs, adminEscopo:'oeste', movimentosDadosEscopo:'oeste', movimentosDados:[] }, T.renderAdmin);
 add('entrada/saída / quadro regional',   { ...mvs, adminEscopo:'regional', movimentosDadosEscopo:'regional' }, T.renderAdmin);
+add('entrada/saída / 1 mês',            { ...mvs, adminEscopo:'barra', movimentosDadosEscopo:'barra', movimentosPeriodo:1 }, T.renderAdmin);
+add('entrada/saída / por período',       { ...mvs, adminEscopo:'barra', movimentosDadosEscopo:'barra', movimentosPeriodo:{ de:'2026-08-01', ate:'2026-09-30' } }, T.renderAdmin);
 add('entrada/saída / regional abriu barra', { ...mvs, adminEscopo:'regional', movimentosDadosEscopo:'regional', movimentosDivisaoAberta:'barra' }, T.renderAdmin);
 add('entrada/saída / carregando',        { ...mvs, adminEscopo:'barra', movimentosDados:null }, T.renderAdmin);
 add('entrada/saída / erro',              { ...mvs, adminEscopo:'barra', movimentosErro:'Sem permissao para os dados desta divisao' }, T.renderAdmin);
