@@ -80,15 +80,10 @@ function areasVisiveis() {
   return AREAS.filter(a => secoesVisiveis(a.chave).length);
 }
 
-// As artes dos cards de area ainda estao em teste: so aparecem pra quem
-// abre o app com ?teste=cards no endereco. Pro resto do clube, o card de
-// sempre.
-function testandoArtesDasAreas() {
-  return typeof location !== 'undefined' && new URLSearchParams(location.search).get('teste') === 'cards';
-}
-
+// Cada area tem a propria arte (20/10/2026). Uma area nova sem arte cai no
+// card de sempre, com icone e texto.
 function cardArea(area) {
-  if (testandoArtesDasAreas() && IMG_AREAS[area.chave]) {
+  if (IMG_AREAS[area.chave]) {
     // A arte ja traz titulo, descricao, icone e seta - o card e so ela.
     return `
       <div class="card event-card menu-org-area menu-org-area-arte" role="button" aria-label="${escapeHtml(area.nome + ' - ' + area.desc)}"

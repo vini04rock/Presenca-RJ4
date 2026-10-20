@@ -119,7 +119,7 @@ h1, h2, h3, .display {
    por baixo da seta em card com arte de fundo); aqui o icone e o texto ja
    estao num flex proprio, entao o padding sai. */
 .menu-org-card { min-height: 62px; }
-/* O card de area com arte (em teste, ?teste=cards): a imagem e o card
+/* O card de area com arte (20/10/2026): a imagem e o card
    inteiro - ela ja traz moldura, texto, icone e seta, e os cantos dela sao
    transparentes. Por isso sem vidro, borda, sombra e reflexo do .card, e
    na proporcao da arte (~9:1), pra nada ser cortado. */
