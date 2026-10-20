@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-10-19-z-guarda-divisao';
+var VERSAO = '2026-10-20-a-abertura-rapida';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -510,6 +510,15 @@ function lerMembros() {
 
 function lerEventos() {
   migrarSePreciso();
+  // Os convocados de TODOS os eventos numa leitura so da aba Presencas.
+  // Ate 20/10/2026 cada evento relia a aba inteira (membrosDoEvento): com
+  // 32 eventos e ~1.000 presencas, abrir o app levava 20 a 28 segundos, e
+  // crescia a cada evento novo. Mesma ordem de antes: a da aba.
+  var convocados = {};
+  linhas(aba(ABA_PRESENCAS, CAB_PRESENCAS)).forEach(function (l) {
+    if (!l[0] || !l[2]) return;
+    (convocados[String(l[0])] = convocados[String(l[0])] || []).push(String(l[2]));
+  });
   return linhas(aba(ABA_EVENTOS, CAB_EVENTOS))
     .filter(function (l) { return l[0]; })
     .map(function (l) {
@@ -533,15 +542,9 @@ function lerEventos() {
         tipo: String(l[9] || ''),
         textoOriginal: String(l[10] || ''),
         chamada: parseOuVazio(String(l[11] || ''), null),
-        memberIds: membrosDoEvento(String(l[0]))
+        memberIds: convocados[String(l[0])] || []
       };
     });
-}
-
-function membrosDoEvento(eventoId) {
-  return linhas(aba(ABA_PRESENCAS, CAB_PRESENCAS))
-    .filter(function (l) { return String(l[0]) === eventoId && l[2]; })
-    .map(function (l) { return String(l[2]); });
 }
 
 function lerPresencas(eventoId) {
@@ -1241,7 +1244,10 @@ function formatarHorario(v) {
   return String(v || '');
 }
 
-function fuso() { return planilha().getSpreadsheetTimeZone() || 'America/Sao_Paulo'; }
+// Guardado na primeira vez: e uma ida ao servico de planilhas, e era feita a
+// cada data formatada (dezenas por resposta).
+var fusoDaPlanilha = '';
+function fuso() { return fusoDaPlanilha || (fusoDaPlanilha = planilha().getSpreadsheetTimeZone() || 'America/Sao_Paulo'); }
 
 function agora() {
   return Utilities.formatDate(new Date(), fuso(), 'dd/MM/yyyy HH:mm');

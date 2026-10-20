@@ -1121,6 +1121,24 @@ log('=== entrada/saída: transferência de divisão e grau a confirmar ===');
 }
 
 log('');
+log('=== abertura do app: os convocados de cada evento numa leitura só ===');
+{
+  // Presencas misturadas fora de ordem, um evento sem ninguem e uma linha
+  // sem membro - a resposta tem que ser igual a do jeito antigo (filtrar a
+  // aba inteira evento por evento).
+  const p = montaPlanilha([ev('e1', '2026-10-01', 'encerrado'), ev('e2', '2026-10-02', 'ativo'), ev('e3', '2026-10-03', 'ativo')], [
+    pr('e2', 'm3', 'Aguardando'), pr('e1', 'm1', 'Confirmado'), pr('e2', 'm1', 'Confirmado'),
+    pr('e1', 'm2', 'Familia'), pr('e2', '', 'Aguardando'), pr('e1', 'm3', 'Aguardando'),
+  ]);
+  const { contexto } = carregaCodeGs(p, {});
+  const antigo = (id) => p.abas.Presencas.dados.slice(1).filter(l => String(l[0]) === id && l[2]).map(l => String(l[2]));
+  const eventos = contexto.executar('dados', {}).eventos;
+  confere('cada evento com os mesmos convocados, na mesma ordem, do jeito antigo',
+    eventos.map(e => [e.id, e.memberIds]), ['e1', 'e2', 'e3'].map(id => [id, antigo(id)]));
+  confere('evento sem ninguém vem com a lista vazia', eventos.find(e => e.id === 'e3').memberIds, []);
+}
+
+log('');
 log('=== isolamento: cada divisão só mexe no que é dela ===');
 {
   const evc = (id, categoria) => { const l = ev(id, daquiA(5), 'ativo'); l[8] = categoria; return l; };
