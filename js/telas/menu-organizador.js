@@ -16,6 +16,7 @@ import { escopoPorChave, escoposAtivos, temDoacoesECaixinha } from '../nucleo/co
 import { TIPOS_OBRIGATORIOS, obrigatoriedadesDoMes, rotuloTipo, textoCobrancaObrigatoriedades, textoDiasRestantes, textoEventoMarcado, textoFaltam } from '../dominio/obrigatoriedades.js';
 import { copiarTexto, diaDaSemana, formatDataBR, quando } from '../nucleo/util.js';
 import { state } from '../nucleo/estado.js';
+import { IMG_AREAS } from '../nucleo/imagens.js';
 import { escapeHtml } from '../nucleo/util.js';
 import { render } from '../nucleo/render.js';
 import { abrirAbaOrganizador } from './admin.js';
@@ -79,7 +80,21 @@ function areasVisiveis() {
   return AREAS.filter(a => secoesVisiveis(a.chave).length);
 }
 
+// As artes dos cards de area ainda estao em teste: so aparecem pra quem
+// abre o app com ?teste=cards no endereco. Pro resto do clube, o card de
+// sempre.
+function testandoArtesDasAreas() {
+  return typeof location !== 'undefined' && new URLSearchParams(location.search).get('teste') === 'cards';
+}
+
 function cardArea(area) {
+  if (testandoArtesDasAreas() && IMG_AREAS[area.chave]) {
+    // A arte ja traz titulo, descricao, icone e seta - o card e so ela.
+    return `
+      <div class="card event-card menu-org-area menu-org-area-arte" role="button" aria-label="${escapeHtml(area.nome + ' - ' + area.desc)}"
+           style="background-image:url('${IMG_AREAS[area.chave]}');" data-action="abrir-area-organizador" data-value="${area.chave}"></div>
+    `;
+  }
   return `
     <div class="card event-card menu-org-card menu-org-area" style="border-left:3px solid ${area.cor};" data-action="abrir-area-organizador" data-value="${area.chave}">
       <div class="menu-org-linha">

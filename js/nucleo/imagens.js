@@ -38,6 +38,15 @@ export const IMG_HOME_EVENTOS = 'img/home-eventos.webp';
 // cabia na altura nova sem ser cortado no meio do titulo.
 export const IMG_CALENDARIO_HOME = 'img/calendario-home.webp';
 
+// Artes dos cards de area do menu do organizador (ADM, Operacional e
+// Social), com titulo, descricao, icone e seta ja desenhados. Em teste
+// desde 20/10/2026: so aparecem com ?teste=cards no endereco.
+export const IMG_AREAS = {
+  adm: 'img/area-adm.webp',
+  operacional: 'img/area-operacional.webp',
+  social: 'img/area-social.webp',
+};
+
 // Arte do botao "Modo organizador", no rodape da tela inicial (engrenagem,
 // texto e seta ja desenhados - por isso o botao nao repete nada em HTML).
 // 4:1, a proporcao em que ele foi desenhado; e o menor elemento da tela
