@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-10-21-a-reabrir-sem-falta';
+var VERSAO = '2026-10-21-c-rascunho-acoes-sociais';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -44,6 +44,9 @@ var ABA_ESTOQUE_DOACOES_MOV = 'EstoqueDoacoesMov';
 var ABA_MOVIMENTOS = 'Movimentacoes';
 var ABA_ESTOQUE_ADM_ITENS = 'EstoqueADMItens';
 var ABA_ESTOQUE_ADM_MOV = 'EstoqueADMMovimentacoes';
+var ABA_ACOES_SOCIAIS_IDEIAS = 'AcoesSociaisIdeias';
+var ABA_ACOES_SOCIAIS_AGENDA = 'AcoesSociaisAgenda';
+var ABA_ACOES_SOCIAIS_TEXTOS = 'AcoesSociaisTextos';
 
 // "Cargo" so faz sentido nos graus VI e V (ver CARGOS no js/nucleo/config.js):
 // sao os graus em que varios integrantes dividem o mesmo grau ocupando
@@ -167,6 +170,19 @@ var SITUACAO_AFASTADO = 'Afastado';
 var CAB_ESTOQUE_ADM_ITENS = ['ID', 'Material', 'Criado em'];
 var CAB_ESTOQUE_ADM_MOV = ['ID', 'Data', 'Tipo', 'ID Material', 'Material', 'Quantidade',
   'Destino Tipo', 'Destino ID', 'Destino Nome', 'Observacao', 'Registrado em', 'Anulado em'];
+// O planejador de Acoes Sociais (21/10/2026): cada divisao monta o proprio,
+// e ele nao mexe em nada do resto do app - so planeja. Tres abas:
+//   Ideias - o banco de acoes possiveis da divisao;
+//   Agenda - as acoes marcadas em cada mes ('yyyy-mm'; o foco e uma por
+//     mes, mas pode ter mais). O nome e o emoji da acao ficam copiados na
+//     linha: apagar a ideia nao apaga o que ja foi planejado. "ID Evento"
+//     e o evento criado pelo "Criar evento", quando houver;
+//   Textos - os textos prontos do Social (arrecadacao, motivacional...).
+var CAB_ACOES_SOCIAIS_IDEIAS = ['ID', 'Divisao', 'Emoji', 'Nome', 'Descricao', 'O que precisa', 'Atualizado em'];
+var CAB_ACOES_SOCIAIS_AGENDA = ['ID', 'Divisao', 'Mes', 'ID Ideia', 'Emoji', 'Acao', 'Data', 'Horario', 'Local',
+  'Observacao', 'Situacao', 'ID Evento', 'Atualizado em'];
+var CAB_ACOES_SOCIAIS_TEXTOS = ['ID', 'Divisao', 'Titulo', 'Texto', 'Atualizado em'];
+var SITUACOES_ACAO_SOCIAL = ['ideia', 'planejada', 'confirmada', 'realizada'];
 
 // Na planilha fica o rotulo legivel; o app continua falando em chaves.
 var STATUS_ROTULO = {
@@ -264,7 +280,10 @@ var ACOES_PROTEGIDAS = [
   // Entrada/Saida: o motivo de um afastamento pode ser assunto pessoal.
   'membroMovimentar', 'movimentos', 'membroConfirmarGrau',
   // Estoque administrativo: inclusive a leitura e exclusiva do Regional.
-  'estoqueAdm', 'estoqueAdmMovimentar', 'estoqueAdmAnular'
+  'estoqueAdm', 'estoqueAdmMovimentar', 'estoqueAdmAnular',
+  // O planejador de Acoes Sociais de cada divisao.
+  'acoesSociais', 'acaoSocialIdeiaSalvar', 'acaoSocialIdeiaRemover', 'acaoSocialAgendaSalvar',
+  'acaoSocialAgendaRemover', 'acaoSocialTextoSalvar', 'acaoSocialTextoRemover', 'acoesSociaisImportar'
 ];
 
 function executar(action, p) {
@@ -345,6 +364,14 @@ function executar(action, p) {
   if (action === 'estoqueAdm') return lerEstoqueAdm(p);
   if (action === 'estoqueAdmMovimentar') return comTrava(function () { return movimentarEstoqueAdm(p); });
   if (action === 'estoqueAdmAnular') return comTrava(function () { return anularMovimentoEstoqueAdm(p); });
+  if (action === 'acoesSociais') return lerAcoesSociais(String(p.divisao || ''), String(p.pin || ''));
+  if (action === 'acaoSocialIdeiaSalvar') return comTrava(function () { return salvarIdeiaAcaoSocial(p); });
+  if (action === 'acaoSocialIdeiaRemover') return comTrava(function () { return removerLinhaAcaoSocial(ABA_ACOES_SOCIAIS_IDEIAS, CAB_ACOES_SOCIAIS_IDEIAS, p); });
+  if (action === 'acaoSocialAgendaSalvar') return comTrava(function () { return salvarAgendaAcaoSocial(p); });
+  if (action === 'acaoSocialAgendaRemover') return comTrava(function () { return removerLinhaAcaoSocial(ABA_ACOES_SOCIAIS_AGENDA, CAB_ACOES_SOCIAIS_AGENDA, p); });
+  if (action === 'acaoSocialTextoSalvar') return comTrava(function () { return salvarTextoAcaoSocial(p); });
+  if (action === 'acoesSociaisImportar') return comTrava(function () { return importarAcoesSociais(p); });
+  if (action === 'acaoSocialTextoRemover') return comTrava(function () { return removerLinhaAcaoSocial(ABA_ACOES_SOCIAIS_TEXTOS, CAB_ACOES_SOCIAIS_TEXTOS, p); });
   throw new Error('Acao desconhecida: ' + action);
 }
 
@@ -1208,7 +1235,8 @@ function organizarAbas() {
   var ordem = [ABA_CALENDARIO].concat(ORDEM_EXIBICAO_ESCOPOS.map(function (chave) { return ESCOPOS_NOME[chave]; }))
     .concat([ABA_INSIGHT_RESUMO, 'Relatorio', 'Membros', 'Eventos', 'Presencas',
              ABA_INSIGHT_RODADAS, ABA_INSIGHT_PRESENCAS, ABA_INSIGHT_EXCLUIDOS,
-             ABA_DOACOES, ABA_ESTOQUE_DOACOES_MOV, ABA_ESTOQUE_DOACOES_ITENS, ABA_CAIXINHA, ABA_CAIXINHA_FINANCEIRO, ABA_MOVIMENTOS, 'KV']);
+             ABA_DOACOES, ABA_ESTOQUE_DOACOES_MOV, ABA_ESTOQUE_DOACOES_ITENS, ABA_CAIXINHA, ABA_CAIXINHA_FINANCEIRO, ABA_MOVIMENTOS,
+             ABA_ACOES_SOCIAIS_AGENDA, ABA_ACOES_SOCIAIS_IDEIAS, ABA_ACOES_SOCIAIS_TEXTOS, 'KV']);
   ordem.forEach(function (nome, i) {
     var s = ss.getSheetByName(nome);
     if (!s) return;
@@ -2080,6 +2108,215 @@ var MEDIDAS_ESTOQUE = ['un', 'par', 'kg'];
 // "Cobertor" e "cobertôr " sao o mesmo item - a mesma regra do app.
 function chaveDoItem(nome) {
   return String(nome).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().replace(/\s+/g, ' ');
+}
+
+// ---------- ACOES SOCIAIS (o planejador de cada divisao) ----------
+// So planeja: nada daqui mexe em evento, presenca ou obrigatoriedade. Toda
+// acao confere o PIN contra a divisao dos dados - ao corrigir ou apagar, a
+// divisao da LINHA gravada, nao a que vem no pedido: a Barra nao mexe no
+// planejamento do Oeste dizendo que ele e dela.
+
+// Uma linha so, sem espaco sobrando, cortada no tamanho maximo.
+function linhaCurta(v, max) { return String(v === undefined || v === null ? '' : v).trim().replace(/\s+/g, ' ').slice(0, max); }
+
+// Texto como texto: o mes 'yyyy-mm' nao vira Date, o horario nao vira hora,
+// e uma descricao que comece com "=" nao vira formula.
+function gravarLinhaComoTexto(s, indice, valores) {
+  var range = s.getRange(indice, 1, 1, valores.length);
+  range.setNumberFormat('@');
+  range.setValues([valores]);
+}
+
+// A linha de `id` na aba e a divisao dela - ou a recusa, se o PIN nao vale
+// pra divisao gravada (ou se o pedido diz outra divisao).
+function linhaDaDivisao(s, id, p) {
+  var achado = acharLinha(s, function (l) { return String(l[0]) === String(id); });
+  if (!achado) throw new Error('Nao encontrado');
+  var divisao = String(achado.valores[1]);
+  if ((p.divisao && String(p.divisao) !== divisao) || !podeNaDivisao(divisao, String(p.pin || ''))) return { recusa: SEM_PERMISSAO_DIVISAO };
+  return { achado: achado, divisao: divisao };
+}
+
+function lerAcoesSociais(divisao, pin) {
+  if (!podeNaDivisao(divisao, pin)) return SEM_PERMISSAO_DIVISAO;
+  var ideias = linhas(aba(ABA_ACOES_SOCIAIS_IDEIAS, CAB_ACOES_SOCIAIS_IDEIAS))
+    .filter(function (l) { return l[0] && String(l[1]) === divisao; })
+    .map(function (l) {
+      return { id: String(l[0]), emoji: String(l[2] || ''), nome: String(l[3] || ''), descricao: String(l[4] || ''), precisa: String(l[5] || '') };
+    })
+    .sort(function (a, b) { return a.nome.localeCompare(b.nome); });
+  var agenda = linhas(aba(ABA_ACOES_SOCIAIS_AGENDA, CAB_ACOES_SOCIAIS_AGENDA))
+    .map(function (l, i) {
+      return {
+        id: String(l[0]), divisao: String(l[1]), mes: formatarMes(l[2]), ideiaId: String(l[3] || ''),
+        emoji: String(l[4] || ''), acao: String(l[5] || ''), data: formatarData(l[6]), horario: formatarHorario(l[7]),
+        local: String(l[8] || ''), observacao: String(l[9] || ''),
+        situacao: SITUACOES_ACAO_SOCIAL.indexOf(String(l[10])) !== -1 ? String(l[10]) : 'ideia',
+        eventoId: String(l[11] || ''), _ordem: i
+      };
+    })
+    .filter(function (a) { return a.id && a.divisao === divisao; })
+    // Por mes; dentro do mes, por data (sem data por ultimo) e depois na
+    // ordem em que foram marcadas.
+    .sort(function (a, b) {
+      return a.mes.localeCompare(b.mes) || (a.data || '9999').localeCompare(b.data || '9999') || a._ordem - b._ordem;
+    });
+  agenda.forEach(function (a) { delete a._ordem; delete a.divisao; });
+  var textos = linhas(aba(ABA_ACOES_SOCIAIS_TEXTOS, CAB_ACOES_SOCIAIS_TEXTOS))
+    .filter(function (l) { return l[0] && String(l[1]) === divisao; })
+    .map(function (l) { return { id: String(l[0]), titulo: String(l[2] || ''), texto: String(l[3] || '') }; });
+  return { ok: true, ideias: ideias, agenda: agenda, textos: textos };
+}
+
+// Uma ideia do banco: nova (sem id) ou corrigida (com id). Corrigir o nome
+// ou o emoji atualiza tambem os meses que ja usam essa ideia.
+function salvarIdeiaAcaoSocial(p) {
+  var s = aba(ABA_ACOES_SOCIAIS_IDEIAS, CAB_ACOES_SOCIAIS_IDEIAS);
+  var nome = linhaCurta(p.nome, 80);
+  if (!nome) throw new Error('Escreva o nome da acao');
+  var id = String(p.id || ''), divisao, indice;
+  if (id) {
+    var dona = linhaDaDivisao(s, id, p);
+    if (dona.recusa) return dona.recusa;
+    divisao = dona.divisao; indice = dona.achado.indice;
+  } else {
+    divisao = String(p.divisao || '');
+    if (!podeNaDivisao(divisao, String(p.pin || ''))) return SEM_PERMISSAO_DIVISAO;
+    id = novoId(); indice = s.getLastRow() + 1;
+  }
+  var emoji = linhaCurta(p.emoji, 16);
+  gravarLinhaComoTexto(s, indice, [id, divisao, emoji, nome, linhaCurta(p.descricao, 300), linhaCurta(p.precisa, 300), agora()]);
+  var sa = aba(ABA_ACOES_SOCIAIS_AGENDA, CAB_ACOES_SOCIAIS_AGENDA);
+  linhas(sa).forEach(function (l, i) {
+    if (String(l[3]) === id && String(l[1]) === divisao) sa.getRange(i + 2, 5, 1, 2).setValues([[emoji, nome]]);
+  });
+  return { ok: true, id: id };
+}
+
+// Uma acao na agenda: o mes ('yyyy-mm') e a ideia do banco (ou o nome
+// escrito, pra uma acao que nao esta no banco), mais data, horario, local,
+// observacao e a situacao. Com id, corrige aquela acao.
+function salvarAgendaAcaoSocial(p) {
+  var s = aba(ABA_ACOES_SOCIAIS_AGENDA, CAB_ACOES_SOCIAIS_AGENDA);
+  var id = String(p.id || ''), divisao, indice, atual = null;
+  if (id) {
+    var dona = linhaDaDivisao(s, id, p);
+    if (dona.recusa) return dona.recusa;
+    divisao = dona.divisao; indice = dona.achado.indice; atual = dona.achado.valores;
+  } else {
+    divisao = String(p.divisao || '');
+    if (!podeNaDivisao(divisao, String(p.pin || ''))) return SEM_PERMISSAO_DIVISAO;
+    id = novoId(); indice = s.getLastRow() + 1;
+  }
+  var mes = String(p.mes || '');
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(mes)) throw new Error('Mes invalido');
+
+  var ideiaId = String(p.ideiaId || ''), emoji, acao;
+  if (ideiaId) {
+    var ideia = acharLinha(aba(ABA_ACOES_SOCIAIS_IDEIAS, CAB_ACOES_SOCIAIS_IDEIAS),
+      function (l) { return String(l[0]) === ideiaId && String(l[1]) === divisao; });
+    if (!ideia) throw new Error('Ideia nao encontrada');
+    emoji = String(ideia.valores[2] || ''); acao = String(ideia.valores[3] || '');
+  } else {
+    acao = linhaCurta(p.acao, 80); emoji = linhaCurta(p.emoji, 16);
+    if (!acao) throw new Error('Escolha a acao do mes');
+  }
+
+  var data = String(p.data || '');
+  if (data) {
+    if (!dataISOValidaEstoqueAdm(data)) throw new Error('Data invalida');
+    if (data.slice(0, 7) !== mes) throw new Error('A data tem que ser no mes escolhido');
+  }
+  var horario = String(p.horario || '');
+  if (horario && !/^([01]\d|2[0-3]):[0-5]\d$/.test(horario)) throw new Error('Horario invalido');
+  var situacao = SITUACOES_ACAO_SOCIAL.indexOf(String(p.situacao)) !== -1 ? String(p.situacao) : 'ideia';
+  // O evento criado pelo "Criar evento": so muda quando vem no pedido.
+  var eventoId = p.eventoId !== undefined ? String(p.eventoId || '') : (atual ? String(atual[11] || '') : '');
+
+  gravarLinhaComoTexto(s, indice, [id, divisao, mes, ideiaId, emoji, acao, data, horario,
+    linhaCurta(p.local, 200), linhaCurta(p.observacao, 500), situacao, eventoId, agora()]);
+  return { ok: true, id: id };
+}
+
+// Um texto pronto do Social. O texto guarda as quebras de linha (e a
+// assinatura, que faz parte dele).
+function salvarTextoAcaoSocial(p) {
+  var s = aba(ABA_ACOES_SOCIAIS_TEXTOS, CAB_ACOES_SOCIAIS_TEXTOS);
+  var titulo = linhaCurta(p.titulo, 60);
+  var texto = String(p.texto === undefined || p.texto === null ? '' : p.texto).replace(/\r\n/g, '\n').trim().slice(0, 4000);
+  if (!titulo) throw new Error('Escreva o titulo do texto');
+  if (!texto) throw new Error('O texto esta vazio');
+  var id = String(p.id || ''), divisao, indice;
+  if (id) {
+    var dona = linhaDaDivisao(s, id, p);
+    if (dona.recusa) return dona.recusa;
+    divisao = dona.divisao; indice = dona.achado.indice;
+  } else {
+    divisao = String(p.divisao || '');
+    if (!podeNaDivisao(divisao, String(p.pin || ''))) return SEM_PERMISSAO_DIVISAO;
+    id = novoId(); indice = s.getLastRow() + 1;
+  }
+  gravarLinhaComoTexto(s, indice, [id, divisao, titulo, texto, agora()]);
+  return { ok: true, id: id };
+}
+
+// Carrega um planejamento inteiro de uma vez - o "Comecar com o rascunho"
+// do app: ideias, a agenda (cada acao aponta pra ideia pelo NOME) e textos.
+// So numa divisao com o planejador vazio: carregar duas vezes duplicaria
+// tudo, e por cima do que ja existe misturaria os dois. Chega por POST.
+function importarAcoesSociais(p) {
+  var divisao = String(p.divisao || '');
+  if (!podeNaDivisao(divisao, String(p.pin || ''))) return SEM_PERMISSAO_DIVISAO;
+  var abas = [[ABA_ACOES_SOCIAIS_IDEIAS, CAB_ACOES_SOCIAIS_IDEIAS], [ABA_ACOES_SOCIAIS_AGENDA, CAB_ACOES_SOCIAIS_AGENDA],
+    [ABA_ACOES_SOCIAIS_TEXTOS, CAB_ACOES_SOCIAIS_TEXTOS]];
+  var temAlgo = abas.some(function (a) { return linhas(aba(a[0], a[1])).some(function (l) { return l[0] && String(l[1]) === divisao; }); });
+  if (temAlgo) throw new Error('O planejador desta divisao ja tem dados - o rascunho so entra num planejador vazio');
+
+  var ideias = Array.isArray(p.ideias) ? p.ideias : parseOuVazio(p.ideias, []);
+  var agenda = Array.isArray(p.agenda) ? p.agenda : parseOuVazio(p.agenda, []);
+  var textos = Array.isArray(p.textos) ? p.textos : parseOuVazio(p.textos, []);
+  var momento = agora();
+  var idPorNome = {};
+  var linhasIdeias = [];
+  ideias.forEach(function (i) {
+    var nome = linhaCurta(i.nome, 80);
+    if (!nome || idPorNome[nome]) return;
+    idPorNome[nome] = novoId();
+    linhasIdeias.push([idPorNome[nome], divisao, linhaCurta(i.emoji, 16), nome, linhaCurta(i.descricao, 300), linhaCurta(i.precisa, 300), momento]);
+  });
+  var emojiPorNome = {};
+  linhasIdeias.forEach(function (l) { emojiPorNome[l[3]] = l[2]; });
+  var linhasAgenda = [];
+  agenda.forEach(function (a) {
+    var mes = String(a.mes || '');
+    var nome = linhaCurta(a.ideia, 80);
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(mes) || !idPorNome[nome]) throw new Error('Agenda invalida: ' + mes + ' ' + nome);
+    linhasAgenda.push([novoId(), divisao, mes, idPorNome[nome], emojiPorNome[nome], nome, '', '', '', '', 'ideia', '', momento]);
+  });
+  var linhasTextos = [];
+  textos.forEach(function (t) {
+    var titulo = linhaCurta(t.titulo, 60);
+    var texto = String(t.texto || '').replace(/\r\n/g, '\n').trim().slice(0, 4000);
+    if (titulo && texto) linhasTextos.push([novoId(), divisao, titulo, texto, momento]);
+  });
+  [[abas[0], linhasIdeias], [abas[1], linhasAgenda], [abas[2], linhasTextos]].forEach(function (par) {
+    if (!par[1].length) return;
+    var s = aba(par[0][0], par[0][1]);
+    var range = s.getRange(s.getLastRow() + 1, 1, par[1].length, par[1][0].length);
+    range.setNumberFormat('@');
+    range.setValues(par[1]);
+  });
+  return lerAcoesSociais(divisao, String(p.pin || ''));
+}
+
+// Apagar uma ideia, uma acao da agenda ou um texto. Apagar a ideia nao
+// apaga os meses que ja a usam: eles guardam o nome e o emoji.
+function removerLinhaAcaoSocial(nomeAba, cabecalho, p) {
+  var s = aba(nomeAba, cabecalho);
+  var dona = linhaDaDivisao(s, String(p.id || ''), p);
+  if (dona.recusa) return dona.recusa;
+  s.deleteRow(dona.achado.indice);
+  return { ok: true };
 }
 
 // ---------- ESTOQUE ADMINISTRATIVO DO REGIONAL ----------

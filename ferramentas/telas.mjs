@@ -686,6 +686,44 @@ add('estoque ADM / confirmar anulação',   { ...eadm, adminTab:'estoque-adm-rel
 add('estoque ADM / carregando',           { ...eadm, adminTab:'estoque-adm-movimentar', estoqueAdmCarregando:true }, T.renderAdmin);
 add('estoque ADM / erro',                 { ...eadm, adminTab:'estoque-adm-movimentar', estoqueAdmErro:'Falha de conexão' }, T.renderAdmin);
 
+const acoesSociaisDados = {
+  ideias: [
+    { id: 'i1', emoji: '🧥', nome: 'Doação de agasalhos', descricao: 'Roupas e cobertores no frio', precisa: 'Ponto de coleta' },
+    { id: 'i2', emoji: '🩸', nome: 'Doação de sangue', descricao: '', precisa: '' },
+  ],
+  agenda: [{ id: 'a1', mes: '2027-07', ideiaId: 'i1', emoji: '🧥', acao: 'Doação de agasalhos', data: '', horario: '', local: '', observacao: '', situacao: 'ideia', eventoId: '' }],
+  textos: [],
+};
+const asoc = { isAdmin:true, adminEscopo:'barra', acoesSociaisDados, acoesSociaisDadosEscopo:'barra', adminTab:'acoes-sociais-ideias' };
+const agendaCheia = { ...acoesSociaisDados,
+  agenda: [ ...acoesSociaisDados.agenda,
+    { id: 'a2', mes: '2027-07', ideiaId: '', emoji: '🎱', acao: 'Bingo no asilo', data: '2027-07-03', horario: '15:00', local: 'Asilo São José', observacao: 'Levar prêmios', situacao: 'confirmada', eventoId: '' },
+    { id: 'a3', mes: '2027-10', ideiaId: 'i2', emoji: '🩸', acao: 'Doação de sangue', data: '2027-10-09', horario: '08:00', local: 'Hemorio', observacao: '', situacao: 'realizada', eventoId: 'ev1' } ],
+  textos: [{ id: 't1', titulo: 'Motivacional', texto: 'Nunca se esqueçam senhores.\nI.S.S.I\n\nAlmeida. VI' }] };
+const agen = { ...asoc, adminTab:'acoes-sociais', acoesSociaisDados: agendaCheia, acoesSociaisAno: 2027 };
+add('ações sociais / banco de ideias',      { ...asoc }, T.renderAdmin);
+add('ações sociais / nova ideia',           { ...asoc, acaoSocialIdeiaForm:{ id:'', emoji:'🤝', nome:'', descricao:'', precisa:'' } }, T.renderAdmin);
+add('ações sociais / editar ideia',         { ...asoc, acaoSocialIdeiaForm:{ ...acoesSociaisDados.ideias[0] } }, T.renderAdmin);
+add('ações sociais / confirmar apagar',     { ...asoc, acaoSocialIdeiaForm:{ ...acoesSociaisDados.ideias[0] }, acaoSocialApagarId:'i1' }, T.renderAdmin);
+add('ações sociais / banco vazio',          { ...asoc, acoesSociaisDados:{ ideias:[], agenda:[], textos:[] } }, T.renderAdmin);
+add('ações sociais / carregando',           { ...asoc, acoesSociaisDadosEscopo:null, acoesSociaisCarregando:true }, T.renderAdmin);
+add('ações sociais / agenda do ano',       { ...agen }, T.renderAdmin);
+add('ações sociais / agenda com legenda',   { ...agen, acoesSociaisLegenda:true }, T.renderAdmin);
+add('ações sociais / mês aberto',           { ...agen, acaoSocialMesAberto:'2027-07' }, T.renderAdmin);
+add('ações sociais / escolher a ação',      { ...agen, acaoSocialMesAberto:'2027-02', acaoSocialAgendaForm:{ id:'', mes:'2027-02', ideiaId:'', emoji:'🤝', acao:'', dataTexto:'', horario:'', local:'', observacao:'', situacao:'ideia', escrevendo:false } }, T.renderAdmin);
+add('ações sociais / editar ação escrita',  { ...agen, acaoSocialMesAberto:'2027-07', acaoSocialAgendaForm:{ ...agendaCheia.agenda[1], dataTexto:'03/07/2027', escrevendo:true } }, T.renderAdmin);
+add('ações sociais / tirar do mês',         { ...agen, acaoSocialMesAberto:'2027-07', acaoSocialAgendaForm:{ ...agendaCheia.agenda[1], dataTexto:'03/07/2027', escrevendo:true }, acaoSocialApagarId:'a2' }, T.renderAdmin);
+add('ações sociais / criar evento',         { ...agen, acaoSocialMesAberto:'2027-07', acaoSocialCriarEventoId:'a2' }, T.renderAdmin);
+add('ações sociais / criar evento sem data',{ ...agen, acaoSocialMesAberto:'2027-07', acaoSocialCriarEventoId:'a1' }, T.renderAdmin);
+add('ações sociais / agenda ano vazio',     { ...agen, acoesSociaisAno: 2030 }, T.renderAdmin);
+add('ações sociais / textos',               { ...agen, adminTab:'acoes-sociais-textos' }, T.renderAdmin);
+add('ações sociais / novo texto',           { ...agen, adminTab:'acoes-sociais-textos', acaoSocialTextoForm:{ id:'', titulo:'', texto:'' } }, T.renderAdmin);
+add('ações sociais / editar texto',         { ...agen, adminTab:'acoes-sociais-textos', acaoSocialTextoForm:{ ...agendaCheia.textos[0] }, acaoSocialApagarId:'t1' }, T.renderAdmin);
+add('ações sociais / textos vazio',         { ...asoc, adminTab:'acoes-sociais-textos' }, T.renderAdmin);
+add('ações sociais / rascunho (Barra vazia)', { ...asoc, adminTab:'acoes-sociais', acoesSociaisDados:{ ideias:[], agenda:[], textos:[] } }, T.renderAdmin);
+add('ações sociais / rascunho confirmar',   { ...asoc, adminTab:'acoes-sociais', acoesSociaisDados:{ ideias:[], agenda:[], textos:[] }, acaoSocialRascunhoConfirmar:true }, T.renderAdmin);
+add('ações sociais / erro',                 { ...asoc, acoesSociaisErro:'Falha de conexão' }, T.renderAdmin);
+
 const LIMPO = {
   // A lista de eventos volta ao padrao entre um caso e outro: o card de
   // "proximo evento" depende dela, e um caso que a troca nao pode vazar
@@ -731,6 +769,9 @@ const LIMPO = {
   movimentosDados:null, movimentosDadosEscopo:null, movimentosErro:null, movimentosPeriodo:0, movimentosDivisaoAberta:null,
   estoqueAdmDados:null, estoqueAdmCarregando:false, estoqueAdmErro:null, estoqueAdmForm:null,
   estoqueAdmSalvando:false, estoqueAdmMsg:null, estoqueAdmFiltroTipo:'todos', estoqueAdmAnularId:null,
+  acoesSociaisDados:null, acoesSociaisDadosEscopo:null, acoesSociaisCarregando:false, acoesSociaisErro:null,
+  acoesSociaisSalvando:false, acoesSociaisMsg:null, acaoSocialIdeiaForm:null, acaoSocialApagarId:null,
+  acoesSociaisAno:null, acaoSocialMesAberto:null, acaoSocialAgendaForm:null, acaoSocialCriarEventoId:null, acoesSociaisLegenda:false, acaoSocialTextoForm:null, acaoSocialRascunhoConfirmar:false,
 };
 log('');
 log('=== 2. desenhar cada tela e aba ===');

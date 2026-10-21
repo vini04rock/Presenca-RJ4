@@ -710,6 +710,53 @@ log('=== relatório parcial: evento aberto não dá falta ===');
 }
 
 log('');
+log('=== ações sociais: agenda, relatório do ano e convocação ===');
+{
+  const AS = await import(url('dominio/acoes-sociais.js'));
+  const agenda = [
+    { id: 'a1', mes: '2027-07', ideiaId: 'i1', emoji: '🧥', acao: 'Doação de agasalhos', data: '2027-07-10', horario: '09:00', local: 'Sede', observacao: '', situacao: 'planejada' },
+    { id: 'a2', mes: '2027-07', ideiaId: '', emoji: '🎱', acao: 'Bingo no asilo', data: '', horario: '', local: '', observacao: '', situacao: 'ideia' },
+    { id: 'a3', mes: '2026-12', ideiaId: '', emoji: '🎅', acao: 'Papai Noel', data: '', horario: '', local: '', observacao: '', situacao: 'realizada' },
+  ];
+  const r = AS.resumoDoAno(agenda, 2027);
+  confere('o resumo conta meses e situações só do ano', [r.mesesComAcao, r.acoes, r.porSituacao.planejada], [1, 2, 1]);
+  confere('a agenda abre no ano de hoje se ele tem ação', AS.anoInicialDaAgenda(agenda, '2026-10-21'), 2026);
+  confere('senão, no próximo que tem', AS.anoInicialDaAgenda(agenda.slice(0, 2), '2026-10-21'), 2027);
+  confere('sem nada, no ano de hoje', AS.anoInicialDaAgenda([], '2026-10-21'), 2026);
+  confere('a ordem: mês, data, sem data por último', AS.ordenarAgenda([agenda[1], agenda[2], agenda[0]]).map(a => a.id), ['a3', 'a1', 'a2']);
+  confere('horário escrito de qualquer jeito', ['9', '930', '09:30', '19h', '25', ''].map(AS.horarioNormalizado), ['09:00', '09:30', '09:30', '19:00', '', '']);
+
+  const texto = AS.textoAgendaDoAno(agenda, 2027, 'Barra - RJ4').split('\n');
+  confere('o relatório do ano começa com o ano e a divisão', texto.slice(0, 2), ['🤝 *AÇÕES SOCIAIS 2027* 🤝', '*BARRA - RJ4*']);
+  confere('mês sem ação sai como a definir', texto.slice(texto.indexOf('*JANEIRO*'), texto.indexOf('*JANEIRO*') + 2), ['*JANEIRO*', '— a definir —']);
+  const julho = texto.indexOf('*JULHO*');
+  confere('julho: a escolhida com a situação e quando/onde, e a outra opção embaixo', texto.slice(julho, julho + 4),
+    ['*JULHO*', '🧥 Doação de agasalhos — 📅 Planejada', '   Sábado, 10/07 · 09:00 · Sede', '💡 Outras opções: 🎱 Bingo no asilo']);
+  const soOpcao = AS.textoAgendaDoAno([{ ...agenda[1], mes: '2027-03' }], 2027, 'Barra - RJ4').split('\n');
+  const marco = soOpcao.indexOf('*MARÇO*');
+  confere('mês só com opções: a definir, e as opções embaixo', soOpcao.slice(marco, marco + 3), ['*MARÇO*', '— a definir —', '💡 Opções: 🎱 Bingo no asilo']);
+  confere('o ano de 2026 não entra no de 2027', texto.some(l => l.includes('Papai Noel')), false);
+
+  const conv = AS.textoConvocacaoAcaoSocial(agenda[0], { descricao: 'Roupas e cobertores', precisa: 'Caixas' }, 'Barra - RJ4').split('\n');
+  confere('a convocação: a ação, o dia por extenso, a hora e o local', conv.slice(3, 9),
+    ['🧥 *DOAÇÃO DE AGASALHOS*', 'Roupas e cobertores', '', '📅 *Sábado, 10/07/2027*', '⏰ 09:00h', '📍 Sede']);
+  confere('com o que precisa', conv.includes('🧰 *O que precisa:* Caixas'), true);
+  confere('sem data, diz que está a definir', AS.textoConvocacaoAcaoSocial(agenda[1], null, 'Barra - RJ4').includes('📅 Data a definir'), true);
+  confere('cada mês tem o contexto do rascunho', [AS.CONTEXTO_DOS_MESES[6], AS.CONTEXTO_DOS_MESES[11]], [['frio'], ['calor', 'ferias', 'natal', 'festas']]);
+  confere('toda etiqueta do contexto está na legenda', AS.CONTEXTO_DOS_MESES.flat().every(c => AS.LEGENDA_CONTEXTO[c]), true);
+
+  // O rascunho do Social: cada mes aponta pra uma ideia que existe.
+  const R = await import(url('dominio/acoes-sociais-rascunho.js'));
+  const nomes = R.RASCUNHO_IDEIAS.map(i => i.nome);
+  confere('o rascunho: 28 ideias, sem nome repetido', [nomes.length, new Set(nomes).size], [28, 28]);
+  confere('a agenda do rascunho: os 12 meses de 2027, cada um com uma ideia do banco',
+    [R.RASCUNHO_AGENDA.map(a => a.mes.slice(5)).join(','), R.RASCUNHO_AGENDA.every(a => nomes.includes(a.ideia))],
+    ['01,02,03,04,05,06,07,08,09,10,11,12', true]);
+  confere('julho é a doação de agasalhos', R.RASCUNHO_AGENDA[6].ideia, 'Doação de agasalhos');
+  confere('os 3 textos, com a assinatura', R.RASCUNHO_TEXTOS.map(t => t.titulo + ':' + t.texto.includes('Almeida. VI')), ['Arrecadação Pub:true', 'Reflexivo:true', 'Motivacional:true']);
+}
+
+log('');
 log('=== doações: kg, cumprimento e quem foi e não levou ===');
 {
   const { rankDoacoes, membrosParaMarcar, textoDoacoes, formatKg, eventosDoPeriodo } = await import(url('dominio/doacoes.js'));

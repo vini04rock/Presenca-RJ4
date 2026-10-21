@@ -44,6 +44,8 @@ const SECOES = [
   { area: 'social', aba: 'doacoes', nome: 'Doações', desc: 'Alimento de cada evento, o rank e o estoque', icone: '🥫', cor: '#4CAF6E',
     noRegional: { aba: 'doacoes-estoque', desc: 'O estoque do Regional' },
     visivel: () => temDoacoesECaixinha(state.adminEscopo) },
+  // O planejador de Acoes Sociais: nas 7 divisoes, cada uma com o seu.
+  { area: 'social', aba: 'acoes-sociais', nome: 'Ações Sociais', desc: 'Agenda do ano, banco de ideias e textos', icone: '🤝', cor: '#4CAF6E' },
   { area: 'adm', aba: 'caixinha', nome: 'Caixinha', desc: 'Quem pagou, quanto entrou e saiu, e o saldo do caixa', icone: '💰', cor: '#C9A227',
     noRegional: { desc: 'O que cada divisão contribuiu, entradas, saídas e o saldo' },
     visivel: () => temDoacoesECaixinha(state.adminEscopo) },
@@ -61,12 +63,12 @@ const SECOES = [
 const AREAS = [
   { chave: 'adm', nome: 'ADM', desc: 'Membros, caixinha e movimentações', icone: '🗂️', cor: '#4C86D9' },
   { chave: 'operacional', nome: 'Operacional', desc: 'Eventos, relatórios e Insights', icone: '🏍️', cor: '#E0B23C' },
-  { chave: 'social', nome: 'Social', desc: 'Doações e estoque', icone: '🤝', cor: '#4CAF6E' },
+  { chave: 'social', nome: 'Social', desc: 'Doações, estoque e ações sociais', icone: '🤝', cor: '#4CAF6E' },
 ];
 const ORDEM_POR_AREA = {
   adm: ['caixinha', 'estoque-adm-movimentar', 'movimentos', 'membros'],
   operacional: ['abrir-relatorios-organizador', 'abrir-relatorio-individual', 'insights', 'eventos'],
-  social: ['doacoes'],
+  social: ['doacoes', 'acoes-sociais'],
 };
 
 function secoesVisiveis(area) {

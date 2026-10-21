@@ -795,6 +795,44 @@ Regras que valem para as duas:
   "Por evento" e "Rank" são o mesmo dado visto de dois jeitos.
 - Remover um evento apaga as doações dele.
 
+## Ações Sociais (o planejador de cada divisão)
+
+Card **🤝 Ações Sociais** na área Social, criado em 21/10/2026, nas 7
+divisões, **cada uma com o seu**: o PIN é conferido contra a divisão dos
+dados, e para corrigir ou apagar vale a divisão da linha gravada
+(`linhaDaDivisao`, no `Code.gs`). **É só um planejador:** não mexe em
+evento, presença, percentual nem obrigatoriedade. A única ponte é o
+**🏍️ Criar evento**, que só age quando a pessoa toca nele e confirma.
+Telas em `telas/admin-acoes-sociais.js`; regras e textos em
+`dominio/acoes-sociais.js`.
+
+- **Agenda do ano** (‹ ano ›): os 12 meses. Cada mês aceita várias
+  ideias, uma embaixo da outra: as que estão em 💡 Ideia são **opções**,
+  com o botão **Escolher** ao lado; escolher passa para 📅 Planejada e a
+  ação sobe para o topo do mês, e as outras continuam ali para trocar
+  (`ehEscolhida`). Cada ação tem data, horário, local, observação e a
+  situação (💡 Ideia, 📅 Planejada, ✅ Confirmada, 🏁 Realizada).
+  Cada mês mostra as etiquetas de contexto (frio, calor, férias, viagens,
+  datas comemorativas), com a legenda do porquê
+  (`CONTEXTO_DOS_MESES`/`LEGENDA_CONTEXTO`, do rascunho do Social). No
+  topo fica o quadro da rotina do Social (só lembrete) e o resumo do ano;
+  o 📊 Gerar relatório tem WhatsApp e PDF. Em cada ação, o **📣
+  Convocação** copia um texto de divulgação próprio (não é a chamada
+  oficial de 8 quadros) e o **🏍️ Criar evento** cria "Ação Social - …"
+  com os integrantes ativos convocados; o mês guarda o ID do evento e
+  passa a mostrar "Já virou evento".
+- **Banco de ideias:** emoji, nome, descrição e "o que precisa". O mês
+  guarda uma cópia do nome e do emoji da ação: apagar a ideia não apaga o
+  que já foi planejado, e renomear atualiza os meses que a usam.
+- **Textos prontos:** título e texto (com a assinatura), para copiar.
+- **O rascunho do Social da Barra** (`dominio/acoes-sociais-rascunho.js`:
+  a agenda de 2027, 28 ideias e 3 textos) entra pelo card **📥 Começar com
+  o rascunho**, que só aparece na Barra com o planejador vazio. Vai numa
+  ida só (`acoesSociaisImportar`, por POST), e o `Code.gs` recusa se a
+  divisão já tiver qualquer coisa, para nunca duplicar.
+- Na planilha: `AcoesSociaisIdeias`, `AcoesSociaisAgenda` (o mês como
+  texto `yyyy-mm`) e `AcoesSociaisTextos`. Nascem sozinhas.
+
 ## Estoque ADM do Regional
 
 O card **Estoque ADM** aparece somente em Regional → ADM. A seção tem três

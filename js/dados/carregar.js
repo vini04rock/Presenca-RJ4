@@ -229,6 +229,27 @@ export async function carregarDoacoes() {
   render();
 }
 
+// O planejador de Acoes Sociais da divisao em que se entrou: ideias, agenda
+// e textos, numa ida so. A mesma regra das Doacoes: trocou de divisao antes
+// da resposta chegar, a resposta velha e jogada fora.
+export async function carregarAcoesSociais() {
+  const escopo = state.adminEscopo;
+  state.acoesSociaisCarregando = true;
+  state.acoesSociaisErro = null;
+  render();
+  try {
+    const r = await api('acoesSociais', { divisao: escopo });
+    if (state.adminEscopo !== escopo) return;
+    state.acoesSociaisDados = { ideias: r.ideias || [], agenda: r.agenda || [], textos: r.textos || [] };
+    state.acoesSociaisDadosEscopo = escopo;
+  } catch (e) {
+    if (state.adminEscopo !== escopo) return;
+    state.acoesSociaisErro = e.message;
+  }
+  state.acoesSociaisCarregando = false;
+  render();
+}
+
 export async function carregarCaixinha() {
   const escopo = state.adminEscopo;
   state.caixinhaCarregando = true;

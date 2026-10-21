@@ -28,6 +28,7 @@ import { acoes as acoesAdminCaixinha, atualizarValorCaixinha } from './telas/adm
 import { acoes as acoesAdminCaixinhaFinanceiro, escolherMesDoPeriodo } from './telas/admin-caixinha-financeiro.js';
 import { acoes as acoesAdminMovimentos } from './telas/admin-movimentos.js';
 import { acoes as acoesAdminEstoqueAdm, atualizarCampoEstoqueAdm } from './telas/admin-estoque-adm.js';
+import { acoes as acoesAdminAcoesSociais, atualizarCampoAcaoSocial } from './telas/admin-acoes-sociais.js';
 import { acoes as acoesComuns, aplicarBusca } from './ui/comuns.js';
 import { acoes as acoesGraficos } from './ui/graficos.js';
 import { acoes as acoesHome } from './telas/home.js';
@@ -284,6 +285,7 @@ document.getElementById('app').addEventListener('input', (e) => {
     if (e.target.id === 'fin-data' && state.caixinhaFinForm) state.caixinhaFinForm.data = e.target.value;
     if (e.target.id === 'est-data' && state.estoqueForm) state.estoqueForm.data = e.target.value;
     atualizarCampoEstoqueAdm(e.target);
+    atualizarCampoAcaoSocial(e.target);
     return;
   }
   if (e.target.id === 'mov-motivo') {
@@ -296,6 +298,8 @@ document.getElementById('app').addEventListener('input', (e) => {
     return;
   }
   if (atualizarCampoEstoqueAdm(e.target)) return;
+  // O formulario de ideia das Acoes Sociais: so lembra, sem redesenhar.
+  if (atualizarCampoAcaoSocial(e.target)) return;
   // O valor pago na Caixinha: acerta o selo e o total sem redesenhar, senao
   // o teclado do celular fecharia a cada numero.
   if (e.target.classList && e.target.classList.contains('caixinha-valor')) {
@@ -377,6 +381,7 @@ for (const [area, mapa] of Object.entries({
   acoesAdminCaixinhaFinanceiro,
   acoesAdminMovimentos,
   acoesAdminEstoqueAdm,
+  acoesAdminAcoesSociais,
   acoesComuns,
   acoesGraficos,
   acoesHome,

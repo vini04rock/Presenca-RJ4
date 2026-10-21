@@ -248,6 +248,27 @@ export let state = {
   // Estoque ADM, exclusivo do Regional. O saldo e calculado no backend a
   // partir do livro de entradas/saidas; o formulario guarda uma movimentacao
   // por vez e o relatorio pode filtrar o tipo.
+  // Acoes Sociais (o planejador de cada divisao): o que o Code.gs devolve
+  // (lerAcoesSociais) e de qual divisao, o formulario de ideia aberto e o
+  // "apagar?" em confirmacao.
+  acoesSociaisDados: null,
+  acoesSociaisDadosEscopo: null,
+  acoesSociaisCarregando: false,
+  acoesSociaisErro: null,
+  acoesSociaisSalvando: false,
+  acoesSociaisMsg: null,
+  acaoSocialIdeiaForm: null,
+  acaoSocialApagarId: null,
+  // A agenda: o ano na tela (null = o que anoInicialDaAgenda escolher), o
+  // mes aberto, o formulario da acao do mes, o "Criar evento" em
+  // confirmacao e a legenda aberta. E o formulario dos textos prontos.
+  acoesSociaisAno: null,
+  acaoSocialMesAberto: null,
+  acaoSocialAgendaForm: null,
+  acaoSocialCriarEventoId: null,
+  acoesSociaisLegenda: false,
+  acaoSocialTextoForm: null,
+  acaoSocialRascunhoConfirmar: false,
   estoqueAdmDados: null,
   estoqueAdmCarregando: false,
   estoqueAdmErro: null,

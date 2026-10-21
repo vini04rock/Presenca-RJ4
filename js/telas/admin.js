@@ -8,7 +8,7 @@
 import { escopoPorChave, temDoacoesECaixinha } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { escapeHtml } from '../nucleo/util.js';
-import { carregarCaixinha, carregarDoacoes, carregarEstoqueAdm, carregarMovimentos, loadEstatisticas, loadInsightStats, loadReportData } from '../dados/carregar.js';
+import { carregarAcoesSociais, carregarCaixinha, carregarDoacoes, carregarEstoqueAdm, carregarMovimentos, loadEstatisticas, loadInsightStats, loadReportData } from '../dados/carregar.js';
 import { fecharFormFinanceiro, fecharMesCaixinha } from '../fluxos/doacoes-caixinha.js';
 import { fecharPainelMovimento } from '../fluxos/movimentos.js';
 import { render } from '../nucleo/render.js';
@@ -19,6 +19,7 @@ import { renderAdminDoacoes } from './admin-doacoes.js';
 import { renderAdminCaixinha } from './admin-caixinha.js';
 import { renderAdminMovimentos } from './admin-movimentos.js';
 import { renderAdminEstoqueAdm } from './admin-estoque-adm.js';
+import { renderAdminAcoesSociais } from './admin-acoes-sociais.js';
 
 // As secoes do organizador. Cada card do menu abre uma secao, e a barra de
 // abas mostra so as abas daquela secao - antes era uma barra unica com as
@@ -72,6 +73,15 @@ export const SECOES_ORGANIZADOR = {
   movimentos: {
     titulo: 'Entrada/Saída',
     abas: [{ chave: 'movimentos', label: 'Entrada/Saída' }],
+  },
+  // O planejador de Acoes Sociais, nas 7 divisoes (cada uma com o seu).
+  acoesSociais: {
+    titulo: 'Ações Sociais',
+    abas: [
+      { chave: 'acoes-sociais', label: 'Agenda do ano' },
+      { chave: 'acoes-sociais-ideias', label: 'Banco de ideias' },
+      { chave: 'acoes-sociais-textos', label: 'Textos' },
+    ],
   },
   estoqueAdm: {
     titulo: 'Estoque ADM',
@@ -129,6 +139,8 @@ export function renderAdmin(app) {
     content.innerHTML = renderAdminMovimentos();
   } else if (state.adminTab.startsWith('estoque-adm') && state.adminEscopo === 'regional') {
     content.innerHTML = renderAdminEstoqueAdm();
+  } else if (state.adminTab.startsWith('acoes-sociais')) {
+    content.innerHTML = renderAdminAcoesSociais();
   } else {
     content.innerHTML = renderAdminMembros();
   }
@@ -174,6 +186,12 @@ export async function abrirAbaOrganizador(aba) {
   fecharPainelMovimento();
   state.movimentosDivisaoAberta = null;
   state.estoqueAdmAnularId = null;
+  state.acaoSocialIdeiaForm = null;
+  state.acaoSocialAgendaForm = null;
+  state.acaoSocialTextoForm = null;
+  state.acaoSocialApagarId = null;
+  state.acaoSocialCriarEventoId = null;
+  state.acoesSociaisMsg = null;
   state.preencherEntradasIds = null;
   state.entradasRascunho = {};
   state.entradasMsg = null;
@@ -187,6 +205,7 @@ export async function abrirAbaOrganizador(aba) {
   // fluxo zera movimentosDados) - por isso busca tambem quando nao ha nada.
   if (aba === 'movimentos' && (entrandoNaSecao || !state.movimentosDados)) await carregarMovimentos();
   if (aba.startsWith('estoque-adm') && entrandoNaSecao) await carregarEstoqueAdm();
+  if (aba.startsWith('acoes-sociais') && entrandoNaSecao) await carregarAcoesSociais();
 }
 
 // A unica acao do esqueleto: trocar de aba. Todas as outras moram no arquivo

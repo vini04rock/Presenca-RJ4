@@ -1319,6 +1319,99 @@ log('=== remover: cadastro feito errado some de tudo ===');
 }
 
 log('');
+log('=== ações sociais: o planejador de cada divisão ===');
+{
+  const p = montaPlanilha([], []);
+  const { contexto } = carregaCodeGs(p, { PIN_REGIONAL: '0418', PIN_BARRA: '1801', PIN_OESTE: '1802' });
+  const barra = { escopo: 'barra', pin: '1801', divisao: 'barra' };
+  const oeste = { escopo: 'oeste', pin: '1802', divisao: 'oeste' };
+  const ler = (quem) => contexto.executar('acoesSociais', quem || barra);
+  const tenta = (acao, params) => { try { return contexto.executar(acao, params); } catch (e) { return { erro: e.message }; } };
+
+  confere('ler sem PIN é recusado', contexto.executar('acoesSociais', { divisao: 'barra' }).ok, false);
+  confere('nada ainda: tudo vazio', [ler().ideias, ler().agenda, ler().textos], [[], [], []]);
+
+  // O banco de ideias.
+  const agasalho = contexto.executar('acaoSocialIdeiaSalvar', { ...barra, emoji: '🧥', nome: '  Doação de  agasalhos ', descricao: 'Roupas e cobertores', precisa: 'Ponto de coleta' }).id;
+  const sangue = contexto.executar('acaoSocialIdeiaSalvar', { ...barra, emoji: '🩸', nome: 'Doação de sangue' }).id;
+  confere('as ideias vêm em ordem de nome, com o espaço arrumado', ler().ideias.map(i => i.emoji + ' ' + i.nome), ['🧥 Doação de agasalhos', '🩸 Doação de sangue']);
+  confere('ideia sem nome é recusada', tenta('acaoSocialIdeiaSalvar', { ...barra, nome: '  ' }).erro, 'Escreva o nome da acao');
+
+  // A agenda: a ideia do mes, e mais de uma no mesmo mes.
+  const julho = contexto.executar('acaoSocialAgendaSalvar', { ...barra, mes: '2027-07', ideiaId: agasalho, data: '2027-07-10', horario: '09:00', local: 'Sede', situacao: 'planejada' }).id;
+  contexto.executar('acaoSocialAgendaSalvar', { ...barra, mes: '2027-02', ideiaId: sangue });
+  contexto.executar('acaoSocialAgendaSalvar', { ...barra, mes: '2027-07', acao: 'Bingo no asilo', emoji: '🎱', data: '2027-07-03' });
+  confere('a agenda vem por mês e, no mês, por data', ler().agenda.map(a => a.mes + ' ' + a.acao),
+    ['2027-02 Doação de sangue', '2027-07 Bingo no asilo', '2027-07 Doação de agasalhos']);
+  const j = ler().agenda.find(a => a.id === julho);
+  confere('com tudo o que foi marcado', [j.emoji, j.data, j.horario, j.local, j.situacao, j.eventoId], ['🧥', '2027-07-10', '09:00', 'Sede', 'planejada', '']);
+  confere('sem situação, é ideia', ler().agenda[0].situacao, 'ideia');
+  confere('o mês fica como texto na planilha', p.abas.AcoesSociaisAgenda.dados[1][2], '2027-07');
+
+  confere('data fora do mês é recusada', tenta('acaoSocialAgendaSalvar', { ...barra, mes: '2027-07', ideiaId: agasalho, data: '2027-08-01' }).erro, 'A data tem que ser no mes escolhido');
+  confere('mês inválido é recusado', tenta('acaoSocialAgendaSalvar', { ...barra, mes: '2027-13', ideiaId: agasalho }).erro, 'Mes invalido');
+  confere('horário inválido é recusado', tenta('acaoSocialAgendaSalvar', { ...barra, mes: '2027-07', ideiaId: agasalho, horario: '25:00' }).erro, 'Horario invalido');
+  confere('sem ação é recusado', tenta('acaoSocialAgendaSalvar', { ...barra, mes: '2027-07' }).erro, 'Escolha a acao do mes');
+
+  // Trocar a acao do mes, e o evento criado pelo "Criar evento".
+  contexto.executar('acaoSocialAgendaSalvar', { ...barra, id: julho, mes: '2027-07', ideiaId: sangue, situacao: 'confirmada', eventoId: 'ev9' });
+  contexto.executar('acaoSocialAgendaSalvar', { ...barra, id: julho, mes: '2027-07', ideiaId: sangue, situacao: 'confirmada' });
+  const j2 = ler().agenda.find(a => a.id === julho);
+  confere('trocar a ação corrige a mesma linha', [ler().agenda.length, j2.acao, j2.situacao], [3, 'Doação de sangue', 'confirmada']);
+  confere('o evento criado fica guardado, mesmo salvando sem ele', j2.eventoId, 'ev9');
+
+  // Renomear a ideia atualiza os meses; apagar a ideia nao apaga os meses.
+  contexto.executar('acaoSocialIdeiaSalvar', { ...barra, id: sangue, emoji: '🩸', nome: 'Doação de sangue e plaquetas' });
+  confere('renomear a ideia atualiza os meses que a usam', ler().agenda.filter(a => a.ideiaId === sangue).map(a => a.acao),
+    ['Doação de sangue e plaquetas', 'Doação de sangue e plaquetas']);
+  contexto.executar('acaoSocialIdeiaRemover', { ...barra, id: sangue });
+  confere('apagar a ideia não apaga os meses', [ler().ideias.length, ler().agenda.length], [1, 3]);
+
+  // Textos prontos, com as quebras de linha.
+  const t = contexto.executar('acaoSocialTextoSalvar', { ...barra, titulo: 'Motivacional', texto: 'Nunca se esqueçam, senhores.\r\nI.S.S.I\n\nAlmeida. VI' }).id;
+  confere('o texto guarda as quebras de linha', ler().textos, [{ id: t, titulo: 'Motivacional', texto: 'Nunca se esqueçam, senhores.\nI.S.S.I\n\nAlmeida. VI' }]);
+  confere('texto vazio é recusado', tenta('acaoSocialTextoSalvar', { ...barra, titulo: 'X', texto: '  ' }).erro, 'O texto esta vazio');
+
+  // Cada divisao com o seu, e nenhuma mexe na outra.
+  contexto.executar('acaoSocialIdeiaSalvar', { ...oeste, nome: 'Plantio de árvores' });
+  confere('o Oeste tem o dele, e a Barra não vê', [ler(oeste).ideias.map(i => i.nome), ler().ideias.length], [['Plantio de árvores'], 1]);
+  confere('a Barra NÃO lê o do Oeste', ler({ ...barra, divisao: 'oeste' }).ok, false);
+  confere('a Barra NÃO cria no Oeste', tenta('acaoSocialIdeiaSalvar', { ...barra, divisao: 'oeste', nome: 'X' }).ok, false);
+  confere('ninguém corrige nem apaga o da outra divisão (nem dizendo que é dele)',
+    [tenta('acaoSocialAgendaSalvar', { ...oeste, pin: '1801', escopo: 'barra', id: julho, mes: '2027-07', acao: 'X' }).ok,
+      tenta('acaoSocialIdeiaRemover', { escopo: 'oeste', pin: '1802', divisao: 'oeste', id: agasalho }).ok,
+      tenta('acaoSocialTextoRemover', { escopo: 'oeste', pin: '1802', id: t }).ok],
+    [false, false, false]);
+  confere('e o da Barra continua inteiro', [ler().ideias.length, ler().agenda.length, ler().textos.length], [1, 3, 1]);
+  confere('o Regional (chave-mestra) lê o de qualquer divisão', ler({ escopo: 'barra', pin: '0418', divisao: 'oeste' }).ideias.length, 1);
+
+  contexto.executar('acaoSocialAgendaRemover', { ...barra, id: julho });
+  confere('apagar uma ação da agenda', ler().agenda.map(a => a.mes + ' ' + a.acao), ['2027-02 Doação de sangue e plaquetas', '2027-07 Bingo no asilo']);
+}
+
+log('');
+log('=== ações sociais: o rascunho entra de uma vez, só num planejador vazio ===');
+{
+  const p = montaPlanilha([], []);
+  const { contexto } = carregaCodeGs(p, { PIN_REGIONAL: '0418', PIN_BARRA: '1801' });
+  const barra = { escopo: 'barra', pin: '1801', divisao: 'barra' };
+  const tenta = (params) => { try { return contexto.executar('acoesSociaisImportar', params); } catch (e) { return { erro: e.message }; } };
+  const rascunho = {
+    ideias: [{ emoji: '🧥', nome: 'Doação de agasalhos', descricao: 'No frio', precisa: '' }, { emoji: '🩸', nome: 'Doação de sangue' }],
+    agenda: [{ mes: '2027-07', ideia: 'Doação de agasalhos' }, { mes: '2027-02', ideia: 'Doação de sangue' }],
+    textos: [{ titulo: 'Motivacional', texto: 'Juntos\nI.S.S.I' }],
+  };
+  confere('sem PIN é recusado', contexto.executar('acoesSociaisImportar', { ...rascunho, divisao: 'barra' }).ok, false);
+  const r = tenta({ ...barra, ...rascunho });
+  confere('carrega tudo e devolve o planejador', [r.ok, r.ideias.length, r.agenda.map(a => a.mes + ' ' + a.emoji + ' ' + a.acao + ' ' + a.situacao), r.textos.map(t => t.texto)],
+    [true, 2, ['2027-02 🩸 Doação de sangue ideia', '2027-07 🧥 Doação de agasalhos ideia'], ['Juntos\nI.S.S.I']]);
+  confere('cada mês aponta pra ideia carregada', r.agenda.every(a => r.ideias.some(i => i.id === a.ideiaId)), true);
+  confere('carregar de novo é recusado (não duplica)', [tenta({ ...barra, ...rascunho }).erro, contexto.executar('acoesSociais', barra).ideias.length],
+    ['O planejador desta divisao ja tem dados - o rascunho so entra num planejador vazio', 2]);
+  confere('mês apontando pra ideia que não veio é recusado', tenta({ escopo: 'regional', pin: '0418', divisao: 'oeste', ideias: [], agenda: [{ mes: '2027-01', ideia: 'X' }] }).erro, 'Agenda invalida: 2027-01 X');
+}
+
+log('');
 log(falhas === 0 ? 'TUDO OK' : `${falhas} FALHA(S) — veja acima`);
 fs.writeFileSync(SAIDA, linhas.join('\n'), 'utf8');
 process.exit(falhas === 0 ? 0 : 1);
