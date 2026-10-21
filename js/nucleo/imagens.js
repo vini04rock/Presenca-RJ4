@@ -67,6 +67,7 @@ export const IMG_SECOES = {
   membros: { src: 'img/secao-membros.webp', largura: 1200, altura: 171 },
   'abrir-relatorio-individual': { src: 'img/secao-relatorio-individual.webp', largura: 1200, altura: 181 },
   'abrir-relatorios-organizador': { src: 'img/secao-relatorios.webp', largura: 1200, altura: 213 },
+  'acoes-sociais': { src: 'img/secao-acoes-sociais.webp', largura: 1200, altura: 170 },
 };
 
 // Arte do botao "Modo organizador", no rodape da tela inicial (engrenagem,
