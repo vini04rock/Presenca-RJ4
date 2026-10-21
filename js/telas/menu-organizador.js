@@ -16,7 +16,7 @@ import { escopoPorChave, escoposAtivos, temDoacoesECaixinha } from '../nucleo/co
 import { TIPOS_OBRIGATORIOS, obrigatoriedadesDoMes, rotuloTipo, textoCobrancaObrigatoriedades, textoDiasRestantes, textoEventoMarcado, textoFaltam } from '../dominio/obrigatoriedades.js';
 import { copiarTexto, diaDaSemana, formatDataBR, quando } from '../nucleo/util.js';
 import { state } from '../nucleo/estado.js';
-import { IMG_AREAS } from '../nucleo/imagens.js';
+import { IMG_AREAS, IMG_SECOES } from '../nucleo/imagens.js';
 import { escapeHtml } from '../nucleo/util.js';
 import { render } from '../nucleo/render.js';
 import { abrirAbaOrganizador } from './admin.js';
@@ -104,6 +104,21 @@ function cardArea(area) {
 function cardSecao(secao) {
   const s = state.adminEscopo === 'regional' && secao.noRegional ? { ...secao, ...secao.noRegional } : secao;
   const gatilho = s.acao ? `data-action="${s.acao}"` : `data-action="abrir-secao-organizador" data-tab="${s.aba}"`;
+  // Com arte: o card e a arte inteira (sem corte), e o nome e a descricao
+  // vao no lugar do texto que foi apagado dela. O emoji da secao fica de
+  // fora - a arte ja tem o proprio icone.
+  const arte = IMG_SECOES[s.aba];
+  if (arte) {
+    return `
+      <div class="card event-card menu-org-card menu-org-secao-arte" role="button" ${gatilho}
+           style="background-image:url('${arte.src}'); aspect-ratio:${arte.largura} / ${arte.altura};">
+        <div class="menu-org-secao-texto" style="left:${arte.texto[0]}%; width:${arte.texto[1]}%;">
+          <div class="menu-org-secao-nome" style="color:${arte.cores[0]};">${escapeHtml(s.nome)}</div>
+          <div class="menu-org-secao-desc" style="color:${arte.cores[1]};">${escapeHtml(s.desc)}</div>
+        </div>
+      </div>
+    `;
+  }
   return `
     <div class="card event-card menu-org-card" style="border-left:3px solid ${s.cor};" ${gatilho}>
       <div class="menu-org-linha">

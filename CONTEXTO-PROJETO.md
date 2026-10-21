@@ -79,6 +79,13 @@ ferramentas dela. Uma área sem nenhuma ferramenta liberada naquele escopo
 fica escondida. O PIN continua sendo um só por divisão — essa separação é
 visual, não um controle de acesso por cargo.
 
+Dentro de cada área, um card de seção pode ter arte própria (`IMG_SECOES`,
+em `js/nucleo/imagens.js`; desde 21/10/2026, Eventos e Insights). A arte
+entra inteira, na proporção dela, e o app escreve o nome e a descrição no
+lugar onde ficava o texto desenhado. Nas duas de hoje esse texto foi
+apagado da imagem, que veio dos cards antigos "Eventos" e "Rank de
+Insights". Seção sem arte continua com o card de ícone e texto.
+
 O `render()` em `js/nucleo/render.js` é só um interruptor de 4 linhas: o
 roteador de verdade vive no `app.js`, que é quem conhece as telas, e se
 registra com `definirRender()` na partida. Sem esse desvio haveria ciclo —

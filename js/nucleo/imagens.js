@@ -46,6 +46,17 @@ export const IMG_AREAS = {
   social: 'img/area-social.webp',
 };
 
+// Artes dos cards de secao dentro de cada area do organizador (21/10/2026):
+// as versoes antigas dos cards Eventos e Rank de Insights, com o texto
+// desenhado APAGADO - o card escreve o proprio nome e descricao no lugar.
+// largura/altura: a proporcao da arte (o card nao corta nada); texto: onde
+// o texto comeca e quanto ocupa, em % da largura; cores: nome e descricao,
+// no tom da arte. Secao sem entrada aqui fica com o card de sempre.
+export const IMG_SECOES = {
+  eventos: { src: 'img/secao-eventos.webp', largura: 900, altura: 179, texto: [13, 40], cores: ['#F3E6C4', '#C9C2B4'] },
+  insights: { src: 'img/secao-insights.webp', largura: 900, altura: 172, texto: [25.5, 46], cores: ['#E6F0FF', '#8FB7E8'] },
+};
+
 // Arte do botao "Modo organizador", no rodape da tela inicial (engrenagem,
 // texto e seta ja desenhados - por isso o botao nao repete nada em HTML).
 // 4:1, a proporcao em que ele foi desenhado; e o menor elemento da tela

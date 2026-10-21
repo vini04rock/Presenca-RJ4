@@ -2735,3 +2735,33 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
    arte. No papel o card e branco, entao voltam a ser transparentes. */
 .count-box-report { background: rgba(10, 10, 10, 0.62); }
 @media print { .count-box-report { background: transparent !important; } }
+
+/* Cards de secao com arte (Eventos e Insights, dentro das areas do
+   organizador): a arte inteira na proporcao dela, como os cards de area, e
+   o nome e a descricao do app escritos onde ficava o texto desenhado (ver
+   IMG_SECOES). As letras medem em % da largura do card (cqw), pra caberem
+   no mesmo lugar da arte em qualquer tela. */
+.card.menu-org-secao-arte {
+  position: relative;
+  min-height: 0; padding: 0;
+  container-type: inline-size;
+  background-color: transparent;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  border: none; border-radius: 10px;
+  box-shadow: none;
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+.card.menu-org-secao-arte::after { display: none; }
+.menu-org-secao-texto {
+  position: absolute; top: 50%; transform: translateY(-50%);
+}
+.menu-org-secao-nome {
+  font-family: 'Rye', serif; font-weight: 400;
+  font-size: 5.6cqw; line-height: 1.1;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
+}
+.menu-org-secao-desc {
+  margin-top: 1.2cqw;
+  font-size: 2.8cqw; line-height: 1.3;
+}
