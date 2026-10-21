@@ -19,7 +19,7 @@ import { VALOR_CAIXINHA_PADRAO, escopoPorChave } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
 import { copiarTexto, escapeHtml } from '../nucleo/util.js';
-import { anelConfirmados, medalha, posicoesDoPodio, selinhoIniciais } from '../ui/comuns.js';
+import { anelConfirmados, botaoGerarRelatorio, medalha, posicoesDoPodio, selinhoIniciais } from '../ui/comuns.js';
 import { esqueletoLista, renderDonutChart } from '../ui/graficos.js';
 import { imagemCaixinha, imagemMesCaixinha, mostrarPreviaImagem } from '../ui/imagem.js';
 import { renderControleFinanceiro } from './admin-caixinha-financeiro.js';
@@ -101,10 +101,10 @@ function cardMesLancado(l) {
         </div>
         <span style="color:var(--text-muted); font-size:20px;">›</span>
       </div>
-      <div class="row-gap" style="margin-top:10px;">
-        <button class="btn secondary" style="flex:1;" data-action="imagem-mes-caixinha" data-value="${l.mes}">🖼️ Relatório em imagem</button>
-        <button class="btn secondary" style="flex:1;" data-action="texto-mes-caixinha" data-value="${l.mes}">📋 Relatório pro WhatsApp</button>
-      </div>
+      ${botaoGerarRelatorio('caixinha-mes:' + l.mes, [
+        { acao: 'texto-mes-caixinha', valor: l.mes, rotulo: '📋 WhatsApp' },
+        { acao: 'imagem-mes-caixinha', valor: l.mes, rotulo: '🖼️ Imagem' },
+      ], 'margin-top:10px;')}
       <button class="btn ghost block" style="margin-top:8px;" data-action="controle-mes-caixinha" data-value="${l.mes}">📊 Controle financeiro do mês</button>
     </div>
   `;
@@ -269,10 +269,10 @@ function renderRank(d) {
       <div class="doacao-total" style="text-align:center;"><b>${r.emDia.length}</b> ${r.emDia.length === 1 ? vocab().quem : vocab().quemPlural} com tudo em dia · <b>${r.devendo.length}</b> ${r.devendo.length === 1 ? 'pendente' : 'pendentes'}</div>
       <div class="doacao-total" style="text-align:center; margin-top:4px;"><b>${escapeHtml(formatReais(r.arrecadado))}</b> arrecadados no período</div>
       ${barrasMeses(r.meses)}
-      <div class="row-gap no-print" style="margin-top:12px;">
-        <button class="btn secondary" style="flex:1;" data-action="copiar-texto-caixinha">📋 Copiar pro WhatsApp</button>
-        <button class="btn secondary" style="flex:1;" data-action="imagem-caixinha">🖼️ Imagem pro grupo</button>
-      </div>
+      ${botaoGerarRelatorio('caixinha-rank', [
+        { acao: 'copiar-texto-caixinha', rotulo: '📋 WhatsApp' },
+        { acao: 'imagem-caixinha', rotulo: '🖼️ Imagem' },
+      ])}
     </div>
   `;
 

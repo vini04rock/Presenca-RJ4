@@ -10,7 +10,7 @@ import { divisoesSemRegional } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { dataDoCampoOuAvisar, escapeHtml, formatDataBR } from '../nucleo/util.js';
 import { formatMedia, renderRankInsightsConteudo } from '../ui/insights.js';
-import { campoData } from '../ui/comuns.js';
+import { botaoAbrirRelatorio, botaoGerarRelatorio, campoData, opcoesGerarRelatorio } from '../ui/comuns.js';
 import { loadInsightStats } from '../dados/carregar.js';
 import { cancelarAjusteInsightRodada, confirmarInsightRodada, excluirInsightRodada, iniciarAjusteInsightRodada, reincluirMembroInsight, removerMembroInsight, salvarAjusteInsightRodada } from '../fluxos/insights.js';
 import { copyInsightReportToClipboard } from '../fluxos/relatorio.js';
@@ -223,13 +223,16 @@ export function renderAdminInsights() {
               </span>
             ` : `
               <span class="row-gap">
-                <button class="btn ghost" style="padding:6px 10px; font-size:12px;" data-action="copy-insight-report" data-id="${r.id}">${state.copiedInsightRodadaId === r.id ? 'Copiado ✓' : '📋 Copiar relatório'}</button>
-                <button class="btn ghost" style="padding:6px 10px; font-size:12px;" data-action="imagem-rodada-insight" data-id="${r.id}">🖼️ Imagem</button>
+                ${botaoAbrirRelatorio('rodada:' + r.id, 'btn ghost', 'padding:6px 10px; font-size:12px;')}
                 <button class="btn ghost" style="padding:6px 10px; font-size:12px;" data-action="ajustar-insight-rodada" data-id="${r.id}">✏️ Ajustar</button>
                 <button class="btn ghost" style="padding:6px 10px; font-size:12px;" data-action="ask-delete-insight-rodada" data-id="${r.id}">Excluir</button>
               </span>
             `}
           </div>
+          ${opcoesGerarRelatorio('rodada:' + r.id, [
+            { acao: 'copy-insight-report', id: r.id, rotulo: state.copiedInsightRodadaId === r.id ? 'Copiado ✓' : '📋 WhatsApp' },
+            { acao: 'imagem-rodada-insight', id: r.id, rotulo: '🖼️ Imagem' },
+          ])}
         </div>
       `).join('')}
     </div>
@@ -305,10 +308,10 @@ export function renderAdminInsights() {
     return `
       ${renderFiltroPeriodoInsight(filtrado)}
       <div class="print-only" style="margin:10px 0; font-size:12px; color:var(--text-muted);">Gerado em ${escapeHtml(new Date().toLocaleString('pt-BR'))}</div>
-      <div class="row-gap no-print" style="margin:0 0 14px;">
-        <button class="btn secondary" style="flex:1;" data-action="imprimir-relatorio">🖨️ Imprimir / Exportar PDF</button>
-        <button class="btn secondary" style="flex:1;" data-action="imagem-relatorio-insight">🖼️ Imagem pro grupo</button>
-      </div>
+      ${botaoGerarRelatorio('insight-completo', [
+        { acao: 'imprimir-relatorio', rotulo: '📄 PDF' },
+        { acao: 'imagem-relatorio-insight', rotulo: '🖼️ Imagem' },
+      ], 'margin:0 0 14px;')}
       ${renderRankInsightsConteudo(dados, historico)}
     `;
   }

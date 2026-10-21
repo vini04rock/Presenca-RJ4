@@ -16,6 +16,7 @@ import { CATEGORIA_ENTRADA_CAIXINHA, categoriasSaidaCaixinha, escopoPorChave } f
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
 import { copiarTexto, escapeHtml, formatDataBR } from '../nucleo/util.js';
+import { botaoGerarRelatorio } from '../ui/comuns.js';
 import { renderPizza } from '../ui/graficos.js';
 import { imagensRelatorioCaixinha, mostrarPreviaImagem } from '../ui/imagem.js';
 
@@ -344,11 +345,11 @@ function relatorio(d) {
         <div class="fin-conta-linha total${r.saldoFinal < 0 ? ' negativo' : ''}"><span>💰 Saldo ${periodoDeUmMes(state.caixinhaFinPeriodo) ? 'no fim do mês' : 'final'}</span><b>${reais(r.saldoFinal)}</b></div>
       </div>
       ${pizzaCaixa(r)}
-      <div class="row-gap no-print" style="margin-top:14px;">
-        <button class="btn secondary" style="flex:1;" data-action="texto-controle-caixinha">📋 WhatsApp</button>
-        <button class="btn secondary" style="flex:1;" data-action="imagem-controle-caixinha">🖼️ Imagem detalhada</button>
-        <button class="btn secondary" style="flex:1;" data-action="pdf-controle-caixinha">🖨️ PDF</button>
-      </div>
+      ${botaoGerarRelatorio('caixinha-controle', [
+        { acao: 'texto-controle-caixinha', rotulo: '📋 WhatsApp' },
+        { acao: 'pdf-controle-caixinha', rotulo: '📄 PDF' },
+        { acao: 'imagem-controle-caixinha', rotulo: '🖼️ Imagem' },
+      ], 'margin-top:14px;')}
     </div>
     ${saidasPorCategoria(r, true)}
     ${r.entradas.outrasItens.length ? `

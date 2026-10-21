@@ -346,6 +346,26 @@ todo mundo "Aguardando" sem virar falta.
 > Como é a única parte do projeto que roda sozinha e escreve na planilha de
 > produção, é a única do `Code.gs` com teste: `ferramentas/planilha.mjs`.
 
+**Reabrir desfaz a falta** (21/10/2026). Um organizador encerrou eventos
+só para ver o relatório e reabriu, e quem não tinha respondido ficou com
+falta num evento que ainda nem tinha acontecido. Agora, salvar aberto um
+evento feito à mão devolve quem está "Não justificada" para Aguardando
+(`desfazerInfracionalAoReabrir`, no `Code.gs`): ali o seletor só tem os 4
+status, então essa falta só pode ter vindo de um encerramento. Evento de
+convocação colada (com texto original) fica de fora, porque nele a falta
+veio do texto.
+
+E para ninguém precisar encerrar para ver o relatório: cada evento ativo
+da aba Eventos tem o **📊 Gerar relatório**, um botão só, que busca as
+respostas na hora e abre no card o mesmo detalhe da aba Encerrados, com
+"⚠️ Ainda não responderam" no lugar da falta, e as três saídas:
+**📋 Copiar pro WhatsApp** (o texto sai como "RELATÓRIO PARCIAL", em
+`buildReportText`), **📄 Gerar PDF** (a impressão do navegador; com o
+relatório aberto, o resto da aba é `no-print` e o papel sai só com aquele
+evento) e **🖼️ Gerar imagem** (`imagemResultadoEvento`, que num evento
+aberto vira "PARCIAL DO EVENTO", com a fatia cinza de Aguardando em vez de
+somar quem não respondeu às faltas).
+
 **Percentual de presença** — só conta evento **encerrado** (um evento aberto
 ainda pode mudar), e só conta membro que estava convidado, isto é, que tem
 linha em `Presencas`. Assim quem entrou no clube depois não é penalizado por
@@ -1006,6 +1026,18 @@ valem antes de mexer:
   diminui com nome longo e a rosca se ajusta ao espaço, para nada se
   sobrepor. Cantos arredondados feitos à mão (`retangulo`), porque o
   `roundRect` não existe antes do iOS 16.
+- **📊 Gerar relatório** (21/10/2026): todo relatório com mais de uma
+  saída tem um botão só, que abre as opções na própria tela: 📋 WhatsApp,
+  📄 PDF e 🖼️ Imagem, as que aquele relatório tiver
+  (`botaoGerarRelatorio`, em `ui/comuns.js`; um menu aberto por vez, em
+  `state.gerarRelatorioAberto`). Está nos eventos (ativos e encerrados;
+  os encerrados ganharam o PDF, que sai só com aquele evento), nas rodadas
+  e no relatório completo do Insight, no Relatório individual, na Caixinha
+  (cada mês, Rank e Controle financeiro), no Rank de Doações, no relatório
+  do Estoque e na Entrada/Saída. Onde há uma saída só (imagem do Rank,
+  imagem do estoque, PDF dos Relatórios) o botão continua direto. Ficaram
+  de fora o Calendário, que não é relatório, e os chamados e a chamada,
+  que são mensagens.
 - **Prévia do link** no WhatsApp: as tags `og:` no `index.html` e a
   imagem `img/compartilhar.jpg` (1200×630). O WhatsApp guarda a prévia de
   um link por um tempo, então mudança ali demora a aparecer.

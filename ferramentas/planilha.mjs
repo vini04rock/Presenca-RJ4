@@ -242,6 +242,25 @@ log('=== encerrar converte quem não respondeu ===');
 }
 
 log('');
+log('=== reabrir devolve quem não respondeu pra Aguardando ===');
+{
+  // Encerrar sem querer e reabrir deixava a falta valendo num evento que
+  // ainda nem aconteceu. Na convocação colada a falta veio do texto e fica.
+  const colado = ev('colado', daquiA(3), 'ativo'); colado[10] = 'texto da convocação';
+  const p = montaPlanilha([ev('reaberto', daquiA(3), 'encerrado'), colado],
+    [pr('reaberto', 'm1', 'Infracional'), pr('reaberto', 'm2', 'Confirmado'), pr('colado', 'm1', 'Infracional')]);
+  const { contexto } = carregaCodeGs(p);
+  contexto.salvarEvento({ id: 'reaberto', nome: 'Evento reaberto', data: daquiA(3), categoria: 'barra', status: 'ativo' });
+  contexto.salvarEvento({ id: 'colado', nome: 'Evento colado', data: daquiA(3), categoria: 'barra', status: 'ativo' });
+  const status = coluna(p, 'Presencas', 4);
+  confere('reabrir volta a falta pra Aguardando', status[0], 'Aguardando');
+  confere('quem confirmou continua Confirmado', status[1], 'Confirmado');
+  confere('na convocação colada a falta fica', status[2], 'Infracional');
+  contexto.salvarEvento({ id: 'reaberto', nome: 'Evento reaberto', data: daquiA(3), categoria: 'barra', status: 'encerrado' });
+  confere('encerrar de novo converte de novo', coluna(p, 'Presencas', 4)[0], 'Infracional');
+}
+
+log('');
 log('=== rodar de novo não estraga nada ===');
 {
   // O gatilho é diário e o encerramento manual está no menu da planilha, então

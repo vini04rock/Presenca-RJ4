@@ -18,7 +18,7 @@ import { emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao, STATUS } fro
 import { state } from '../nucleo/estado.js';
 import { LOGO_SRC } from '../nucleo/imagens.js';
 import { copiarTexto, dataDoCampoOuAvisar, escapeHtml, formatDataBR, ordenarPorHierarquia } from '../nucleo/util.js';
-import { campoData, linhaFuncoes, nivelDoGrau, selinhoIniciais } from '../ui/comuns.js';
+import { botaoGerarRelatorio, campoData, linhaFuncoes, nivelDoGrau, selinhoIniciais } from '../ui/comuns.js';
 import { renderDonutChart, renderSparklineTendencia, segmentosDonutStatus } from '../ui/graficos.js';
 import { loadRelatorioIndividual, loadRelatoriosIndividuaisVarios } from '../dados/carregar.js';
 import { render } from '../nucleo/render.js';
@@ -344,10 +344,10 @@ function conteudoRelatorio() {
   }
   return `
     ${filtroPeriodo()}
-    <div class="row-gap no-print" style="margin-bottom:14px;">
-      <button class="btn secondary" style="flex:1;" data-action="imprimir-relind">🖨️ Exportar PDF</button>
-      <button class="btn secondary" style="flex:1;" data-action="copiar-relatorio-individual">${state.relIndCopiado ? 'Copiado ✓' : '📋 Copiar relatório'}</button>
-    </div>
+    ${botaoGerarRelatorio('relind', [
+      { acao: 'copiar-relatorio-individual', rotulo: state.relIndCopiado ? 'Copiado ✓' : '📋 WhatsApp' },
+      { acao: 'imprimir-relind', rotulo: '📄 PDF' },
+    ], 'margin-bottom:14px;')}
     ${geradoEm()}
     ${relatorioDoMembro(state.relIndDados)}
   `;

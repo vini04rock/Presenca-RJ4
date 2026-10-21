@@ -10,7 +10,7 @@ import { escopoPorChave } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
 import { copiarTexto, dataDoCampoOuAvisar, escapeHtml, formatDataBR } from '../nucleo/util.js';
-import { campoData, selinhoIniciais } from '../ui/comuns.js';
+import { botaoGerarRelatorio, campoData, selinhoIniciais } from '../ui/comuns.js';
 import { esqueletoLista, renderPizza } from '../ui/graficos.js';
 import { imagemMovimentos, imagemQuadroMovimentos, mostrarPreviaImagem } from '../ui/imagem.js';
 
@@ -108,10 +108,10 @@ function relatorioDivisao(movimentos, chave) {
       ${placar(r.entradas.length, r.afastadosAgora.length, r.desligamentos.length, transferenciasDaDivisao(r))}
       ${pizzaMovimentos(r.entradas.length, r.afastadosAgora.length, r.desligamentos.length, transferenciasDaDivisao(r))}
       <div class="info-line" style="padding:10px 0 0; color:var(--text-muted); font-size:12px;">Entraram, desligados e transferências: no período. Afastados: quem está afastado hoje.</div>
-      <div class="row-gap no-print" style="margin-top:12px;">
-        <button class="btn secondary" style="flex:1;" data-action="copiar-texto-movimentos" data-value="${chave}">📋 Copiar pro WhatsApp</button>
-        <button class="btn secondary" style="flex:1;" data-action="imagem-movimentos" data-value="${chave}">🖼️ Imagem pro grupo</button>
-      </div>
+      ${botaoGerarRelatorio('movimentos:' + chave, [
+        { acao: 'copiar-texto-movimentos', valor: chave, rotulo: '📋 WhatsApp' },
+        { acao: 'imagem-movimentos', valor: chave, rotulo: '🖼️ Imagem' },
+      ])}
       <div class="info-line" style="padding:6px 0 0; color:var(--text-muted); font-size:11.5px;">O motivo não vai no texto nem na imagem.</div>
     </div>
     ${r.afastadosAgora.length ? `
@@ -150,10 +150,10 @@ function quadro(movimentos) {
       ${placar(q.total.entradas, q.total.afastados, q.total.desligamentos, paraFora)}
       ${pizzaMovimentos(q.total.entradas, q.total.afastados, q.total.desligamentos, paraFora)}
       <div class="info-line" style="padding:10px 0 0; color:var(--text-muted); font-size:12px;">A soma de todas as divisões. Transferência entre divisões da RJ4 não muda o total; só conta quem foi pra outra regional. Toque numa divisão abaixo pra ver só a dela.</div>
-      <div class="row-gap no-print" style="margin-top:12px;">
-        <button class="btn secondary" style="flex:1;" data-action="copiar-quadro-movimentos">📋 Copiar pro WhatsApp</button>
-        <button class="btn secondary" style="flex:1;" data-action="imagem-quadro-movimentos">🖼️ Imagem pro grupo</button>
-      </div>
+      ${botaoGerarRelatorio('movimentos-quadro', [
+        { acao: 'copiar-quadro-movimentos', rotulo: '📋 WhatsApp' },
+        { acao: 'imagem-quadro-movimentos', rotulo: '🖼️ Imagem' },
+      ])}
     </div>
     <div class="card" style="padding: 4px 16px;">
       <div class="division-subheader"><span>POR DIVISÃO</span><span class="division-counts">🟢 · ⏸️ · 🚪 · 🔁</span></div>

@@ -388,7 +388,41 @@ export function linhaFuncoes(funcoes) {
 // Acoes dos pedacos de tela reaproveitados (status, ficha, expandir).
 // Cada entrada e o corpo do antigo "if (action === ...)" do app.js, tal
 // e qual. O app.js so olha o nome da acao neste mapa e chama.
+// O "📊 Gerar relatório" de todas as telas: um botao so, que abre as saidas
+// daquele relatorio (WhatsApp, PDF, imagem - as que existirem ali). Cada
+// opcao e um botao comum com a acao que a tela ja tinha; isto so decide se
+// elas aparecem. `chave` diz qual menu esta aberto (um por vez no app).
+// opcoes: [{ acao, rotulo, valor?, id? }]
+export function botaoGerarRelatorio(chave, opcoes, estilo) {
+  return `
+    <div class="gerar-relatorio no-print" style="${estilo || 'margin-top:12px;'}">
+      ${botaoAbrirRelatorio(chave, 'btn secondary block')}
+      ${opcoesGerarRelatorio(chave, opcoes)}
+    </div>
+  `;
+}
+
+// As duas metades, pra linha compacta (Insight): o botao pequeno vai na
+// linha, ao lado dos outros, e as opcoes abrem embaixo dela.
+export function botaoAbrirRelatorio(chave, classe, estilo) {
+  const aberto = state.gerarRelatorioAberto === chave;
+  return `<button class="${classe}"${estilo ? ` style="${estilo}"` : ''} data-action="abrir-gerar-relatorio" data-value="${escapeHtml(chave)}" aria-expanded="${aberto}">📊 Gerar relatório ${aberto ? '▴' : '▾'}</button>`;
+}
+export function opcoesGerarRelatorio(chave, opcoes) {
+  if (state.gerarRelatorioAberto !== chave) return '';
+  return `
+    <div class="row-gap no-print" style="margin-top:8px;">
+      ${opcoes.map(o => `<button class="btn secondary" style="flex:1;" data-action="${o.acao}"${o.id !== undefined ? ` data-id="${escapeHtml(o.id)}"` : ''}${o.valor !== undefined ? ` data-value="${escapeHtml(o.valor)}"` : ''}>${o.rotulo}</button>`).join('')}
+    </div>
+  `;
+}
+
 export const acoes = {
+  'abrir-gerar-relatorio': async (id, target, action, e) => {
+    const chave = target.dataset.value;
+    state.gerarRelatorioAberto = state.gerarRelatorioAberto === chave ? null : chave;
+    return render();
+  },
   'toggle-relatorio-estatisticas-divisao': async (id, target, action, e) => {
     const chave = target.dataset.value;
     if (state.relatorioEstatisticasExpandidas.has(chave)) state.relatorioEstatisticasExpandidas.delete(chave);

@@ -18,7 +18,7 @@ import { posicoesDoPodio } from './comuns.js';
 const L = 1080, A = 1350; // retrato 4:5, o formato que o WhatsApp mostra maior
 const COR = {
   marfim: '#F3E6C4', ouro: '#D4A24C', ouroEscuro: '#8A6A2C', texto: '#F2EFE8', apagado: '#A8A49B',
-  confirmado: '#5FC98D', justificada: '#E0B24D', infracional: '#D9635A', trilho: 'rgba(255,255,255,0.10)',
+  confirmado: '#5FC98D', justificada: '#E0B24D', infracional: '#D9635A', aguardando: '#9C9890', trilho: 'rgba(255,255,255,0.10)',
 };
 const MEDALHAS = ['🥇', '🥈', '🥉'];
 
@@ -236,11 +236,15 @@ export async function imagemResultadoEvento(ev, contagem) {
   const { canvas, ctx, logo } = await novaTela();
   const total = (ev.memberIds || []).length;
   const justificadas = contagem.familia + contagem.trabalho + contagem.justificada;
-  const naoJustificadas = contagem.infracional + (contagem.aguardando || 0);
+  // Evento ainda aberto: quem nao respondeu ainda pode responder, entao fica
+  // na fatia cinza de Aguardando, e nao somado as faltas.
+  const parcial = ev.status !== 'encerrado';
+  const aguardando = parcial ? (contagem.aguardando || 0) : 0;
+  const naoJustificadas = contagem.infracional + (parcial ? 0 : (contagem.aguardando || 0));
   const pct = total ? Math.round((contagem.confirmado / total) * 100) : 0;
 
   emblema(ctx, logo, 60, 200);
-  rotuloEspacado(ctx, 'RESULTADO DO EVENTO', 330, 28, COR.ouro);
+  rotuloEspacado(ctx, parcial ? 'PARCIAL DO EVENTO' : 'RESULTADO DO EVENTO', 330, 28, COR.ouro);
   // Nome comprido ("PUB REGIONAL & VISITAÇÃO DIVISÃO & ...") diminui a
   // letra ate caber em 3 linhas, em vez de empurrar a rosca pra baixo.
   let tamanhoTitulo = 62;
@@ -264,17 +268,19 @@ export async function imagemResultadoEvento(ev, contagem) {
   const topoRosca = y + 30, baseRosca = A - 280;
   const r = Math.max(110, Math.min(190, (baseRosca - topoRosca) / 2 - 24));
   rosca(ctx, L / 2, (topoRosca + baseRosca) / 2, r,
-    [[contagem.confirmado, COR.confirmado], [justificadas, COR.justificada], [naoJustificadas, COR.infracional]],
-    total, `${pct}%`, 'PRESENÇA');
+    [[contagem.confirmado, COR.confirmado], [justificadas, COR.justificada], [naoJustificadas, COR.infracional], [aguardando, COR.aguardando]],
+    total, `${pct}%`, parcial ? 'CONFIRMADOS' : 'PRESENÇA');
 
   y = A - 200;
   fonte(ctx, 40, 700);
   ctx.fillStyle = COR.texto;
-  ctx.fillText(`${contagem.confirmado} de ${total} compareceram`, L / 2, y);
+  ctx.fillText(`${contagem.confirmado} de ${total} ${parcial ? 'confirmados até agora' : 'compareceram'}`, L / 2, y);
 
   fonte(ctx, 28, 600);
   ctx.fillStyle = COR.apagado;
-  ctx.fillText(`✅ ${contagem.confirmado} confirmados     ❌ ${justificadas} justificadas     ⭕ ${naoJustificadas} não justificadas`, L / 2, y + 58);
+  ctx.fillText(parcial
+    ? `✅ ${contagem.confirmado} confirmados     ❌ ${justificadas} justificadas     ⚠️ ${aguardando} aguardando`
+    : `✅ ${contagem.confirmado} confirmados     ❌ ${justificadas} justificadas     ⭕ ${naoJustificadas} não justificadas`, L / 2, y + 58);
 
   rodape(ctx);
   return canvas;

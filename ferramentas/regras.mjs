@@ -691,6 +691,25 @@ log('=== cobrar quem falta ===');
 }
 
 log('');
+log('=== relatório parcial: evento aberto não dá falta ===');
+{
+  // Encerrar só pra ver o relatório dava falta a quem não respondeu. O
+  // relatório de evento aberto mostra essa gente como "ainda não responderam".
+  const { buildReportText } = await import(url('dominio/relatorio-texto.js'));
+  st.reportData = { x: { c1: { status: 'aguardando' }, c3: { status: 'confirmado' } } };
+  const evAberto = { id: 'x', nome: 'Pub', data: '2026-10-09', categoria: 'barra', status: 'ativo', memberIds: ['c1', 'c2', 'c3'] };
+  const parcial = buildReportText(evAberto).split('\n');
+  confere('aberto sai como parcial', parcial[0], '📋 RELATÓRIO PARCIAL DE PRESENÇA');
+  confere('quem não respondeu fica em "ainda não responderam"',
+    parcial.slice(parcial.indexOf('⚠️ AINDA NÃO RESPONDERAM (2)') + 1), ['- Raposo', '- Costa']);
+  confere('sem falta no aberto', parcial.some(l => l.startsWith('⭕')), false);
+  const final = buildReportText({ ...evAberto, status: 'encerrado' }).split('\n');
+  confere('encerrado continua igual: quem não respondeu vira falta',
+    [final[0], final.includes('⭕ FALTA NÃO JUSTIFICADA (2)'), final.some(l => l.startsWith('⚠️'))],
+    ['📋 RELATÓRIO DE PRESENÇA', true, false]);
+}
+
+log('');
 log('=== doações: kg, cumprimento e quem foi e não levou ===');
 {
   const { rankDoacoes, membrosParaMarcar, textoDoacoes, formatKg, eventosDoPeriodo } = await import(url('dominio/doacoes.js'));

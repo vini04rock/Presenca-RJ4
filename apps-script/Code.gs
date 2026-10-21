@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-10-20-a-abertura-rapida';
+var VERSAO = '2026-10-21-a-reabrir-sem-falta';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -1494,7 +1494,25 @@ function salvarEvento(p) {
   // novo com o evento ja encerrado e inofensivo (nao sobra mais ninguem
   // "Aguardando" pra converter).
   if ((p.status || 'ativo') === 'encerrado') converterAguardandoParaInfracionalAoEncerrar(id);
+  // O caminho de volta: evento ABERTO feito a mao nao tem "Infracional". O
+  // seletor so oferece os 4 status, entao ali ela so pode ter vindo de um
+  // encerramento - e reabrir tem que devolver quem nao respondeu pra
+  // "Aguardando", senao a falta fica valendo num evento que ainda nem
+  // aconteceu. Evento de convocacao colada (com texto original) fica de
+  // fora: nele a falta veio do texto e e de verdade.
+  else if (!textoOriginal) desfazerInfracionalAoReabrir(id);
   return { ok: true, id: id };
+}
+
+function desfazerInfracionalAoReabrir(eventoId) {
+  var s = aba(ABA_PRESENCAS, CAB_PRESENCAS);
+  var dados = linhas(s);
+  for (var i = 0; i < dados.length; i++) {
+    if (String(dados[i][0]) === String(eventoId) && String(dados[i][4]) === STATUS_ROTULO.infracional) {
+      s.getRange(i + 2, 5).setValue(STATUS_ROTULO.aguardando);
+      s.getRange(i + 2, 9).setValue(agora());
+    }
+  }
 }
 
 // A chamada chega como objeto pelo POST (corpo JSON) e como texto pela URL.

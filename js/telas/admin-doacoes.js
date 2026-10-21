@@ -14,7 +14,7 @@ import { corTipoEvento, emojiTipoEvento, escopoPorChave } from '../nucleo/config
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
 import { copiarTexto, escapeHtml, formatDataCurta, hexParaRgba } from '../nucleo/util.js';
-import { linhaFuncoes, medalha, posicoesDoPodio, selinhoIniciais } from '../ui/comuns.js';
+import { botaoGerarRelatorio, linhaFuncoes, medalha, posicoesDoPodio, selinhoIniciais } from '../ui/comuns.js';
 import { esqueletoLista, renderDonutChart, renderSparklineTendencia } from '../ui/graficos.js';
 import { imagemDoacoes, mostrarPreviaImagem } from '../ui/imagem.js';
 import { renderEstoque } from './admin-doacoes-estoque.js';
@@ -161,10 +161,10 @@ function renderRank(d) {
       <div class="doacao-total" style="text-align:center;"><b>${formatKg(r.totalKg)}</b> arrecadados em ${r.eventosComDoacao} ${r.eventosComDoacao === 1 ? 'evento' : 'eventos'}</div>
       <div class="info-line" style="padding:2px 0 0; color:var(--text-muted); font-size:12px; text-align:center;">Cumprimento: dos que foram aos eventos encerrados, quantos levaram alimento.</div>
       ${renderSparklineTendencia(r.porEvento.map(x => ({ ev: x.ev, pct: x.pct })))}
-      <div class="row-gap no-print" style="margin-top:12px;">
-        <button class="btn secondary" style="flex:1;" data-action="copiar-texto-doacoes">📋 Copiar pro WhatsApp</button>
-        <button class="btn secondary" style="flex:1;" data-action="imagem-doacoes">🖼️ Imagem pro grupo</button>
-      </div>
+      ${botaoGerarRelatorio('doacoes-rank', [
+        { acao: 'copiar-texto-doacoes', rotulo: '📋 WhatsApp' },
+        { acao: 'imagem-doacoes', rotulo: '🖼️ Imagem' },
+      ])}
     </div>
   `;
 

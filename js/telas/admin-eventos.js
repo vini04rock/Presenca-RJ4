@@ -12,13 +12,14 @@ import { genId, state } from '../nucleo/estado.js';
 import { TIPO_HOME_IMAGEM } from '../nucleo/imagens.js';
 import { dataDoCampoOuAvisar, escapeHtml, formatDataBR, formatDataCurta, hexParaRgba, pastilhaQuando } from '../nucleo/util.js';
 import { camposDoEvento, chamadaParaGuardar, enderecoDoEvento, peVazio } from '../dominio/convocacao.js';
-import { campoData, seloConfirmados, subtituloDoEvento } from '../ui/comuns.js';
+import { botaoGerarRelatorio, campoData, seloConfirmados, subtituloDoEvento } from '../ui/comuns.js';
 import { caixa, guardarDigitado, quadro, quadroRoteiro, quadroTipo } from '../ui/quadros-chamada.js';
 import { renderDonutChart, segmentosDonutStatus } from '../ui/graficos.js';
 import { salvarOuAvisar } from '../dados/carregar.js';
 import { paramsDeEvento } from '../fila/presenca.js';
 import { copyReportToClipboard, exportarRelatorioPdfAdmin, gerarRelatorio } from '../fluxos/relatorio.js';
 import { render } from '../nucleo/render.js';
+import { api } from '../nucleo/api.js';
 import { imagemResultadoEvento, mostrarPreviaImagem } from '../ui/imagem.js';
 
 // A data do evento como pastilha no canto superior direito do card - a
@@ -68,7 +69,11 @@ export function renderAdminEventos() {
   // quadro geral. Cada divisao usa o "Copiar relatorio" (por evento, na aba
   // Relatorio do organizador), que continua disponivel pra todo mundo.
   const podeGerarPlanilha = state.adminEscopo === 'regional';
+  // Com o relatorio de um evento aberto, o PDF (impressao do navegador) sai
+  // so com ele: todo o resto da aba fica fora do papel.
+  const parcialAberto = eventos.some(ev => ev.status !== 'encerrado' && ev.id === state.expandedReportEventId);
   return `
+    <div class="${parcialAberto ? 'no-print' : ''}">
     <button class="btn block" data-action="start-new-event" style="margin-bottom: 10px;">+ Criar evento</button>
     ${podeGerarPlanilha ? `
       <button class="btn secondary block on-photo" data-action="gerar-relatorio" style="margin-bottom: 6px;" ${rel === 'gerando' ? 'disabled' : ''}>
@@ -78,6 +83,7 @@ export function renderAdminEventos() {
       ${rel === 'erro' ? `<div class="alert" style="margin-bottom:16px;"><div class="alert-title">Não consegui gerar</div><div class="alert-msg">${escapeHtml(state.relatorioErro || '')}.</div></div>` : ''}
     ` : ''}
     ${renderExportarPdfAdmin()}
+    </div>
     ${eventos.length === 0 ? '<div class="empty">Nenhum evento criado ainda.</div>' : eventos.map(ev => {
       const memberCount = ev.memberIds.length;
       // Mesma arte/cor por tipo dos cards de evento dos Relatorios - aqui e
@@ -90,8 +96,9 @@ export function renderAdminEventos() {
       const estiloFundo = !ev.tipo ? '' : imagemFundo
         ? `background-image:url('${imagemFundo}'); background-size:cover; background-position:center; border-left:3px solid ${cor};`
         : `background:${hexParaRgba(cor, 0.14)}; border-left:3px solid ${cor};`;
+      const comParcial = ev.status !== 'encerrado' && state.expandedReportEventId === ev.id;
       return `
-        <div class="card" style="${estiloFundo}">
+        <div class="card ${parcialAberto && !comParcial ? 'no-print' : ''}" style="${estiloFundo}">
           ${dataDoCard(ev)}
           <div style="display:flex; align-items:center; gap:14px;">
             ${ev.tipo ? `<div class="tipo-home-icone" style="border-color:${cor}; flex-shrink:0;">${emojiTipoEvento(ev.tipo)}</div>` : ''}
@@ -104,14 +111,44 @@ export function renderAdminEventos() {
               </div>
             </div>
           </div>
-          <div class="row-gap" style="margin-top:12px;">
+          <div class="row-gap no-print" style="margin-top:12px;">
             <button class="btn secondary" data-action="start-edit-event" data-id="${ev.id}">Editar</button>
             <button class="btn secondary" data-action="toggle-event-status" data-id="${ev.id}">${ev.status === 'encerrado' ? 'Reabrir' : 'Encerrar'}</button>
             <button class="btn secondary" data-action="abrir-convocacao" data-id="${ev.id}">📋 Criar chamada <span style="opacity:.6; font-size:11px;">(testes)</span></button>
+            ${ev.status === 'encerrado' ? '' : `<button class="btn secondary" data-action="relatorio-parcial" data-id="${ev.id}">📊 Gerar relatório</button>`}
           </div>
+          ${comParcial ? renderRelatorioParcial(ev) : ''}
         </div>
       `;
     }).join('')}
+  `;
+}
+
+// O relatorio de um evento ainda aberto: o mesmo detalhe da aba Encerrados,
+// com quem ainda nao respondeu a parte. Existe pra ninguem precisar encerrar
+// o evento so pra ver o relatorio - encerrar da falta a quem nao respondeu.
+function renderRelatorioParcial(ev) {
+  if (state.relatorioParcialCarregando === ev.id) {
+    return `<div style="border-top:1px solid var(--line); margin-top:12px; padding-top:12px; color:var(--text-muted); font-size:13px;">Buscando as respostas…</div>`;
+  }
+  if (state.relatorioParcialErro || !(ev.id in state.reportData)) {
+    return `
+      <div class="alert" style="margin-top:12px;">
+        <div class="alert-title">Não consegui buscar as respostas</div>
+        <div class="alert-msg">${escapeHtml(state.relatorioParcialErro || 'Tente de novo')}.</div>
+      </div>
+    `;
+  }
+  return `
+    <div class="print-only" style="margin-top:12px; font-size:12px; color:var(--text-muted);">
+      Relatório parcial · o evento ainda está aberto · gerado em ${escapeHtml(new Date().toLocaleString('pt-BR'))}
+    </div>
+    ${renderReportDetail(ev)}
+    <div class="row-gap no-print" style="margin-top:12px;">
+      <button class="btn secondary" style="flex:1;" data-action="copy-report" data-id="${ev.id}">${state.copiedEventId === ev.id ? 'Copiado ✓' : '📋 Copiar pro WhatsApp'}</button>
+      <button class="btn secondary" style="flex:1;" data-action="pdf-relatorio-parcial" data-id="${ev.id}">📄 Gerar PDF</button>
+      <button class="btn secondary" style="flex:1;" data-action="imagem-resultado" data-id="${ev.id}">🖼️ Gerar imagem</button>
+    </div>
   `;
 }
 
@@ -302,15 +339,18 @@ export function renderAdminRelatorio() {
     </div>
   ` : '';
 
-  return aviso + encerrados.map(ev => {
+  // Com o "Gerar relatorio" de um evento aberto, o PDF sai so com ele.
+  const menuAberto = encerrados.some(ev => state.gerarRelatorioAberto === 'encerrado:' + ev.id);
+  return `<div class="${menuAberto ? 'no-print' : ''}">${aviso}</div>` + encerrados.map(ev => {
     const carregado = ev.id in state.reportData;
     const counts = computeCounts(ev);
     const total = ev.memberIds.length;
     const isOpen = state.expandedReportEventId === ev.id;
     const n = (v) => carregado ? v : '—';
     const percentual = carregado && total ? Math.round((counts.confirmado / total) * 100) : null;
+    const esteMenu = state.gerarRelatorioAberto === 'encerrado:' + ev.id;
     return `
-      <div class="card">
+      <div class="card ${menuAberto && !esteMenu ? 'no-print' : ''}">
         <div class="member-head" ${carregado ? `data-action="toggle-report-event" data-id="${ev.id}"` : ''}>
           <div style="min-width:0;">
             <div class="nome-evento-card">${escapeHtml(ev.nome)}${subtituloDoEvento(ev)}</div>
@@ -324,15 +364,15 @@ export function renderAdminRelatorio() {
           <div class="count-box-report">❌ Falta justificada <b>${n(counts.familia + counts.trabalho + counts.justificada)}</b></div>
           <div class="count-box-report">⭕ Falta não justificada <b>${n(counts.infracional)}</b></div>
         </div>
-        ${carregado ? `
-          <div class="row-gap" style="margin-top:10px;">
-            <button class="btn secondary" style="flex:1;" data-action="copy-report" data-id="${ev.id}">${state.copiedEventId === ev.id ? 'Copiado ✓' : '📋 Copiar relatório'}</button>
-            <button class="btn secondary" style="flex:1;" data-action="imagem-resultado" data-id="${ev.id}">🖼️ Imagem do resultado</button>
-          </div>
-        ` : ''}
-        ${blocoConvocacaoOriginal(ev)}
+        ${carregado ? botaoGerarRelatorio('encerrado:' + ev.id, [
+          { acao: 'copy-report', id: ev.id, rotulo: state.copiedEventId === ev.id ? 'Copiado ✓' : '📋 WhatsApp' },
+          { acao: 'pdf-relatorio-evento', id: ev.id, rotulo: '📄 PDF' },
+          { acao: 'imagem-resultado', id: ev.id, rotulo: '🖼️ Imagem' },
+        ], 'margin-top:10px;') : ''}
+        <div class="no-print">${blocoConvocacaoOriginal(ev)}</div>
+        ${esteMenu ? `<div class="print-only" style="margin-top:12px; font-size:12px; color:var(--text-muted);">Gerado em ${escapeHtml(new Date().toLocaleString('pt-BR'))}</div>` : ''}
         ${isOpen && carregado ? renderReportDetail(ev) : ''}
-        ${renderExcluirEvento(ev)}
+        <div class="no-print">${renderExcluirEvento(ev)}</div>
       </div>
     `;
   }).join('');
@@ -383,16 +423,21 @@ function renderReportDetail(ev) {
   // Donut so aqui no detalhe expandido (nao no card recolhido) - senao toda
   // a lista de eventos encerrados ficaria mais alta a toa, so pra mostrar um
   // grafico que a maioria vai abrir so de vez em quando.
-  const donut = renderDonutChart(segmentosDonutStatus({
+  const segmentos = segmentosDonutStatus({
     confirmado: counts.confirmado,
     justificada: counts.familia + counts.trabalho + counts.justificada,
     infracional: counts.infracional
-  }), ev.memberIds.length ? Math.round((counts.confirmado / ev.memberIds.length) * 100) + '%' : '—', 'presença', 130);
+  });
+  // Evento ainda aberto (relatorio parcial): quem nao respondeu entra na
+  // rosca e na lista como Aguardando. No encerrado ele ja virou falta.
+  if (ev.status !== 'encerrado') segmentos.push({ label: 'Aguardando', value: counts.aguardando, cor: 'var(--status-aguardando)' });
+  const donut = renderDonutChart(segmentos, ev.memberIds.length ? Math.round((counts.confirmado / ev.memberIds.length) * 100) + '%' : '—', 'presença', 130);
   return `
     <div style="border-top:1px solid var(--line); margin-top:12px; padding-top:12px;">
       ${donut}
       ${section('Confirmados', '✅', groups.confirmado)}
       ${section('Falta - Justificada', '❌', faltaJustificada)}
+      ${section('Ainda não responderam', '⚠️', groups.aguardando)}
       ${section('Falta - Não justificada', '⭕', groups.infracional)}
     </div>
   `;
@@ -405,7 +450,7 @@ export const acoes = {
   'imagem-resultado': async (id, target, action, e) => {
     const ev = state.events.find(x => x.id === id);
     if (!ev || !state.reportData[ev.id]) return;
-    const nome = 'resultado-' + String(ev.nome).toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '.png';
+    const nome = (ev.status === 'encerrado' ? 'resultado-' : 'parcial-') + String(ev.nome).toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '.png';
     return mostrarPreviaImagem(() => imagemResultadoEvento(ev, computeCounts(ev)), nome);
   },
   'gerar-relatorio': async (id, target, action, e) => {
@@ -518,6 +563,12 @@ export const acoes = {
     if (!ev) return;
     const novoStatus = ev.status === 'encerrado' ? 'ativo' : 'encerrado';
     state.events = state.events.map(e => e.id === id ? { ...e, status: novoStatus } : e);
+    // Reabrir um evento feito a mao devolve quem nao respondeu pra
+    // Aguardando - o Code.gs faz o mesmo (desfazerInfracionalAoReabrir).
+    const respostas = state.reportData[id];
+    if (novoStatus === 'ativo' && !ev.textoOriginal && respostas) {
+      Object.values(respostas).forEach(r => { if (r.status === 'infracional') r.status = 'aguardando'; });
+    }
     render();
     await salvarOuAvisar('eventoSalvar', paramsDeEvento({ ...ev, status: novoStatus }));
   },
@@ -529,6 +580,36 @@ export const acoes = {
     if (state.expandedReportEventId === id) state.expandedReportEventId = null;
     render();
     await salvarOuAvisar('eventoRemover', { id });
+  },
+
+  // Busca as respostas de novo a cada abertura: o evento esta aberto e o
+  // numero muda a cada integrante que responde (a mesma regra do mural).
+  'relatorio-parcial': async (id, target, action, e) => {
+    if (state.expandedReportEventId === id) { state.expandedReportEventId = null; return render(); }
+    state.expandedReportEventId = id;
+    state.relatorioParcialCarregando = id;
+    state.relatorioParcialErro = null;
+    render();
+    try {
+      const r = await api('presencas', { eventoId: id });
+      state.reportData[id] = r.presencas || {};
+    } catch (err) {
+      state.relatorioParcialErro = err.message;
+    }
+    if (state.relatorioParcialCarregando === id) state.relatorioParcialCarregando = null;
+    return render();
+  },
+  // A impressao do navegador, igual aos Relatorios: com o relatorio aberto,
+  // a aba ja marca todo o resto como no-print (ver renderAdminEventos).
+  'pdf-relatorio-parcial': async (id, target, action, e) => {
+    window.print();
+  },
+  // Evento encerrado: o papel leva o detalhe (rosca e nomes), entao abre
+  // ele antes de imprimir. O resto da aba ja esta no-print com o menu aberto.
+  'pdf-relatorio-evento': async (id, target, action, e) => {
+    state.expandedReportEventId = id;
+    render();
+    window.print();
   },
 
   'toggle-report-event': async (id, target, action, e) => {

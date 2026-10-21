@@ -90,6 +90,12 @@ export let state = {
   estatisticasLoading: false,
   estatisticasError: null,
   expandedReportEventId: null,
+  // Relatorio parcial de um evento ativo (aba Eventos): o id do evento cujas
+  // respostas estao sendo buscadas, e o erro se a busca falhar.
+  relatorioParcialCarregando: null,
+  // Qual "📊 Gerar relatorio" esta aberto (ui/comuns.js, botaoGerarRelatorio).
+  gerarRelatorioAberto: null,
+  relatorioParcialErro: null,
   copiedEventId: null,
   copiedInsightRodadaId: null,
   // Tela "Criar chamada" (o texto da convocacao pro WhatsApp). Os campos

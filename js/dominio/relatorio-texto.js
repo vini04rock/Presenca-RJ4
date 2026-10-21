@@ -18,8 +18,12 @@ export function buildReportText(ev) {
   const total = ev.memberIds.length;
   const percentual = total ? Math.round((groups.confirmado.length / total) * 100) : 0;
 
+  // Evento ainda aberto sai como parcial: quem nao respondeu ainda pode
+  // responder, entao aparece como "ainda nao responderam", nunca como falta.
+  const parcial = ev.status !== 'encerrado';
+
   const lines = [];
-  lines.push('📋 RELATÓRIO DE PRESENÇA');
+  lines.push(parcial ? '📋 RELATÓRIO PARCIAL DE PRESENÇA' : '📋 RELATÓRIO DE PRESENÇA');
   lines.push(ev.nome);
   if (ev.data) lines.push('🗓️ ' + formatDataBR(ev.data));
   if (ev.endereco) lines.push('📍 ' + ev.endereco);
@@ -32,6 +36,17 @@ export function buildReportText(ev) {
   lines.push(`❌ NÃO PUDERAM IR (${naoPuderamIr.length})`);
   lines.push(...(naoPuderamIr.length ? naoPuderamIr.map(m => `- ${m.nome} (${m.motivo})`) : ['- Ninguém avisou falta']));
   lines.push('');
+  if (parcial) {
+    lines.push(`⚠️ AINDA NÃO RESPONDERAM (${groups.aguardando.length})`);
+    lines.push(...(groups.aguardando.length ? groups.aguardando.map(n => '- ' + n) : ['- Todos responderam']));
+    // Evento aberto feito a mao nao tem falta; so a convocacao colada pode ter.
+    if (groups.infracional.length) {
+      lines.push('');
+      lines.push(`⭕ FALTA NÃO JUSTIFICADA (${groups.infracional.length})`);
+      lines.push(...groups.infracional.map(n => '- ' + n));
+    }
+    return lines.join('\n');
+  }
   // Sem secao de "Nao responderam": evento encerrado nao tem mais esse
   // status (ver statusEfetivo) - quem nao respondeu ja caiu em Infracional.
   lines.push(`⭕ FALTA NÃO JUSTIFICADA (${groups.infracional.length})`);

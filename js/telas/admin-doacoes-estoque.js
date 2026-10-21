@@ -20,6 +20,7 @@ import { escopoPorChave } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
 import { copiarTexto, escapeHtml, formatDataBR, hojeISO } from '../nucleo/util.js';
+import { botaoGerarRelatorio } from '../ui/comuns.js';
 import { renderPizza } from '../ui/graficos.js';
 import { imagensEstoqueDoacoes, imagensRelatorioEstoque, mostrarPreviaImagem } from '../ui/imagem.js';
 
@@ -337,11 +338,11 @@ function relatorio(d) {
       <div class="painel-titulo">📊 Relatório do estoque</div>
       <div class="fin-subtitulo">${escapeHtml(escopoPorChave(state.adminEscopo).nome)} · ${escapeHtml(rotulo)}</div>
       ${seletorPeriodo(d)}
-      <div class="row-gap no-print" style="margin-top:14px;">
-        <button class="btn secondary" style="flex:1;" data-action="texto-relatorio-estoque">📋 WhatsApp</button>
-        <button class="btn secondary" style="flex:1;" data-action="imagem-relatorio-estoque">🖼️ Imagem</button>
-        <button class="btn secondary" style="flex:1;" data-action="pdf-relatorio-estoque">🖨️ PDF</button>
-      </div>
+      ${botaoGerarRelatorio('estoque-relatorio', [
+        { acao: 'texto-relatorio-estoque', rotulo: '📋 WhatsApp' },
+        { acao: 'pdf-relatorio-estoque', rotulo: '📄 PDF' },
+        { acao: 'imagem-relatorio-estoque', rotulo: '🖼️ Imagem' },
+      ], 'margin-top:14px;')}
     </div>
     <div class="card fin-bloco" style="padding: 4px 16px 10px;">
       <div class="division-subheader"><span>📦 TODOS OS ITENS</span><span class="division-counts">início → fim</span></div>
