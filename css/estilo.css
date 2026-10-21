@@ -2729,3 +2729,9 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
   color: #D4B87A; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
   vertical-align: 0.1em;
 }
+
+/* Encerrados com a arte do tipo no fundo (21/10/2026; antes era card liso): as caixas
+   de contagem ganham fundo proprio pra continuarem legiveis por cima da
+   arte. No papel o card e branco, entao voltam a ser transparentes. */
+.count-box-report { background: rgba(10, 10, 10, 0.62); }
+@media print { .count-box-report { background: transparent !important; } }

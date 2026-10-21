@@ -357,7 +357,8 @@ veio do texto.
 
 A aba **Ativos** do organizador mostra só os eventos abertos, do mais
 próximo para o mais distante (sem data no fim); o encerrado
-fica só em **Encerrados**, que ganhou o **Editar** e o **Reabrir** (o
+fica só em **Encerrados** (do mais recente para o mais antigo, com a
+mesma arte do tipo no fundo), que ganhou o **Editar** e o **Reabrir** (o
 formulário de edição abre ali mesmo). Encerrar ou reabrir troca o evento
 de aba, com um aviso dizendo para onde ele foi.
 

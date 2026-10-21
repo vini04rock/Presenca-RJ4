@@ -58,6 +58,24 @@ function renderExportarPdfAdmin() {
   `;
 }
 
+// Mesma arte/cor por tipo dos cards de evento dos Relatorios, nas abas
+// Ativos e Encerrados - aqui e so background inline (sem as classes tipo-*)
+// porque esse card e so ".card" (empilha titulo + botoes por baixo), nao
+// ".event-card" (linha unica com flex/space-between), entao as regras CSS
+// acopladas a .event-card.tipo-* nao serviriam pra esse layout.
+//
+// Presa a direita: os cards sao altos (botoes, e nos Encerrados as
+// contagens) e a arte e larga (900x185), entao o "cover" amplia ate a
+// altura do card e so cabe um pedaco dela - o da direita e o do desenho.
+function fundoDoCard(ev) {
+  if (!ev.tipo) return '';
+  const cor = corTipoEvento(ev.tipo);
+  const imagemFundo = TIPO_HOME_IMAGEM[ev.tipo];
+  return imagemFundo
+    ? `background-image:url('${imagemFundo}'); background-size:cover; background-position:right; border-left:3px solid ${cor};`
+    : `background:${hexParaRgba(cor, 0.14)}; border-left:3px solid ${cor};`;
+}
+
 export function renderAdminEventos() {
   if (state.newEventSelected !== null) {
     return renderEventForm();
@@ -90,16 +108,8 @@ export function renderAdminEventos() {
     </div>
     ${eventos.length === 0 ? '<div class="empty">Nenhum evento ativo.<br>Os encerrados ficam na aba Encerrados.</div>' : eventos.map(ev => {
       const memberCount = ev.memberIds.length;
-      // Mesma arte/cor por tipo dos cards de evento dos Relatorios - aqui e
-      // so background inline (sem as classes tipo-*) porque esse card e so
-      // ".card" (empilha titulo + botoes por baixo), nao ".event-card"
-      // (linha unica com flex/space-between), entao as regras CSS
-      // acopladas a .event-card.tipo-* nao serviriam pra esse layout.
       const cor = corTipoEvento(ev.tipo);
-      const imagemFundo = TIPO_HOME_IMAGEM[ev.tipo];
-      const estiloFundo = !ev.tipo ? '' : imagemFundo
-        ? `background-image:url('${imagemFundo}'); background-size:cover; background-position:center; border-left:3px solid ${cor};`
-        : `background:${hexParaRgba(cor, 0.14)}; border-left:3px solid ${cor};`;
+      const estiloFundo = fundoDoCard(ev);
       const comParcial = ev.status !== 'encerrado' && state.expandedReportEventId === ev.id;
       return `
         <div class="card ${parcialAberto && !comParcial ? 'no-print' : ''}" style="${estiloFundo}">
@@ -333,7 +343,9 @@ function blocoConvocacaoOriginal(ev) {
 export function renderAdminRelatorio() {
   // O Editar de um encerrado abre o formulario aqui mesmo, sem trocar de aba.
   if (state.newEventSelected !== null) return renderEventForm();
-  const encerrados = eventosDoEscopo().filter(e => e.status === 'encerrado');
+  // Do mais recente pro mais antigo; sem data vai pro fim.
+  const encerrados = eventosDoEscopo().filter(e => e.status === 'encerrado')
+    .sort((a, b) => (b.data || '').localeCompare(a.data || ''));
   if (encerrados.length === 0) {
     return '<div class="empty">Nenhum evento encerrado ainda.<br>Os relatórios aparecem aqui depois que você encerrar um evento.</div>';
   }
@@ -356,7 +368,7 @@ export function renderAdminRelatorio() {
     const percentual = carregado && total ? Math.round((counts.confirmado / total) * 100) : null;
     const esteMenu = state.gerarRelatorioAberto === 'encerrado:' + ev.id;
     return `
-      <div class="card ${menuAberto && !esteMenu ? 'no-print' : ''}">
+      <div class="card ${menuAberto && !esteMenu ? 'no-print' : ''}" style="${fundoDoCard(ev)}">
         <div class="member-head" ${carregado ? `data-action="toggle-report-event" data-id="${ev.id}"` : ''}>
           <div style="min-width:0;">
             <div class="nome-evento-card">${escapeHtml(ev.nome)}${subtituloDoEvento(ev)}</div>
