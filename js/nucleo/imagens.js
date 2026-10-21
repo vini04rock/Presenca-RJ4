@@ -46,15 +46,27 @@ export const IMG_AREAS = {
   social: 'img/area-social.webp',
 };
 
-// Artes dos cards de secao dentro de cada area do organizador (21/10/2026):
-// as versoes antigas dos cards Eventos e Rank de Insights, com o texto
-// desenhado APAGADO - o card escreve o proprio nome e descricao no lugar.
-// largura/altura: a proporcao da arte (o card nao corta nada); texto: onde
-// o texto comeca e quanto ocupa, em % da largura; cores: nome e descricao,
-// no tom da arte. Secao sem entrada aqui fica com o card de sempre.
+// Artes dos cards de secao dentro de cada area do organizador (21/10/2026),
+// pela chave da secao (a aba, ou a acao dos que nao abrem aba). largura/
+// altura: a proporcao da arte - o card nao corta nada. Tres jeitos:
+//   - so a arte: titulo, descricao, icone e seta ja desenhados nela;
+//   - texto: [esquerda %, largura %] - Eventos e Insights, as versoes
+//     antigas dos cards com o texto APAGADO; o app escreve nome e descricao
+//     no lugar, com as cores [nome, descricao] no tom da arte;
+//   - desc: [esquerda %, topo %, largura %] - Doacoes: o titulo e da arte,
+//     e a linha da descricao foi apagada porque muda no Regional ("O
+//     estoque do Regional"); o app escreve a descricao certa de cada um.
+// Secao sem entrada aqui fica com o card de sempre, de icone e texto.
 export const IMG_SECOES = {
   eventos: { src: 'img/secao-eventos.webp', largura: 900, altura: 179, texto: [13, 40], cores: ['#F3E6C4', '#C9C2B4'] },
   insights: { src: 'img/secao-insights.webp', largura: 900, altura: 172, texto: [25.5, 46], cores: ['#E6F0FF', '#8FB7E8'] },
+  doacoes: { src: 'img/secao-doacoes.webp', largura: 1200, altura: 171, desc: [15.75, 55, 31], cores: ['', '#B5B0A8'] },
+  caixinha: { src: 'img/secao-caixinha.webp', largura: 1200, altura: 177 },
+  'estoque-adm-movimentar': { src: 'img/secao-estoque-adm.webp', largura: 1200, altura: 172 },
+  movimentos: { src: 'img/secao-movimentos.webp', largura: 1200, altura: 166 },
+  membros: { src: 'img/secao-membros.webp', largura: 1200, altura: 171 },
+  'abrir-relatorio-individual': { src: 'img/secao-relatorio-individual.webp', largura: 1200, altura: 181 },
+  'abrir-relatorios-organizador': { src: 'img/secao-relatorios.webp', largura: 1200, altura: 213 },
 };
 
 // Arte do botao "Modo organizador", no rodape da tela inicial (engrenagem,

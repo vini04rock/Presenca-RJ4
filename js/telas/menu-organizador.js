@@ -104,18 +104,25 @@ function cardArea(area) {
 function cardSecao(secao) {
   const s = state.adminEscopo === 'regional' && secao.noRegional ? { ...secao, ...secao.noRegional } : secao;
   const gatilho = s.acao ? `data-action="${s.acao}"` : `data-action="abrir-secao-organizador" data-tab="${s.aba}"`;
-  // Com arte: o card e a arte inteira (sem corte), e o nome e a descricao
-  // vao no lugar do texto que foi apagado dela. O emoji da secao fica de
-  // fora - a arte ja tem o proprio icone.
-  const arte = IMG_SECOES[s.aba];
+  // Com arte: o card e a arte inteira (sem corte). O emoji da secao fica de
+  // fora - a arte ja tem o proprio icone. A chave e a da secao original:
+  // no Regional o "noRegional" troca a aba (Doacoes abre no estoque).
+  const arte = IMG_SECOES[secao.aba || secao.acao];
   if (arte) {
-    return `
-      <div class="card event-card menu-org-card menu-org-secao-arte" role="button" ${gatilho}
-           style="background-image:url('${arte.src}'); aspect-ratio:${arte.largura} / ${arte.altura};">
+    let texto = '';
+    if (arte.texto) {
+      texto = `
         <div class="menu-org-secao-texto" style="left:${arte.texto[0]}%; width:${arte.texto[1]}%;">
           <div class="menu-org-secao-nome" style="color:${arte.cores[0]};">${escapeHtml(s.nome)}</div>
           <div class="menu-org-secao-desc" style="color:${arte.cores[1]};">${escapeHtml(s.desc)}</div>
-        </div>
+        </div>`;
+    } else if (arte.desc) {
+      texto = `
+        <div class="menu-org-secao-desc menu-org-secao-so-desc" style="left:${arte.desc[0]}%; top:${arte.desc[1]}%; width:${arte.desc[2]}%; color:${arte.cores[1]};">${escapeHtml(s.desc)}</div>`;
+    }
+    return `
+      <div class="card event-card menu-org-card menu-org-secao-arte" role="button" aria-label="${escapeHtml(s.nome + ' - ' + s.desc)}" ${gatilho}
+           style="background-image:url('${arte.src}'); aspect-ratio:${arte.largura} / ${arte.altura};">${texto}
       </div>
     `;
   }

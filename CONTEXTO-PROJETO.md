@@ -79,12 +79,16 @@ ferramentas dela. Uma área sem nenhuma ferramenta liberada naquele escopo
 fica escondida. O PIN continua sendo um só por divisão — essa separação é
 visual, não um controle de acesso por cargo.
 
-Dentro de cada área, um card de seção pode ter arte própria (`IMG_SECOES`,
-em `js/nucleo/imagens.js`; desde 21/10/2026, Eventos e Insights). A arte
-entra inteira, na proporção dela, e o app escreve o nome e a descrição no
-lugar onde ficava o texto desenhado. Nas duas de hoje esse texto foi
-apagado da imagem, que veio dos cards antigos "Eventos" e "Rank de
-Insights". Seção sem arte continua com o card de ícone e texto.
+Dentro de cada área, todo card de seção tem arte própria desde 21/10/2026
+(`IMG_SECOES`, em `js/nucleo/imagens.js`, pela aba ou pela ação da seção).
+A arte entra inteira, na proporção dela, sem corte. Na maioria, o título e
+a descrição já vêm desenhados. Eventos e Insights vieram dos cards antigos
+"Eventos" e "Rank de Insights": o texto foi apagado da imagem e o app
+escreve o nome e a descrição no lugar. Nas Doações, só a linha da
+descrição foi apagada, porque ela muda no Regional ("O estoque do
+Regional"). As artes de origem ficam fora do repositório; as daqui foram
+recortadas, arredondadas e reduzidas para 1200 px de largura. Seção sem
+arte continua com o card de ícone e texto.
 
 O `render()` em `js/nucleo/render.js` é só um interruptor de 4 linhas: o
 roteador de verdade vive no `app.js`, que é quem conhece as telas, e se
