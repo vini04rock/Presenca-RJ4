@@ -1412,6 +1412,56 @@ log('=== ações sociais: o rascunho entra de uma vez, só num planejador vazio 
 }
 
 log('');
+log('=== carteirinha: dado pessoal, só com o PIN da divisão do integrante ===');
+{
+  const p = montaPlanilha([], []);
+  p.abas.Membros = novaAba('Membros', [['ID', 'Nome', 'Grau', 'Divisao', 'Funcoes', 'Cargo'],
+    ['m1', 'Costa', 'VI', 'Barra - RJ4', '', 'Diretor'], ['m2', 'Bull', 'X', 'Barra - RJ4', '', ''], ['o9', 'Fabiano', 'IX', 'Oeste - RJ4', '', '']]);
+  const { contexto } = carregaCodeGs(p, { PIN_REGIONAL: '0418', PIN_BARRA: '1801', PIN_OESTE: '1802' });
+  const barra = { escopo: 'barra', pin: '1801' };
+  const tenta = (acao, params) => { try { return contexto.executar(acao, params); } catch (e) { return { erro: e.message }; } };
+  const foto = 'data:image/jpeg;base64,' + 'A'.repeat(100);
+
+  confere('ler sem PIN é recusado', contexto.executar('fichaMembro', { membroId: 'm1' }).ok, false);
+  confere('sem carteirinha ainda: vazia', contexto.executar('fichaMembro', { ...barra, membroId: 'm1' }).ficha, null);
+  confere('salva', tenta('fichaMembroSalvar', { ...barra, membroId: 'm1', telefone: '(21) 99999-0000 =x', emergenciaNome: ' Maria  Costa ',
+    emergenciaParentesco: 'Esposa', emergenciaTelefone: '21 98888-1111', nascimento: '1985-03-12', tipoSanguineo: 'O+', saude: 'Alérgico a dipirona', foto }).ok, true);
+  confere('lê tudo de volta, com o telefone limpo', contexto.executar('fichaMembro', { ...barra, membroId: 'm1' }).ficha,
+    { telefone: '(21) 99999-0000', emergenciaNome: 'Maria Costa', emergenciaParentesco: 'Esposa', emergenciaTelefone: '21 98888-1111',
+      nascimento: '1985-03-12', tipoSanguineo: 'O+', saude: 'Alérgico a dipirona', foto });
+  tenta('fichaMembroSalvar', { ...barra, membroId: 'm1', telefone: '21 97777-2222', nascimento: '1985-03-12' });
+  confere('editar sem mandar a foto mantém a foto', contexto.executar('fichaMembro', { ...barra, membroId: 'm1' }).ficha.foto, foto);
+  // A tela manda a carteirinha inteira a cada salvar; so a foto e opcional.
+  tenta('fichaMembroSalvar', { ...barra, membroId: 'm1', nascimento: '1985-03-12', foto: '' });
+  confere('foto vazia tira a foto', contexto.executar('fichaMembro', { ...barra, membroId: 'm1' }).ficha.foto, '');
+  confere('uma linha só por integrante', p.abas.MembrosFicha.dados.length - 1, 1);
+
+  confere('a ficha não aparece na lista pública de membros', JSON.stringify(contexto.executar('dados', {}).membros).includes('9777'), false);
+  confere('nascimento no futuro é recusado', tenta('fichaMembroSalvar', { ...barra, membroId: 'm1', nascimento: '2999-01-01' }).erro, 'Data de nascimento invalida');
+  confere('tipo sanguíneo inventado é recusado', tenta('fichaMembroSalvar', { ...barra, membroId: 'm1', tipoSanguineo: 'Z+' }).erro, 'Tipo sanguineo invalido');
+  confere('foto que não é JPEG é recusada', tenta('fichaMembroSalvar', { ...barra, membroId: 'm1', foto: 'data:image/png;base64,AAA' }).erro, 'Foto invalida ou grande demais');
+  confere('foto grande demais é recusada', tenta('fichaMembroSalvar', { ...barra, membroId: 'm1', foto: 'data:image/jpeg;base64,' + 'A'.repeat(50000) }).erro, 'Foto invalida ou grande demais');
+
+  confere('a Barra NÃO lê nem grava a carteirinha de quem é do Oeste',
+    [tenta('fichaMembro', { ...barra, membroId: 'o9' }).ok, tenta('fichaMembroSalvar', { ...barra, membroId: 'o9', telefone: '1' }).ok], [false, false]);
+  confere('o Regional (chave-mestra) grava a do Oeste', tenta('fichaMembroSalvar', { escopo: 'barra', pin: '0418', membroId: 'o9', nascimento: '1990-10-25' }).ok, true);
+
+  // Os aniversarios: so nome, divisao e data - nada de telefone.
+  tenta('fichaMembroSalvar', { ...barra, membroId: 'm2', nascimento: '1992-10-23' });
+  const aniv = contexto.executar('aniversarios', { ...barra, divisao: 'barra' }).aniversarios;
+  confere('aniversários da Barra: só os dela, com nome e data', aniv.map(a => a.nome + ' ' + a.nascimento).sort(), ['Bull 1992-10-23', 'Costa 1985-03-12']);
+  confere('sem telefone nem foto nos aniversários', JSON.stringify(aniv).includes('telefone') || JSON.stringify(aniv).includes('foto'), false);
+  confere('a Barra NÃO lê os aniversários do Oeste', contexto.executar('aniversarios', { ...barra, divisao: 'oeste' }).ok, false);
+  confere('o Regional vê os de todas', contexto.executar('aniversarios', { escopo: 'regional', pin: '0418', divisao: 'regional' }).aniversarios.length, 3);
+
+  // Quem sai nao deixa dado pessoal pra tras.
+  contexto.executar('membroMovimentar', { ...barra, membroId: 'm2', tipo: 'desligamento' });
+  confere('desligar apaga a carteirinha', p.abas.MembrosFicha.dados.slice(1).map(l => l[0]).sort(), ['m1', 'o9']);
+  contexto.executar('membroRemover', { ...barra, id: 'm1' });
+  confere('remover apaga a carteirinha', p.abas.MembrosFicha.dados.slice(1).map(l => l[0]), ['o9']);
+}
+
+log('');
 log(falhas === 0 ? 'TUDO OK' : `${falhas} FALHA(S) — veja acima`);
 fs.writeFileSync(SAIDA, linhas.join('\n'), 'utf8');
 process.exit(falhas === 0 ? 0 : 1);

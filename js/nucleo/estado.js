@@ -251,6 +251,20 @@ export let state = {
   // Acoes Sociais (o planejador de cada divisao): o que o Code.gs devolve
   // (lerAcoesSociais) e de qual divisao, o formulario de ideia aberto e o
   // "apagar?" em confirmacao.
+  // A carteirinha (botao no cadastro de Membros): de quem, os dados pessoais
+  // (fichaMembro, atras do PIN), a % total de presenca, o formulario aberto
+  // e a foto sendo reduzida. E os aniversarios do mural do organizador.
+  carteirinhaMembroId: null,
+  carteirinhaFicha: null,
+  carteirinhaPct: null,
+  carteirinhaCarregando: false,
+  carteirinhaErro: null,
+  carteirinhaForm: null,
+  carteirinhaSalvando: false,
+  carteirinhaMsg: null,
+  carteirinhaFotoProcessando: false,
+  aniversarios: null,
+  aniversariosEscopo: null,
   acoesSociaisDados: null,
   acoesSociaisDadosEscopo: null,
   acoesSociaisCarregando: false,

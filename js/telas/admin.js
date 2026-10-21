@@ -20,6 +20,7 @@ import { renderAdminCaixinha } from './admin-caixinha.js';
 import { renderAdminMovimentos } from './admin-movimentos.js';
 import { renderAdminEstoqueAdm } from './admin-estoque-adm.js';
 import { renderAdminAcoesSociais } from './admin-acoes-sociais.js';
+import { fecharCarteirinha } from './admin-carteirinha.js';
 
 // As secoes do organizador. Cada card do menu abre uma secao, e a barra de
 // abas mostra so as abas daquela secao - antes era uma barra unica com as
@@ -186,6 +187,7 @@ export async function abrirAbaOrganizador(aba) {
   fecharPainelMovimento();
   state.movimentosDivisaoAberta = null;
   state.estoqueAdmAnularId = null;
+  fecharCarteirinha();
   state.acaoSocialIdeiaForm = null;
   state.acaoSocialAgendaForm = null;
   state.acaoSocialTextoForm = null;

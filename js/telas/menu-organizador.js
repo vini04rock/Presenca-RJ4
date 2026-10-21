@@ -11,10 +11,11 @@
 
 import { eventosProximos, semResposta } from '../dominio/pendencias.js';
 import { alertasHonrarias, textoPrazoHonraria } from '../dominio/honrarias.js';
-import { carregarTextosChamada, loadPresencasProximas } from '../dados/carregar.js';
+import { carregarAniversarios, carregarTextosChamada, loadPresencasProximas } from '../dados/carregar.js';
+import { aniversariosProximos } from '../dominio/carteirinha.js';
 import { escopoPorChave, escoposAtivos, temDoacoesECaixinha } from '../nucleo/config.js';
 import { TIPOS_OBRIGATORIOS, obrigatoriedadesDoMes, rotuloTipo, textoCobrancaObrigatoriedades, textoDiasRestantes, textoEventoMarcado, textoFaltam } from '../dominio/obrigatoriedades.js';
-import { copiarTexto, diaDaSemana, formatDataBR, quando } from '../nucleo/util.js';
+import { copiarTexto, diaDaSemana, formatDataBR, hojeISO, quando } from '../nucleo/util.js';
 import { state } from '../nucleo/estado.js';
 import { IMG_AREAS, IMG_SECOES } from '../nucleo/imagens.js';
 import { escapeHtml } from '../nucleo/util.js';
@@ -178,6 +179,26 @@ function linhaAviso({ ev, dias }) {
   `;
 }
 
+// O aniversario de um irmao (a data vem da carteirinha): de 7 dias antes
+// ate o dia. No dia, o aviso ganha a cor de destaque.
+function linhaAniversario(a) {
+  const regional = state.adminEscopo === 'regional';
+  const data = a.nascimento.slice(8, 10) + '/' + a.nascimento.slice(5, 7);
+  const detalhe = [regional ? a.divisao : '', a.grau ? `Grau ${a.grau}` : '', data].filter(Boolean).join(' · ');
+  const cor = a.dias === 0 ? '#E0B24D' : '#D46A9F';
+  const prazo = a.dias === 0 ? 'É hoje! 🎉' : quando(a.dias).replace(/^./, c => c.toUpperCase());
+  return `
+    <div class="aviso-linha" style="border-left-color:${cor};">
+      <div class="aviso-icone${a.dias === 0 ? ' pulsando' : ''}" style="border-color:${cor};">🎂</div>
+      <div class="aviso-texto">
+        <div class="aviso-nome">Aniversário — ${escapeHtml(a.nome)}</div>
+        <div class="aviso-meta">${escapeHtml(detalhe)}</div>
+        <div class="aviso-contagem" style="color:${cor};">${escapeHtml(prazo)} · faz ${a.idade} anos</div>
+      </div>
+    </div>
+  `;
+}
+
 function linhaHonraria(h) {
   const regional = state.adminEscopo === 'regional';
   const detalhe = [regional ? h.membro.divisao : '', formatDataBR(h.data)].filter(Boolean).join(' · ');
@@ -226,7 +247,12 @@ function avisosDoMural() {
     tipo:'honraria', prioridade:h.dias <= 30 ? 1 : 2,
     ordem:String(h.dias + 1000).padStart(4, '0') + '|' + h.membro.nome, dados:h,
   }));
-  return eventos.concat(graus, honrarias).sort((a, b) => a.prioridade - b.prioridade || a.ordem.localeCompare(b.ordem));
+  // Aniversario de hoje junto dos avisos importantes; os da semana, depois.
+  const lista = state.aniversariosEscopo === state.adminEscopo ? (state.aniversarios || []) : [];
+  const aniversarios = aniversariosProximos(lista, hojeISO(), 7).map(a => ({
+    tipo:'aniversario', prioridade:a.dias === 0 ? 1 : 2, ordem:String(a.dias).padStart(4, '0') + '|' + a.nome, dados:a,
+  }));
+  return eventos.concat(graus, honrarias, aniversarios).sort((a, b) => a.prioridade - b.prioridade || a.ordem.localeCompare(b.ordem));
 }
 
 // O mural fica na tela mesmo sem nenhum aviso, com a mesma altura de
@@ -239,7 +265,8 @@ function avisosDoMural() {
 function muralDeAvisos() {
   const avisos = avisosDoMural();
   const conteudo = avisos.length
-    ? avisos.map(a => a.tipo === 'evento' ? linhaAviso(a.dados) : a.tipo === 'grau' ? linhaGrauPendente(a.dados) : linhaHonraria(a.dados)).join('')
+    ? avisos.map(a => a.tipo === 'evento' ? linhaAviso(a.dados) : a.tipo === 'grau' ? linhaGrauPendente(a.dados)
+      : a.tipo === 'aniversario' ? linhaAniversario(a.dados) : linhaHonraria(a.dados)).join('')
     : '<div class="aviso-vazio">Nenhum aviso no momento</div>';
   return `
     <div class="rotulo-secao">Mural de avisos</div>
@@ -312,6 +339,7 @@ export async function entrarNoMenuOrganizador(naRaiz = false) {
   state.view = 'admin-menu';
   render();
   carregarTextosChamada();
+  carregarAniversarios();
   return loadPresencasProximas(eventosProximos(state.adminEscopo).map(x => x.ev));
 }
 

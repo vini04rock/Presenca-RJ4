@@ -229,6 +229,26 @@ export async function carregarDoacoes() {
   render();
 }
 
+// Os aniversarios do mural do organizador (a data vem da carteirinha, atras
+// do PIN). Busca uma vez por divisao; salvar uma carteirinha zera e faz
+// buscar de novo. Se falhar, o mural so fica sem eles - nao e motivo pra
+// mostrar erro no menu.
+export async function carregarAniversarios() {
+  const escopo = state.adminEscopo;
+  if (state.aniversariosEscopo === escopo) return;
+  state.aniversariosEscopo = escopo;
+  try {
+    const r = await api('aniversarios', { divisao: escopo });
+    if (state.adminEscopo !== escopo) return;
+    state.aniversarios = r.aniversarios || [];
+  } catch (e) {
+    if (state.adminEscopo !== escopo) return;
+    state.aniversarios = [];
+    state.aniversariosEscopo = null;
+  }
+  render();
+}
+
 // O planejador de Acoes Sociais da divisao em que se entrou: ideias, agenda
 // e textos, numa ida so. A mesma regra das Doacoes: trocou de divisao antes
 // da resposta chegar, a resposta velha e jogada fora.

@@ -795,6 +795,35 @@ Regras que valem para as duas:
   "Por evento" e "Rank" são o mesmo dado visto de dois jeitos.
 - Remover um evento apaga as doações dele.
 
+## Carteirinha do integrante
+
+Criada em 21/10/2026. O botão **🪪 Carteirinha** fica em cada integrante
+do cadastro de Membros, ao lado do Editar, e abre a carteirinha na própria
+aba (`telas/admin-carteirinha.js`; contas em `dominio/carteirinha.js`).
+
+- **Em cima, a mesma carteirinha do Relatório individual** (as mesmas
+  classes `carteirinha*`): a foto no lugar do emblema quando houver, nome,
+  grau, cargo, divisão, funções, tempo de clube e a **% total de
+  presença**, calculada com `montarRelatorioIndividual` sem período.
+- **Embaixo, os dados pessoais:** telefone (📞 Ligar e 💬 WhatsApp),
+  contato de emergência (nome, parentesco e telefone), nascimento com a
+  idade, tipo sanguíneo e alergias/condições. Só o organizador preenche,
+  pelo ✏️ Editar dados.
+- **A foto** é reduzida no próprio celular para um quadrado de 320 px em
+  JPEG, abaixando a qualidade até caber nos 48 mil caracteres de uma
+  célula, e vai para a planilha por POST. Não usa Drive nem link público.
+- **Dado pessoal fica fora da lista pública.** A aba `MembrosFicha` é
+  separada de `Membros` (que o `dados` entrega a qualquer um) e só se lê
+  com o PIN conferido contra a divisão atual do integrante
+  (`integranteDaDivisao`, no `Code.gs`). **Nada sai do app** (decisão do
+  clube): sem imagem, texto nem PDF. O Remover, o Desligamento e a
+  Transferência para fora da RJ4 apagam a carteirinha (`apagarFicha`).
+- **🎂 O aniversário no mural:** com a data de nascimento na carteirinha,
+  o mural do organizador avisa de 7 dias antes até o dia
+  (`aniversariosProximos`). Cada divisão vê os seus e o Regional vê todos.
+  A ação `aniversarios` devolve só nome, grau, divisão e data. Quem nasceu
+  em 29/02 faz aniversário em 28/02 nos anos que não são bissextos.
+
 ## Ações Sociais (o planejador de cada divisão)
 
 Card **🤝 Ações Sociais** na área Social, criado em 21/10/2026, nas 7

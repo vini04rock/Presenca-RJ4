@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-10-21-c-rascunho-acoes-sociais';
+var VERSAO = '2026-10-21-d-carteirinha';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -47,6 +47,7 @@ var ABA_ESTOQUE_ADM_MOV = 'EstoqueADMMovimentacoes';
 var ABA_ACOES_SOCIAIS_IDEIAS = 'AcoesSociaisIdeias';
 var ABA_ACOES_SOCIAIS_AGENDA = 'AcoesSociaisAgenda';
 var ABA_ACOES_SOCIAIS_TEXTOS = 'AcoesSociaisTextos';
+var ABA_FICHAS = 'MembrosFicha';
 
 // "Cargo" so faz sentido nos graus VI e V (ver CARGOS no js/nucleo/config.js):
 // sao os graus em que varios integrantes dividem o mesmo grau ocupando
@@ -183,6 +184,16 @@ var CAB_ACOES_SOCIAIS_AGENDA = ['ID', 'Divisao', 'Mes', 'ID Ideia', 'Emoji', 'Ac
   'Observacao', 'Situacao', 'ID Evento', 'Atualizado em'];
 var CAB_ACOES_SOCIAIS_TEXTOS = ['ID', 'Divisao', 'Titulo', 'Texto', 'Atualizado em'];
 var SITUACOES_ACAO_SOCIAL = ['ideia', 'planejada', 'confirmada', 'realizada'];
+// A carteirinha do integrante (21/10/2026): os dados pessoais, numa aba A
+// PARTE de Membros - a lista de membros e publica (a confirmacao e sem PIN),
+// e telefone, contato de emergencia, saude e foto nao podem ir pra ela. Uma
+// linha por integrante, lida e gravada so com o PIN da divisao dele. A foto
+// e um JPEG pequeno em base64 (o app reduz antes), dentro do limite de
+// 50 mil caracteres de uma celula.
+var CAB_FICHAS = ['ID Membro', 'Telefone', 'Emergencia Nome', 'Emergencia Parentesco', 'Emergencia Telefone',
+  'Nascimento', 'Tipo Sanguineo', 'Saude', 'Foto', 'Atualizado em'];
+var TIPOS_SANGUINEOS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+var FOTO_MAX = 48000;
 
 // Na planilha fica o rotulo legivel; o app continua falando em chaves.
 var STATUS_ROTULO = {
@@ -283,7 +294,9 @@ var ACOES_PROTEGIDAS = [
   'estoqueAdm', 'estoqueAdmMovimentar', 'estoqueAdmAnular',
   // O planejador de Acoes Sociais de cada divisao.
   'acoesSociais', 'acaoSocialIdeiaSalvar', 'acaoSocialIdeiaRemover', 'acaoSocialAgendaSalvar',
-  'acaoSocialAgendaRemover', 'acaoSocialTextoSalvar', 'acaoSocialTextoRemover', 'acoesSociaisImportar'
+  'acaoSocialAgendaRemover', 'acaoSocialTextoSalvar', 'acaoSocialTextoRemover', 'acoesSociaisImportar',
+  // A carteirinha: dado pessoal, ate pra ler. E os aniversarios do mural.
+  'fichaMembro', 'fichaMembroSalvar', 'aniversarios'
 ];
 
 function executar(action, p) {
@@ -371,6 +384,9 @@ function executar(action, p) {
   if (action === 'acaoSocialAgendaRemover') return comTrava(function () { return removerLinhaAcaoSocial(ABA_ACOES_SOCIAIS_AGENDA, CAB_ACOES_SOCIAIS_AGENDA, p); });
   if (action === 'acaoSocialTextoSalvar') return comTrava(function () { return salvarTextoAcaoSocial(p); });
   if (action === 'acoesSociaisImportar') return comTrava(function () { return importarAcoesSociais(p); });
+  if (action === 'fichaMembro') return lerFichaMembro(p);
+  if (action === 'fichaMembroSalvar') return comTrava(function () { return salvarFichaMembro(p); });
+  if (action === 'aniversarios') return lerAniversarios(String(p.divisao || ''), String(p.pin || ''));
   if (action === 'acaoSocialTextoRemover') return comTrava(function () { return removerLinhaAcaoSocial(ABA_ACOES_SOCIAIS_TEXTOS, CAB_ACOES_SOCIAIS_TEXTOS, p); });
   throw new Error('Acao desconhecida: ' + action);
 }
@@ -1236,7 +1252,7 @@ function organizarAbas() {
     .concat([ABA_INSIGHT_RESUMO, 'Relatorio', 'Membros', 'Eventos', 'Presencas',
              ABA_INSIGHT_RODADAS, ABA_INSIGHT_PRESENCAS, ABA_INSIGHT_EXCLUIDOS,
              ABA_DOACOES, ABA_ESTOQUE_DOACOES_MOV, ABA_ESTOQUE_DOACOES_ITENS, ABA_CAIXINHA, ABA_CAIXINHA_FINANCEIRO, ABA_MOVIMENTOS,
-             ABA_ACOES_SOCIAIS_AGENDA, ABA_ACOES_SOCIAIS_IDEIAS, ABA_ACOES_SOCIAIS_TEXTOS, 'KV']);
+             ABA_ACOES_SOCIAIS_AGENDA, ABA_ACOES_SOCIAIS_IDEIAS, ABA_ACOES_SOCIAIS_TEXTOS, ABA_FICHAS, 'KV']);
   ordem.forEach(function (nome, i) {
     var s = ss.getSheetByName(nome);
     if (!s) return;
@@ -1483,7 +1499,7 @@ function removerMembro(id) {
   // [aba, coluna do ID do membro]. So nas abas que existem - remover nao
   // cria aba nenhuma.
   [[ABA_MOVIMENTOS, 3], [ABA_DOACOES, 3], [ABA_CAIXINHA, 2],
-   [ABA_INSIGHT_PRESENCAS, 1], [ABA_INSIGHT_EXCLUIDOS, 0]].forEach(function (par) {
+   [ABA_INSIGHT_PRESENCAS, 1], [ABA_INSIGHT_EXCLUIDOS, 0], [ABA_FICHAS, 0]].forEach(function (par) {
     var s = planilha().getSheetByName(par[0]);
     if (s) apagarLinhas(s, function (l) { return String(l[par[1]]) === mid; });
   });
@@ -2108,6 +2124,90 @@ var MEDIDAS_ESTOQUE = ['un', 'par', 'kg'];
 // "Cobertor" e "cobertôr " sao o mesmo item - a mesma regra do app.
 function chaveDoItem(nome) {
   return String(nome).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().replace(/\s+/g, ' ');
+}
+
+// ---------- CARTEIRINHA (os dados pessoais do integrante) ----------
+// So o organizador le e grava, com o PIN conferido contra a divisao ATUAL
+// do integrante (no cadastro) - a Barra nao ve o telefone de ninguem do
+// Oeste. Nada daqui vai pra lista publica de membros.
+
+// O integrante e a divisao dele, ou a recusa.
+function integranteDaDivisao(membroId, pin) {
+  var achado = acharLinha(aba(ABA_MEMBROS, CAB_MEMBROS), function (l) { return String(l[0]) === String(membroId); });
+  if (!achado) throw new Error('Integrante nao encontrado');
+  var divisao = CHAVE_POR_NOME_DIVISAO[String(achado.valores[3] || '')];
+  if (!divisao || !podeNaDivisao(divisao, pin)) return { recusa: SEM_PERMISSAO_DIVISAO };
+  return { linha: achado.valores, divisao: divisao };
+}
+
+function fichaDaLinha(l) {
+  return {
+    telefone: String(l[1] || ''), emergenciaNome: String(l[2] || ''), emergenciaParentesco: String(l[3] || ''),
+    emergenciaTelefone: String(l[4] || ''), nascimento: formatarData(l[5]), tipoSanguineo: String(l[6] || ''),
+    saude: String(l[7] || ''), foto: String(l[8] || '')
+  };
+}
+
+function lerFichaMembro(p) {
+  var mid = String(p.membroId || '');
+  var dono = integranteDaDivisao(mid, String(p.pin || ''));
+  if (dono.recusa) return dono.recusa;
+  var achado = acharLinha(aba(ABA_FICHAS, CAB_FICHAS), function (l) { return String(l[0]) === mid; });
+  return { ok: true, ficha: achado ? fichaDaLinha(achado.valores) : null };
+}
+
+// Telefone: so o que se escreve num telefone, sem letra nem formula.
+function telefoneLimpo(v) { return String(v || '').replace(/[^0-9+()\- ]/g, '').trim().slice(0, 30); }
+
+// Grava a carteirinha inteira. A foto so muda quando vem no pedido: '' tira,
+// e sem o campo fica a que ja estava (editar o telefone nao reenvia a foto).
+function salvarFichaMembro(p) {
+  var mid = String(p.membroId || '');
+  var dono = integranteDaDivisao(mid, String(p.pin || ''));
+  if (dono.recusa) return dono.recusa;
+  var nascimento = String(p.nascimento || '');
+  if (nascimento) {
+    if (!dataISOValidaEstoqueAdm(nascimento)) throw new Error('Data de nascimento invalida');
+    if (nascimento > Utilities.formatDate(new Date(), fuso(), 'yyyy-MM-dd') || nascimento < '1920-01-01') throw new Error('Data de nascimento invalida');
+  }
+  var tipo = String(p.tipoSanguineo || '');
+  if (tipo && TIPOS_SANGUINEOS.indexOf(tipo) === -1) throw new Error('Tipo sanguineo invalido');
+  var s = aba(ABA_FICHAS, CAB_FICHAS);
+  var achado = acharLinha(s, function (l) { return String(l[0]) === mid; });
+  var foto = achado ? String(achado.valores[8] || '') : '';
+  if (p.foto !== undefined) {
+    foto = String(p.foto || '');
+    if (foto && (foto.indexOf('data:image/jpeg;base64,') !== 0 || foto.length > FOTO_MAX)) throw new Error('Foto invalida ou grande demais');
+  }
+  gravarLinhaComoTexto(s, achado ? achado.indice : s.getLastRow() + 1, [mid, telefoneLimpo(p.telefone),
+    linhaCurta(p.emergenciaNome, 80), linhaCurta(p.emergenciaParentesco, 40), telefoneLimpo(p.emergenciaTelefone),
+    nascimento, tipo, linhaCurta(p.saude, 300), foto, agora()]);
+  return { ok: true };
+}
+
+// Quem saiu (desligamento, transferencia pra fora da RJ4) ou foi removido
+// nao deixa dado pessoal pra tras.
+function apagarFicha(membroId) {
+  var s = planilha().getSheetByName(ABA_FICHAS);
+  if (s) apagarLinhas(s, function (l) { return String(l[0]) === String(membroId); });
+}
+
+// Os aniversarios do mural: nome, divisao e nascimento dos integrantes da
+// divisao (do Regional: de todas) que tem a data na carteirinha. So o
+// necessario - nada de telefone nem foto. A janela (quantos dias antes) e
+// decidida no app.
+function lerAniversarios(divisao, pin) {
+  if (!podeNaDivisao(divisao, pin)) return SEM_PERMISSAO_DIVISAO;
+  var nascimento = {};
+  linhas(aba(ABA_FICHAS, CAB_FICHAS)).forEach(function (l) {
+    var d = formatarData(l[5]);
+    if (l[0] && /^\d{4}-\d{2}-\d{2}$/.test(d)) nascimento[String(l[0])] = d;
+  });
+  var nomeDaDivisao = ESCOPOS_NOME[divisao];
+  var lista = lerMembros()
+    .filter(function (m) { return nascimento[m.id] && (divisao === 'regional' || m.divisao === nomeDaDivisao); })
+    .map(function (m) { return { id: m.id, nome: m.nome, grau: m.grau, divisao: m.divisao, nascimento: nascimento[m.id] }; });
+  return { ok: true, aniversarios: lista };
 }
 
 // ---------- ACOES SOCIAIS (o planejador de cada divisao) ----------
@@ -2800,6 +2900,8 @@ function registrarMovimento(p) {
     // % antigos nao mudam, e o nome dele continua nos relatorios desses eventos.
     tirados = tirarDosEventosAbertos(mid);
     s.deleteRow(achado.indice);
+    // O historico fica; o dado pessoal da carteirinha, nao.
+    apagarFicha(mid);
   }
   anotarMovimento(data, divisao, mid, nome, grau, tipo, motivo);
   return { ok: true, tipo: tipo, data: data, eventosAbertosTirados: tirados };
@@ -2854,6 +2956,7 @@ function transferirMembro(p, s, achado, origem) {
   if (regional.replace(/\s/g, '').toUpperCase() === 'RJ4') throw new Error('Para a RJ4, escolha a divisao na lista');
   var tiradosFora = tirarDosEventosAbertos(mid);
   s.deleteRow(achado.indice);
+  apagarFicha(mid);
   anotarMovimento(data, origem, mid, nome, grau, 'transferenciaSaida', motivo, regional + ' · ' + divisaoFora);
   return { ok: true, tipo: 'transferencia', data: data, destino: '', eventosAbertosTirados: tiradosFora };
 }

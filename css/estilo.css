@@ -2836,3 +2836,39 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 .acao-opcao .acao-ideia-emoji { opacity: 0.6; }
 .acao-escolhida .acao-ideia-emoji { border-color: #4CAF6E; background: rgba(76, 175, 110, 0.22); }
 .acao-btn-escolher { flex-shrink: 0; padding: 5px 12px; font-size: 12px; align-self: center; }
+
+/* =====================================================================
+   CARTEIRINHA DO INTEGRANTE (botao no cadastro de Membros)
+   ===================================================================== */
+.acoes-cadastro-grupo { display: flex; gap: 6px; }
+.carteirinha-foto { border-radius: 50%; object-fit: cover; border: 2px solid var(--anel); }
+.carteirinha.carteirinha-membro { flex-wrap: wrap; }
+/* Os dados do irmao, dentro da carteirinha: uma linha fina separando, e os
+   campos como num documento - rotulo pequeno em maiusculas, o valor embaixo.
+   Duas colunas no computador, uma no celular. */
+.cart-info {
+  flex: 0 0 100%;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px 18px;
+  margin-top: 4px; padding-top: 12px;
+  border-top: 1px solid var(--anel);
+}
+@media (max-width: 520px) { .cart-info { grid-template-columns: 1fr; } }
+.cart-campo { min-width: 0; }
+.cart-campo-largo { grid-column: 1 / -1; }
+.cart-rotulo { font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--anel); margin-bottom: 3px; }
+.cart-conteudo { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.cart-valor { font-size: 14px; color: var(--white-strong); }
+.cart-valor small { color: var(--text-muted); font-size: 12px; }
+.cart-sangue { font-family: 'Rye', serif; font-size: 17px; color: #E07A72; }
+.cart-vazio { font-size: 13px; color: var(--text-muted); }
+.cart-acao {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 50%; font-size: 14px; text-decoration: none;
+  border: 1px solid var(--line); background: rgba(255, 255, 255, 0.06);
+}
+.cart-acao:active { transform: scale(0.92); }
+.cart-foto-linha { display: flex; gap: 14px; align-items: center; }
+.cart-foto-previa { width: 84px; height: 84px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 2px solid var(--line); }
+.cart-foto-vazia { display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--text-muted); background: rgba(255,255,255,0.04); }
+.cart-foto-botoes { display: flex; flex-direction: column; gap: 6px; }
+.cart-foto-escolher { cursor: pointer; text-align: center; }

@@ -757,6 +757,25 @@ log('=== ações sociais: agenda, relatório do ano e convocação ===');
 }
 
 log('');
+log('=== carteirinha: idade, telefone e aniversários do mural ===');
+{
+  const C = await import(url('dominio/carteirinha.js'));
+  confere('a idade conta o aniversário do ano', [C.idadeEm('1985-03-12', '2026-03-11'), C.idadeEm('1985-03-12', '2026-03-12'), C.idadeEm('', '2026-03-12')], [40, 41, null]);
+  confere('telefone vira link com o Brasil', [C.telefoneParaLink('(21) 99999-0000'), C.telefoneParaLink('+351 912 345 678'), C.linkWhatsApp('21 98888-1111')],
+    ['+5521999990000', '+351912345678', 'https://wa.me/5521988881111']);
+  const lista = [
+    { nome: 'Costa', nascimento: '1985-10-21' },   // hoje
+    { nome: 'Bull', nascimento: '1990-10-28' },    // daqui a 7 dias
+    { nome: 'Raposo', nascimento: '1990-10-29' },  // daqui a 8: fora
+    { nome: 'Bravo', nascimento: '1990-10-20' },   // ontem: fora
+    { nome: 'Leap', nascimento: '1992-02-29' },
+  ];
+  confere('do dia até 7 dias antes, do mais perto pro mais longe', C.aniversariosProximos(lista, '2026-10-21').map(a => `${a.nome} ${a.dias} ${a.idade}`), ['Costa 0 41', 'Bull 7 36']);
+  confere('virando o ano: 1º de janeiro visto em 28 de dezembro', C.aniversariosProximos([{ nome: 'X', nascimento: '2000-01-01' }], '2026-12-28').map(a => a.dias + ' ' + a.idade), ['4 27']);
+  confere('29/02 faz aniversário em 28/02 no ano que não é bissexto', C.aniversariosProximos(lista, '2027-02-27').map(a => a.nome + ' ' + a.dias), ['Leap 1']);
+}
+
+log('');
 log('=== doações: kg, cumprimento e quem foi e não levou ===');
 {
   const { rankDoacoes, membrosParaMarcar, textoDoacoes, formatKg, eventosDoPeriodo } = await import(url('dominio/doacoes.js'));

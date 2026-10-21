@@ -722,6 +722,14 @@ add('ações sociais / editar texto',         { ...agen, adminTab:'acoes-sociais
 add('ações sociais / textos vazio',         { ...asoc, adminTab:'acoes-sociais-textos' }, T.renderAdmin);
 add('ações sociais / rascunho (Barra vazia)', { ...asoc, adminTab:'acoes-sociais', acoesSociaisDados:{ ideias:[], agenda:[], textos:[] } }, T.renderAdmin);
 add('ações sociais / rascunho confirmar',   { ...asoc, adminTab:'acoes-sociais', acoesSociaisDados:{ ideias:[], agenda:[], textos:[] }, acaoSocialRascunhoConfirmar:true }, T.renderAdmin);
+const cart = { isAdmin:true, adminEscopo:'barra', adminTab:'membros', carteirinhaMembroId: membros[0].id, carteirinhaPct: 67 };
+const fichaCheia = { telefone:'(21) 99999-0000', emergenciaNome:'Maria Costa', emergenciaParentesco:'Esposa', emergenciaTelefone:'21 98888-1111',
+  nascimento:'1985-03-12', tipoSanguineo:'O+', saude:'Alérgico a dipirona', foto:'' };
+add('carteirinha / com os dados',           { ...cart, carteirinhaFicha: fichaCheia }, T.renderAdmin);
+add('carteirinha / vazia',                  { ...cart, carteirinhaFicha: {} }, T.renderAdmin);
+add('carteirinha / editando',               { ...cart, carteirinhaFicha: fichaCheia, carteirinhaForm: { ...fichaCheia, nascimentoTexto:'12/03/1985' } }, T.renderAdmin);
+add('carteirinha / carregando',             { ...cart, carteirinhaCarregando: true }, T.renderAdmin);
+add('carteirinha / erro',                   { ...cart, carteirinhaErro: 'Sem permissao para os dados desta divisao' }, T.renderAdmin);
 add('ações sociais / erro',                 { ...asoc, acoesSociaisErro:'Falha de conexão' }, T.renderAdmin);
 
 const LIMPO = {
@@ -772,6 +780,8 @@ const LIMPO = {
   acoesSociaisDados:null, acoesSociaisDadosEscopo:null, acoesSociaisCarregando:false, acoesSociaisErro:null,
   acoesSociaisSalvando:false, acoesSociaisMsg:null, acaoSocialIdeiaForm:null, acaoSocialApagarId:null,
   acoesSociaisAno:null, acaoSocialMesAberto:null, acaoSocialAgendaForm:null, acaoSocialCriarEventoId:null, acoesSociaisLegenda:false, acaoSocialTextoForm:null, acaoSocialRascunhoConfirmar:false,
+  carteirinhaMembroId:null, carteirinhaFicha:null, carteirinhaPct:null, carteirinhaCarregando:false, carteirinhaErro:null,
+  carteirinhaForm:null, carteirinhaSalvando:false, carteirinhaMsg:null, carteirinhaFotoProcessando:false, aniversarios:null, aniversariosEscopo:null,
 };
 log('');
 log('=== 2. desenhar cada tela e aba ===');
