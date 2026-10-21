@@ -10,7 +10,7 @@ import { computeCounts, getReportGroups } from '../dominio/status.js';
 import { corTipoEvento, emojiTipoEvento, escoposAtivos } from '../nucleo/config.js';
 import { genId, state } from '../nucleo/estado.js';
 import { TIPO_HOME_IMAGEM } from '../nucleo/imagens.js';
-import { dataDoCampoOuAvisar, escapeHtml, formatDataBR, formatDataCurta, hexParaRgba, pastilhaQuando } from '../nucleo/util.js';
+import { dataDoCampoOuAvisar, escapeHtml, formatDataBR, formatDataCurta, hexParaRgba, mostrarAviso, pastilhaQuando } from '../nucleo/util.js';
 import { camposDoEvento, chamadaParaGuardar, enderecoDoEvento, peVazio } from '../dominio/convocacao.js';
 import { botaoGerarRelatorio, campoData, seloConfirmados, subtituloDoEvento } from '../ui/comuns.js';
 import { caixa, guardarDigitado, quadro, quadroRoteiro, quadroTipo } from '../ui/quadros-chamada.js';
@@ -63,7 +63,11 @@ export function renderAdminEventos() {
     return renderEventForm();
   }
   const rel = state.relatorioState;
-  const eventos = eventosDoEscopo();
+  // So os abertos: o encerrado mora na aba Encerrados, com o Editar e o
+  // Reabrir dele (antes ficava nas duas, e a lista de ativos so crescia).
+  // Do mais proximo pro mais distante; sem data vai pro fim.
+  const eventos = eventosDoEscopo().filter(ev => ev.status !== 'encerrado')
+    .sort((a, b) => (a.data || '9999-99-99').localeCompare(b.data || '9999-99-99'));
   // A planilha inteira (aba Relatorio) cobre todas as divisoes juntas, entao
   // so faz sentido regenerar ela de dentro do Regional - quem enxerga o
   // quadro geral. Cada divisao usa o "Copiar relatorio" (por evento, na aba
@@ -84,7 +88,7 @@ export function renderAdminEventos() {
     ` : ''}
     ${renderExportarPdfAdmin()}
     </div>
-    ${eventos.length === 0 ? '<div class="empty">Nenhum evento criado ainda.</div>' : eventos.map(ev => {
+    ${eventos.length === 0 ? '<div class="empty">Nenhum evento ativo.<br>Os encerrados ficam na aba Encerrados.</div>' : eventos.map(ev => {
       const memberCount = ev.memberIds.length;
       // Mesma arte/cor por tipo dos cards de evento dos Relatorios - aqui e
       // so background inline (sem as classes tipo-*) porque esse card e so
@@ -327,6 +331,8 @@ function blocoConvocacaoOriginal(ev) {
 }
 
 export function renderAdminRelatorio() {
+  // O Editar de um encerrado abre o formulario aqui mesmo, sem trocar de aba.
+  if (state.newEventSelected !== null) return renderEventForm();
   const encerrados = eventosDoEscopo().filter(e => e.status === 'encerrado');
   if (encerrados.length === 0) {
     return '<div class="empty">Nenhum evento encerrado ainda.<br>Os relatórios aparecem aqui depois que você encerrar um evento.</div>';
@@ -369,6 +375,10 @@ export function renderAdminRelatorio() {
           { acao: 'pdf-relatorio-evento', id: ev.id, rotulo: '📄 PDF' },
           { acao: 'imagem-resultado', id: ev.id, rotulo: '🖼️ Imagem' },
         ], 'margin-top:10px;') : ''}
+        <div class="row-gap no-print" style="margin-top:8px;">
+          <button class="btn secondary" style="flex:1;" data-action="start-edit-event" data-id="${ev.id}">Editar</button>
+          <button class="btn secondary" style="flex:1;" data-action="toggle-event-status" data-id="${ev.id}">Reabrir</button>
+        </div>
         <div class="no-print">${blocoConvocacaoOriginal(ev)}</div>
         ${esteMenu ? `<div class="print-only" style="margin-top:12px; font-size:12px; color:var(--text-muted);">Gerado em ${escapeHtml(new Date().toLocaleString('pt-BR'))}</div>` : ''}
         ${isOpen && carregado ? renderReportDetail(ev) : ''}
@@ -569,6 +579,8 @@ export const acoes = {
     if (novoStatus === 'ativo' && !ev.textoOriginal && respostas) {
       Object.values(respostas).forEach(r => { if (r.status === 'infracional') r.status = 'aguardando'; });
     }
+    // O evento troca de aba e some desta - o aviso diz pra onde ele foi.
+    mostrarAviso(novoStatus === 'encerrado' ? 'Evento encerrado · agora está em Encerrados' : 'Evento reaberto · agora está em Ativos');
     render();
     await salvarOuAvisar('eventoSalvar', paramsDeEvento({ ...ev, status: novoStatus }));
   },

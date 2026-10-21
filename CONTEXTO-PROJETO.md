@@ -355,6 +355,12 @@ status, então essa falta só pode ter vindo de um encerramento. Evento de
 convocação colada (com texto original) fica de fora, porque nele a falta
 veio do texto.
 
+A aba **Ativos** do organizador mostra só os eventos abertos, do mais
+próximo para o mais distante (sem data no fim); o encerrado
+fica só em **Encerrados**, que ganhou o **Editar** e o **Reabrir** (o
+formulário de edição abre ali mesmo). Encerrar ou reabrir troca o evento
+de aba, com um aviso dizendo para onde ele foi.
+
 E para ninguém precisar encerrar para ver o relatório: cada evento ativo
 da aba Eventos tem o **📊 Gerar relatório**, um botão só, que busca as
 respostas na hora e abre no card o mesmo detalhe da aba Encerrados, com
