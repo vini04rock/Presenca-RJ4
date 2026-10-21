@@ -19,6 +19,7 @@ import { carregarAcoesSociais, salvarOuAvisar } from '../dados/carregar.js';
 import { membrosElegiveisEvento } from '../dominio/estatisticas.js';
 import { paramsDeEvento } from '../fila/presenca.js';
 import { botaoGerarRelatorio } from '../ui/comuns.js';
+import { imagemAgendaAcoesSociais, mostrarPreviaImagem } from '../ui/imagem.js';
 import { ANO_DO_RASCUNHO, RASCUNHO_AGENDA, RASCUNHO_IDEIAS, RASCUNHO_TEXTOS } from '../dominio/acoes-sociais-rascunho.js';
 import { CONTEXTO_DOS_MESES, EMOJIS_SUGERIDOS, ehEscolhida, LEGENDA_CONTEXTO, MESES_NOMES, ROTINA_SOCIAL, SITUACOES_ACAO, acoesDoMes, anoInicialDaAgenda, aplicarIdeiaSalva, horarioNormalizado, mesesDaIdeia, mesesDoAno, ordenarAgenda, quandoEOnde, resumoDoAno, rotuloMesCurto, situacaoPorChave, textoAgendaDoAno, textoConvocacaoAcaoSocial } from '../dominio/acoes-sociais.js';
 
@@ -72,6 +73,7 @@ function renderAgenda() {
       ${botaoGerarRelatorio('acoes-sociais-ano', [
         { acao: 'acao-social-texto-ano', rotulo: '📋 WhatsApp' },
         { acao: 'acao-social-pdf-ano', rotulo: '📄 PDF' },
+        { acao: 'acao-social-imagem-ano', rotulo: '🖼️ Imagem' },
       ])}
       <button class="btn ghost block no-print" style="margin-top:6px; font-size:12.5px;" data-action="acao-social-legenda">
         ${state.acoesSociaisLegenda ? '▴ Esconder a legenda' : 'ℹ️ O que significam as etiquetas dos meses'}
@@ -573,6 +575,10 @@ export const acoes = {
   }, 'Ação tirada do mês'),
 
   'acao-social-texto-ano': async (id, target, action, e) => copiarTexto(textoAgendaDoAno(dados().agenda, anoDaAgenda(), nomeDaDivisao())),
+  'acao-social-imagem-ano': async (id, target, action, e) => {
+    const ano = anoDaAgenda();
+    return mostrarPreviaImagem(() => imagemAgendaAcoesSociais(dados().agenda, ano, nomeDaDivisao()), `acoes-sociais-${ano}.png`);
+  },
   'acao-social-pdf-ano': async (id, target, action, e) => {
     // O papel leva os 12 meses, sem formulario aberto.
     fecharForm();

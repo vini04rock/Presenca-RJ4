@@ -816,7 +816,8 @@ Telas em `telas/admin-acoes-sociais.js`; regras e textos em
   datas comemorativas), com a legenda do porquê
   (`CONTEXTO_DOS_MESES`/`LEGENDA_CONTEXTO`, do rascunho do Social). No
   topo fica o quadro da rotina do Social (só lembrete) e o resumo do ano;
-  o 📊 Gerar relatório tem WhatsApp e PDF. Em cada ação, o **📣
+  o 📊 Gerar relatório tem WhatsApp, PDF e Imagem (a grade dos 12 meses,
+  `imagemAgendaAcoesSociais`). Em cada ação, o **📣
   Convocação** copia um texto de divulgação próprio (não é a chamada
   oficial de 8 quadros) e o **🏍️ Criar evento** cria "Ação Social - …"
   com os integrantes ativos convocados; o mês guarda o ID do evento e

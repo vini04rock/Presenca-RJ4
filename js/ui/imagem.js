@@ -13,6 +13,7 @@ import { diaDaSemana, formatDataBR, mostrarAviso } from '../nucleo/util.js';
 import { formatReais, nomeCurtoDoMes, nomeDoMes } from '../dominio/caixinha.js';
 import { formatKg } from '../dominio/doacoes.js';
 import { destinoPorChave, numeroEstoque, resumoDaLinha, textoQuantidade } from '../dominio/estoque.js';
+import { CONTEXTO_DOS_MESES, LEGENDA_CONTEXTO, MESES_NOMES, acoesDoMes, ehEscolhida, mesesDoAno, resumoDoAno, situacaoPorChave } from '../dominio/acoes-sociais.js';
 import { posicoesDoPodio } from './comuns.js';
 
 const L = 1080, A = 1350; // retrato 4:5, o formato que o WhatsApp mostra maior
@@ -1270,6 +1271,125 @@ export async function imagemQuadroMovimentos(q, rotuloPeriodo) {
 // `gerar` pode devolver uma imagem ou varias (o relatorio da Caixinha em
 // paginas). Varias aparecem uma embaixo da outra, e Compartilhar e Baixar
 // levam todas juntas, numeradas: "caixinha-1.png", "caixinha-2.png"...
+// ---------------------------------------------------------------------------
+// A agenda do ano das Acoes Sociais: os 12 meses numa grade 3 x 4, cada
+// quadro com o mes, o contexto (os emojis da legenda), a acao escolhida e
+// quando - e a borda na cor da situacao. Mes sem nada escolhido diz "a
+// definir" e quantas opcoes tem. Nenhum nome de integrante.
+const COR_SITUACAO = { planejada: '#E0B24D', confirmada: '#5FC98D', realizada: '#D4A24C' };
+
+// Quebra o texto em ate `max` linhas na largura; a ultima ganha "…" se sobrar.
+function linhasCortadas(ctx, texto, largura, max) {
+  const palavras = String(texto).split(/\s+/);
+  const linhas = [];
+  let atual = '';
+  for (let i = 0; i < palavras.length; i++) {
+    const tentativa = atual ? atual + ' ' + palavras[i] : palavras[i];
+    if (ctx.measureText(tentativa).width <= largura || !atual) { atual = tentativa; continue; }
+    linhas.push(atual);
+    atual = palavras[i];
+    if (linhas.length === max) { atual = ''; break; }
+  }
+  if (atual && linhas.length < max) linhas.push(atual);
+  const usadas = linhas.join(' ').split(/\s+/).length;
+  if (usadas < palavras.length && linhas.length) {
+    let ultima = linhas[linhas.length - 1];
+    while (ultima && ctx.measureText(ultima + '…').width > largura) ultima = ultima.slice(0, -1);
+    linhas[linhas.length - 1] = ultima.trim() + '…';
+  }
+  return linhas;
+}
+
+export async function imagemAgendaAcoesSociais(agenda, ano, nomeDivisao) {
+  const { canvas, ctx, logo } = await novaTela();
+  const r = resumoDoAno(agenda, ano);
+
+  emblema(ctx, logo, 36, 112);
+  rotuloEspacado(ctx, 'AGENDA SOCIAL', 192, 24, COR.ouro);
+  tituloMetal(ctx, `AÇÕES SOCIAIS ${ano}`, 256, 54, 960);
+  fonte(ctx, 26, 600);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = COR.texto;
+  ctx.fillText(String(nomeDivisao).toUpperCase(), L / 2, 300);
+  fonte(ctx, 22, 600);
+  ctx.fillStyle = COR.apagado;
+  ctx.fillText(`${r.mesesComAcao} de 12 meses com a ação escolhida`, L / 2, 336);
+
+  // A grade: 3 colunas x 4 linhas, entre o cabecalho e o rodape.
+  const margem = 44, vao = 16, topo = 370, base = A - 150;
+  const lq = (L - 2 * margem - 2 * vao) / 3;
+  const aq = (base - topo - 3 * vao) / 4;
+  mesesDoAno(ano).forEach((mes, i) => {
+    const x = margem + (i % 3) * (lq + vao);
+    const y = topo + Math.floor(i / 3) * (aq + vao);
+    const doMes = acoesDoMes(agenda, mes);
+    const escolhidas = doMes.filter(ehEscolhida);
+    const a = escolhidas[0];
+    const cor = a ? (COR_SITUACAO[a.situacao] || COR.ouro) : 'rgba(255,255,255,0.18)';
+
+    // O quadro: fundo escuro e a borda na cor da situacao (tracejada sem acao).
+    ctx.fillStyle = a ? 'rgba(20,18,14,0.82)' : 'rgba(20,18,14,0.55)';
+    ctx.beginPath(); retangulo(ctx, x, y, lq, aq, 18); ctx.fill();
+    ctx.strokeStyle = cor;
+    ctx.lineWidth = a ? 3 : 2;
+    if (!a && ctx.setLineDash) ctx.setLineDash([8, 7]);
+    ctx.beginPath(); retangulo(ctx, x, y, lq, aq, 18); ctx.stroke();
+    if (ctx.setLineDash) ctx.setLineDash([]);
+
+    // O mes e os emojis do contexto.
+    ctx.textBaseline = 'alphabetic';
+    ctx.textAlign = 'left';
+    fonte(ctx, 26, 400, 'rye');
+    ctx.fillStyle = COR.marfim;
+    ctx.fillText(MESES_NOMES[i].toUpperCase(), x + 18, y + 40);
+    fonte(ctx, 19, 400);
+    ctx.textAlign = 'right';
+    ctx.fillText(CONTEXTO_DOS_MESES[i].map(c => (LEGENDA_CONTEXTO[c] || {}).emoji || '').join(''), x + lq - 14, y + 38);
+
+    ctx.textAlign = 'left';
+    if (!a) {
+      fonte(ctx, 22, 600);
+      ctx.fillStyle = COR.apagado;
+      ctx.fillText('a definir', x + 18, y + aq / 2 + 14);
+      if (doMes.length) {
+        fonte(ctx, 18, 600);
+        ctx.fillText(`💡 ${doMes.length} ${doMes.length === 1 ? 'opção' : 'opções'}`, x + 18, y + aq / 2 + 44);
+      }
+      return;
+    }
+    // A acao escolhida: o emoji grande e o nome em ate 2 linhas.
+    fonte(ctx, 34, 400);
+    ctx.fillText(a.emoji || '🤝', x + 16, y + 92);
+    fonte(ctx, 20, 700);
+    ctx.fillStyle = COR.texto;
+    linhasCortadas(ctx, a.acao, lq - 34, 2).forEach((linha, n) => ctx.fillText(linha, x + 18, y + 126 + n * 25));
+    // Quando, embaixo; e a bolinha da situacao (mais de uma escolhida: "+1").
+    const quandoTexto = [a.data ? `${diaDaSemana(a.data).slice(0, 3)} ${formatDataBR(a.data).slice(0, 5)}` : '', a.horario].filter(Boolean).join(' · ');
+    fonte(ctx, 18, 600);
+    ctx.fillStyle = cor;
+    ctx.beginPath(); ctx.arc(x + 25, y + aq - 22, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = COR.apagado;
+    ctx.fillText([quandoTexto || situacaoPorChave(a.situacao).rotulo, escolhidas.length > 1 ? `+${escolhidas.length - 1}` : ''].filter(Boolean).join('  '), x + 40, y + aq - 16);
+  });
+  ctx.textAlign = 'center';
+
+  // A legenda das cores, entre a grade e o rodape.
+  const legenda = [['planejada', 'Planejada'], ['confirmada', 'Confirmada'], ['realizada', 'Realizada']];
+  fonte(ctx, 19, 600);
+  let lx = L / 2 - 250;
+  legenda.forEach(([chave, rotulo]) => {
+    ctx.fillStyle = COR_SITUACAO[chave];
+    ctx.beginPath(); ctx.arc(lx, base + 26, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = COR.apagado;
+    ctx.textAlign = 'left';
+    ctx.fillText(rotulo, lx + 14, base + 32);
+    lx += 175;
+  });
+  ctx.textAlign = 'center';
+  rodape(ctx);
+  return canvas;
+}
+
 export async function mostrarPreviaImagem(gerar, nomeArquivo) {
   mostrarAviso('🖼️ Montando a imagem…');
   let canvases;
