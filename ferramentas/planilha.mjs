@@ -1053,8 +1053,12 @@ log('=== entrada/saída: afastamento, retorno e desligamento ===');
     ['barra', 'm1', 'Afastamento'], ['barra', 'm1', 'Retorno'], ['barra', 'm2', 'Desligamento'], ['oeste', 'o9', 'Afastamento']]);
   const daBarra = contexto.executar('movimentos', { ...barra, divisao: 'barra' }).movimentos;
   confere('a Barra lê só o livro dela', daBarra.every(m => m.divisao === 'barra') && daBarra.length, 5);
-  confere('do mais recente pro mais antigo, com tipo e motivo', [daBarra[0].tipo, daBarra[0].nome, daBarra[0].motivo],
-    ['desligamento', 'Bull', 'Pediu pra sair']);
+  // A entrada do Alfa leva a data de hoje, entao quem fica no topo muda com
+  // o dia em que o teste roda: confere a ordem, e nao quem e o primeiro.
+  const bull = daBarra.find(m => m.nome === 'Bull');
+  confere('do mais recente pro mais antigo, com tipo e motivo',
+    [daBarra.every((m, i) => i === 0 || daBarra[i - 1].data >= m.data), bull.tipo, bull.motivo],
+    [true, 'desligamento', 'Pediu pra sair']);
   confere('a Barra NÃO lê o livro do Regional (todas as divisões)', contexto.executar('movimentos', { ...barra, divisao: 'regional' }).ok, false);
   confere('o Regional lê o livro inteiro',
     contexto.executar('movimentos', { escopo: 'regional', pin: '0418', divisao: 'regional' }).movimentos.length, 6);
