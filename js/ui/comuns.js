@@ -509,7 +509,7 @@ export function renderTelaPin(app, { titulo, subtitulo, voltar, campo, acao, ver
     </div>
     <div class="card">
       <label>PIN de acesso</label>
-      <input type="tel" inputmode="numeric" maxlength="4" class="pin-input" id="${campo}" placeholder="••••" ${verificando ? 'disabled' : ''}>
+      <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" class="pin-input" id="${campo}" placeholder="••••" ${verificando ? 'disabled' : ''}>
       ${erro ? `<div style="color: #C9A29C; font-size: 13px; margin-bottom: 10px;">${escapeHtml(erro)}</div>` : ''}
       <button class="btn block" data-action="${acao}" ${verificando ? 'disabled' : ''}>${verificando ? 'Verificando…' : 'Entrar'}</button>
     </div>
