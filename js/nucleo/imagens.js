@@ -68,6 +68,15 @@ export const IMG_SECOES = {
   'abrir-relatorio-individual': { src: 'img/secao-relatorio-individual.webp', largura: 1200, altura: 181 },
   'abrir-relatorios-organizador': { src: 'img/secao-relatorios.webp', largura: 1200, altura: 213 },
   'acoes-sociais': { src: 'img/secao-acoes-sociais.webp', largura: 1200, altura: 170 },
+  'funcoes-especiais': { src: 'img/secao-funcoes-especiais.webp', largura: 1200, altura: 156 },
+};
+
+// Os dois cards de dentro das Funcoes especiais (28/10/2026), no mesmo
+// molde: a arte inteira, com titulo e descricao ja desenhados. A do Caveira
+// vem recortada, com fundo transparente, e e mais alta que as outras.
+export const IMG_FUNCOES_ESPECIAIS = {
+  batedor: { src: 'img/funcao-batedor.webp', largura: 1200, altura: 156 },
+  caveira: { src: 'img/funcao-caveira.webp', largura: 1200, altura: 276 },
 };
 
 // Arte do botao "Modo organizador", no rodape da tela inicial (engrenagem,

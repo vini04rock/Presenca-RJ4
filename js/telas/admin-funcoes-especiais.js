@@ -11,6 +11,7 @@
 import { api, apiPost } from '../nucleo/api.js';
 import { STATUS } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
+import { IMG_FUNCOES_ESPECIAIS } from '../nucleo/imagens.js';
 import { render } from '../nucleo/render.js';
 import { copiarTexto, dataDoCampoOuAvisar, escapeHtml, formatDataBR } from '../nucleo/util.js';
 import { carregarFuncoesEspeciais } from '../dados/carregar.js';
@@ -48,11 +49,23 @@ function renderEntrada() {
     <div class="fin-explica" style="margin-bottom:14px;">Eventos só dos Batedores e só dos Caveiras. Os números daqui ficam à parte: não entram no calendário, nos ranks nem em nenhum outro relatório do app.</div>
     ${FUNCOES_ESPECIAIS.map(f => {
       const n = integrantesDaFuncao(state.roster, f.chave).length;
+      const quantos = `${n} ${n === 1 ? f.singular.toLowerCase() : f.nome.toLowerCase()} no cadastro`;
+      const arte = IMG_FUNCOES_ESPECIAIS[f.chave];
+      // Com arte: o card e a arte inteira (sem corte), como os do menu, e
+      // quantos tem a funcao vai numa linha embaixo dele.
+      if (arte) {
+        return `
+          <div class="card event-card menu-org-card menu-org-secao-arte" role="button" aria-label="${escapeHtml(f.nome + ' - ' + quantos)}"
+               data-action="abrir-funcao-especial" data-value="${f.chave}"
+               style="background-image:url('${arte.src}'); aspect-ratio:${arte.largura} / ${arte.altura}; margin-bottom:4px;"></div>
+          <div class="fin-explica" style="margin:0 0 14px 4px;">${f.selo} ${quantos}</div>
+        `;
+      }
       return `
         <div class="card event-card menu-org-card" style="border-left:3px solid ${COR_FUNCAO[f.chave]};" data-action="abrir-funcao-especial" data-value="${f.chave}">
           <div class="menu-org-linha">
             <div class="menu-org-icone" style="border-color:${COR_FUNCAO[f.chave]};">${f.selo}</div>
-            <div><div class="name">${escapeHtml(f.nome)}</div><div class="meta">${n} ${n === 1 ? f.singular.toLowerCase() : f.nome.toLowerCase()} no cadastro · eventos, relatórios e estatísticas</div></div>
+            <div><div class="name">${escapeHtml(f.nome)}</div><div class="meta">${quantos} · eventos, relatórios e estatísticas</div></div>
           </div>
           <div class="arrow">›</div>
         </div>

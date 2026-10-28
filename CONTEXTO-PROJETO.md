@@ -872,7 +872,10 @@ Card **🛡️ Funções especiais** em Regional → Operacional, criado em
 tem três abas: **Eventos** (criar e marcar a presença), **Encerrados** (o
 relatório de cada evento) e **Estatísticas**. Tela em
 `telas/admin-funcoes-especiais.js`; contas e textos em
-`dominio/funcoes-especiais.js`.
+`dominio/funcoes-especiais.js`. Os três cards têm arte própria
+(`IMG_SECOES['funcoes-especiais']` e `IMG_FUNCOES_ESPECIAIS`, em
+`nucleo/imagens.js`); a do Caveira vem com fundo transparente e é mais
+alta que as outras. Quantos têm cada função sai numa linha embaixo do card.
 
 - **Totalmente à parte do resto do app** (decisão do clube). Os eventos
   ficam em abas próprias da planilha (`FuncoesEventos` e
