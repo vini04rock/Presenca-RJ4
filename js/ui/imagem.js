@@ -14,7 +14,7 @@ import { formatReais, nomeCurtoDoMes, nomeDoMes } from '../dominio/caixinha.js';
 import { formatKg } from '../dominio/doacoes.js';
 import { destinoPorChave, numeroEstoque, resumoDaLinha, textoQuantidade } from '../dominio/estoque.js';
 import { CONTEXTO_DOS_MESES, LEGENDA_CONTEXTO, MESES_NOMES, acoesDoMes, ehEscolhida, mesesDoAno, resumoDoAno, situacaoPorChave } from '../dominio/acoes-sociais.js';
-import { divisaoCurta, rotuloEventoCurto } from '../dominio/funcoes-especiais.js';
+import { divisaoCurta } from '../dominio/funcoes-especiais.js';
 import { posicoesDoPodio } from './comuns.js';
 
 const L = 1080, A = 1350; // retrato 4:5, o formato que o WhatsApp mostra maior
@@ -505,33 +505,140 @@ export async function imagemResumoRelatorios(d) {
 
 // ---------------------------------------------------------------------------
 // As estatisticas de uma funcao especial (Batedores ou Caveiras) no
-// periodo: a presenca geral e cada evento, do mais recente pro mais antigo.
-// Os integrantes ficam na imagem das individuais. `r` e o estatisticasFuncao.
-const MAX_EVENTOS_IMAGEM = 10;
+// periodo: a presenca geral e cada evento, do mais recente pro mais antigo,
+// num cartao com data, nome e a pizza dele. Varias imagens do mesmo tamanho
+// quando os eventos nao cabem numa (como o relatorio da Caixinha): a 1a com
+// a rosca geral e 4 eventos, as seguintes com 6. Os integrantes ficam na
+// imagem das individuais. `r` e o estatisticasFuncao.
+const EVENTOS_NA_PRIMEIRA = 4, EVENTOS_POR_PAGINA = 6, ALTURA_CARTAO = 134, ESPACO_CARTAO = 12;
+
+// Quebra o texto em linhas que cabem na largura (com a fonte ja escolhida).
+function quebrarLinhas(ctx, texto, larguraMax) {
+  const linhas = [];
+  let atual = '';
+  String(texto).split(/\s+/).forEach(p => {
+    const tentativa = atual ? atual + ' ' + p : p;
+    if (ctx.measureText(tentativa).width > larguraMax && atual) { linhas.push(atual); atual = p; } else atual = tentativa;
+  });
+  if (atual) linhas.push(atual);
+  return linhas;
+}
+
+// O nome do evento em ate 2 linhas: diminui a letra ate caber e, se nem
+// assim, corta a 2a linha com reticencias. Nunca passa da largura.
+function nomeEmDuasLinhas(ctx, texto, larguraMax) {
+  let tamanho = 30, linhas;
+  do {
+    fonte(ctx, tamanho, 700);
+    linhas = quebrarLinhas(ctx, texto, larguraMax);
+    if (linhas.length <= 2) return { tamanho, linhas };
+    tamanho -= 2;
+  } while (tamanho >= 22);
+  let ultima = linhas.slice(1).join(' ');
+  while (ultima.length > 1 && ctx.measureText(ultima + '…').width > larguraMax) ultima = ultima.slice(0, -1);
+  return { tamanho: tamanho + 2, linhas: [linhas[0], ultima.trimEnd() + '…'] };
+}
+
+// A pizza pequena de um evento, com o % no meio.
+function pizzaEvento(ctx, cx, cy, r, c) {
+  const espessura = Math.round(r * 0.3);
+  ctx.lineWidth = espessura;
+  ctx.strokeStyle = COR.trilho;
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+  let inicio = -Math.PI / 2;
+  [[c.confirmado, COR.confirmado], [c.justificadas, COR.justificada], [c.infracional, COR.infracional]].forEach(([valor, cor]) => {
+    if (!valor || !c.total) return;
+    const fim = inicio + (valor / c.total) * Math.PI * 2;
+    ctx.strokeStyle = cor;
+    ctx.beginPath(); ctx.arc(cx, cy, r, inicio, fim); ctx.stroke();
+    inicio = fim;
+  });
+  const texto = c.pct === null ? '—' : `${c.pct}%`;
+  fonteQueCabe(ctx, texto, (r - espessura / 2) * 1.7, Math.round(r * 0.55), 400, 'rye');
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = COR.marfim;
+  ctx.fillText(texto, cx, cy + 1);
+  ctx.textBaseline = 'alphabetic';
+}
+
+function cartaoEvento(ctx, ev, c, y) {
+  const x = 90, largura = L - 180, h = ALTURA_CARTAO, meio = y + h / 2;
+  ctx.fillStyle = 'rgba(0,0,0,0.42)';
+  ctx.beginPath(); retangulo(ctx, x, y, largura, h, 22); ctx.fill();
+  ctx.strokeStyle = 'rgba(212,162,76,0.28)';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); retangulo(ctx, x, y, largura, h, 22); ctx.stroke();
+
+  // A data, a esquerda, com o dia da semana embaixo.
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  fonte(ctx, 38, 400, 'rye');
+  ctx.fillStyle = COR.marfim;
+  ctx.fillText(ev.data ? formatDataBR(ev.data).slice(0, 5) : '—', x + 95, meio - 14);
+  rotuloEspacado(ctx, ev.data ? diaDaSemana(ev.data).slice(0, 3).toUpperCase() : 'SEM DATA', meio + 26, 18, COR.ouro, x + 95);
+  ctx.textBaseline = 'middle';
+  ctx.strokeStyle = 'rgba(212,162,76,0.30)';
+  ctx.beginPath(); ctx.moveTo(x + 190, y + 24); ctx.lineTo(x + 190, y + h - 24); ctx.stroke();
+
+  // O nome no meio (ate 2 linhas) e quantos foram.
+  const xNome = x + 215, larguraNome = largura - 215 - 140;
+  const nome = nomeEmDuasLinhas(ctx, ev.nome, larguraNome);
+  const alturaLinha = nome.tamanho * 1.18;
+  const detalhe = `${c.confirmado} de ${c.total} presentes`
+    + (c.justificadas ? `  ·  ❌ ${c.justificadas}` : '') + (c.infracional ? `  ·  ⭕ ${c.infracional}` : '');
+  const blocoAltura = nome.linhas.length * alturaLinha + 34;
+  let ty = meio - blocoAltura / 2 + alturaLinha / 2;
+  ctx.textAlign = 'left';
+  fonte(ctx, nome.tamanho, 700);
+  ctx.fillStyle = COR.texto;
+  nome.linhas.forEach(l => { ctx.fillText(l, xNome, ty); ty += alturaLinha; });
+  fonte(ctx, 21, 600);
+  ctx.fillStyle = COR.apagado;
+  ctx.fillText(detalhe, xNome, ty - alturaLinha / 2 + 22);
+  ctx.textBaseline = 'alphabetic';
+
+  // A pizza do evento, a direita.
+  pizzaEvento(ctx, x + largura - 72, meio, 44, c);
+}
+
 export async function imagemEstatisticasFuncao(r, f, rotuloPeriodo) {
-  const { canvas, ctx, logo } = await novaTela();
   const g = r.geral;
-  const linhas = r.porEvento.slice(0, MAX_EVENTOS_IMAGEM).map(({ ev, c }) => ({
-    nome: rotuloEventoCurto(ev), pct: c.pct, detalhe: `${c.confirmado} de ${c.total}` }));
-  const fora = r.porEvento.length - linhas.length;
+  const grupos = [r.porEvento.slice(0, EVENTOS_NA_PRIMEIRA)];
+  for (let i = EVENTOS_NA_PRIMEIRA; i < r.porEvento.length; i += EVENTOS_POR_PAGINA) grupos.push(r.porEvento.slice(i, i + EVENTOS_POR_PAGINA));
+  const paginas = grupos.length;
+  const subtitulo = `${rotuloPeriodo.toUpperCase()}  ·  ${r.eventos} ${r.eventos === 1 ? 'EVENTO' : 'EVENTOS'}`;
+  const telas = [];
 
-  emblema(ctx, logo, 45, 150);
-  let y = tituloMetal(ctx, `${f.selo} ${f.nome}`, 275, 62, 980);
-  const eventosTexto = `${r.eventos} ${r.eventos === 1 ? 'EVENTO' : 'EVENTOS'}`;
-  rotuloEspacado(ctx, `${rotuloPeriodo.toUpperCase()}  ·  ${eventosTexto}`, y + 2, 22, COR.ouro);
-
-  const raio = 105;
-  const cy = y + 50 + raio;
-  rosca(ctx, L / 2, cy, raio, [[g.confirmados, COR.confirmado], [g.justificadas, COR.justificada], [g.naoJustificadas, COR.infracional]],
-    g.convites, g.pct === null ? '—' : `${g.pct}%`, 'PRESENÇA');
-  y = cy + raio + 40;
-
-  const espacoFora = fora ? 60 : 0;
-  y = listaRanking(ctx, linhas, y, Math.min(84, (A - 170 - espacoFora - y) / Math.max(1, linhas.length)), { semPodio: true });
-  if (fora) rotuloEspacado(ctx, `+ ${fora} ${fora === 1 ? 'EVENTO MAIS ANTIGO' : 'EVENTOS MAIS ANTIGOS'} NO TEXTO`, y + 40, 20, COR.apagado);
-
-  rodape(ctx);
-  return canvas;
+  for (let p = 0; p < paginas; p++) {
+    const { canvas, ctx, logo } = await novaTela();
+    let y;
+    if (p === 0) {
+      emblema(ctx, logo, 40, 130);
+      y = tituloMetal(ctx, `${f.selo} ${f.nome}`, 245, 60, 980);
+      rotuloEspacado(ctx, subtitulo, y + 2, 22, COR.ouro);
+      const raio = 92;
+      const cy = y + 42 + raio;
+      rosca(ctx, L / 2, cy, raio, [[g.confirmados, COR.confirmado], [g.justificadas, COR.justificada], [g.naoJustificadas, COR.infracional]],
+        g.convites, g.pct === null ? '—' : `${g.pct}%`, 'PRESENÇA');
+      fonte(ctx, 24, 600);
+      ctx.textAlign = 'center';
+      ctx.fillStyle = COR.texto;
+      ctx.fillText(`✅ ${g.confirmados} ${g.confirmados === 1 ? 'presença' : 'presenças'}    ❌ ${g.justificadas} ${g.justificadas === 1 ? 'justificada' : 'justificadas'}    ⭕ ${g.naoJustificadas} não justif.`, L / 2, cy + raio + 44);
+      y = cy + raio + 76;
+    } else {
+      emblema(ctx, logo, 34, 96);
+      y = tituloMetal(ctx, `${f.selo} ${f.nome}`, 186, 50, 980);
+      rotuloEspacado(ctx, subtitulo, y + 2, 20, COR.ouro);
+      y += 36;
+    }
+    grupos[p].forEach(({ ev, c }, i) => cartaoEvento(ctx, ev, c, y + i * (ALTURA_CARTAO + ESPACO_CARTAO)));
+    // A numeracao no canto de cima: embaixo, a 1a imagem ja esta cheia.
+    if (paginas > 1) rotuloEspacado(ctx, `${p + 1} / ${paginas}`, 70, 22, COR.apagado, L - 100);
+    rodape(ctx);
+    telas.push(canvas);
+  }
+  return paginas === 1 ? telas[0] : telas;
 }
 
 // As estatisticas individuais de uma funcao: o pódio de quem mais foi. Como
