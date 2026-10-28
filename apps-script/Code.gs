@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-10-28-a-funcoes-especiais';
+var VERSAO = '2026-10-28-b-relatorio-caveiras';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -50,6 +50,7 @@ var ABA_ACOES_SOCIAIS_TEXTOS = 'AcoesSociaisTextos';
 var ABA_FICHAS = 'MembrosFicha';
 var ABA_FUNCOES_EVENTOS = 'FuncoesEventos';
 var ABA_FUNCOES_PRESENCAS = 'FuncoesPresencas';
+var ABA_FUNCOES_CONFIG = 'FuncoesConfig';
 
 // "Cargo" so faz sentido nos graus VI e V (ver CARGOS no js/nucleo/config.js):
 // sao os graus em que varios integrantes dividem o mesmo grau ocupando
@@ -216,6 +217,11 @@ var FUNCOES_ESPECIAIS = ['batedor', 'caveira'];
 // Suplente e chamado pros de Caveira (o app tem a mesma lista, no `tambem`
 // de FUNCOES_ESPECIAIS em dominio/funcoes-especiais.js).
 var FUNCOES_QUE_ENTRAM = { batedor: ['batedor'], caveira: ['caveira', 'caveira_suplente'] };
+// Os ajustes das Funcoes especiais, uma linha por chave. Hoje so o
+// "caveira01": o ID do titular que abre a lista do Relatorio Caveiras (o
+// resto segue a hierarquia). Sem linha = ninguem escolhido.
+var CAB_FUNCOES_CONFIG = ['Chave', 'Valor', 'Atualizado em'];
+var CHAVES_FUNCOES_CONFIG = ['caveira01'];
 
 // Na planilha fica o rotulo legivel; o app continua falando em chaves.
 var STATUS_ROTULO = {
@@ -320,7 +326,8 @@ var ACOES_PROTEGIDAS = [
   // A carteirinha: dado pessoal, ate pra ler. E os aniversarios do mural.
   'fichaMembro', 'fichaMembroSalvar', 'aniversarios',
   // As Funcoes especiais (Batedores e Caveiras): so do Regional, ate pra ler.
-  'funcoesEspeciais', 'funcaoEventoSalvar', 'funcaoEventoStatus', 'funcaoEventoRemover', 'funcaoPresencasSalvar'
+  'funcoesEspeciais', 'funcaoEventoSalvar', 'funcaoEventoStatus', 'funcaoEventoRemover', 'funcaoPresencasSalvar',
+  'funcaoConfigSalvar'
 ];
 
 function executar(action, p) {
@@ -417,6 +424,7 @@ function executar(action, p) {
   if (action === 'funcaoEventoStatus') return comTrava(function () { return mudarStatusEventoFuncao(p); });
   if (action === 'funcaoEventoRemover') return comTrava(function () { return removerEventoFuncao(p); });
   if (action === 'funcaoPresencasSalvar') return comTrava(function () { return salvarPresencasFuncao(p); });
+  if (action === 'funcaoConfigSalvar') return comTrava(function () { return salvarConfigFuncoes(p); });
   throw new Error('Acao desconhecida: ' + action);
 }
 
@@ -437,7 +445,8 @@ function executar(action, p) {
 // null (pode seguir) ou a recusa.
 var ACOES_SO_DO_REGIONAL = ['insightSalvar', 'insightRodadaAjustar', 'insightRodadaRemover',
   'insightMembroRemover', 'insightMembroReincluir', 'relatorio',
-  'funcoesEspeciais', 'funcaoEventoSalvar', 'funcaoEventoStatus', 'funcaoEventoRemover', 'funcaoPresencasSalvar'];
+  'funcoesEspeciais', 'funcaoEventoSalvar', 'funcaoEventoStatus', 'funcaoEventoRemover', 'funcaoPresencasSalvar',
+  'funcaoConfigSalvar'];
 
 function guardaDaDivisao(action, p) {
   var pin = String(p.pin || '');
@@ -1283,7 +1292,7 @@ function organizarAbas() {
              ABA_INSIGHT_RODADAS, ABA_INSIGHT_PRESENCAS, ABA_INSIGHT_EXCLUIDOS,
              ABA_DOACOES, ABA_ESTOQUE_DOACOES_MOV, ABA_ESTOQUE_DOACOES_ITENS, ABA_CAIXINHA, ABA_CAIXINHA_FINANCEIRO, ABA_MOVIMENTOS,
              ABA_ACOES_SOCIAIS_AGENDA, ABA_ACOES_SOCIAIS_IDEIAS, ABA_ACOES_SOCIAIS_TEXTOS, ABA_FICHAS,
-             ABA_FUNCOES_EVENTOS, ABA_FUNCOES_PRESENCAS, 'KV']);
+             ABA_FUNCOES_EVENTOS, ABA_FUNCOES_PRESENCAS, ABA_FUNCOES_CONFIG, 'KV']);
   ordem.forEach(function (nome, i) {
     var s = ss.getSheetByName(nome);
     if (!s) return;
@@ -2643,7 +2652,35 @@ function lerFuncoesEspeciais(p) {
         presencas: porEvento[String(l[0])] || []
       };
     });
-  return { ok: true, funcao: funcao, eventos: eventos };
+  return { ok: true, funcao: funcao, eventos: eventos, config: lerConfigFuncoes() };
+}
+
+// { caveira01: 'idDoMembro' }. So le se a aba existe - ler nao cria aba.
+function lerConfigFuncoes() {
+  var config = {};
+  var s = planilha().getSheetByName(ABA_FUNCOES_CONFIG);
+  if (!s) return config;
+  linhas(s).forEach(function (l) {
+    if (CHAVES_FUNCOES_CONFIG.indexOf(String(l[0])) !== -1) config[String(l[0])] = String(l[1] || '');
+  });
+  return config;
+}
+
+// Grava um ajuste. O caveira01 tem que ser um titular (funcao Caveira) que
+// esta no cadastro; vazio tira a escolha.
+function salvarConfigFuncoes(p) {
+  exigirRegionalFuncoes(p);
+  var chave = String(p.chave || '');
+  if (CHAVES_FUNCOES_CONFIG.indexOf(chave) === -1) throw new Error('Ajuste desconhecido');
+  var valor = String(p.valor || '');
+  if (valor) {
+    var m = lerMembros().filter(function (x) { return x.id === valor; })[0];
+    if (!m || m.funcoes.indexOf('caveira') === -1) throw new Error((m ? m.nome : 'Integrante') + ' nao e Caveira titular');
+  }
+  var s = aba(ABA_FUNCOES_CONFIG, CAB_FUNCOES_CONFIG);
+  var achado = acharLinha(s, function (l) { return String(l[0]) === chave; });
+  gravarLinhaComoTexto(s, achado ? achado.indice : s.getLastRow() + 1, [chave, valor, agora()]);
+  return { ok: true, config: lerConfigFuncoes() };
 }
 
 function eventoDaFuncao(p) {

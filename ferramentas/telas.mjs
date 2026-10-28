@@ -759,6 +759,11 @@ add('funções especiais / estatísticas período',  { ...func, adminTab:'funcoe
 add('funções especiais / estatísticas: relatório de um evento', { ...func, adminTab:'funcoes-estatisticas', gerarRelatorioAberto:'funcao:fe2' }, T.renderAdmin);
 add('funções especiais / individuais',           { ...func, adminTab:'funcoes-individuais' }, T.renderAdmin);
 add('funções especiais / individuais: relatório', { ...func, adminTab:'funcoes-individuais', gerarRelatorioAberto:'funcoes-individuais' }, T.renderAdmin);
+const cav = { ...func, funcaoEspecial:'caveira', funcoesDados:{ funcao:'caveira', eventos:funcoesEventos, config:{ caveira01:'m2' } }, adminTab:'funcoes-relatorio-caveiras' };
+add('funções especiais / relatório caveiras',          cav, T.renderAdmin);
+add('funções especiais / relatório caveiras: escolher 01', { ...cav, funcoesCaveira01Aberto:true, funcoesPatchs:'11' }, T.renderAdmin);
+add('funções especiais / relatório caveiras vazio',    { ...cav, funcoesDados:{ funcao:'caveira', eventos:[], config:{} } }, T.renderAdmin);
+add('funções especiais / relatório nos batedores cai em eventos', { ...func, adminTab:'funcoes-relatorio-caveiras' }, T.renderAdmin);
 add('funções especiais / individuais vazio',     { ...func, funcaoEspecial:'caveira', funcoesDados:{ funcao:'caveira', eventos:[] }, adminTab:'funcoes-individuais' }, T.renderAdmin);
 add('funções especiais / caveiras vazio',        { ...func, funcaoEspecial:'caveira', funcoesDados:{ funcao:'caveira', eventos:[] }, adminTab:'funcoes-eventos' }, T.renderAdmin);
 add('funções especiais / estatísticas vazio',    { ...func, funcaoEspecial:'caveira', funcoesDados:{ funcao:'caveira', eventos:[] }, adminTab:'funcoes-estatisticas' }, T.renderAdmin);

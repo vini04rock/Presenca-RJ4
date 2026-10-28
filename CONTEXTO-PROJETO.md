@@ -155,6 +155,7 @@ sem controlar o servidor.
 | `CaixinhaFinanceiro` | o controle financeiro da caixinha: uma linha por entrada ou saída lançada, e o saldo inicial de cada divisão |
 | `FuncoesEventos` | os eventos das Funções especiais (Batedores e Caveiras): id, função, nome, data, horário, endereço, status |
 | `FuncoesPresencas` | uma linha por evento de função × integrante, com o retrato de nome, grau e divisão, o status e se a falta veio do encerramento |
+| `FuncoesConfig` | os ajustes das Funções especiais, uma linha por chave; hoje só o `caveira01` (o titular que abre o Relatório Caveiras) |
 
 **Abas geradas do zero** a cada "Gerar relatório na planilha" (botão que só
 aparece dentro do organizador Regional). Editar nelas não tem efeito:
@@ -916,8 +917,24 @@ alta que as outras. Quantos têm cada função sai numa linha embaixo do card.
   justificadas, que é o que se cobra; a imagem leva só o pódio, nunca o
   nome de quem faltou. O relatório total não leva integrante nenhum
   (`textoEstatisticasFuncao` × `textoIndividuaisFuncao`).
+- **Relatório Caveiras** (28/10/2026): uma 5ª aba, **Relatório**, que só
+  existe nos Caveiras (`soNaFuncao`, em `telas/admin.js`). Monta o texto no
+  formato que o clube já usava no grupo (`relatorioCaveiras` /
+  `textoRelatorioCaveiras`): os dois cabeçalhos com o Diretor Regional e o
+  Operacional do cadastro, a legenda, os 💀 titulares e os 🪖 suplentes
+  (completados até 10 linhas cada), cada um com um emoji por evento
+  encerrado do período, do mais antigo pro mais novo — ✅ presente, ❌
+  qualquer falta, ➖ não estava no evento — e o % dele (o ➖ não conta).
+  Embaixo, a Avaliação (os meses do período), os eventos na ordem dos
+  emojis, os "Patchs caveiras em uso" (digitados na hora, não gravados),
+  as Virtudes e o I.S.S.I. Sai em WhatsApp e PDF. Entram os que têm a
+  função hoje, afastados inclusive; Caveira e Suplente ao mesmo tempo
+  conta só como titular. O **💀 Caveira 01** é escolhido na própria aba
+  e fica gravado na aba `FuncoesConfig` (chave `caveira01`, ação
+  `funcaoConfigSalvar`, que recusa quem não é titular); o resto da lista
+  segue a hierarquia.
 - **Só o Regional:** as ações (`funcoesEspeciais`, `funcaoEventoSalvar`,
-  `funcaoEventoStatus`, `funcaoEventoRemover`, `funcaoPresencasSalvar`)
+  `funcaoEventoStatus`, `funcaoEventoRemover`, `funcaoPresencasSalvar`, `funcaoConfigSalvar`)
   pedem o PIN do Regional e também `escopo=regional`, como o Estoque ADM —
   a chave-mestra digitada dentro de uma divisão não abre.
 - **Quem sai sai junto:** afastamento, desligamento e transferência para

@@ -1526,6 +1526,14 @@ log('=== funções especiais: Batedores e Caveiras, à parte do resto ===');
 
   confere('o Caveira Suplente não entra no evento de Batedor',
     tenta('funcaoEventoSalvar', { ...reg, funcao: 'batedor', nome: 'Escolta', membroIds: 'b1,s1' }).erro, 'Gato nao tem a funcao Batedor');
+  confere('sem Caveira 01 escolhido, a leitura vem sem ele', contexto.executar('funcoesEspeciais', { ...reg, funcao: 'caveira' }).config, {});
+  confere('o Caveira 01 é gravado', contexto.executar('funcaoConfigSalvar', { ...reg, chave: 'caveira01', valor: 'c1' }).config, { caveira01: 'c1' });
+  confere('e volta na leitura dos Caveiras', contexto.executar('funcoesEspeciais', { ...reg, funcao: 'caveira' }).config, { caveira01: 'c1' });
+  confere('o Caveira 01 tem que ser titular (o suplente não)', tenta('funcaoConfigSalvar', { ...reg, chave: 'caveira01', valor: 's1' }).erro, 'Gato nao e Caveira titular');
+  confere('ajuste inventado é recusado', tenta('funcaoConfigSalvar', { ...reg, chave: 'outro', valor: '' }).erro, 'Ajuste desconhecido');
+  confere('a Barra não escolhe o Caveira 01', tenta('funcaoConfigSalvar', { escopo: 'barra', pin: '1801', chave: 'caveira01', valor: 'c1' }).ok, false);
+  confere('vazio tira a escolha, sem linha nova', [contexto.executar('funcaoConfigSalvar', { ...reg, chave: 'caveira01', valor: '' }).config, p.abas.FuncoesConfig.dados.length], [{ caveira01: '' }, 2]);
+
   const idSup = contexto.executar('funcaoEventoSalvar', { ...reg, funcao: 'caveira', nome: 'Apoio', membroIds: 'c1,s1' }).id;
   confere('mas entra no de Caveira', ler('caveira')[0].presencas.map(x => x.nome), ['Tigre', 'Gato']);
   contexto.executar('funcaoEventoRemover', { ...reg, id: idSup });

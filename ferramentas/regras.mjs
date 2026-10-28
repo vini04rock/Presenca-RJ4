@@ -1396,6 +1396,39 @@ log('');
   confere('texto das individuais: cada integrante e quem tem falta não justificada',
     [textoInd[0], textoInd.includes('1. Costa (Barra) — 100% (2 de 2)'), textoInd.slice(-2)],
     ['💀 *CAVEIRAS — ESTATÍSTICAS INDIVIDUAIS*', true, ['⭕ *FALTAS NÃO JUSTIFICADAS*', '- Lobo (Oeste): 1']]);
+
+  // O Relatorio Caveiras: um emoji por evento, do mais antigo pro mais novo.
+  const { relatorioCaveiras, textoRelatorioCaveiras } = await import(url('dominio/funcoes-especiais.js'));
+  const cadastro = [
+    { id: 'k1', nome: 'Bala', grau: 'IX', divisao: 'Barra - RJ4', funcoes: ['caveira'] },
+    { id: 'k2', nome: 'Vilão', grau: 'VII', divisao: 'Oeste - RJ4', funcoes: ['caveira'] },
+    { id: 'k3', nome: 'Adam', grau: 'X', divisao: 'Barra - RJ4', funcoes: ['caveira_suplente'] },
+    { id: 'k4', nome: 'Duplo', grau: 'X', divisao: 'Barra - RJ4', funcoes: ['caveira', 'caveira_suplente'], situacao: 'afastado' },
+    { id: 'd1', nome: 'Pastor', grau: 'V', cargo: 'Diretor Regional', divisao: 'Regional RJ4', funcoes: [] },
+    { id: 'o1', nome: 'Bull', grau: 'V', cargo: 'Operacional', divisao: 'Regional RJ4', funcoes: [] },
+  ];
+  const evsCav = [
+    { id: 'c2', nome: 'Reunião Caveira', data: '2026-10-17', horario: '08:30', endereco: 'Academia Viking', status: 'encerrado',
+      presencas: [p('k1', 'Bala', 'Barra - RJ4', 'familia'), p('k2', 'Vilão', 'Oeste - RJ4', 'confirmado'), p('k3', 'Adam', 'Barra - RJ4', 'aguardando')] },
+    { id: 'c1', nome: 'Reunião Caveira', data: '2026-08-19', horario: '20:30', endereco: 'Sede Curicica - RJ4', status: 'encerrado',
+      presencas: [p('k1', 'Bala', 'Barra - RJ4', 'confirmado'), p('k2', 'Vilão', 'Oeste - RJ4', 'confirmado')] },
+    { id: 'c3', nome: 'Aberto', data: '2026-11-01', status: 'ativo', presencas: [p('k1', 'Bala', 'Barra - RJ4', 'confirmado')] },
+  ];
+  const rc = relatorioCaveiras(evsCav, cadastro, { de: '2026-06-01', ate: '2026-12-31' }, '');
+  confere('caveiras: só os encerrados, do mais antigo pro mais novo', rc.eventos.map(e => e.id), ['c1', 'c2']);
+  confere('caveiras: titulares na hierarquia (afastado entra, Caveira+Suplente só como titular), emojis e %',
+    rc.titulares.map(l => [l.nome, l.emojis.join(''), l.pct]), [['Vilão', '✅✅', 100], ['Bala', '✅❌', 50], ['Duplo', '➖➖', null]]);
+  confere('caveiras: suplente sem o evento leva ➖, e o ➖ não conta no %', rc.suplentes.map(l => [l.nome, l.emojis.join(''), l.pct]), [['Adam', '➖❌', 0]]);
+  confere('caveiras: o Caveira 01 escolhido abre a lista', relatorioCaveiras(evsCav, cadastro, 0, 'k1').titulares.map(l => l.nome), ['Bala', 'Vilão', 'Duplo']);
+  const tc = textoRelatorioCaveiras(rc, '11').split('\n');
+  confere('caveiras: os dois cabeçalhos com o Diretor e o Operacional do cadastro',
+    [tc[0], tc[1], tc[2], tc[14], tc[15]], ['REGIONAL  RJ4', 'Diretor - PASTOR', 'Operacional - BULL', 'Diretor= Pastor', 'Operacional= Bull']);
+  confere('caveiras: titulares completados até 10, com o % no fim',
+    [tc.filter(l => l.startsWith('💀') && l.includes('-')).length, tc.find(l => l.startsWith('💀02-')), tc.includes('💀10-')], [10, '💀02- Bala ✅❌ — 50%', true]);
+  confere('caveiras: suplentes completados até 10 (mais o título)', [tc.filter(l => l.startsWith('🪖')).length, tc.includes('🪖 Adam ➖❌ — 0%')], [11, true]);
+  confere('caveiras: avaliação, eventos numerados na ordem dos emojis e os patchs',
+    [tc.includes('Avaliação Jun_26 a Dez_26'), tc.indexOf('1. Reunião Caveira') < tc.indexOf('2. Reunião Caveira'), tc.includes('20:30h'), tc.includes('Patchs caveiras em uso : 11'), tc[tc.length - 1]],
+    [true, true, true, true, 'I.S.S.I']);
 }
 {
   log('=== as três saídas: os textos novos (WhatsApp e PDF) ===');

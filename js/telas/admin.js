@@ -100,6 +100,7 @@ export const SECOES_ORGANIZADOR = {
       { chave: 'funcoes-encerrados', label: 'Encerrados' },
       { chave: 'funcoes-estatisticas', label: 'Estatísticas' },
       { chave: 'funcoes-individuais', label: 'Individuais' },
+      { chave: 'funcoes-relatorio-caveiras', label: 'Relatório', soNaFuncao: 'caveira' },
     ],
   },
   estoqueAdm: {
@@ -123,7 +124,8 @@ export function secaoDaAba(aba) {
 
 // As abas da secao que existem na divisao em que se entrou.
 function abasVisiveis(secao) {
-  return secao.abas.filter(a => !(a.soNasDivisoes && state.adminEscopo === 'regional'));
+  return secao.abas.filter(a => !(a.soNasDivisoes && state.adminEscopo === 'regional')
+    && !(a.soNaFuncao && state.funcaoEspecial !== a.soNaFuncao));
 }
 
 export function renderAdmin(app) {

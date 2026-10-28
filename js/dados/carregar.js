@@ -342,7 +342,7 @@ export async function carregarFuncoesEspeciais() {
   try {
     const r = await api('funcoesEspeciais', { funcao });
     if (state.funcaoEspecial !== funcao) return;
-    state.funcoesDados = { funcao, eventos: r.eventos || [] };
+    state.funcoesDados = { funcao, eventos: r.eventos || [], config: r.config || {} };
   } catch (e) {
     if (state.funcaoEspecial !== funcao) return;
     state.funcoesErro = e.message;

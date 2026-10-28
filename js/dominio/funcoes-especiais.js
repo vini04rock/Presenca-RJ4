@@ -7,8 +7,8 @@
 // Um evento: { id, nome, data, horario, endereco, status,
 //   presencas: [{ membroId, nome, grau, divisao, status }] }.
 
-import { STATUS, escoposNaOrdemOficial } from '../nucleo/config.js';
-import { formatDataBR, ordenarPorHierarquia } from '../nucleo/util.js';
+import { MESES_ABREV, STATUS, escopoPorChave, escoposNaOrdemOficial } from '../nucleo/config.js';
+import { dataCorteMeses, formatDataBR, hojeISO, ordenarPorHierarquia } from '../nucleo/util.js';
 import { estaAfastado, movimentosDoPeriodo, rotuloPeriodoMovimentos } from './movimentos.js';
 
 export const FUNCOES_ESPECIAIS = [
@@ -209,4 +209,146 @@ export function textoIndividuaisFuncao(r, chave, periodo) {
       ...faltosos.map(p => `- ${p.nome} (${divisaoCurta(p.divisao)}): ${p.naoJustificadas}`));
   }
   return linhas.join('\n');
+}
+
+// ---------- o Relatorio Caveiras ----------
+// O relatorio dos Caveiras no formato que o clube ja usava no grupo (28/10/
+// 2026): titulares e suplentes, cada um com um emoji por evento encerrado
+// do periodo - do mais antigo (esquerda) pro mais novo - e o % dele; embaixo
+// os eventos, na mesma ordem dos emojis.
+export const EMOJI_CAVEIRAS = { presente: '✅', falta: '❌', fora: '➖' };
+const VAGAS_CAVEIRAS = 10;
+
+// Quem tem a funcao no cadastro hoje, afastados inclusive (o patch continua
+// com ele). Caveira e Suplente ao mesmo tempo conta so como titular. O
+// `caveira01` escolhido abre a lista; o resto vai na hierarquia.
+function listaCaveiras(roster, chave, caveira01) {
+  const lista = ordenarPorHierarquia((roster || []).filter(m => (m.funcoes || []).includes(chave)
+    && (chave === 'caveira' || !(m.funcoes || []).includes('caveira'))));
+  const i = lista.findIndex(m => m.id === caveira01);
+  if (i > 0) lista.unshift(lista.splice(i, 1)[0]);
+  return lista;
+}
+
+// "Jun_26" - o mes da Avaliacao.
+function mesAvaliacao(iso) {
+  const i = Number(String(iso).slice(5, 7)) - 1;
+  const m = MESES_ABREV[i] || '';
+  return `${m.charAt(0)}${m.slice(1).toLowerCase()}_${String(iso).slice(2, 4)}`;
+}
+
+// O comeco e o fim do periodo, pro "Avaliacao Jun_26 a Dez_26": De/Ate
+// quando escolhidos (Ate em branco = hoje); N meses = de N meses atras ate
+// hoje; Tudo = do primeiro evento ate hoje.
+function periodoDaAvaliacao(periodo, evs) {
+  const hoje = hojeISO();
+  if (periodo && typeof periodo === 'object') return { de: periodo.de || (evs[0] && evs[0].data) || hoje, ate: periodo.ate || hoje };
+  if (periodo) return { de: dataCorteMeses(periodo), ate: hoje };
+  return { de: (evs.find(e => e.data) || {}).data || hoje, ate: hoje };
+}
+
+// O nome de quem ocupa um cargo do Regional, pelo cadastro.
+function nomeDoCargoRegional(roster, cargo) {
+  const regional = escopoPorChave('regional').nome;
+  const m = (roster || []).find(x => x.divisao === regional && x.cargo === cargo);
+  return m ? m.nome : '';
+}
+
+export function relatorioCaveiras(eventos, roster, periodo, caveira01) {
+  // Do mais antigo pro mais novo: e a ordem dos emojis e da lista.
+  const evs = encerradosDoPeriodo(eventos, periodo).slice().reverse();
+  const linha = m => {
+    let presentes = 0, convocado = 0;
+    const emojis = evs.map(ev => {
+      const p = (ev.presencas || []).find(x => x.membroId === m.id);
+      if (!p) return EMOJI_CAVEIRAS.fora;
+      convocado++;
+      if (statusNoEvento(ev, p) === 'confirmado') { presentes++; return EMOJI_CAVEIRAS.presente; }
+      return EMOJI_CAVEIRAS.falta;
+    });
+    return { id: m.id, nome: m.nome, grau: m.grau, emojis, presentes, convocado, pct: pctDe(presentes, convocado) };
+  };
+  const avaliacao = periodoDaAvaliacao(periodo, evs);
+  return {
+    eventos: evs,
+    titulares: listaCaveiras(roster, 'caveira', caveira01).map(linha),
+    suplentes: listaCaveiras(roster, 'caveira_suplente', caveira01).map(linha),
+    avaliacao: `${mesAvaliacao(avaliacao.de)} a ${mesAvaliacao(avaliacao.ate)}`,
+    diretor: nomeDoCargoRegional(roster, 'Diretor Regional'),
+    operacional: nomeDoCargoRegional(roster, 'Operacional'),
+  };
+}
+
+// "✅❌ — 50%" - os emojis e o %, o que vem depois do nome.
+export function marcasCaveira(l) {
+  return [l.emojis.join(''), l.pct === null ? '' : `— ${l.pct}%`].filter(Boolean).join(' ');
+}
+
+const n2 = i => String(i).padStart(2, '0');
+
+export function textoRelatorioCaveiras(r, patchs) {
+  const diretor = r.diretor || '(nome)', operacional = r.operacional || '(nome)';
+  const titulares = [];
+  for (let i = 0; i < Math.max(VAGAS_CAVEIRAS, r.titulares.length); i++) {
+    const l = r.titulares[i];
+    titulares.push(l ? `💀${n2(i + 1)}- ${l.nome} ${marcasCaveira(l)}`.trimEnd() : `💀${n2(i + 1)}-`);
+  }
+  const suplentes = [];
+  for (let i = 0; i < Math.max(VAGAS_CAVEIRAS, r.suplentes.length); i++) {
+    const l = r.suplentes[i];
+    suplentes.push(l ? `🪖 ${l.nome} ${marcasCaveira(l)}`.trimEnd() : '🪖');
+  }
+  const eventos = r.eventos.length
+    ? r.eventos.flatMap((ev, i) => [
+        `${i + 1}. ${ev.nome}`,
+        ev.data ? formatDataBR(ev.data).slice(0, 5) : '',
+        ev.horario ? `${ev.horario}h` : '',
+        ev.endereco || '',
+      ].filter(Boolean).concat(i < r.eventos.length - 1 ? [''] : []))
+    : ['Nenhum evento encerrado no período.'];
+  return [
+    'REGIONAL  RJ4',
+    `Diretor - ${diretor.toUpperCase()}`,
+    `Operacional - ${operacional.toUpperCase()}`,
+    '..........................................',
+    '',
+    'Leitura:',
+    `${EMOJI_CAVEIRAS.presente} Missão concluída`,
+    `${EMOJI_CAVEIRAS.falta} Não participação`,
+    `${EMOJI_CAVEIRAS.fora} Não estava na equipe`,
+    '',
+    '---------------------------------',
+    '',
+    'REGIONAL = RJ4',
+    '',
+    `Diretor= ${diretor}`,
+    `Operacional= ${operacional}`,
+    '',
+    '-------------------------------',
+    '💀 CAVEIRA TITULAR 💀',
+    '',
+    ...titulares,
+    '-------------------------------',
+    '🪖 SUPLENTES 🪖',
+    '',
+    ...suplentes,
+    '............................................',
+    '',
+    `Avaliação ${r.avaliacao}`,
+    '',
+    'Reuniões / Missão:',
+    '',
+    '',
+    ...eventos,
+    '...........................................',
+    `Patchs caveiras em uso : ${patchs}`,
+    '............................................',
+    '',
+    'Virtudes de um Caveira',
+    'Comprometimento, amor à causa, disponibilidade, postura, responsabilidade, respeito, atenção e sigilo.',
+    '',
+    'Todos seremos caveira um dia, mas poucos serão em vida!',
+    '',
+    'I.S.S.I',
+  ].join('\n');
 }

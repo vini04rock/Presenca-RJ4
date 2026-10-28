@@ -13,9 +13,10 @@ import { STATUS } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { IMG_FUNCOES_ESPECIAIS } from '../nucleo/imagens.js';
 import { render } from '../nucleo/render.js';
-import { copiarTexto, dataDoCampoOuAvisar, escapeHtml, formatDataBR } from '../nucleo/util.js';
+import { copiarTexto, dataDoCampoOuAvisar, escapeHtml, formatDataBR, imprimirTexto, ordenarPorHierarquia } from '../nucleo/util.js';
 import { carregarFuncoesEspeciais } from '../dados/carregar.js';
-import { FUNCOES_ESPECIAIS, STATUS_MARCAVEIS, contagemEvento, divisaoCurta, dadosDaFuncao, estatisticasFuncao, integrantesDaFuncao, porDivisaoNaOrdemOficial, statusNoEvento, textoEstatisticasFuncao, textoEventoFuncao, textoIndividuaisFuncao } from '../dominio/funcoes-especiais.js';
+import { FUNCOES_ESPECIAIS, STATUS_MARCAVEIS, contagemEvento, divisaoCurta, dadosDaFuncao, estatisticasFuncao, integrantesDaFuncao, porDivisaoNaOrdemOficial, statusNoEvento, textoEstatisticasFuncao, textoEventoFuncao, textoIndividuaisFuncao,
+  EMOJI_CAVEIRAS, relatorioCaveiras, textoRelatorioCaveiras } from '../dominio/funcoes-especiais.js';
 import { PERIODOS, rotuloPilula } from '../dominio/doacoes.js';
 import { nomeCurtoDoMes, nomeDoMes } from '../dominio/caixinha.js';
 import { rotuloPeriodoMovimentos } from '../dominio/movimentos.js';
@@ -404,6 +405,88 @@ function renderIndividuais() {
   `;
 }
 
+// ---------- o Relatorio Caveiras (so nos Caveiras) ----------
+
+function caveira01() { return (state.funcoesDados && state.funcoesDados.config && state.funcoesDados.config.caveira01) || ''; }
+function modeloCaveiras() { return relatorioCaveiras(eventos(), state.roster, state.funcoesPeriodo, caveira01()); }
+
+// O quadro de escolher quem abre a lista. A escolha fica gravada na
+// planilha (FuncoesConfig), pra valer em qualquer celular.
+function quadroCaveira01() {
+  const titulares = ordenarPorHierarquia((state.roster || []).filter(m => (m.funcoes || []).includes('caveira')));
+  const atual = titulares.find(m => m.id === caveira01());
+  const aberto = state.funcoesCaveira01Aberto;
+  return `
+    <div class="card no-print">
+      <div class="member-head">
+        <div style="min-width:0;">
+          <div style="font-size:11px; color:var(--text-muted); letter-spacing:0.03em;">💀 CAVEIRA 01</div>
+          <div class="nome-evento-card" style="margin-top:3px;">${atual ? escapeHtml(atual.nome) : '<span style="color:var(--text-muted);">Ninguém escolhido</span>'}</div>
+        </div>
+        <button class="btn secondary btn-compacto" data-action="funcao-caveira01-abrir" ${state.funcoesSalvando ? 'disabled' : ''}>${aberto ? '▴ Fechar' : atual ? 'Trocar' : 'Escolher'}</button>
+      </div>
+      ${aberto ? `
+        <div class="fin-explica" style="margin-top:10px;">Quem ficar no 01 abre a lista; o resto segue a hierarquia.</div>
+        ${titulares.length ? `<div class="chip-row" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;">
+          ${titulares.map(m => `<button class="chip-option ${atual && atual.id === m.id ? 'active' : ''}" data-action="funcao-caveira01-escolher" data-id="${escapeHtml(m.id)}" ${state.funcoesSalvando ? 'disabled' : ''}>${escapeHtml(m.nome)}</button>`).join('')}
+          ${atual ? `<button class="chip-option" data-action="funcao-caveira01-escolher" data-id="" ${state.funcoesSalvando ? 'disabled' : ''}>Ninguém (só a hierarquia)</button>` : ''}
+        </div>` : '<div class="empty">Nenhum integrante com a função 💀 Caveira no cadastro.</div>'}
+      ` : ''}
+    </div>
+  `;
+}
+
+function linhaCaveira(rotulo, l) {
+  return `
+    <div style="display:flex; align-items:center; gap:10px; padding:7px 0; border-top:1px solid var(--line);">
+      <div style="flex:1; min-width:0;">
+        <div style="font-size:14px; color:var(--text);"><b>${rotulo}</b> ${escapeHtml(l.nome)}</div>
+        <div style="font-size:15px; letter-spacing:1px; margin-top:2px;">${l.emojis.join('') || '<span style="color:var(--text-muted); font-size:12px;">sem evento no período</span>'}</div>
+      </div>
+      <div style="font-weight:700; color:var(--white-strong); min-width:46px; text-align:right;">${l.pct === null ? '—' : l.pct + '%'}</div>
+    </div>
+  `;
+}
+
+function renderRelatorioCaveiras() {
+  if (state.funcaoEspecial !== 'caveira') return renderEventos(false);
+  const r = modeloCaveiras();
+  const n2 = i => String(i).padStart(2, '0');
+  return `
+    ${pilulasPeriodo()}
+    ${aviso()}
+    ${quadroCaveira01()}
+    <div class="card">
+      <div class="painel-titulo">💀 Relatório Caveiras</div>
+      <div class="fin-explica">Avaliação ${escapeHtml(r.avaliacao)} · ${r.eventos.length} ${r.eventos.length === 1 ? 'evento encerrado' : 'eventos encerrados'} · ${EMOJI_CAVEIRAS.presente} Missão concluída · ${EMOJI_CAVEIRAS.falta} Não participação · ${EMOJI_CAVEIRAS.fora} Não estava na equipe</div>
+      <div class="painel-titulo" style="margin-top:12px;">💀 Caveira titular</div>
+      ${r.titulares.length ? r.titulares.map((l, i) => linhaCaveira(`💀${n2(i + 1)}-`, l)).join('') : '<div class="empty">Nenhum titular no cadastro.</div>'}
+      <div class="painel-titulo" style="margin-top:14px;">🪖 Suplentes</div>
+      ${r.suplentes.length ? r.suplentes.map(l => linhaCaveira('🪖', l)).join('') : '<div class="empty">Nenhum suplente no cadastro.</div>'}
+      <div class="fin-explica" style="margin-top:10px;">No texto, cada lista é completada até 10 linhas, como no modelo do clube.</div>
+    </div>
+    <div class="card">
+      <div class="painel-titulo">📋 Reuniões / Missão</div>
+      ${r.eventos.length ? r.eventos.map((ev, i) => `
+        <div style="padding:7px 0; border-top:1px solid var(--line);">
+          <div style="font-size:14px; color:var(--text);"><b>${i + 1}.</b> ${escapeHtml(ev.nome)}</div>
+          <div style="color:var(--text-muted); font-size:12px; margin-top:2px;">🗓️ ${escapeHtml(quando(ev))}${ev.endereco ? ` · 📍 ${escapeHtml(ev.endereco)}` : ''}</div>
+        </div>
+      `).join('') : '<div class="empty">Nenhum evento encerrado no período.</div>'}
+    </div>
+    <div class="card no-print">
+      <div class="field" style="margin-bottom:10px;">
+        <label>Patchs caveiras em uso</label>
+        <input type="number" inputmode="numeric" min="0" id="funcoes-patchs" value="${escapeHtml(state.funcoesPatchs)}" placeholder="Quantos patchs estão em uso hoje" autocomplete="off">
+      </div>
+      <div class="row-gap">
+        <button class="btn" style="flex:1;" data-action="funcao-copiar-caveiras">📋 Copiar pro WhatsApp</button>
+        <button class="btn secondary" style="flex:1;" data-action="funcao-pdf-caveiras">📄 PDF</button>
+      </div>
+    </div>
+  `;
+}
+
 // ---------- a aba ----------
 
 export function renderAdminFuncoesEspeciais() {
@@ -415,6 +498,7 @@ export function renderAdminFuncoesEspeciais() {
   if (state.adminTab === 'funcoes-encerrados') return renderEventos(true);
   if (state.adminTab === 'funcoes-estatisticas') return renderEstatisticas();
   if (state.adminTab === 'funcoes-individuais') return renderIndividuais();
+  if (state.adminTab === 'funcoes-relatorio-caveiras') return renderRelatorioCaveiras();
   return renderEventos(false);
 }
 
@@ -427,6 +511,7 @@ export function tituloFuncaoEspecial() {
 // Os campos do formulario so lembram, sem redesenhar - redesenhar fecharia
 // o teclado do celular. Devolve true se o campo era daqui.
 export function atualizarCampoFuncoes(el) {
+  if (el.id === 'funcoes-patchs') { state.funcoesPatchs = el.value; return true; }
   const chave = el.dataset && el.dataset.funcoes;
   if (!chave || !state.funcoesForm) return false;
   state.funcoesForm[chave] = el.value;
@@ -449,6 +534,18 @@ function novoForm(ev) {
   }
   return { id: '', nome: '', data: '', horario: '', endereco: '',
     membroIds: new Set(integrantesDaFuncao(state.roster, state.funcaoEspecial).map(m => m.id)) };
+}
+
+// Os "Patchs caveiras em uso" do campo, ou null (e avisa) se estiver vazio.
+function textoDosPatchs() {
+  const v = String(state.funcoesPatchs || '').trim();
+  if (!/^\d+$/.test(v)) {
+    alert('Preencha quantos patchs caveiras estão em uso.');
+    const el = document.getElementById('funcoes-patchs');
+    if (el) el.focus();
+    return null;
+  }
+  return v;
 }
 
 // Ha marcacao nao salva: confirma antes de perder.
@@ -633,6 +730,35 @@ export const acoes = {
     const fe = funcao();
     const r = estatisticasFuncao(eventos(), state.funcoesPeriodo);
     return mostrarPreviaImagem(() => imagemEstatisticasFuncao(r, fe, rotuloPeriodoMovimentos(state.funcoesPeriodo)), `${fe.chave}-estatisticas.png`);
+  },
+  'funcao-caveira01-abrir': async (id, target, action, e) => {
+    state.funcoesCaveira01Aberto = !state.funcoesCaveira01Aberto;
+    return render();
+  },
+  // Grava na planilha e fecha a lista. A resposta ja traz os ajustes.
+  'funcao-caveira01-escolher': async (id, target, action, e) => {
+    if (state.funcoesSalvando) return;
+    state.funcoesSalvando = true;
+    state.funcoesMsg = null;
+    render();
+    try {
+      const r = await api('funcaoConfigSalvar', { chave: 'caveira01', valor: target.dataset.id || '' });
+      if (state.funcoesDados) state.funcoesDados.config = r.config || {};
+      state.funcoesCaveira01Aberto = false;
+    } catch (err) {
+      state.funcoesMsg = { ok: false, texto: err.message };
+    }
+    state.funcoesSalvando = false;
+    return render();
+  },
+  'funcao-copiar-caveiras': async (id, target, action, e) => {
+    const patchs = textoDosPatchs();
+    if (patchs !== null) return copiarTexto(textoRelatorioCaveiras(modeloCaveiras(), patchs));
+  },
+  // O PDF leva o mesmo texto do WhatsApp, numa folha limpa.
+  'funcao-pdf-caveiras': async (id, target, action, e) => {
+    const patchs = textoDosPatchs();
+    if (patchs !== null) return imprimirTexto(textoRelatorioCaveiras(modeloCaveiras(), patchs));
   },
   'funcao-copiar-individuais': async (id, target, action, e) => {
     const r = estatisticasFuncao(eventos(), state.funcoesPeriodo);
