@@ -15,13 +15,13 @@ import { IMG_FUNCOES_ESPECIAIS } from '../nucleo/imagens.js';
 import { render } from '../nucleo/render.js';
 import { copiarTexto, dataDoCampoOuAvisar, escapeHtml, formatDataBR } from '../nucleo/util.js';
 import { carregarFuncoesEspeciais } from '../dados/carregar.js';
-import { FUNCOES_ESPECIAIS, STATUS_MARCAVEIS, contagemEvento, divisaoCurta, dadosDaFuncao, estatisticasFuncao, integrantesDaFuncao, porDivisaoNaOrdemOficial, statusNoEvento, textoEstatisticasFuncao, textoEventoFuncao } from '../dominio/funcoes-especiais.js';
+import { FUNCOES_ESPECIAIS, STATUS_MARCAVEIS, contagemEvento, divisaoCurta, dadosDaFuncao, estatisticasFuncao, integrantesDaFuncao, porDivisaoNaOrdemOficial, statusNoEvento, textoEstatisticasFuncao, textoEventoFuncao, textoIndividuaisFuncao } from '../dominio/funcoes-especiais.js';
 import { PERIODOS, rotuloPilula } from '../dominio/doacoes.js';
 import { nomeCurtoDoMes, nomeDoMes } from '../dominio/caixinha.js';
 import { rotuloPeriodoMovimentos } from '../dominio/movimentos.js';
 import { botaoAbrirRelatorio, botaoGerarRelatorio, campoData, medalha, opcoesGerarRelatorio, posicoesDoPodio, selinhoIniciais } from '../ui/comuns.js';
 import { renderDonutChart, segmentosDonutStatus } from '../ui/graficos.js';
-import { imagemEstatisticasFuncao, imagemResultadoEvento, mostrarPreviaImagem } from '../ui/imagem.js';
+import { imagemEstatisticasFuncao, imagemIndividuaisFuncao, imagemResultadoEvento, mostrarPreviaImagem } from '../ui/imagem.js';
 
 const COR_FUNCAO = { batedor: '#5FA0C4', caveira: '#C9C2B4' };
 // Os rotulos curtos dos botoes de marcacao: cinco por linha nao cabem com o
@@ -327,32 +327,76 @@ function barrasPorMes(porMes) {
   `;
 }
 
+function semEventosNoPeriodo(fe) {
+  return `${pilulasPeriodo()}<div class="empty">Nenhum evento dos ${escapeHtml(fe.nome)} encerrado ${state.funcoesPeriodo ? 'nesse período' : 'ainda'}.<br>As estatísticas contam só os eventos encerrados.</div>`;
+}
+
+function cabecalhoImpressao(fe, titulo) {
+  return `<div class="print-only" style="margin-bottom:10px;">${fe.selo} ${escapeHtml(fe.nome)}${titulo ? ` · ${titulo}` : ''} · ${escapeHtml(rotuloPeriodoMovimentos(state.funcoesPeriodo))} · gerado em ${escapeHtml(new Date().toLocaleString('pt-BR'))}</div>`;
+}
+
+// Um evento nas estatisticas: a rosca dele e o proprio Gerar relatorio (o
+// mesmo da aba Encerrados). Com o menu dele aberto, o resto da aba e
+// no-print e o card mostra o detalhe com os nomes - o PDF sai so com ele.
+function cardEventoEstatisticas(ev, c, menuAberto) {
+  const esteMenu = state.gerarRelatorioAberto === 'funcao:' + ev.id;
+  return `
+    <div class="card ${menuAberto && !esteMenu ? 'no-print' : ''}" style="border-left:3px solid ${COR_FUNCAO[state.funcaoEspecial]};">
+      <div class="nome-evento-card">${escapeHtml(ev.nome)}</div>
+      <div style="color:var(--text-muted); font-size:12px; margin-top:5px;">🗓️ ${escapeHtml(quando(ev))} · ${c.confirmado} de ${c.total} · <b style="color:var(--white-strong);">${c.pct === null ? '—' : c.pct + '%'} de presença</b></div>
+      ${esteMenu ? detalheEvento(ev) : `<div style="margin-top:10px;">${renderDonutChart(segmentosDonutStatus({ confirmado: c.confirmado, justificada: c.justificadas, infracional: c.infracional }), c.pct === null ? '—' : c.pct + '%', 'presença', 100)}</div>`}
+      ${botaoGerarRelatorio('funcao:' + ev.id, opcoesRelatorioEvento(ev))}
+      ${esteMenu ? `<div class="print-only" style="margin-top:12px; font-size:12px; color:var(--text-muted);">Gerado em ${escapeHtml(new Date().toLocaleString('pt-BR'))}</div>` : ''}
+    </div>
+  `;
+}
+
 function renderEstatisticas() {
   const fe = funcao();
   const r = estatisticasFuncao(eventos(), state.funcoesPeriodo);
   const g = r.geral;
-  const rotulo = rotuloPeriodoMovimentos(state.funcoesPeriodo);
-  if (!r.eventos) {
-    return `${pilulasPeriodo()}<div class="empty">Nenhum evento dos ${escapeHtml(fe.nome)} encerrado ${state.funcoesPeriodo ? 'nesse período' : 'ainda'}.<br>As estatísticas contam só os eventos encerrados.</div>`;
-  }
+  if (!r.eventos) return semEventosNoPeriodo(fe);
+  const menuEvento = r.porEvento.some(({ ev }) => state.gerarRelatorioAberto === 'funcao:' + ev.id);
+  return `
+    <div class="${menuEvento ? 'no-print' : ''}">
+      ${pilulasPeriodo()}
+      ${cabecalhoImpressao(fe, '')}
+      <div class="card donut-card donut-card-total">
+        <div class="painel-titulo">${fe.selo} Presença dos ${escapeHtml(fe.nome)}</div>
+        <div class="fin-explica">${escapeHtml(rotuloPeriodoMovimentos(state.funcoesPeriodo))} · ${r.eventos} ${r.eventos === 1 ? 'evento encerrado' : 'eventos encerrados'} · ${g.confirmados} de ${g.convites} presenças</div>
+        ${renderDonutChart(segmentosDonutStatus({ confirmado: g.confirmados, justificada: g.justificadas, infracional: g.naoJustificadas }), g.pct + '%', 'presença', 130)}
+        ${botaoGerarRelatorio('funcoes-estatisticas', [
+          { acao: 'funcao-copiar-estatisticas', rotulo: '📋 WhatsApp' },
+          { acao: 'funcao-pdf-estatisticas', rotulo: '📄 PDF' },
+          { acao: 'funcao-imagem-estatisticas', rotulo: '🖼️ Imagem' },
+        ])}
+      </div>
+      ${r.porMes.length > 1 ? `<div class="card"><div class="painel-titulo">📅 Mês a mês</div>${barrasPorMes(r.porMes)}</div>` : ''}
+      <div class="painel-titulo" style="margin-top:6px;">Por evento</div>
+    </div>
+    ${r.porEvento.map(({ ev, c }) => cardEventoEstatisticas(ev, c, menuEvento)).join('')}
+  `;
+}
+
+// A aba das estatisticas individuais: cada integrante, no mesmo periodo da
+// aba Estatisticas (state.funcoesPeriodo e um so).
+function renderIndividuais() {
+  const fe = funcao();
+  const r = estatisticasFuncao(eventos(), state.funcoesPeriodo);
+  if (!r.eventos) return semEventosNoPeriodo(fe);
   const lugares = posicoesDoPodio(r.porIntegrante.map(p => (p.pct > 0 ? p.pct : null)));
   return `
     ${pilulasPeriodo()}
-    <div class="print-only" style="margin-bottom:10px;">${fe.selo} ${escapeHtml(fe.nome)} · ${escapeHtml(rotulo)} · gerado em ${escapeHtml(new Date().toLocaleString('pt-BR'))}</div>
-    <div class="card donut-card donut-card-total">
-      <div class="painel-titulo">${fe.selo} Presença dos ${escapeHtml(fe.nome)}</div>
-      <div class="fin-explica">${escapeHtml(rotulo)} · ${r.eventos} ${r.eventos === 1 ? 'evento encerrado' : 'eventos encerrados'} · ${g.confirmados} de ${g.convites} presenças</div>
-      ${renderDonutChart(segmentosDonutStatus({ confirmado: g.confirmados, justificada: g.justificadas, infracional: g.naoJustificadas }), g.pct + '%', 'presença', 130)}
-      ${botaoGerarRelatorio('funcoes-estatisticas', [
-        { acao: 'funcao-copiar-estatisticas', rotulo: '📋 WhatsApp' },
-        { acao: 'funcao-pdf-estatisticas', rotulo: '📄 PDF' },
-        { acao: 'funcao-imagem-estatisticas', rotulo: '🖼️ Imagem' },
+    ${cabecalhoImpressao(fe, 'Estatísticas individuais')}
+    <div class="card">
+      <div class="painel-titulo">📊 Estatísticas individuais</div>
+      <div class="fin-explica">${escapeHtml(rotuloPeriodoMovimentos(state.funcoesPeriodo))} · ${r.eventos} ${r.eventos === 1 ? 'evento encerrado' : 'eventos encerrados'} · ${r.porIntegrante.length} ${r.porIntegrante.length === 1 ? escapeHtml(fe.singular.toLowerCase()) : escapeHtml(fe.nome.toLowerCase())}</div>
+      ${botaoGerarRelatorio('funcoes-individuais', [
+        { acao: 'funcao-copiar-individuais', rotulo: '📋 WhatsApp' },
+        { acao: 'funcao-pdf-individuais', rotulo: '📄 PDF' },
+        { acao: 'funcao-imagem-individuais', rotulo: '🖼️ Imagem' },
       ])}
     </div>
-    ${r.porMes.length > 1 ? `<div class="card"><div class="painel-titulo">📅 Mês a mês</div>${barrasPorMes(r.porMes)}</div>` : ''}
-    <div class="painel-titulo" style="margin-top:6px;">Por divisão</div>
-    ${r.porDivisao.map(d => linhaPct(escapeHtml(divisaoCurta(d.divisao)), `${d.confirmados} de ${d.convites} presenças`, d.pct)).join('')}
-    <div class="painel-titulo" style="margin-top:14px;">Por ${escapeHtml(fe.singular.toLowerCase())}</div>
     ${r.porIntegrante.map((p, i) => linhaPct(
       `${medalha(lugares[i])}${escapeHtml(p.nome)}${p.grau ? ` <span class="grade-box">${escapeHtml(p.grau)}</span>` : ''}`,
       `${escapeHtml(divisaoCurta(p.divisao))} · ${p.confirmados} de ${p.eventos} ${p.eventos === 1 ? 'evento' : 'eventos'}${p.justificadas ? ` · ❌ ${p.justificadas}` : ''}${p.naoJustificadas ? ` · ⭕ ${p.naoJustificadas}` : ''}`,
@@ -370,6 +414,7 @@ export function renderAdminFuncoesEspeciais() {
   }
   if (state.adminTab === 'funcoes-encerrados') return renderEventos(true);
   if (state.adminTab === 'funcoes-estatisticas') return renderEstatisticas();
+  if (state.adminTab === 'funcoes-individuais') return renderIndividuais();
   return renderEventos(false);
 }
 
@@ -588,5 +633,15 @@ export const acoes = {
     const fe = funcao();
     const r = estatisticasFuncao(eventos(), state.funcoesPeriodo);
     return mostrarPreviaImagem(() => imagemEstatisticasFuncao(r, fe, rotuloPeriodoMovimentos(state.funcoesPeriodo)), `${fe.chave}-estatisticas.png`);
+  },
+  'funcao-copiar-individuais': async (id, target, action, e) => {
+    const r = estatisticasFuncao(eventos(), state.funcoesPeriodo);
+    return copiarTexto(textoIndividuaisFuncao(r, state.funcaoEspecial, state.funcoesPeriodo));
+  },
+  'funcao-pdf-individuais': async (id, target, action, e) => { window.print(); },
+  'funcao-imagem-individuais': async (id, target, action, e) => {
+    const fe = funcao();
+    const r = estatisticasFuncao(eventos(), state.funcoesPeriodo);
+    return mostrarPreviaImagem(() => imagemIndividuaisFuncao(r, fe, rotuloPeriodoMovimentos(state.funcoesPeriodo)), `${fe.chave}-individuais.png`);
   },
 };

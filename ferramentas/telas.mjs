@@ -756,6 +756,10 @@ add('funções especiais / corrigir encerrado',    { ...func, adminTab:'funcoes-
 add('funções especiais / excluir',               { ...func, adminTab:'funcoes-encerrados', funcoesApagarId:'fe2' }, T.renderAdmin);
 add('funções especiais / estatísticas',          { ...func, adminTab:'funcoes-estatisticas' }, T.renderAdmin);
 add('funções especiais / estatísticas período',  { ...func, adminTab:'funcoes-estatisticas', funcoesPeriodo:{ de:'2026-10-01', ate:'' } }, T.renderAdmin);
+add('funções especiais / estatísticas: relatório de um evento', { ...func, adminTab:'funcoes-estatisticas', gerarRelatorioAberto:'funcao:fe2' }, T.renderAdmin);
+add('funções especiais / individuais',           { ...func, adminTab:'funcoes-individuais' }, T.renderAdmin);
+add('funções especiais / individuais: relatório', { ...func, adminTab:'funcoes-individuais', gerarRelatorioAberto:'funcoes-individuais' }, T.renderAdmin);
+add('funções especiais / individuais vazio',     { ...func, funcaoEspecial:'caveira', funcoesDados:{ funcao:'caveira', eventos:[] }, adminTab:'funcoes-individuais' }, T.renderAdmin);
 add('funções especiais / caveiras vazio',        { ...func, funcaoEspecial:'caveira', funcoesDados:{ funcao:'caveira', eventos:[] }, adminTab:'funcoes-eventos' }, T.renderAdmin);
 add('funções especiais / estatísticas vazio',    { ...func, funcaoEspecial:'caveira', funcoesDados:{ funcao:'caveira', eventos:[] }, adminTab:'funcoes-estatisticas' }, T.renderAdmin);
 add('funções especiais / carregando',            { ...func, funcoesDados:null, funcoesCarregando:true, adminTab:'funcoes-eventos' }, T.renderAdmin);

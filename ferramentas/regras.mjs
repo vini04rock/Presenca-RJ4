@@ -1343,7 +1343,7 @@ log('');
 }
 {
   log('=== funções especiais: só quem tem a função, e números à parte ===');
-  const { integrantesDaFuncao, contagemEvento, estatisticasFuncao, textoEventoFuncao, textoEstatisticasFuncao, divisaoCurta } =
+  const { integrantesDaFuncao, contagemEvento, estatisticasFuncao, textoEventoFuncao, textoEstatisticasFuncao, textoIndividuaisFuncao, divisaoCurta } =
     await import(url('dominio/funcoes-especiais.js'));
   const roster = [
     { id: 'b1', nome: 'Costa', grau: 'X', divisao: 'Barra - RJ4', funcoes: ['batedor'] },
@@ -1375,7 +1375,8 @@ log('');
 
   const r = estatisticasFuncao(evs, 0);
   confere('estatísticas só contam os encerrados', [r.eventos, r.geral], [2, { convites: 5, confirmados: 3, justificadas: 1, naoJustificadas: 1, pct: 60 }]);
-  confere('por divisão, na ordem oficial (Oeste antes da Barra)', r.porDivisao.map(d => [d.divisao, d.pct]), [['Oeste - RJ4', 50], ['Barra - RJ4', 67]]);
+  confere('por evento: só os encerrados, do mais recente pro mais antigo, cada um com o seu %',
+    r.porEvento.map(({ ev, c }) => [ev.nome, c.pct, c.total]), [['Treino', 100, 2], ['Escolta Serra', 33, 3]]);
   confere('por integrante, do maior % pro menor', r.porIntegrante.map(x => [x.nome, x.pct, x.naoJustificadas]), [['Costa', 100, 0], ['Lobo', 50, 1], ['Bull', 0, 0]]);
   confere('mês a mês', r.porMes.map(m => [m.mes, m.pct]), [['2026-09', 33], ['2026-10', 100]]);
   confere('por período: só outubro', estatisticasFuncao(evs, { de: '2026-10-01', ate: '' }).eventos, 1);
@@ -1387,9 +1388,14 @@ log('');
     ['- Costa (Barra)', '- Bull (Barra) - Família', '- Lobo (Oeste)']);
   confere('evento aberto sai como parcial, sem falta', textoEventoFuncao(evs[2], 'batedor').includes('RELATÓRIO PARCIAL') &&
     textoEventoFuncao(evs[2], 'batedor').includes('⚠️ SEM MARCAÇÃO AINDA (1)'), true);
-  const textoStats = textoEstatisticasFuncao(r, 'caveira', 0);
-  confere('texto das estatísticas: cabeçalho e quem tem falta não justificada',
-    [textoStats.split('\n')[0], textoStats.split('\n').slice(-2)], ['💀 *CAVEIRAS — ESTATÍSTICAS*', ['⭕ *FALTAS NÃO JUSTIFICADAS*', '- Lobo (Oeste): 1']]);
+  const textoStats = textoEstatisticasFuncao(r, 'caveira', 0).split('\n');
+  confere('texto das estatísticas: cabeçalho e cada evento, sem os integrantes',
+    [textoStats[0], textoStats.slice(-3), textoStats.some(l => l.includes('Lobo'))],
+    ['💀 *CAVEIRAS — ESTATÍSTICAS*', ['*POR EVENTO*', '- 10/10 · Treino: 100% (2 de 2)', '- 20/09 · Escolta Serra: 33% (1 de 3)'], false]);
+  const textoInd = textoIndividuaisFuncao(r, 'caveira', 0).split('\n');
+  confere('texto das individuais: cada integrante e quem tem falta não justificada',
+    [textoInd[0], textoInd.includes('1. Costa (Barra) — 100% (2 de 2)'), textoInd.slice(-2)],
+    ['💀 *CAVEIRAS — ESTATÍSTICAS INDIVIDUAIS*', true, ['⭕ *FALTAS NÃO JUSTIFICADAS*', '- Lobo (Oeste): 1']]);
 }
 {
   log('=== as três saídas: os textos novos (WhatsApp e PDF) ===');

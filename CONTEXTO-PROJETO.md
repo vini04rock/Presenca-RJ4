@@ -869,8 +869,8 @@ Telas em `telas/admin-acoes-sociais.js`; regras e textos em
 
 Card **🛡️ Funções especiais** em Regional → Operacional, criado em
 28/10/2026. Abre dois cards, **🛡️ Batedores** e **💀 Caveiras**, e cada um
-tem três abas: **Eventos** (criar e marcar a presença), **Encerrados** (o
-relatório de cada evento) e **Estatísticas**. Tela em
+tem quatro abas: **Eventos** (criar e marcar a presença), **Encerrados** (o
+relatório de cada evento), **Estatísticas** e **Individuais**. Tela em
 `telas/admin-funcoes-especiais.js`; contas e textos em
 `dominio/funcoes-especiais.js`. Os três cards têm arte própria
 (`IMG_SECOES['funcoes-especiais']` e `IMG_FUNCOES_ESPECIAIS`, em
@@ -907,10 +907,15 @@ alta que as outras. Quantos têm cada função sai numa linha embaixo do card.
 - **Saídas:** cada evento tem o 📊 Gerar relatório (📋 WhatsApp, 📄 PDF e
   🖼️ Imagem, a mesma do resultado de evento, com "🛡️ Batedores" no lugar
   da divisão). As Estatísticas contam só os encerrados, no período de 3,
-  6 ou 12 meses, tudo ou de uma data a outra: o % geral com a rosca, mês a
-  mês, cada divisão e cada integrante (com pódio), e saem em WhatsApp, PDF
-  e imagem. A imagem não leva o nome de quem faltou; o texto leva as faltas
-  não justificadas, que é o que se cobra.
+  6 ou 12 meses, tudo ou de uma data a outra: o % geral com a rosca e
+  mês a mês, com o relatório total (WhatsApp, PDF e imagem), e embaixo
+  **cada evento** com a própria rosca e o próprio 📊 Gerar relatório (o
+  mesmo da aba Encerrados; o PDF sai só com ele). O "por divisão" saiu em
+  28/10/2026. A aba **Individuais** (mesmo período) tem cada integrante,
+  com pódio, e o relatório dela: o texto leva a lista e as faltas não
+  justificadas, que é o que se cobra; a imagem leva só o pódio, nunca o
+  nome de quem faltou. O relatório total não leva integrante nenhum
+  (`textoEstatisticasFuncao` × `textoIndividuaisFuncao`).
 - **Só o Regional:** as ações (`funcoesEspeciais`, `funcaoEventoSalvar`,
   `funcaoEventoStatus`, `funcaoEventoRemover`, `funcaoPresencasSalvar`)
   pedem o PIN do Regional e também `escopo=regional`, como o Estoque ADM —

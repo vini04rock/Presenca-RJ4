@@ -86,7 +86,7 @@ export const SECOES_ORGANIZADOR = {
     ],
   },
   // Funcoes especiais, so no Regional: a entrada com os dois cards
-  // (Batedores e Caveiras) e, dentro de cada um, as tres abas. O titulo e o
+  // (Batedores e Caveiras) e, dentro de cada um, as quatro abas. O titulo e o
   // voltar dependem da funcao aberta.
   funcoesEspeciais: {
     titulo: 'Funções especiais',
@@ -99,6 +99,7 @@ export const SECOES_ORGANIZADOR = {
       { chave: 'funcoes-eventos', label: 'Eventos' },
       { chave: 'funcoes-encerrados', label: 'Encerrados' },
       { chave: 'funcoes-estatisticas', label: 'Estatísticas' },
+      { chave: 'funcoes-individuais', label: 'Individuais' },
     ],
   },
   estoqueAdm: {

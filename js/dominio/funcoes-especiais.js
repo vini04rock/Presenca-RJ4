@@ -119,14 +119,13 @@ export function encerradosDoPeriodo(eventos, periodo) {
 
 const pctDe = (sim, total) => (total ? Math.round(sim / total * 100) : null);
 
-// As estatisticas de uma funcao no periodo: o geral, cada integrante, cada
-// divisao e cada mes. Nome, grau e divisao de um integrante sao os do
+// As estatisticas de uma funcao no periodo: o geral, cada evento, cada
+// integrante e cada mes. Nome, grau e divisao de um integrante sao os do
 // evento mais recente dele (o retrato gravado na planilha).
 export function estatisticasFuncao(eventos, periodo) {
   const evs = encerradosDoPeriodo(eventos, periodo);
   const geral = { convites: 0, confirmados: 0, justificadas: 0, naoJustificadas: 0 };
   const pessoas = {};
-  const divisoes = {};
   const meses = {};
   evs.forEach(ev => {
     const mes = (ev.data || '').slice(0, 7);
@@ -138,47 +137,67 @@ export function estatisticasFuncao(eventos, periodo) {
       const nj = st === 'infracional';
       const pessoa = pessoas[p.membroId] = pessoas[p.membroId] ||
         { membroId: p.membroId, nome: p.nome, grau: p.grau, divisao: p.divisao, eventos: 0, confirmados: 0, justificadas: 0, naoJustificadas: 0 };
-      const div = divisoes[p.divisao] = divisoes[p.divisao] || { divisao: p.divisao, convites: 0, confirmados: 0 };
       [geral, pessoa].forEach(x => {
         if (veio) x.confirmados++;
         else if (nj) x.naoJustificadas++;
         else x.justificadas++;
       });
       geral.convites++; pessoa.eventos++;
-      div.convites++; if (veio) div.confirmados++;
       if (mes) { meses[mes].convites++; if (veio) meses[mes].confirmados++; }
     });
   });
+  // Cada evento com a propria contagem, do mais recente pro mais antigo
+  // (sem data no fim). E o evento inteiro: a tela abre o relatorio dele.
+  const porEvento = evs.slice()
+    .sort((a, b) => (b.data || '').localeCompare(a.data || ''))
+    .map(ev => ({ ev, c: contagemEvento(ev) }));
   const porIntegrante = Object.values(pessoas)
     .map(x => ({ ...x, pct: pctDe(x.confirmados, x.eventos) }))
     .sort((a, b) => b.pct - a.pct || b.confirmados - a.confirmados || a.nome.localeCompare(b.nome));
-  const ordem = escoposNaOrdemOficial().map(e => e.nome);
-  const lugar = d => (ordem.includes(d.divisao) ? ordem.indexOf(d.divisao) : ordem.length);
-  const porDivisao = Object.values(divisoes).sort((a, b) => lugar(a) - lugar(b))
-    .map(d => ({ ...d, pct: pctDe(d.confirmados, d.convites) }));
   const porMes = Object.values(meses).sort((a, b) => a.mes.localeCompare(b.mes))
     .map(m => ({ ...m, pct: pctDe(m.confirmados, m.convites) }));
-  return { eventos: evs.length, geral: { ...geral, pct: pctDe(geral.confirmados, geral.convites) }, porIntegrante, porDivisao, porMes };
+  return { eventos: evs.length, geral: { ...geral, pct: pctDe(geral.confirmados, geral.convites) }, porEvento, porIntegrante, porMes };
 }
 
-// As estatisticas pro WhatsApp. Leva os nomes de quem tem falta nao
-// justificada - o texto e o que serve pra cobrar (a imagem nao leva).
-export function textoEstatisticasFuncao(r, chave, periodo) {
-  const f = dadosDaFuncao(chave);
-  const g = r.geral;
-  const linhas = [
-    `${f.selo} *${f.nome.toUpperCase()} — ESTATÍSTICAS*`,
+// "20/10 · Escolta Serra" - a linha de um evento nas listas das estatisticas.
+export function rotuloEventoCurto(ev) {
+  return (ev.data ? formatDataBR(ev.data).slice(0, 5) + ' · ' : '') + ev.nome;
+}
+
+function cabecalhoEstatisticas(f, titulo, r, periodo) {
+  return [
+    `${f.selo} *${f.nome.toUpperCase()} — ${titulo}*`,
     rotuloPeriodoMovimentos(periodo),
     `📅 ${r.eventos} ${r.eventos === 1 ? 'evento encerrado' : 'eventos encerrados'}`,
   ];
+}
+
+// As estatisticas gerais pro WhatsApp: o % do periodo e cada evento. Os
+// integrantes (e quem tem falta nao justificada) ficam no texto das
+// individuais.
+export function textoEstatisticasFuncao(r, chave, periodo) {
+  const g = r.geral;
+  const linhas = cabecalhoEstatisticas(dadosDaFuncao(chave), 'ESTATÍSTICAS', r, periodo);
   if (!r.eventos) return linhas.concat('', 'Nenhum evento encerrado no período.').join('\n');
   linhas.push(
     '',
     `📊 *${g.pct}% DE PRESENÇA* (${g.confirmados} de ${g.convites})`,
     `${STATUS.confirmado.emoji} ${g.confirmados} presenças · ${STATUS.justificada.emoji} ${g.justificadas} justificadas · ${STATUS.infracional.emoji} ${g.naoJustificadas} não justificadas`,
     '',
-    '*POR DIVISÃO*',
-    ...r.porDivisao.map(d => `- ${divisaoCurta(d.divisao)}: ${d.pct}% (${d.confirmados} de ${d.convites})`),
+    '*POR EVENTO*',
+    ...r.porEvento.map(({ ev, c }) => `- ${rotuloEventoCurto(ev)}: ${c.pct === null ? 0 : c.pct}% (${c.confirmado} de ${c.total})`),
+  );
+  return linhas.join('\n');
+}
+
+// As estatisticas de cada integrante pro WhatsApp. Leva os nomes de quem
+// tem falta nao justificada - o texto e o que serve pra cobrar (a imagem
+// nao leva).
+export function textoIndividuaisFuncao(r, chave, periodo) {
+  const f = dadosDaFuncao(chave);
+  const linhas = cabecalhoEstatisticas(f, 'ESTATÍSTICAS INDIVIDUAIS', r, periodo);
+  if (!r.eventos) return linhas.concat('', 'Nenhum evento encerrado no período.').join('\n');
+  linhas.push(
     '',
     `*POR ${f.singular.toUpperCase()}*`,
     ...r.porIntegrante.map((p, i) => `${i + 1}. ${p.nome} (${divisaoCurta(p.divisao)}) — ${p.pct}% (${p.confirmados} de ${p.eventos})`),

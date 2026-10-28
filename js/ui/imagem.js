@@ -14,6 +14,7 @@ import { formatReais, nomeCurtoDoMes, nomeDoMes } from '../dominio/caixinha.js';
 import { formatKg } from '../dominio/doacoes.js';
 import { destinoPorChave, numeroEstoque, resumoDaLinha, textoQuantidade } from '../dominio/estoque.js';
 import { CONTEXTO_DOS_MESES, LEGENDA_CONTEXTO, MESES_NOMES, acoesDoMes, ehEscolhida, mesesDoAno, resumoDoAno, situacaoPorChave } from '../dominio/acoes-sociais.js';
+import { divisaoCurta, rotuloEventoCurto } from '../dominio/funcoes-especiais.js';
 import { posicoesDoPodio } from './comuns.js';
 
 const L = 1080, A = 1350; // retrato 4:5, o formato que o WhatsApp mostra maior
@@ -504,14 +505,15 @@ export async function imagemResumoRelatorios(d) {
 
 // ---------------------------------------------------------------------------
 // As estatisticas de uma funcao especial (Batedores ou Caveiras) no
-// periodo: a presenca geral, as divisoes e os destaques. Como as outras,
-// sem nome de quem faltou - isso e do texto. `r` e o estatisticasFuncao.
+// periodo: a presenca geral e cada evento, do mais recente pro mais antigo.
+// Os integrantes ficam na imagem das individuais. `r` e o estatisticasFuncao.
+const MAX_EVENTOS_IMAGEM = 10;
 export async function imagemEstatisticasFuncao(r, f, rotuloPeriodo) {
   const { canvas, ctx, logo } = await novaTela();
   const g = r.geral;
-  const linhas = r.porDivisao.map(d => ({ nome: d.divisao, pct: d.pct, detalhe: `${d.confirmados} de ${d.convites}` }))
-    .sort((a, b) => (b.pct ?? -1) - (a.pct ?? -1));
-  const destaques = r.porIntegrante.filter(p => p.pct > 0).slice(0, 5);
+  const linhas = r.porEvento.slice(0, MAX_EVENTOS_IMAGEM).map(({ ev, c }) => ({
+    nome: rotuloEventoCurto(ev), pct: c.pct, detalhe: `${c.confirmado} de ${c.total}` }));
+  const fora = r.porEvento.length - linhas.length;
 
   emblema(ctx, logo, 45, 150);
   let y = tituloMetal(ctx, `${f.selo} ${f.nome}`, 275, 62, 980);
@@ -524,14 +526,31 @@ export async function imagemEstatisticasFuncao(r, f, rotuloPeriodo) {
     g.convites, g.pct === null ? '—' : `${g.pct}%`, 'PRESENÇA');
   y = cy + raio + 40;
 
-  const espacoDestaques = destaques.length ? 150 : 0;
-  y = listaRanking(ctx, linhas, y, Math.min(84, (A - 170 - espacoDestaques - y) / Math.max(1, linhas.length)));
+  const espacoFora = fora ? 60 : 0;
+  y = listaRanking(ctx, linhas, y, Math.min(84, (A - 170 - espacoFora - y) / Math.max(1, linhas.length)), { semPodio: true });
+  if (fora) rotuloEspacado(ctx, `+ ${fora} ${fora === 1 ? 'EVENTO MAIS ANTIGO' : 'EVENTOS MAIS ANTIGOS'} NO TEXTO`, y + 40, 20, COR.apagado);
 
-  if (destaques.length) {
-    rotuloEspacado(ctx, '⭐ DESTAQUES', y + 46, 24, COR.ouro);
-    fonte(ctx, 28, 600);
-    ctx.fillStyle = COR.texto;
-    textoCentral(ctx, destaques.map(p => `${p.nome} ${p.pct}%`).join('  ·  '), y + 92, 38, 940);
+  rodape(ctx);
+  return canvas;
+}
+
+// As estatisticas individuais de uma funcao: o pódio de quem mais foi. Como
+// as outras imagens, sem nome de quem faltou - isso e do texto.
+export async function imagemIndividuaisFuncao(r, f, rotuloPeriodo) {
+  const { canvas, ctx, logo } = await novaTela();
+  const linhas = r.porIntegrante.filter(p => p.pct > 0).slice(0, 8).map(p => ({
+    nome: p.nome, pct: p.pct, detalhe: `${divisaoCurta(p.divisao)} · ${p.confirmados} de ${p.eventos}` }));
+
+  emblema(ctx, logo, 45, 150);
+  let y = tituloMetal(ctx, `${f.selo} ${f.nome}`, 275, 62, 980);
+  rotuloEspacado(ctx, `ESTATÍSTICAS INDIVIDUAIS  ·  ${rotuloPeriodo.toUpperCase()}`, y + 2, 22, COR.ouro);
+  y += 70;
+  if (linhas.length) {
+    listaRanking(ctx, linhas, y, Math.min(110, (A - 170 - y) / linhas.length));
+  } else {
+    fonte(ctx, 30, 600);
+    ctx.fillStyle = COR.apagado;
+    textoCentral(ctx, 'Nenhuma presença no período.', y + 120, 40, 900);
   }
 
   rodape(ctx);
