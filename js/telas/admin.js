@@ -8,7 +8,7 @@
 import { escopoPorChave, temDoacoesECaixinha } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { escapeHtml } from '../nucleo/util.js';
-import { carregarAcoesSociais, carregarCaixinha, carregarDoacoes, carregarEstoqueAdm, carregarMovimentos, loadEstatisticas, loadInsightStats, loadReportData } from '../dados/carregar.js';
+import { carregarAcoesSociais, carregarCaixinha, carregarDoacoes, carregarEstoqueAdm, carregarFuncoesEspeciais, carregarMovimentos, loadEstatisticas, loadInsightStats, loadReportData } from '../dados/carregar.js';
 import { fecharFormFinanceiro, fecharMesCaixinha } from '../fluxos/doacoes-caixinha.js';
 import { fecharPainelMovimento } from '../fluxos/movimentos.js';
 import { render } from '../nucleo/render.js';
@@ -21,6 +21,7 @@ import { renderAdminMovimentos } from './admin-movimentos.js';
 import { renderAdminEstoqueAdm } from './admin-estoque-adm.js';
 import { renderAdminAcoesSociais } from './admin-acoes-sociais.js';
 import { fecharCarteirinha } from './admin-carteirinha.js';
+import { fecharFuncoesEspeciais, podeDescartar, renderAdminFuncoesEspeciais, tituloFuncaoEspecial } from './admin-funcoes-especiais.js';
 
 // As secoes do organizador. Cada card do menu abre uma secao, e a barra de
 // abas mostra so as abas daquela secao - antes era uma barra unica com as
@@ -84,6 +85,22 @@ export const SECOES_ORGANIZADOR = {
       { chave: 'acoes-sociais-textos', label: 'Textos' },
     ],
   },
+  // Funcoes especiais, so no Regional: a entrada com os dois cards
+  // (Batedores e Caveiras) e, dentro de cada um, as tres abas. O titulo e o
+  // voltar dependem da funcao aberta.
+  funcoesEspeciais: {
+    titulo: 'Funções especiais',
+    abas: [{ chave: 'funcoes-especiais', label: 'Funções especiais' }],
+  },
+  funcaoEspecial: {
+    titulo: () => tituloFuncaoEspecial(),
+    voltar: { acao: 'voltar-funcoes-especiais', texto: '‹ Funções especiais' },
+    abas: [
+      { chave: 'funcoes-eventos', label: 'Eventos' },
+      { chave: 'funcoes-encerrados', label: 'Encerrados' },
+      { chave: 'funcoes-estatisticas', label: 'Estatísticas' },
+    ],
+  },
   estoqueAdm: {
     titulo: 'Estoque ADM',
     abas: [
@@ -110,10 +127,12 @@ function abasVisiveis(secao) {
 
 export function renderAdmin(app) {
   const secao = secaoDaAba(state.adminTab);
+  const titulo = typeof secao.titulo === 'function' ? secao.titulo() : secao.titulo;
+  const voltar = secao.voltar || { acao: 'go-menu-organizador', texto: '‹ Menu' };
   app.innerHTML = `
-    <div class="back-link on-photo no-print" data-action="go-menu-organizador">‹ Menu</div>
+    <div class="back-link on-photo no-print" data-action="${voltar.acao}">${escapeHtml(voltar.texto)}</div>
     <div class="event-header">
-      <h1 style="font-size: 20px;">${escapeHtml(secao.titulo)}</h1>
+      <h1 style="font-size: 20px;">${escapeHtml(titulo)}</h1>
       <div class="count-box">${escapeHtml(escopoPorChave(state.adminEscopo).nome.toUpperCase())}</div>
     </div>
     ${abasVisiveis(secao).length > 1 ? `
@@ -142,6 +161,8 @@ export function renderAdmin(app) {
     content.innerHTML = renderAdminEstoqueAdm();
   } else if (state.adminTab.startsWith('acoes-sociais')) {
     content.innerHTML = renderAdminAcoesSociais();
+  } else if (state.adminTab.startsWith('funcoes-') && state.adminEscopo === 'regional') {
+    content.innerHTML = renderAdminFuncoesEspeciais();
   } else {
     content.innerHTML = renderAdminMembros();
   }
@@ -197,6 +218,7 @@ export async function abrirAbaOrganizador(aba) {
   state.preencherEntradasIds = null;
   state.entradasRascunho = {};
   state.entradasMsg = null;
+  fecharFuncoesEspeciais();
   render();
   if (aba === 'encerrados') await loadReportData();
   if (aba === 'presencas') await loadEstatisticas();
@@ -208,12 +230,27 @@ export async function abrirAbaOrganizador(aba) {
   if (aba === 'movimentos' && (entrandoNaSecao || !state.movimentosDados)) await carregarMovimentos();
   if (aba.startsWith('estoque-adm') && entrandoNaSecao) await carregarEstoqueAdm();
   if (aba.startsWith('acoes-sociais') && entrandoNaSecao) await carregarAcoesSociais();
+  // Os eventos da funcao: ao entrar nela (pelo card), e nao a cada aba -
+  // Eventos, Encerrados e Estatisticas sao o mesmo dado.
+  if (aba.startsWith('funcoes-') && aba !== 'funcoes-especiais' && (entrandoNaSecao || !state.funcoesDados)) await carregarFuncoesEspeciais();
 }
 
 // A unica acao do esqueleto: trocar de aba. Todas as outras moram no arquivo
 // da secao a que pertencem, e o app.js junta os quatro mapas num so.
 export const acoes = {
   'admin-tab': async (id, target, action, e) => {
+    if (!podeDescartar()) return;
     return abrirAbaOrganizador(target.dataset.tab);
+  },
+  // Os dois cards das Funcoes especiais (Batedores e Caveiras), e a volta.
+  'abrir-funcao-especial': async (id, target, action, e) => {
+    state.funcaoEspecial = target.dataset.value;
+    state.funcoesDados = null;
+    state.funcoesPeriodo = 0;
+    return abrirAbaOrganizador('funcoes-eventos');
+  },
+  'voltar-funcoes-especiais': async (id, target, action, e) => {
+    if (!podeDescartar()) return;
+    return abrirAbaOrganizador('funcoes-especiais');
   },
 };

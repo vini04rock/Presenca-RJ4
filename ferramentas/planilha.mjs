@@ -1466,6 +1466,75 @@ log('=== carteirinha: dado pessoal, só com o PIN da divisão do integrante ==='
 }
 
 log('');
+log('=== funções especiais: Batedores e Caveiras, à parte do resto ===');
+{
+  const p = montaPlanilha([], []);
+  p.abas.Membros = novaAba('Membros', [['ID', 'Nome', 'Grau', 'Divisao', 'Funcoes', 'Cargo', 'Situacao', 'Situacao Desde', 'Entrada', 'Grau a Confirmar'],
+    ['b1', 'Costa', 'VII', 'Barra - RJ4', 'batedor', '', '', '', '', ''],
+    ['b2', 'Bull', 'IX', 'Oeste - RJ4', 'batedor,caveira', '', '', '', '', ''],
+    ['c1', 'Tigre', 'VIII', 'Recreio - RJ4', 'caveira', '', '', '', '', ''],
+    ['x1', 'Zeca', 'X', 'Barra - RJ4', '', '', '', '', '', '']]);
+  const { contexto } = carregaCodeGs(p, { PIN_REGIONAL: '0418', PIN_BARRA: '1801' });
+  const reg = { escopo: 'regional', pin: '0418' };
+  const tenta = (acao, params) => { try { return contexto.executar(acao, params); } catch (e) { return { ok: false, erro: e.message }; } };
+  const ler = (funcao) => contexto.executar('funcoesEspeciais', { ...reg, funcao }).eventos;
+
+  confere('sem PIN é recusado', tenta('funcoesEspeciais', { funcao: 'batedor' }).ok, false);
+  confere('o PIN da Barra é recusado', tenta('funcoesEspeciais', { escopo: 'barra', pin: '1801', funcao: 'batedor' }).ok, false);
+  confere('a chave-mestra dentro de uma divisão também', tenta('funcoesEspeciais', { escopo: 'barra', pin: '0418', funcao: 'batedor' }).erro,
+    'As Funcoes especiais sao exclusivas do Regional');
+  confere('função inventada é recusada', tenta('funcoesEspeciais', { ...reg, funcao: 'sargento_armas' }).erro, 'Funcao especial desconhecida');
+
+  confere('evento de Batedor não aceita quem não é Batedor',
+    tenta('funcaoEventoSalvar', { ...reg, funcao: 'batedor', nome: 'Escolta', membroIds: 'b1,c1' }).erro, 'Tigre nao tem a funcao Batedor');
+  confere('e nada foi gravado', [p.abas.FuncoesEventos.dados.length, p.abas.FuncoesPresencas.dados.length], [1, 1]);
+  confere('evento sem ninguém é recusado', tenta('funcaoEventoSalvar', { ...reg, funcao: 'batedor', nome: 'Escolta', membroIds: '' }).erro,
+    'Nenhum integrante com esta funcao para chamar');
+
+  const id = contexto.executar('funcaoEventoSalvar', { ...reg, funcao: 'batedor', nome: 'Escolta Serra', data: daquiA(-1), horario: '07:30',
+    endereco: 'Posto BR', membroIds: 'b1,b2' }).id;
+  let ev = ler('batedor')[0];
+  confere('cria com os Batedores em Aguardando, com divisão e grau',
+    [ev.nome, ev.status, ev.presencas.map(x => [x.nome, x.grau, x.divisao, x.status])],
+    ['Escolta Serra', 'ativo', [['Costa', 'VII', 'Barra - RJ4', 'aguardando'], ['Bull', 'IX', 'Oeste - RJ4', 'aguardando']]]);
+  confere('a lista dos Caveiras não vê o evento dos Batedores', ler('caveira'), []);
+  confere('e o resto do app também não', [contexto.executar('dados', {}).eventos, p.abas.Presencas.dados.length], [[], 1]);
+  confere('as abas nascem com cabeçalhos legíveis', [p.abas.FuncoesEventos.dados[0], p.abas.FuncoesPresencas.dados[0]],
+    [Array.from(contexto.CAB_FUNCOES_EVENTOS), Array.from(contexto.CAB_FUNCOES_PRESENCAS)]);
+
+  contexto.executar('funcaoPresencasSalvar', { ...reg, eventoId: id, marcacoes: JSON.stringify({ b1: 'confirmado' }) });
+  confere('marca a presença', ler('batedor')[0].presencas.map(x => x.status), ['confirmado', 'aguardando']);
+  confere('status inventado é recusado', tenta('funcaoPresencasSalvar', { ...reg, eventoId: id, marcacoes: { b1: 'sumiu' } }).erro, 'Status invalido');
+
+  contexto.executar('funcaoEventoStatus', { ...reg, id, status: 'encerrado' });
+  ev = ler('batedor')[0];
+  confere('encerrar: quem ficou Aguardando vira Não justificada', [ev.status, ev.presencas.map(x => x.status)], ['encerrado', ['confirmado', 'infracional']]);
+  confere('encerrado não aceita Aguardando', tenta('funcaoPresencasSalvar', { ...reg, eventoId: id, marcacoes: { b2: 'aguardando' } }).erro,
+    'Evento encerrado nao tem Aguardando');
+  contexto.executar('funcaoEventoStatus', { ...reg, id, status: 'ativo' });
+  confere('reabrir desfaz a falta do encerramento', ler('batedor')[0].presencas.map(x => x.status), ['confirmado', 'aguardando']);
+  contexto.executar('funcaoPresencasSalvar', { ...reg, eventoId: id, marcacoes: { b2: 'infracional' } });
+  contexto.executar('funcaoEventoStatus', { ...reg, id, status: 'encerrado' });
+  contexto.executar('funcaoEventoStatus', { ...reg, id, status: 'ativo' });
+  confere('mas a falta marcada à mão fica', ler('batedor')[0].presencas.map(x => x.status), ['confirmado', 'infracional']);
+
+  contexto.executar('funcaoEventoSalvar', { ...reg, id, nome: 'Escolta Serra II', data: daquiA(-1), membroIds: 'b2' });
+  ev = ler('batedor')[0];
+  confere('editar troca o nome e a lista, e quem fica mantém o status',
+    [ev.nome, ev.presencas.map(x => x.membroId + ':' + x.status)], ['Escolta Serra II', ['b2:infracional']]);
+
+  const idCav = contexto.executar('funcaoEventoSalvar', { ...reg, funcao: 'caveira', nome: 'Treino', data: daquiA(2), membroIds: 'b2,c1' }).id;
+  contexto.executar('membroMovimentar', { ...reg, membroId: 'c1', tipo: 'afastamento' });
+  confere('afastar tira do evento aberto da função', ler('caveira')[0].presencas.map(x => x.membroId), ['b2']);
+  contexto.executar('membroRemover', { ...reg, id: 'b2' });
+  confere('remover apaga o integrante de todos os eventos da função', [ler('batedor')[0].presencas, ler('caveira')[0].presencas], [[], []]);
+
+  confere('a Barra não apaga evento da função', tenta('funcaoEventoRemover', { escopo: 'barra', pin: '1801', id: idCav }).ok, false);
+  contexto.executar('funcaoEventoRemover', { ...reg, id: idCav });
+  confere('o Regional apaga', ler('caveira'), []);
+}
+
+log('');
 log(falhas === 0 ? 'TUDO OK' : `${falhas} FALHA(S) — veja acima`);
 fs.writeFileSync(SAIDA, linhas.join('\n'), 'utf8');
 process.exit(falhas === 0 ? 0 : 1);

@@ -33,6 +33,7 @@ const ACOES_PROTEGIDAS = [
   'acoesSociais', 'acaoSocialIdeiaSalvar', 'acaoSocialIdeiaRemover', 'acaoSocialAgendaSalvar',
   'acaoSocialAgendaRemover', 'acaoSocialTextoSalvar', 'acaoSocialTextoRemover', 'acoesSociaisImportar',
   'fichaMembro', 'fichaMembroSalvar', 'aniversarios',
+  'funcoesEspeciais', 'funcaoEventoSalvar', 'funcaoEventoStatus', 'funcaoEventoRemover', 'funcaoPresencasSalvar',
 ];
 
 // Anexa escopo+PIN quando a acao exige. Some do caminho nas demais, pra

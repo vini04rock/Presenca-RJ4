@@ -331,6 +331,26 @@ export async function carregarEstoqueAdm() {
   render();
 }
 
+// Os eventos da funcao especial aberta (Batedores ou Caveiras), so do
+// Regional. Ficam em state.funcoesDados, e nunca em state.events: e assim
+// que nada do resto do app os enxerga.
+export async function carregarFuncoesEspeciais() {
+  const funcao = state.funcaoEspecial;
+  state.funcoesCarregando = true;
+  state.funcoesErro = null;
+  render();
+  try {
+    const r = await api('funcoesEspeciais', { funcao });
+    if (state.funcaoEspecial !== funcao) return;
+    state.funcoesDados = { funcao, eventos: r.eventos || [] };
+  } catch (e) {
+    if (state.funcaoEspecial !== funcao) return;
+    state.funcoesErro = e.message;
+  }
+  state.funcoesCarregando = false;
+  render();
+}
+
 // Carrega as estatisticas (% de cada um + medias por divisao) e o historico
 // curto de rodadas juntos. As marcacoes comecam tudo zerado (ninguem fez) -
 // o administrador so marca quem fez, que costuma ser menos toque que marcar

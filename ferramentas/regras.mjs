@@ -1341,6 +1341,55 @@ log('');
   confere('meses de quatro, cinco e seis semanas', [construirGradeCalendario(2021, 1).length, construirGradeCalendario(2026, 9).length, construirGradeCalendario(2026, 7).length], [28, 35, 42]);
   st.events = anteriores;
 }
+{
+  log('=== funções especiais: só quem tem a função, e números à parte ===');
+  const { integrantesDaFuncao, contagemEvento, estatisticasFuncao, textoEventoFuncao, textoEstatisticasFuncao, divisaoCurta } =
+    await import(url('dominio/funcoes-especiais.js'));
+  const roster = [
+    { id: 'b1', nome: 'Costa', grau: 'X', divisao: 'Barra - RJ4', funcoes: ['batedor'] },
+    { id: 'b2', nome: 'Bull', grau: 'VII', divisao: 'Barra - RJ4', funcoes: ['batedor', 'caveira'] },
+    { id: 'b3', nome: 'Lobo', grau: 'IX', divisao: 'Oeste - RJ4', funcoes: ['batedor'] },
+    { id: 'b4', nome: 'Urso', grau: 'VIII', divisao: 'Recreio - RJ4', funcoes: ['batedor'], situacao: 'afastado' },
+    { id: 'c1', nome: 'Tigre', grau: 'VIII', divisao: 'Recreio - RJ4', funcoes: ['caveira'] },
+    { id: 'x1', nome: 'Zeca', grau: 'X', divisao: 'Barra - RJ4', funcoes: ['sargento_armas'] },
+  ];
+  confere('evento de Batedor: só Batedores, sem afastado, divisão na ordem oficial e hierarquia dentro',
+    nomes(integrantesDaFuncao(roster, 'batedor')), ['Lobo', 'Bull', 'Costa']);
+  confere('evento de Caveira: só Caveiras', nomes(integrantesDaFuncao(roster, 'caveira')), ['Tigre', 'Bull']);
+  confere('nome curto da divisão', ['Barra - RJ4', 'Regional RJ4', ''].map(divisaoCurta), ['Barra', 'Regional', 'Sem divisão']);
+
+  const p = (membroId, nome, divisao, status) => ({ membroId, nome, grau: 'X', divisao, status });
+  const evs = [
+    { id: 'e1', nome: 'Escolta Serra', data: '2026-09-20', horario: '07:00', endereco: 'Posto BR', status: 'encerrado',
+      presencas: [p('b1', 'Costa', 'Barra - RJ4', 'confirmado'), p('b3', 'Lobo', 'Oeste - RJ4', 'aguardando'), p('b2', 'Bull', 'Barra - RJ4', 'familia')] },
+    { id: 'e2', nome: 'Treino', data: '2026-10-10', horario: '', endereco: '', status: 'encerrado',
+      presencas: [p('b1', 'Costa', 'Barra - RJ4', 'confirmado'), p('b3', 'Lobo', 'Oeste - RJ4', 'confirmado')] },
+    { id: 'e3', nome: 'Escolta Pub', data: '2026-10-20', horario: '', endereco: '', status: 'ativo',
+      presencas: [p('b1', 'Costa', 'Barra - RJ4', 'aguardando')] },
+  ];
+  confere('encerrado: quem ficou sem marcação conta como não justificada',
+    contagemEvento(evs[0]), { confirmado: 1, familia: 1, trabalho: 0, justificada: 0, infracional: 1, aguardando: 0, total: 3, justificadas: 1, pct: 33 });
+  confere('aberto: sem marcação continua sem marcação', contagemEvento(evs[2]).aguardando, 1);
+  confere('a marcação ainda não salva entra na conta da tela', contagemEvento(evs[2], { b1: 'confirmado' }).pct, 100);
+
+  const r = estatisticasFuncao(evs, 0);
+  confere('estatísticas só contam os encerrados', [r.eventos, r.geral], [2, { convites: 5, confirmados: 3, justificadas: 1, naoJustificadas: 1, pct: 60 }]);
+  confere('por divisão, na ordem oficial (Oeste antes da Barra)', r.porDivisao.map(d => [d.divisao, d.pct]), [['Oeste - RJ4', 50], ['Barra - RJ4', 67]]);
+  confere('por integrante, do maior % pro menor', r.porIntegrante.map(x => [x.nome, x.pct, x.naoJustificadas]), [['Costa', 100, 0], ['Lobo', 50, 1], ['Bull', 0, 0]]);
+  confere('mês a mês', r.porMes.map(m => [m.mes, m.pct]), [['2026-09', 33], ['2026-10', 100]]);
+  confere('por período: só outubro', estatisticasFuncao(evs, { de: '2026-10-01', ate: '' }).eventos, 1);
+
+  const texto = textoEventoFuncao(evs[0], 'batedor').split('\n');
+  confere('texto do evento: título da função e o %', [texto[0], texto[1], texto[5]],
+    ['🛡️ *BATEDORES — RELATÓRIO DE PRESENÇA*', 'Escolta Serra', '📊 33% DE PRESENÇA (1 de 3)']);
+  confere('texto do evento: nomes com a divisão e o motivo', texto.filter(l => l.startsWith('- ')),
+    ['- Costa (Barra)', '- Bull (Barra) - Família', '- Lobo (Oeste)']);
+  confere('evento aberto sai como parcial, sem falta', textoEventoFuncao(evs[2], 'batedor').includes('RELATÓRIO PARCIAL') &&
+    textoEventoFuncao(evs[2], 'batedor').includes('⚠️ SEM MARCAÇÃO AINDA (1)'), true);
+  const textoStats = textoEstatisticasFuncao(r, 'caveira', 0);
+  confere('texto das estatísticas: cabeçalho e quem tem falta não justificada',
+    [textoStats.split('\n')[0], textoStats.split('\n').slice(-2)], ['💀 *CAVEIRAS — ESTATÍSTICAS*', ['⭕ *FALTAS NÃO JUSTIFICADAS*', '- Lobo (Oeste): 1']]);
+}
 log(falhas === 0 ? 'TUDO OK' : `${falhas} FALHA(S) — veja acima`);
 fs.writeFileSync(SAIDA, linhas.join('\n'), 'utf8');
 process.exit(falhas === 0 ? 0 : 1);

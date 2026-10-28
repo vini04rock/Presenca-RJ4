@@ -292,6 +292,24 @@ export let state = {
   estoqueAdmFiltroTipo: 'todos',
   estoqueAdmAnularId: null,
 
+  // Funcoes especiais (Batedores e Caveiras), so do Regional. A funcao
+  // aberta e os eventos dela, que nunca entram em state.events. O evento
+  // aberto (ativo: a marcacao; encerrado: o relatorio), o que foi marcado e
+  // ainda nao salvo, o formulario de evento e o periodo das estatisticas
+  // (o mesmo formato da Entrada/Saida: 0, N meses ou { de, ate }).
+  funcaoEspecial: null,
+  funcoesDados: null,
+  funcoesCarregando: false,
+  funcoesErro: null,
+  funcoesSalvando: false,
+  funcoesMsg: null,
+  funcoesForm: null,
+  funcoesAberto: null,
+  funcoesRascunho: {},
+  funcoesCorrigindo: false,
+  funcoesApagarId: null,
+  funcoesPeriodo: 0,
+
   // Secao Caixinha do organizador. Mesma ideia: os meses lancados da
   // divisao (e o controle financeiro dela, que vem junto), e o mes aberto
   // pra lancar ou corrigir.

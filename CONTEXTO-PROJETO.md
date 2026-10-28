@@ -73,7 +73,7 @@ ações, e o `app.js` junta todos os mapas.
 
 O menu organiza essas seções em três áreas, sem mudar permissões: **ADM**
 (Caixinha, Estoque ADM no Regional, Entrada/Saída e Membros), **Operacional** (Relatórios, Relatório
-individual, Insights e Eventos) e **Social** (Doações). Depois do PIN, o
+individual, Insights, Funções especiais no Regional e Eventos) e **Social** (Doações). Depois do PIN, o
 mural e os avisos continuam na raiz; tocar numa área abre apenas as
 ferramentas dela. Uma área sem nenhuma ferramenta liberada naquele escopo
 fica escondida. O PIN continua sendo um só por divisão — essa separação é
@@ -153,6 +153,8 @@ sem controlar o servidor.
 | `EstoqueADMMovimentacoes` | livro permanente de entradas, saídas e anulações do Estoque ADM; o saldo é calculado a partir dele |
 | `Caixinha` | uma linha por divisão × mês × integrante que devia pagar, com Sim/Não e o **valor** pago |
 | `CaixinhaFinanceiro` | o controle financeiro da caixinha: uma linha por entrada ou saída lançada, e o saldo inicial de cada divisão |
+| `FuncoesEventos` | os eventos das Funções especiais (Batedores e Caveiras): id, função, nome, data, horário, endereço, status |
+| `FuncoesPresencas` | uma linha por evento de função × integrante, com o retrato de nome, grau e divisão, o status e se a falta veio do encerramento |
 
 **Abas geradas do zero** a cada "Gerar relatório na planilha" (botão que só
 aparece dentro do organizador Regional). Editar nelas não tem efeito:
@@ -863,6 +865,54 @@ Telas em `telas/admin-acoes-sociais.js`; regras e textos em
 - Na planilha: `AcoesSociaisIdeias`, `AcoesSociaisAgenda` (o mês como
   texto `yyyy-mm`) e `AcoesSociaisTextos`. Nascem sozinhas.
 
+## Funções especiais (Batedores e Caveiras)
+
+Card **🛡️ Funções especiais** em Regional → Operacional, criado em
+28/10/2026. Abre dois cards, **🛡️ Batedores** e **💀 Caveiras**, e cada um
+tem três abas: **Eventos** (criar e marcar a presença), **Encerrados** (o
+relatório de cada evento) e **Estatísticas**. Tela em
+`telas/admin-funcoes-especiais.js`; contas e textos em
+`dominio/funcoes-especiais.js`.
+
+- **Totalmente à parte do resto do app** (decisão do clube). Os eventos
+  ficam em abas próprias da planilha (`FuncoesEventos` e
+  `FuncoesPresencas`) e no state em `funcoesDados`, **nunca** em
+  `state.events`. Por isso não aparecem no calendário, na tela inicial, no
+  mural, nas obrigatoriedades, nos ranks, no % do clube nem no Relatório
+  individual, e o encerramento automático de madrugada não os toca. Nenhum
+  dos mais de 40 lugares que leem `state.events` precisou de filtro.
+- **Evento de Batedor só tem Batedor, e de Caveira só Caveira:** a lista
+  nasce com quem tem a função no cadastro de Membros (afastados de fora),
+  por divisão na ordem oficial, e dá para desmarcar alguém. O `Code.gs`
+  confere de novo e recusa quem não tem a função
+  (`ajustarChamadosDaFuncao`). Quem já está num evento e perdeu a função
+  depois continua nele.
+- **O evento é só nome, data, horário e endereço** — sem tipo (Pub, Ação,
+  Reunião) e sem chamada.
+- **O organizador marca a presença** (como no Insight; não há link
+  público), com os status do clube: ✅ Presente (o Confirmado), ❌ Família,
+  ❌ Trabalho, ❌ Justificada e ⭕ Não justificada. A marcação fica na tela
+  até o 💾 Salvar marcação, e trocar de evento ou de aba pergunta antes de
+  perder.
+- **Encerrar é sempre manual.** Quem ficou sem marcação vira ⭕ Não
+  justificada, a mesma regra do clube; a planilha marca essas linhas
+  ("Pelo Encerramento"), e o **Reabrir devolve só elas** para sem
+  marcação. A falta marcada à mão continua.
+- **Saídas:** cada evento tem o 📊 Gerar relatório (📋 WhatsApp, 📄 PDF e
+  🖼️ Imagem, a mesma do resultado de evento, com "🛡️ Batedores" no lugar
+  da divisão). As Estatísticas contam só os encerrados, no período de 3,
+  6 ou 12 meses, tudo ou de uma data a outra: o % geral com a rosca, mês a
+  mês, cada divisão e cada integrante (com pódio), e saem em WhatsApp, PDF
+  e imagem. A imagem não leva o nome de quem faltou; o texto leva as faltas
+  não justificadas, que é o que se cobra.
+- **Só o Regional:** as ações (`funcoesEspeciais`, `funcaoEventoSalvar`,
+  `funcaoEventoStatus`, `funcaoEventoRemover`, `funcaoPresencasSalvar`)
+  pedem o PIN do Regional e também `escopo=regional`, como o Estoque ADM —
+  a chave-mestra digitada dentro de uma divisão não abre.
+- **Quem sai sai junto:** afastamento, desligamento e transferência para
+  fora da RJ4 tiram o integrante dos eventos de função **abertos**; o
+  histórico dos encerrados fica. O Remover apaga dele tudo, inclusive aqui.
+
 ## Estoque ADM do Regional
 
 O card **Estoque ADM** aparece somente em Regional → ADM. A seção tem três
@@ -1022,7 +1072,7 @@ a cada mudança:
 | `servidor.py` | serve o app local com o cache desligado |
 | `estrutura.py` | 7 verificações: imports circulares, hierarquia de camadas, sintaxe, nome sem import, import sobrando, ações sem tratador |
 | `regras.mjs` | as regras do clube que, se quebrarem, saem erradas numa convocação sem ninguém perceber |
-| `telas.mjs` | desenha as 202 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
+| `telas.mjs` | desenha as 244 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
 | `planilha.mjs` | roda o `Code.gs` de verdade contra uma planilha de mentira: encerramento automático, PIN, relatório individual, responsável, textos, chamada do evento, doações, caixinha e entrada/saída |
 
 O `--html` do `telas.mjs` é a rede de proteção mais útil: captura o HTML de
@@ -1160,7 +1210,7 @@ ferramentas, acima):
 
     py ferramentas/estrutura.py     # imports, camadas, sintaxe, ações
     node ferramentas/regras.mjs     # ordem hierárquica e formato da convocação
-    node ferramentas/telas.mjs      # desenha as 202 telas e abas
+    node ferramentas/telas.mjs      # desenha as 244 telas e abas
     node ferramentas/planilha.mjs   # o encerramento automático, no Code.gs
 
 Eles dizem que o app **não quebrou**, não que está bonito: não cobrem
@@ -1168,7 +1218,8 @@ aparência, impressão/PDF, o caminho de rede real nem o resto do `Code.gs` —
 o `planilha.mjs` só alcança o encerramento automático, a guarda de PIN, o
 relatório individual, o responsável, os textos da chamada, a chamada
 guardada no evento, as doações, a caixinha (com os valores e o controle
-financeiro), o Estoque ADM e a entrada/saída de integrantes.
+financeiro), o Estoque ADM, a entrada/saída de integrantes, a carteirinha e
+as Funções especiais.
 
 Se a mudança mexeu no `Code.gs`, ele precisa ser **republicado à parte** no
 Apps Script — não vai junto no `git push`. Confira depois chamando a URL do

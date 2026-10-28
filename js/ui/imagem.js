@@ -258,8 +258,10 @@ export async function imagemResultadoEvento(ev, contagem) {
 
   fonte(ctx, 30, 600);
   ctx.fillStyle = COR.apagado;
+  // `origem` troca a divisao pelo nome da funcao nos eventos de Batedor e
+  // Caveira, que nao tem divisao nem tipo.
   const meta = [ev.tipo ? `${emojiTipoEvento(ev.tipo)} ${ev.tipo}` : '', [diaDaSemana(ev.data), ev.data ? formatDataBR(ev.data) : ''].filter(Boolean).join(', '),
-    escopoPorChave(ev.categoria).nome].filter(Boolean).join('  ·  ');
+    ev.origem || escopoPorChave(ev.categoria).nome].filter(Boolean).join('  ·  ');
   y = textoCentral(ctx, meta, y + 6, 40, 960);
 
   // A rosca: as tres fatias na ordem do app (confirmado, justificada, nao
@@ -404,6 +406,42 @@ export async function imagemRelatorioInsight(d, rotuloPeriodo) {
     fonte(ctx, 28, 600);
     ctx.fillStyle = COR.texto;
     textoCentral(ctx, destaques.map(m => `${m.nome} ${m.percentual}%`).join('  ·  '), y + 92, 38, 940);
+  }
+
+  rodape(ctx);
+  return canvas;
+}
+
+// ---------------------------------------------------------------------------
+// As estatisticas de uma funcao especial (Batedores ou Caveiras) no
+// periodo: a presenca geral, as divisoes e os destaques. Como as outras,
+// sem nome de quem faltou - isso e do texto. `r` e o estatisticasFuncao.
+export async function imagemEstatisticasFuncao(r, f, rotuloPeriodo) {
+  const { canvas, ctx, logo } = await novaTela();
+  const g = r.geral;
+  const linhas = r.porDivisao.map(d => ({ nome: d.divisao, pct: d.pct, detalhe: `${d.confirmados} de ${d.convites}` }))
+    .sort((a, b) => (b.pct ?? -1) - (a.pct ?? -1));
+  const destaques = r.porIntegrante.filter(p => p.pct > 0).slice(0, 5);
+
+  emblema(ctx, logo, 45, 150);
+  let y = tituloMetal(ctx, `${f.selo} ${f.nome}`, 275, 62, 980);
+  const eventosTexto = `${r.eventos} ${r.eventos === 1 ? 'EVENTO' : 'EVENTOS'}`;
+  rotuloEspacado(ctx, `${rotuloPeriodo.toUpperCase()}  ·  ${eventosTexto}`, y + 2, 22, COR.ouro);
+
+  const raio = 105;
+  const cy = y + 50 + raio;
+  rosca(ctx, L / 2, cy, raio, [[g.confirmados, COR.confirmado], [g.justificadas, COR.justificada], [g.naoJustificadas, COR.infracional]],
+    g.convites, g.pct === null ? '—' : `${g.pct}%`, 'PRESENÇA');
+  y = cy + raio + 40;
+
+  const espacoDestaques = destaques.length ? 150 : 0;
+  y = listaRanking(ctx, linhas, y, Math.min(84, (A - 170 - espacoDestaques - y) / Math.max(1, linhas.length)));
+
+  if (destaques.length) {
+    rotuloEspacado(ctx, '⭐ DESTAQUES', y + 46, 24, COR.ouro);
+    fonte(ctx, 28, 600);
+    ctx.fillStyle = COR.texto;
+    textoCentral(ctx, destaques.map(p => `${p.nome} ${p.pct}%`).join('  ·  '), y + 92, 38, 940);
   }
 
   rodape(ctx);

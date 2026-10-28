@@ -732,6 +732,35 @@ add('carteirinha / carregando',             { ...cart, carteirinhaCarregando: tr
 add('carteirinha / erro',                   { ...cart, carteirinhaErro: 'Sem permissao para os dados desta divisao' }, T.renderAdmin);
 add('ações sociais / erro',                 { ...asoc, acoesSociaisErro:'Falha de conexão' }, T.renderAdmin);
 
+// Funcoes especiais (Batedores e Caveiras), so no Regional.
+const pf = (membroId, nome, grau, divisao, status) => ({ membroId, nome, grau, divisao, status });
+const funcoesEventos = [
+  { id:'fe1', nome:'Escolta Bonde Serra', data:'2026-09-20', horario:'07:00', endereco:'Posto BR', status:'encerrado',
+    presencas:[pf('m2','Bull','VIII','Barra - RJ4','confirmado'), pf('m7','Lobo','IX','Oeste - RJ4','familia'), pf('m8','Urso','X','Recreio - RJ4','infracional')] },
+  { id:'fe2', nome:'Treino de comboio', data:'2026-10-11', horario:'', endereco:'', status:'encerrado',
+    presencas:[pf('m2','Bull','VIII','Barra - RJ4','confirmado'), pf('m7','Lobo','IX','Oeste - RJ4','confirmado')] },
+  { id:'fe3', nome:'Escolta Pub Regional', data:'2026-11-07', horario:'20:00', endereco:'Bandas Bar', status:'ativo',
+    presencas:[pf('m2','Bull','VIII','Barra - RJ4','aguardando'), pf('m7','Lobo','IX','Oeste - RJ4','confirmado')] },
+];
+const func = { isAdmin:true, adminEscopo:'regional', funcaoEspecial:'batedor', funcoesDados:{ funcao:'batedor', eventos:funcoesEventos } };
+add('funções especiais / entrada',               { ...func, adminTab:'funcoes-especiais' }, T.renderAdmin);
+add('funções especiais / eventos',               { ...func, adminTab:'funcoes-eventos' }, T.renderAdmin);
+add('funções especiais / marcando',              { ...func, adminTab:'funcoes-eventos', funcoesAberto:'fe3', funcoesRascunho:{ m2:'trabalho' } }, T.renderAdmin);
+add('funções especiais / novo evento',           { ...func, adminTab:'funcoes-eventos',
+  funcoesForm:{ id:'', nome:'', data:'', horario:'', endereco:'', membroIds:new Set(['m2']) } }, T.renderAdmin);
+add('funções especiais / editar evento',         { ...func, adminTab:'funcoes-eventos',
+  funcoesForm:{ id:'fe3', nome:'Escolta Pub Regional', data:'07/11/2026', horario:'20:00', endereco:'Bandas Bar', membroIds:new Set(['m2','m7']) } }, T.renderAdmin);
+add('funções especiais / encerrados',            { ...func, adminTab:'funcoes-encerrados' }, T.renderAdmin);
+add('funções especiais / relatório do evento',   { ...func, adminTab:'funcoes-encerrados', funcoesAberto:'fe1', gerarRelatorioAberto:'funcao:fe1' }, T.renderAdmin);
+add('funções especiais / corrigir encerrado',    { ...func, adminTab:'funcoes-encerrados', funcoesAberto:'fe1', funcoesCorrigindo:true }, T.renderAdmin);
+add('funções especiais / excluir',               { ...func, adminTab:'funcoes-encerrados', funcoesApagarId:'fe2' }, T.renderAdmin);
+add('funções especiais / estatísticas',          { ...func, adminTab:'funcoes-estatisticas' }, T.renderAdmin);
+add('funções especiais / estatísticas período',  { ...func, adminTab:'funcoes-estatisticas', funcoesPeriodo:{ de:'2026-10-01', ate:'' } }, T.renderAdmin);
+add('funções especiais / caveiras vazio',        { ...func, funcaoEspecial:'caveira', funcoesDados:{ funcao:'caveira', eventos:[] }, adminTab:'funcoes-eventos' }, T.renderAdmin);
+add('funções especiais / estatísticas vazio',    { ...func, funcaoEspecial:'caveira', funcoesDados:{ funcao:'caveira', eventos:[] }, adminTab:'funcoes-estatisticas' }, T.renderAdmin);
+add('funções especiais / carregando',            { ...func, funcoesDados:null, funcoesCarregando:true, adminTab:'funcoes-eventos' }, T.renderAdmin);
+add('funções especiais / erro',                  { ...func, funcoesErro:'Falha de conexão', adminTab:'funcoes-eventos' }, T.renderAdmin);
+
 const LIMPO = {
   // A lista de eventos volta ao padrao entre um caso e outro: o card de
   // "proximo evento" depende dela, e um caso que a troca nao pode vazar
@@ -782,6 +811,9 @@ const LIMPO = {
   acoesSociaisAno:null, acaoSocialMesAberto:null, acaoSocialAgendaForm:null, acaoSocialCriarEventoId:null, acoesSociaisLegenda:false, acaoSocialTextoForm:null, acaoSocialRascunhoConfirmar:false,
   carteirinhaMembroId:null, carteirinhaFicha:null, carteirinhaPct:null, carteirinhaCarregando:false, carteirinhaErro:null,
   carteirinhaForm:null, carteirinhaSalvando:false, carteirinhaMsg:null, carteirinhaFotoProcessando:false, aniversarios:null, aniversariosEscopo:null,
+  funcaoEspecial:null, funcoesDados:null, funcoesCarregando:false, funcoesErro:null, funcoesSalvando:false, funcoesMsg:null,
+  funcoesForm:null, funcoesAberto:null, funcoesRascunho:{}, funcoesCorrigindo:false, funcoesApagarId:null, funcoesPeriodo:0,
+  gerarRelatorioAberto:null,
 };
 log('');
 log('=== 2. desenhar cada tela e aba ===');

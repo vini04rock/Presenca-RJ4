@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-10-21-d-carteirinha';
+var VERSAO = '2026-10-28-a-funcoes-especiais';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -48,6 +48,8 @@ var ABA_ACOES_SOCIAIS_IDEIAS = 'AcoesSociaisIdeias';
 var ABA_ACOES_SOCIAIS_AGENDA = 'AcoesSociaisAgenda';
 var ABA_ACOES_SOCIAIS_TEXTOS = 'AcoesSociaisTextos';
 var ABA_FICHAS = 'MembrosFicha';
+var ABA_FUNCOES_EVENTOS = 'FuncoesEventos';
+var ABA_FUNCOES_PRESENCAS = 'FuncoesPresencas';
 
 // "Cargo" so faz sentido nos graus VI e V (ver CARGOS no js/nucleo/config.js):
 // sao os graus em que varios integrantes dividem o mesmo grau ocupando
@@ -194,6 +196,22 @@ var CAB_FICHAS = ['ID Membro', 'Telefone', 'Emergencia Nome', 'Emergencia Parent
   'Nascimento', 'Tipo Sanguineo', 'Saude', 'Foto', 'Atualizado em'];
 var TIPOS_SANGUINEOS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 var FOTO_MAX = 48000;
+// As Funcoes especiais (28/10/2026): os eventos so dos Batedores e so dos
+// Caveiras, registrados pelo Regional. Ficam em abas PROPRIAS, que nada do
+// resto do app le - nem calendario, nem mural, nem %, nem o encerramento
+// automatico. E isso que garante que as estatisticas delas nao se misturam
+// com as do clube. A presenca e marcada pelo organizador (como no Insight),
+// com os mesmos status da confirmacao.
+//
+// So entra num evento de Batedor quem tem a funcao Batedor no cadastro (e o
+// mesmo com Caveira) - conferido aqui, nao so na tela. "Membro", "Grau" e
+// "Divisao" sao um retrato de quando entrou, igual em Presencas.
+// "Pelo Encerramento" = 'Sim' em quem virou Nao justificada ao encerrar: so
+// esses o Reabrir devolve pra Aguardando, porque aqui o organizador tambem
+// marca Nao justificada na mao.
+var CAB_FUNCOES_EVENTOS = ['ID', 'Funcao', 'Nome', 'Data', 'Horario', 'Endereco', 'Status', 'Criado em'];
+var CAB_FUNCOES_PRESENCAS = ['ID Evento', 'ID Membro', 'Membro', 'Grau', 'Divisao', 'Status', 'Pelo Encerramento', 'Atualizado em'];
+var FUNCOES_ESPECIAIS = ['batedor', 'caveira'];
 
 // Na planilha fica o rotulo legivel; o app continua falando em chaves.
 var STATUS_ROTULO = {
@@ -296,7 +314,9 @@ var ACOES_PROTEGIDAS = [
   'acoesSociais', 'acaoSocialIdeiaSalvar', 'acaoSocialIdeiaRemover', 'acaoSocialAgendaSalvar',
   'acaoSocialAgendaRemover', 'acaoSocialTextoSalvar', 'acaoSocialTextoRemover', 'acoesSociaisImportar',
   // A carteirinha: dado pessoal, ate pra ler. E os aniversarios do mural.
-  'fichaMembro', 'fichaMembroSalvar', 'aniversarios'
+  'fichaMembro', 'fichaMembroSalvar', 'aniversarios',
+  // As Funcoes especiais (Batedores e Caveiras): so do Regional, ate pra ler.
+  'funcoesEspeciais', 'funcaoEventoSalvar', 'funcaoEventoStatus', 'funcaoEventoRemover', 'funcaoPresencasSalvar'
 ];
 
 function executar(action, p) {
@@ -388,6 +408,11 @@ function executar(action, p) {
   if (action === 'fichaMembroSalvar') return comTrava(function () { return salvarFichaMembro(p); });
   if (action === 'aniversarios') return lerAniversarios(String(p.divisao || ''), String(p.pin || ''));
   if (action === 'acaoSocialTextoRemover') return comTrava(function () { return removerLinhaAcaoSocial(ABA_ACOES_SOCIAIS_TEXTOS, CAB_ACOES_SOCIAIS_TEXTOS, p); });
+  if (action === 'funcoesEspeciais') return lerFuncoesEspeciais(p);
+  if (action === 'funcaoEventoSalvar') return comTrava(function () { return salvarEventoFuncao(p); });
+  if (action === 'funcaoEventoStatus') return comTrava(function () { return mudarStatusEventoFuncao(p); });
+  if (action === 'funcaoEventoRemover') return comTrava(function () { return removerEventoFuncao(p); });
+  if (action === 'funcaoPresencasSalvar') return comTrava(function () { return salvarPresencasFuncao(p); });
   throw new Error('Acao desconhecida: ' + action);
 }
 
@@ -407,7 +432,8 @@ function executar(action, p) {
 // O PIN do Regional continua sendo chave-mestra: passa em todas. Devolve
 // null (pode seguir) ou a recusa.
 var ACOES_SO_DO_REGIONAL = ['insightSalvar', 'insightRodadaAjustar', 'insightRodadaRemover',
-  'insightMembroRemover', 'insightMembroReincluir', 'relatorio'];
+  'insightMembroRemover', 'insightMembroReincluir', 'relatorio',
+  'funcoesEspeciais', 'funcaoEventoSalvar', 'funcaoEventoStatus', 'funcaoEventoRemover', 'funcaoPresencasSalvar'];
 
 function guardaDaDivisao(action, p) {
   var pin = String(p.pin || '');
@@ -1252,7 +1278,8 @@ function organizarAbas() {
     .concat([ABA_INSIGHT_RESUMO, 'Relatorio', 'Membros', 'Eventos', 'Presencas',
              ABA_INSIGHT_RODADAS, ABA_INSIGHT_PRESENCAS, ABA_INSIGHT_EXCLUIDOS,
              ABA_DOACOES, ABA_ESTOQUE_DOACOES_MOV, ABA_ESTOQUE_DOACOES_ITENS, ABA_CAIXINHA, ABA_CAIXINHA_FINANCEIRO, ABA_MOVIMENTOS,
-             ABA_ACOES_SOCIAIS_AGENDA, ABA_ACOES_SOCIAIS_IDEIAS, ABA_ACOES_SOCIAIS_TEXTOS, ABA_FICHAS, 'KV']);
+             ABA_ACOES_SOCIAIS_AGENDA, ABA_ACOES_SOCIAIS_IDEIAS, ABA_ACOES_SOCIAIS_TEXTOS, ABA_FICHAS,
+             ABA_FUNCOES_EVENTOS, ABA_FUNCOES_PRESENCAS, 'KV']);
   ordem.forEach(function (nome, i) {
     var s = ss.getSheetByName(nome);
     if (!s) return;
@@ -1499,7 +1526,7 @@ function removerMembro(id) {
   // [aba, coluna do ID do membro]. So nas abas que existem - remover nao
   // cria aba nenhuma.
   [[ABA_MOVIMENTOS, 3], [ABA_DOACOES, 3], [ABA_CAIXINHA, 2],
-   [ABA_INSIGHT_PRESENCAS, 1], [ABA_INSIGHT_EXCLUIDOS, 0], [ABA_FICHAS, 0]].forEach(function (par) {
+   [ABA_INSIGHT_PRESENCAS, 1], [ABA_INSIGHT_EXCLUIDOS, 0], [ABA_FICHAS, 0], [ABA_FUNCOES_PRESENCAS, 1]].forEach(function (par) {
     var s = planilha().getSheetByName(par[0]);
     if (s) apagarLinhas(s, function (l) { return String(l[par[1]]) === mid; });
   });
@@ -2574,6 +2601,159 @@ function anularMovimentoEstoqueAdm(p) {
   return dadosEstoqueAdm();
 }
 
+// ---------- FUNCOES ESPECIAIS (BATEDORES E CAVEIRAS) ----------
+
+// Como o Estoque ADM: a guarda geral ja exigiu o PIN do Regional (ver
+// ACOES_SO_DO_REGIONAL), e aqui o escopo tambem tem que ser o Regional - o
+// recurso nao existe dentro das divisoes.
+function exigirRegionalFuncoes(p) {
+  if (String((p && p.escopo) || '') !== 'regional') throw new Error('As Funcoes especiais sao exclusivas do Regional');
+}
+
+function funcaoEspecialValida(v) {
+  var f = String(v || '');
+  if (FUNCOES_ESPECIAIS.indexOf(f) === -1) throw new Error('Funcao especial desconhecida');
+  return f;
+}
+
+// Os eventos de uma funcao, cada um com a lista de quem foi chamado e o
+// status de cada um. A conta das estatisticas e feita no app
+// (js/dominio/funcoes-especiais.js), que e quem sabe o periodo escolhido.
+function lerFuncoesEspeciais(p) {
+  exigirRegionalFuncoes(p);
+  var funcao = funcaoEspecialValida(p.funcao);
+  var porEvento = {};
+  linhas(aba(ABA_FUNCOES_PRESENCAS, CAB_FUNCOES_PRESENCAS)).forEach(function (l) {
+    if (!l[0] || !l[1]) return;
+    (porEvento[String(l[0])] = porEvento[String(l[0])] || []).push({
+      membroId: String(l[1]), nome: String(l[2] || ''), grau: String(l[3] || ''), divisao: String(l[4] || ''),
+      status: statusParaChave(l[5])
+    });
+  });
+  var eventos = linhas(aba(ABA_FUNCOES_EVENTOS, CAB_FUNCOES_EVENTOS))
+    .filter(function (l) { return l[0] && String(l[1]) === funcao; })
+    .map(function (l) {
+      return {
+        id: String(l[0]), nome: String(l[2] || ''), data: formatarData(l[3]), horario: formatarHorario(l[4]),
+        endereco: String(l[5] || ''), status: String(l[6]) === 'encerrado' ? 'encerrado' : 'ativo',
+        presencas: porEvento[String(l[0])] || []
+      };
+    });
+  return { ok: true, funcao: funcao, eventos: eventos };
+}
+
+function eventoDaFuncao(p) {
+  var s = aba(ABA_FUNCOES_EVENTOS, CAB_FUNCOES_EVENTOS);
+  var id = String(p.id || p.eventoId || '');
+  var achado = id ? acharLinha(s, function (l) { return String(l[0]) === id; }) : null;
+  if (!achado) throw new Error('Evento nao encontrado');
+  return { s: s, achado: achado, id: id, funcao: String(achado.valores[1]), encerrado: String(achado.valores[6]) === 'encerrado' };
+}
+
+// Novo (sem id) ou corrigido (com id). A funcao de um evento nao muda.
+// membroIds, quando vem, e a lista inteira de quem participa: quem entra
+// nasce Aguardando, quem sai perde a linha, e quem fica nao muda.
+function salvarEventoFuncao(p) {
+  exigirRegionalFuncoes(p);
+  var nome = linhaCurta(p.nome, 120);
+  if (!nome) throw new Error('Escreva o nome do evento');
+  var data = String(p.data || '');
+  if (data && !dataISOValidaEstoqueAdm(data)) throw new Error('Data invalida');
+  var horario = String(p.horario || '');
+  if (horario && !/^([01]\d|2[0-3]):[0-5]\d$/.test(horario)) throw new Error('Horario invalido');
+  var endereco = linhaCurta(p.endereco, 200);
+
+  var s = aba(ABA_FUNCOES_EVENTOS, CAB_FUNCOES_EVENTOS);
+  var id, funcao, indice, status, criadoEm;
+  if (p.id) {
+    var ev = eventoDaFuncao(p);
+    id = ev.id; funcao = ev.funcao; indice = ev.achado.indice;
+    status = ev.encerrado ? 'encerrado' : 'ativo'; criadoEm = String(ev.achado.valores[7] || '');
+  } else {
+    funcao = funcaoEspecialValida(p.funcao);
+    id = novoId(); indice = s.getLastRow() + 1; status = 'ativo'; criadoEm = agora();
+  }
+  // A lista primeiro: se alguem nao tem a funcao, nada e gravado.
+  if (p.membroIds !== undefined) ajustarChamadosDaFuncao(id, funcao, listaDe(p.membroIds), !p.id);
+  gravarLinhaComoTexto(s, indice, [id, funcao, nome, data, horario, endereco, status, criadoEm]);
+  return { ok: true, id: id };
+}
+
+function ajustarChamadosDaFuncao(eventoId, funcao, membroIds, novo) {
+  if (novo && !membroIds.length) throw new Error('Nenhum integrante com esta funcao para chamar');
+  var sp = aba(ABA_FUNCOES_PRESENCAS, CAB_FUNCOES_PRESENCAS);
+  var atuais = {};
+  linhas(sp).forEach(function (l) { if (String(l[0]) === eventoId) atuais[String(l[1])] = true; });
+  var cadastro = {};
+  lerMembros().forEach(function (m) { cadastro[m.id] = m; });
+  var querido = {};
+  var novas = [];
+  membroIds.forEach(function (mid) {
+    querido[mid] = true;
+    if (atuais[mid]) return;
+    var m = cadastro[mid];
+    // A regra que o clube pediu: evento de Batedor so tem Batedor, e de
+    // Caveira so Caveira.
+    if (!m || m.funcoes.indexOf(funcao) === -1) {
+      throw new Error((m ? m.nome : 'Integrante') + ' nao tem a funcao ' + (funcao === 'batedor' ? 'Batedor' : 'Caveira'));
+    }
+    novas.push([eventoId, mid, m.nome, m.grau, m.divisao, STATUS_ROTULO.aguardando, '', agora()]);
+  });
+  apagarLinhas(sp, function (l) { return String(l[0]) === eventoId && !querido[String(l[1])]; });
+  if (novas.length) {
+    var range = sp.getRange(sp.getLastRow() + 1, 1, novas.length, CAB_FUNCOES_PRESENCAS.length);
+    range.setNumberFormat('@');
+    range.setValues(novas);
+  }
+}
+
+// marcacoes = { idMembro: 'confirmado' | 'familia' | ... }. So mexe em quem
+// ja esta no evento. Num evento encerrado nao ha mais "Aguardando".
+function salvarPresencasFuncao(p) {
+  exigirRegionalFuncoes(p);
+  var ev = eventoDaFuncao(p);
+  var marcacoes = typeof p.marcacoes === 'object' && p.marcacoes ? p.marcacoes : parseOuVazio(p.marcacoes, {});
+  Object.keys(marcacoes).forEach(function (mid) {
+    var st = String(marcacoes[mid]);
+    if (!STATUS_ROTULO.hasOwnProperty(st)) throw new Error('Status invalido');
+    if (ev.encerrado && st === 'aguardando') throw new Error('Evento encerrado nao tem Aguardando');
+  });
+  var sp = aba(ABA_FUNCOES_PRESENCAS, CAB_FUNCOES_PRESENCAS);
+  linhas(sp).forEach(function (l, i) {
+    var st = marcacoes[String(l[1])];
+    if (String(l[0]) !== ev.id || st === undefined) return;
+    sp.getRange(i + 2, 6, 1, 3).setValues([[STATUS_ROTULO[String(st)], '', agora()]]);
+  });
+  return { ok: true };
+}
+
+// Encerrar: quem ficou Aguardando vira Nao justificada (a regra do clube),
+// marcado como "pelo encerramento". Reabrir devolve so esses.
+function mudarStatusEventoFuncao(p) {
+  exigirRegionalFuncoes(p);
+  var ev = eventoDaFuncao(p);
+  var encerrar = String(p.status) === 'encerrado';
+  ev.s.getRange(ev.achado.indice, 7).setValue(encerrar ? 'encerrado' : 'ativo');
+  var sp = aba(ABA_FUNCOES_PRESENCAS, CAB_FUNCOES_PRESENCAS);
+  linhas(sp).forEach(function (l, i) {
+    if (String(l[0]) !== ev.id) return;
+    if (encerrar && String(l[5]) === STATUS_ROTULO.aguardando) {
+      sp.getRange(i + 2, 6, 1, 3).setValues([[STATUS_ROTULO.infracional, 'Sim', agora()]]);
+    } else if (!encerrar && ehSim(l[6])) {
+      sp.getRange(i + 2, 6, 1, 3).setValues([[STATUS_ROTULO.aguardando, '', agora()]]);
+    }
+  });
+  return { ok: true };
+}
+
+function removerEventoFuncao(p) {
+  exigirRegionalFuncoes(p);
+  var ev = eventoDaFuncao(p);
+  ev.s.deleteRow(ev.achado.indice);
+  apagarLinhas(aba(ABA_FUNCOES_PRESENCAS, CAB_FUNCOES_PRESENCAS), function (l) { return String(l[0]) === ev.id; });
+  return { ok: true };
+}
+
 // Grava as doacoes de UM evento de uma vez: kgs = { idMembro: kg }. Quem
 // nao esta na lista (ou esta com 0) fica sem linha - e assim que se desmarca.
 // Trocar tudo do evento, em vez de linha a linha, deixa o "salvar" do app
@@ -2859,7 +3039,21 @@ function tirarDosEventosAbertos(membroId, soCategoria) {
     if (sai) tirados++;
     return sai;
   });
+  // Os eventos de Batedor e Caveira sao da RJ4 inteira: so sai deles quem
+  // sai de todos (afastamento, desligamento, transferencia pra fora). Nao
+  // entram na conta de "tirados", que fala dos eventos do clube.
+  if (!soCategoria) tirarDosEventosDeFuncaoAbertos(membroId);
   return tirados;
+}
+
+// So nas abas que existem - sair de um evento nao cria aba nenhuma.
+function tirarDosEventosDeFuncaoAbertos(membroId) {
+  var se = planilha().getSheetByName(ABA_FUNCOES_EVENTOS);
+  var sp = planilha().getSheetByName(ABA_FUNCOES_PRESENCAS);
+  if (!se || !sp) return;
+  var abertos = {};
+  linhas(se).forEach(function (l) { if (l[0] && String(l[6]) !== 'encerrado') abertos[String(l[0])] = true; });
+  apagarLinhas(sp, function (l) { return String(l[1]) === String(membroId) && abertos[String(l[0])]; });
 }
 
 // tipo: 'afastamento' | 'retorno' | 'desligamento'. A divisao e a do

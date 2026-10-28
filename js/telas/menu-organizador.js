@@ -36,6 +36,10 @@ const SECOES = [
   // Regional escolhe a divisao antes do nome.
   { area: 'operacional', acao: 'abrir-relatorio-individual', nome: 'Relatório individual', desc: 'Presença e Insight de cada integrante', icone: '📄', cor: '#D4A24C' },
   // Insight e rodada do Regional - nao existe no nivel da divisao.
+  // Batedores e Caveiras, cada um com os proprios eventos e numeros - so
+  // no Regional, e a parte de todo o resto (ver admin-funcoes-especiais.js).
+  { area: 'operacional', aba: 'funcoes-especiais', nome: 'Funções especiais', desc: 'Batedores e Caveiras: eventos, relatórios e estatísticas', icone: '🛡️', cor: '#5FA0C4',
+    visivel: () => state.adminEscopo === 'regional' },
   { area: 'operacional', aba: 'insights', nome: 'Insights', desc: 'Rodadas de Insight', icone: '💡', cor: '#B57EDC', visivel: () => state.adminEscopo === 'regional' },
   // Doacoes e Caixinha so nas divisoes liberadas - decisao que mora em
   // temDoacoesECaixinha(), pra replicar pras outras num lugar so.
@@ -68,14 +72,19 @@ const AREAS = [
 ];
 const ORDEM_POR_AREA = {
   adm: ['caixinha', 'estoque-adm-movimentar', 'movimentos', 'membros'],
-  operacional: ['abrir-relatorios-organizador', 'abrir-relatorio-individual', 'insights', 'eventos'],
+  operacional: ['abrir-relatorios-organizador', 'abrir-relatorio-individual', 'insights', 'funcoes-especiais', 'eventos'],
   social: ['doacoes', 'acoes-sociais'],
+};
+// O Regional tem a propria ordem no Operacional (pedido do clube,
+// 28/10/2026): Eventos no topo. As divisoes seguem com a de cima.
+const ORDEM_POR_AREA_REGIONAL = {
+  operacional: ['eventos', 'funcoes-especiais', 'insights', 'abrir-relatorios-organizador', 'abrir-relatorio-individual'],
 };
 
 function secoesVisiveis(area) {
   const lista = SECOES.filter(s => (!area || s.area === area) && (!s.visivel || s.visivel()));
   if (!area) return lista;
-  const ordem = ORDEM_POR_AREA[area] || [];
+  const ordem = (state.adminEscopo === 'regional' && ORDEM_POR_AREA_REGIONAL[area]) || ORDEM_POR_AREA[area] || [];
   return lista.sort((a, b) => ordem.indexOf(a.acao || a.aba) - ordem.indexOf(b.acao || b.aba));
 }
 

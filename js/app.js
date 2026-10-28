@@ -30,6 +30,7 @@ import { acoes as acoesAdminMovimentos } from './telas/admin-movimentos.js';
 import { acoes as acoesAdminEstoqueAdm, atualizarCampoEstoqueAdm } from './telas/admin-estoque-adm.js';
 import { acoes as acoesAdminAcoesSociais, atualizarCampoAcaoSocial } from './telas/admin-acoes-sociais.js';
 import { acoes as acoesAdminCarteirinha, atualizarCampoCarteirinha } from './telas/admin-carteirinha.js';
+import { acoes as acoesAdminFuncoesEspeciais, atualizarCampoFuncoes } from './telas/admin-funcoes-especiais.js';
 import { acoes as acoesComuns, aplicarBusca } from './ui/comuns.js';
 import { acoes as acoesGraficos } from './ui/graficos.js';
 import { acoes as acoesHome } from './telas/home.js';
@@ -288,6 +289,7 @@ document.getElementById('app').addEventListener('input', (e) => {
     atualizarCampoEstoqueAdm(e.target);
     atualizarCampoAcaoSocial(e.target);
     atualizarCampoCarteirinha(e.target);
+    atualizarCampoFuncoes(e.target);
     return;
   }
   if (e.target.id === 'mov-motivo') {
@@ -304,6 +306,8 @@ document.getElementById('app').addEventListener('input', (e) => {
   if (atualizarCampoAcaoSocial(e.target)) return;
   // A carteirinha: os campos so lembram; a foto e reduzida e redesenha.
   if (atualizarCampoCarteirinha(e.target)) return;
+  // O formulario de evento das Funcoes especiais: so lembra.
+  if (atualizarCampoFuncoes(e.target)) return;
   // O valor pago na Caixinha: acerta o selo e o total sem redesenhar, senao
   // o teclado do celular fecharia a cada numero.
   if (e.target.classList && e.target.classList.contains('caixinha-valor')) {
@@ -387,6 +391,7 @@ for (const [area, mapa] of Object.entries({
   acoesAdminEstoqueAdm,
   acoesAdminAcoesSociais,
   acoesAdminCarteirinha,
+  acoesAdminFuncoesEspeciais,
   acoesComuns,
   acoesGraficos,
   acoesHome,
