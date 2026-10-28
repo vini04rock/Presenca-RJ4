@@ -1419,6 +1419,9 @@ log('');
   confere('caveiras: titulares na hierarquia (afastado entra, Caveira+Suplente só como titular), emojis e %',
     rc.titulares.map(l => [l.nome, l.emojis.join(''), l.pct]), [['Vilão', '✅✅', 100], ['Bala', '✅❌', 50], ['Duplo', '➖➖', null]]);
   confere('caveiras: suplente sem o evento leva ➖, e o ➖ não conta no %', rc.suplentes.map(l => [l.nome, l.emojis.join(''), l.pct]), [['Adam', '➖❌', 0]]);
+  const futuro = [{ ...evsCav[0], data: '2099-11-01' }];
+  confere('caveiras: evento encerrado com data depois de hoje não deixa o fim antes do começo',
+    relatorioCaveiras(futuro, cadastro, 0, '').avaliacao, 'Nov_99 a Nov_99');
   confere('caveiras: o Caveira 01 escolhido abre a lista', relatorioCaveiras(evsCav, cadastro, 0, 'k1').titulares.map(l => l.nome), ['Bala', 'Vilão', 'Duplo']);
   const tc = textoRelatorioCaveiras(rc, '11').split('\n');
   confere('caveiras: os dois cabeçalhos com o Diretor e o Operacional do cadastro',

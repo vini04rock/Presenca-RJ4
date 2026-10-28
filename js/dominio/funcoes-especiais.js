@@ -238,13 +238,17 @@ function mesAvaliacao(iso) {
 }
 
 // O comeco e o fim do periodo, pro "Avaliacao Jun_26 a Dez_26": De/Ate
-// quando escolhidos (Ate em branco = hoje); N meses = de N meses atras ate
-// hoje; Tudo = do primeiro evento ate hoje.
+// quando escolhidos; N meses = de N meses atras; Tudo = do primeiro evento.
+// Sem "Ate", o fim e hoje - ou o ultimo evento, se ele tiver data depois de
+// hoje (um evento encerrado antes da data), pro fim nunca vir antes do comeco.
 function periodoDaAvaliacao(periodo, evs) {
+  const datas = evs.map(e => e.data).filter(Boolean).sort();
+  const primeiro = datas[0], ultimo = datas[datas.length - 1];
   const hoje = hojeISO();
-  if (periodo && typeof periodo === 'object') return { de: periodo.de || (evs[0] && evs[0].data) || hoje, ate: periodo.ate || hoje };
-  if (periodo) return { de: dataCorteMeses(periodo), ate: hoje };
-  return { de: (evs.find(e => e.data) || {}).data || hoje, ate: hoje };
+  const fim = ultimo && ultimo > hoje ? ultimo : hoje;
+  if (periodo && typeof periodo === 'object') return { de: periodo.de || primeiro || hoje, ate: periodo.ate || fim };
+  if (periodo) return { de: dataCorteMeses(periodo), ate: fim };
+  return { de: primeiro || hoje, ate: fim };
 }
 
 // O nome de quem ocupa um cargo do Regional, pelo cadastro.

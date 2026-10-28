@@ -1550,6 +1550,20 @@ log('=== funções especiais: Batedores e Caveiras, à parte do resto ===');
 }
 
 log('');
+log('=== as ações que pedem PIN: a lista do app e a do Code.gs batem ===');
+{
+  // O app so manda escopo+PIN pras acoes da lista dele (js/nucleo/api.js).
+  // Acao protegida no Code.gs que falta la chega sem PIN e e recusada com
+  // "Sem permissao" - foi o que aconteceu com o funcaoConfigSalvar.
+  const { contexto } = carregaCodeGs(montaPlanilha([], []));
+  const fonteApi = fs.readFileSync(path.join(AQUI, '..', 'js', 'nucleo', 'api.js'), 'utf8');
+  const bloco = /const ACOES_PROTEGIDAS = \[([\s\S]*?)\];/.exec(fonteApi);
+  const doApp = bloco ? [...bloco[1].matchAll(/'([^']+)'/g)].map(m => m[1]) : [];
+  confere('toda ação protegida do Code.gs está na lista do app', Array.from(contexto.ACOES_PROTEGIDAS).filter(a => !doApp.includes(a)), []);
+  confere('e o app não manda PIN pra ação que o Code.gs não protege', doApp.filter(a => !contexto.ACOES_PROTEGIDAS.includes(a)), []);
+}
+
+log('');
 log(falhas === 0 ? 'TUDO OK' : `${falhas} FALHA(S) — veja acima`);
 fs.writeFileSync(SAIDA, linhas.join('\n'), 'utf8');
 process.exit(falhas === 0 ? 0 : 1);
