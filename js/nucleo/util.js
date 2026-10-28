@@ -280,6 +280,36 @@ export function mostrarAviso(texto) {
   fimDoAviso = setTimeout(() => el.classList.remove('visivel'), 2400);
 }
 
+// O PDF dos relatorios que nao tem uma pagina propria na tela (o mes da
+// Caixinha, uma rodada de Insight, o Rank...): a folha leva o MESMO texto
+// do WhatsApp, entao os dois nunca discordam. O *negrito* e o _italico_ do
+// WhatsApp viram negrito e italico no papel. Vive fora do #app (refeito a
+// cada toque) e sai depois da impressao - no celular o print() nao espera,
+// por isso a limpeza e no afterprint, e uma folha velha sai antes da nova.
+export function imprimirTexto(texto) {
+  const velha = document.getElementById('folha-impressao');
+  if (velha) velha.remove();
+  const folha = document.createElement('div');
+  folha.id = 'folha-impressao';
+  const linha = (l) => escapeHtml(l)
+    .replace(/\*([^*\n]+)\*/g, '<b>$1</b>')
+    .replace(/(^|\s)_([^_\n]+)_(?=\s|$)/g, '$1<i>$2</i>');
+  folha.innerHTML = `
+    <div class="folha-cabecalho">INSANOS MC · REGIONAL RJ4</div>
+    ${String(texto).split('\n').map(l => (l.trim() ? `<div>${linha(l)}</div>` : '<div class="folha-vazia"></div>')).join('')}
+    <div class="folha-rodape">Gerado em ${escapeHtml(new Date().toLocaleString('pt-BR'))}</div>
+  `;
+  document.body.appendChild(folha);
+  document.body.classList.add('com-folha');
+  const limpar = () => {
+    folha.remove();
+    document.body.classList.remove('com-folha');
+    window.removeEventListener('afterprint', limpar);
+  };
+  window.addEventListener('afterprint', limpar);
+  window.print();
+}
+
 // Uma tremidinha no celular ao confirmar presenca. So o Android obedece: o
 // iPhone nao deixa site nenhum vibrar, e ali o retorno fica so na tela.
 export function vibrar(padrao) {

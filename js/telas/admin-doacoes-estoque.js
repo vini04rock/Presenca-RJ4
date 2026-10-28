@@ -13,13 +13,13 @@
 import { mesesParaEscolher, nomeCurtoDoMes, nomeDoMes } from '../dominio/caixinha.js';
 import { mesesDoPeriodoFinanceiro, rotuloDoPeriodoFinanceiro } from '../dominio/caixinha-financeiro.js';
 import { PERIODOS, rotuloPilula } from '../dominio/doacoes.js';
-import { DESTINOS_SAIDA, MEDIDAS, destinoPorChave, podeAnular, relatorioEstoque, resumoDaLinha,
+import { DESTINOS_SAIDA, MEDIDAS, destinoPorChave, podeAnular, relatorioEstoque, resumoDaLinha, textoSaldoEstoque,
   sugerirMedida, textoQuantidade, textoRelatorioEstoque, tituloDoMovimento } from '../dominio/estoque.js';
 import { anularNoEstoque, lancarNoEstoque } from '../fluxos/doacoes-caixinha.js';
 import { escopoPorChave } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
-import { copiarTexto, escapeHtml, formatDataBR, hojeISO } from '../nucleo/util.js';
+import { copiarTexto, escapeHtml, formatDataBR, hojeISO, imprimirTexto } from '../nucleo/util.js';
 import { botaoGerarRelatorio } from '../ui/comuns.js';
 import { renderPizza } from '../ui/graficos.js';
 import { imagensEstoqueDoacoes, imagensRelatorioEstoque, mostrarPreviaImagem } from '../ui/imagem.js';
@@ -31,6 +31,11 @@ const CORES_DESTINO = { acao_social: '#4CAF6E', familia: '#E0B24D', instituicao:
 function estoque() {
   const e = state.doacoesDados && state.doacoesDados.estoque;
   return e && Array.isArray(e.itens) ? e : { itens: [], movimentos: [] };
+}
+
+// O saldo de hoje de cada item, como o texto e a imagem esperam.
+function itensDoSaldo() {
+  return estoque().itens.map(x => ({ item: x.nome, quantidade: x.saldo, medida: x.medida }));
 }
 
 // O item do painel: o escolhido, ou o primeiro (os alimentos, nas divisoes).
@@ -170,7 +175,11 @@ function todosOsItens(d) {
             <span class="fin-valor${x.saldo ? '' : ' estoque-zerado'}">${x.saldo ? qtd(x.saldo, x.medida) : 'acabou'}</span>
           </div>
         </div>`).join('')}
-      <button class="btn secondary block no-print" style="margin-top:12px;" data-action="imagem-estoque">🖼️ Imagem do estoque pro grupo</button>
+      ${botaoGerarRelatorio('estoque-saldo', [
+        { acao: 'texto-estoque', rotulo: '📋 WhatsApp' },
+        { acao: 'pdf-estoque', rotulo: '📄 PDF' },
+        { acao: 'imagem-estoque', rotulo: '🖼️ Imagem' },
+      ])}
     </div>
   `;
 }
@@ -507,11 +516,12 @@ export const acoes = {
   'pdf-relatorio-estoque': async (id, target, action, e) => {
     window.print();
   },
-  // O saldo de hoje de cada item, pro grupo.
+  // O saldo de hoje de cada item, pro grupo: texto, PDF (o mesmo texto) e imagem.
+  'texto-estoque': async (id, target, action, e) => copiarTexto(textoSaldoEstoque(itensDoSaldo(), state.adminEscopo)),
+  'pdf-estoque': async (id, target, action, e) => imprimirTexto(textoSaldoEstoque(itensDoSaldo(), state.adminEscopo)),
   'imagem-estoque': async (id, target, action, e) => {
-    const d = estoque();
-    if (!d.itens.length) return;
-    const itens = d.itens.map(x => ({ item: x.nome, quantidade: x.saldo, medida: x.medida }));
+    const itens = itensDoSaldo();
+    if (!itens.length) return;
     const resumo = `${itens.length} ${itens.length === 1 ? 'item' : 'itens'}`;
     return mostrarPreviaImagem(() => imagensEstoqueDoacoes(itens, resumo, escopoPorChave(state.adminEscopo).nome), 'estoque-doacoes.png');
   },

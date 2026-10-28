@@ -18,7 +18,7 @@ import { fecharFormFinanceiro, fecharMesCaixinha, removerMesCaixinha, salvarCaix
 import { VALOR_CAIXINHA_PADRAO, escopoPorChave } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
-import { copiarTexto, escapeHtml } from '../nucleo/util.js';
+import { copiarTexto, escapeHtml, imprimirTexto } from '../nucleo/util.js';
 import { anelConfirmados, botaoGerarRelatorio, medalha, posicoesDoPodio, selinhoIniciais } from '../ui/comuns.js';
 import { esqueletoLista, renderDonutChart } from '../ui/graficos.js';
 import { imagemCaixinha, imagemMesCaixinha, mostrarPreviaImagem } from '../ui/imagem.js';
@@ -103,6 +103,7 @@ function cardMesLancado(l) {
       </div>
       ${botaoGerarRelatorio('caixinha-mes:' + l.mes, [
         { acao: 'texto-mes-caixinha', valor: l.mes, rotulo: '📋 WhatsApp' },
+        { acao: 'pdf-mes-caixinha', valor: l.mes, rotulo: '📄 PDF' },
         { acao: 'imagem-mes-caixinha', valor: l.mes, rotulo: '🖼️ Imagem' },
       ], 'margin-top:10px;')}
       <button class="btn ghost block" style="margin-top:8px;" data-action="controle-mes-caixinha" data-value="${l.mes}">📊 Controle financeiro do mês</button>
@@ -271,6 +272,7 @@ function renderRank(d) {
       ${barrasMeses(r.meses)}
       ${botaoGerarRelatorio('caixinha-rank', [
         { acao: 'copiar-texto-caixinha', rotulo: '📋 WhatsApp' },
+        { acao: 'pdf-caixinha', rotulo: '📄 PDF' },
         { acao: 'imagem-caixinha', rotulo: '🖼️ Imagem' },
       ])}
     </div>
@@ -421,6 +423,12 @@ export const acoes = {
     if (!l) return;
     return copiarTexto(textoRelatorioMesCaixinha(l, deDivisoes() ? divisoesContribuintes() : state.roster, state.adminEscopo));
   },
+  // O PDF leva o mesmo texto do WhatsApp, numa folha limpa (imprimirTexto).
+  'pdf-mes-caixinha': async (id, target, action, e) => {
+    const l = mesLancado(target.dataset.value);
+    if (!l) return;
+    return imprimirTexto(textoRelatorioMesCaixinha(l, deDivisoes() ? divisoesContribuintes() : state.roster, state.adminEscopo));
+  },
   // Do card do mes direto pro relatorio de controle daquele mes. A mesma
   // secao, entao nada e buscado de novo.
   'controle-mes-caixinha': async (id, target, action, e) => {
@@ -443,6 +451,12 @@ export const acoes = {
     if (!d) return;
     const r = rankCaixinha(d, participantes(), state.caixinhaPeriodo);
     return copiarTexto(textoCaixinha(r, state.adminEscopo, state.caixinhaPeriodo));
+  },
+  'pdf-caixinha': async (id, target, action, e) => {
+    const d = dados();
+    if (!d) return;
+    const r = rankCaixinha(d, participantes(), state.caixinhaPeriodo);
+    return imprimirTexto(textoCaixinha(r, state.adminEscopo, state.caixinhaPeriodo));
   },
   'imagem-caixinha': async (id, target, action, e) => {
     const d = dados();

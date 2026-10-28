@@ -1,11 +1,13 @@
 // Painel de Relatorios: as 7 abas, os filtros e o fluxo de colar convocacao.
 
-import { estatisticasMembrosPorPeriodo, estatisticasMembrosPorTipo, eventosDoRelatorioEscopo, resumoDonutPeriodo } from '../dominio/estatisticas.js';
+import { estatisticasMembrosPorPeriodo, estatisticasMembrosPorTipo, eventosDoRelatorioEscopo, rankingFaltasInfracionais, resumoDonutPeriodo } from '../dominio/estatisticas.js';
+import { textoResumoRelatorios } from '../dominio/relatorio-texto.js';
 import { computeCounts, statusEfetivo } from '../dominio/status.js';
 import { ABAS_COM_FILTRO_DIVISAO, RELATORIO_TABS, STATUS, STATUS_TOTAIS_LABEL, TIPOS_EVENTO, TIPOS_EVENTO_TABS_ORDEM, emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao, escoposNaOrdemOficial } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
-import { dataCorteMeses, dataDoCampoOuAvisar, escapeHtml, formatDataBR } from '../nucleo/util.js';
-import { campoData, renderFichaMembro, renderListaEstatisticasPorDivisao } from '../ui/comuns.js';
+import { copiarTexto, dataCorteMeses, dataDoCampoOuAvisar, escapeHtml, formatDataBR } from '../nucleo/util.js';
+import { botaoGerarRelatorio, campoData, renderFichaMembro, renderListaEstatisticasPorDivisao } from '../ui/comuns.js';
+import { imagemResumoRelatorios, mostrarPreviaImagem } from '../ui/imagem.js';
 import { esqueletoLista, renderDonutCard, renderRankingFaltasInfracionais } from '../ui/graficos.js';
 import { loadReportData } from '../dados/carregar.js';
 import { analisarConvocacao, confirmarEventoParseado, iniciarCorrecaoConvocacao } from '../fluxos/convocacao.js';
@@ -495,7 +497,11 @@ function conteudoRelatorioPresenca() {
 
   return `
     <div class="print-only" style="margin-bottom:10px; font-size:12px; color:var(--text-muted);">Gerado em ${escapeHtml(new Date().toLocaleString('pt-BR'))}</div>
-    <button class="btn secondary block no-print" style="margin-bottom:14px;" data-action="imprimir-relatorio">🖨️ Imprimir / Exportar PDF</button>
+    ${botaoGerarRelatorio('relatorios-resumo', [
+      { acao: 'copiar-resumo-relatorios', rotulo: '📋 WhatsApp' },
+      { acao: 'imprimir-relatorio', rotulo: '📄 PDF' },
+      { acao: 'imagem-resumo-relatorios', rotulo: '🖼️ Imagem' },
+    ], 'margin-bottom:14px;')}
 
     ${corpoPrincipal}
 
@@ -504,6 +510,30 @@ function conteudoRelatorioPresenca() {
       ${!listaMembros ? esqueletoLista() : !listaMembros.length ? '<div class="empty">Nenhum membro cadastrado ainda.</div>' : renderListaEstatisticasPorDivisao(listaMembros)}
     </div>
   `;
+}
+
+// O que o Resumo mostra, pro texto do WhatsApp e pra imagem: os mesmos
+// numeros dos cards, cada um no periodo escolhido nele, e os mesmos
+// filtros de divisao e de datas.
+function dadosDoResumo() {
+  const encerrados = eventosDoRelatorioEscopo().filter(e => e.status === 'encerrado');
+  const meses = (chave) => state.relatorioPeriodoPorGrafico[chave] || 3;
+  const regional = state.adminEscopo === 'regional';
+  const filtro = regional
+    ? (state.relatorioFiltroDivisao === 'todas' ? 'Todas as divisões' : escopoPorChave(state.relatorioFiltroDivisao).nome)
+    : '';
+  const ini = state.relatorioFiltroDataInicio, fim = state.relatorioFiltroDataFim;
+  const datas = ini || fim ? `${ini ? formatDataBR(ini) : 'início'} até ${fim ? formatDataBR(fim) : 'hoje'}` : '';
+  const mesesLista = meses('total');
+  return {
+    escopo: escopoPorChave(state.adminEscopo).nome, filtro, datas,
+    total: { meses: meses('total'), r: resumoDonutPeriodo(encerrados, 'total', meses('total')) },
+    tipos: TIPOS_EVENTO.map(tipo => ({ tipo, emoji: emojiTipoEvento(tipo), meses: meses(tipo), r: resumoDonutPeriodo(encerrados, tipo, meses(tipo)) })),
+    faltas: rankingFaltasInfracionais(encerrados, mesesLista).filter(f => f.total > 0).slice(0, 8)
+      .map(f => ({ ...f, divisao: f.divisao.replace(/\s*-?\s*RJ4$/, '') })),
+    mesesLista,
+    membros: estatisticasMembrosPorPeriodo(mesesLista),
+  };
 }
 
 // Acoes do painel de Relatorios (abas, filtros e colar convocacao).
@@ -546,6 +576,12 @@ export const acoes = {
   },
   'imprimir-relatorio': async (id, target, action, e) => {
     window.print(); return;
+  },
+  'copiar-resumo-relatorios': async (id, target, action, e) => {
+    return copiarTexto(textoResumoRelatorios(dadosDoResumo()));
+  },
+  'imagem-resumo-relatorios': async (id, target, action, e) => {
+    return mostrarPreviaImagem(() => imagemResumoRelatorios(dadosDoResumo()), `relatorio-presenca-${state.adminEscopo}.png`);
   },
   'set-relatorio-categoria': async (id, target, action, e) => {
     state.relatorioCategoriaAlvo = target.dataset.value;

@@ -20,7 +20,7 @@
 import { mesISO, nomeDoMes } from './caixinha.js';
 import { faixaDoPeriodo } from './caixinha-financeiro.js';
 import { escopoPorChave } from '../nucleo/config.js';
-import { formatDataBR, normalizarBusca } from '../nucleo/util.js';
+import { formatDataBR, hojeISO, normalizarBusca } from '../nucleo/util.js';
 
 // A ordem e a do toque na medida: un -> par -> kg -> un.
 export const MEDIDAS = ['un', 'par', 'kg'];
@@ -216,5 +216,18 @@ export function textoRelatorioEstoque(r, escopo, rotuloPeriodo) {
       partes.push(`   ↳ ${formatDataBR(x.data).slice(0, 5)} · ${x.item} ${textoQuantidade(x.quantidade, x.medida)} · ${d.emoji} ${d.label}${x.descricao ? ' · ' + x.descricao : ''}`);
     });
   });
+  return partes.join('\n');
+}
+
+// O saldo de hoje de cada item, pro grupo - o mesmo da 🖼️ imagem do
+// estoque, em texto. itens: [{ item, quantidade, medida }].
+export function textoSaldoEstoque(itens, escopo) {
+  const partes = [
+    '📦 *ESTOQUE DE DOAÇÕES* 📦',
+    `*${escopoPorChave(escopo).nome.toUpperCase()}* · saldo em ${formatDataBR(hojeISO())}`,
+    '',
+  ];
+  if (!itens.length) partes.push('Nenhum item no estoque.');
+  itens.forEach(x => partes.push(`• *${x.item}*: ${textoQuantidade(x.quantidade, x.medida)}`));
   return partes.join('\n');
 }

@@ -1390,6 +1390,25 @@ log('');
   confere('texto das estatísticas: cabeçalho e quem tem falta não justificada',
     [textoStats.split('\n')[0], textoStats.split('\n').slice(-2)], ['💀 *CAVEIRAS — ESTATÍSTICAS*', ['⭕ *FALTAS NÃO JUSTIFICADAS*', '- Lobo (Oeste): 1']]);
 }
+{
+  log('=== as três saídas: os textos novos (WhatsApp e PDF) ===');
+  const { textoResumoRelatorios, textoRelatorioInsight, textoRankPresenca } = await import(url('dominio/relatorio-texto.js'));
+  const { textoSaldoEstoque } = await import(url('dominio/estoque.js'));
+  const r = (pct, c, t, n) => ({ pct, somaConfirmados: c, somaConvidados: t, eventosNoPeriodo: n, statusPeriodo: { confirmado: c, justificada: 2, infracional: t - c - 2, aguardando: 0 } });
+  const resumo = textoResumoRelatorios({ escopo: 'Regional RJ4', filtro: 'Todas as divisões', datas: '', total: { meses: 3, r: r(60, 30, 50, 6) },
+    tipos: [{ tipo: 'Pub', emoji: '🍻', meses: 6, r: r(70, 7, 10, 2) }], faltas: [{ nome: 'Costa', divisao: 'Barra', total: 3 }], mesesLista: 3,
+    membros: [{ nome: 'Costa', divisao: 'Barra - RJ4', percentual: 50, confirmacoes: 2, convites: 4 }, { nome: 'Zé', divisao: 'Barra - RJ4', percentual: null, confirmacoes: 0, convites: 0 }] }).split('\n');
+  confere('resumo dos relatórios: total, cada tipo no próprio período e quem faltou',
+    [resumo[4], resumo[8], resumo[11]], ['📊 60% (30 de 50) · 6 eventos', '🍻 Pub (últimos 6 meses): 70% (7 de 10) · 2 eventos', '- Costa (Barra): 3']);
+  confere('resumo: quem não teve evento fica fora do % de cada integrante', resumo.includes('- Zé: null% (0 de 0)') || resumo.some(l => l.startsWith('- Zé')), false);
+  const insight = textoRelatorioInsight({ rodadas: 4, divisoes: [{ chave: 'barra', percentual: 75 }],
+    membros: [{ nome: 'Costa', divisao: 'Barra - RJ4', rodadas: 4, confirmacoes: 3, percentual: 75 }] }, 'Desde sempre').split('\n');
+  confere('insight completo: média e o integrante', [insight[3], insight[insight.length - 1]], ['📊 *Média: 75%* (3 de 4)', '- Costa: 75% (3 de 4)']);
+  const rank = textoRankPresenca({ divisoes: [{ chave: 'barra', percentual: 80, convites: 10, confirmacoes: 8 }, { chave: 'regional', percentual: 50, convites: 4, confirmacoes: 2 }], membros: [] }, '6meses').split('\n');
+  confere('rank de presença: o total da RJ4 e as divisões do maior % pro menor', [rank[1], rank[3], rank[6], rank[7]],
+    ['Últimos 6 meses', '🏁 *Total Regional RJ4: 71%*', '1. Barra - RJ4: 80%', '2. Regional RJ4: 50%']);
+  confere('saldo do estoque, cada item na sua medida', textoSaldoEstoque([{ item: 'Sapatos', quantidade: 2, medida: 'par' }], 'barra').split('\n').pop(), '• *Sapatos*: 2 pares');
+}
 log(falhas === 0 ? 'TUDO OK' : `${falhas} FALHA(S) — veja acima`);
 fs.writeFileSync(SAIDA, linhas.join('\n'), 'utf8');
 process.exit(falhas === 0 ? 0 : 1);

@@ -19,6 +19,7 @@ import { state } from '../nucleo/estado.js';
 import { LOGO_SRC } from '../nucleo/imagens.js';
 import { copiarTexto, dataDoCampoOuAvisar, escapeHtml, formatDataBR, ordenarPorHierarquia } from '../nucleo/util.js';
 import { botaoGerarRelatorio, campoData, linhaFuncoes, nivelDoGrau, selinhoIniciais } from '../ui/comuns.js';
+import { imagemRelatorioIndividual, mostrarPreviaImagem } from '../ui/imagem.js';
 import { renderDonutChart, renderSparklineTendencia, segmentosDonutStatus } from '../ui/graficos.js';
 import { loadRelatorioIndividual, loadRelatoriosIndividuaisVarios } from '../dados/carregar.js';
 import { render } from '../nucleo/render.js';
@@ -347,6 +348,7 @@ function conteudoRelatorio() {
     ${botaoGerarRelatorio('relind', [
       { acao: 'copiar-relatorio-individual', rotulo: state.relIndCopiado ? 'Copiado ✓' : '📋 WhatsApp' },
       { acao: 'imprimir-relind', rotulo: '📄 PDF' },
+      { acao: 'imagem-relind', rotulo: '🖼️ Imagem' },
     ], 'margin-bottom:14px;')}
     ${geradoEm()}
     ${relatorioDoMembro(state.relIndDados)}
@@ -436,6 +438,12 @@ export const acoes = {
   },
   'imprimir-relind': async (id, target, action, e) => {
     window.print();
+  },
+  'imagem-relind': async (id, target, action, e) => {
+    if (!state.relIndDados) return;
+    const r = montarRelatorioIndividual(state.relIndDados, state.relIndFiltroInicio, state.relIndFiltroFim);
+    const nome = String(r.membro.nome || 'integrante').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    return mostrarPreviaImagem(() => imagemRelatorioIndividual(r, textoDoPeriodo(state.relIndFiltroInicio, state.relIndFiltroFim)), `relatorio-${nome}.png`);
   },
   'copiar-relatorio-individual': async (id, target, action, e) => {
     if (!state.relIndDados) return;

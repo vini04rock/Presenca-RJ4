@@ -413,6 +413,96 @@ export async function imagemRelatorioInsight(d, rotuloPeriodo) {
 }
 
 // ---------------------------------------------------------------------------
+// O Relatorio individual de um integrante: a presenca na divisao (com a
+// rosca), cada tipo, os eventos do Regional e o Insight, os mesmos numeros
+// da tela e do texto. `r` e o montarRelatorioIndividual.
+export async function imagemRelatorioIndividual(r, rotuloPeriodo) {
+  const { canvas, ctx, logo } = await novaTela();
+  const m = r.membro;
+  emblema(ctx, logo, 45, 140);
+  let tamanho = 60;
+  fonte(ctx, tamanho, 400, 'rye');
+  while (tamanho > 40 && ctx.measureText(m.nome).width > 940) { tamanho -= 4; fonte(ctx, tamanho, 400, 'rye'); }
+  let y = tituloMetal(ctx, m.nome, 262, tamanho, 960);
+  rotuloEspacado(ctx, [m.grau ? `GRAU ${m.grau}` : '', m.cargo, m.divisao].filter(Boolean).join('  ·  ').toUpperCase(), y + 2, 22, COR.ouro);
+  fonte(ctx, 24, 600);
+  ctx.fillStyle = COR.apagado;
+  ctx.fillText(`📄 Relatório individual · ${rotuloPeriodo}`, L / 2, y + 42);
+  y += 42;
+
+  const g = r.divisao && r.divisao.geral;
+  const raio = 115;
+  const cy = y + 50 + raio;
+  if (g) {
+    rosca(ctx, L / 2, cy, raio, [[g.confirmado, COR.confirmado], [g.justificada, COR.justificada], [g.infracional, COR.infracional]],
+      g.convites, g.percentual === null ? '—' : `${g.percentual}%`, 'PRESENÇA');
+  } else {
+    rosca(ctx, L / 2, cy, raio, [], 0, '—', 'SEM EVENTOS');
+  }
+  y = cy + raio + 50;
+  if (g) {
+    fonte(ctx, 30, 700);
+    ctx.fillStyle = COR.texto;
+    ctx.fillText(`${g.confirmado} de ${g.convites} ${g.convites === 1 ? 'evento' : 'eventos'} da divisão`, L / 2, y);
+    fonte(ctx, 26, 600);
+    ctx.fillStyle = COR.apagado;
+    ctx.fillText(`✅ ${g.confirmado}     ❌ ${g.justificada} justificadas     ⭕ ${g.infracional} não justificadas`, L / 2, y + 44);
+    y += 80;
+  }
+
+  const linhas = [];
+  if (r.divisao) r.divisao.porTipo.forEach(t => linhas.push({ nome: `${emojiTipoEvento(t.tipo)} ${t.tipo}`, pct: t.resumo.percentual, detalhe: `${t.resumo.confirmado} de ${t.resumo.convites}` }));
+  if (r.regional) linhas.push({ nome: '🏛️ Eventos do Regional', pct: r.regional.geral.percentual, detalhe: `${r.regional.geral.confirmado} de ${r.regional.geral.convites}` });
+  if (r.insight && r.insight.rodadas) linhas.push({ nome: '💡 Insight', pct: r.insight.percentual, detalhe: `${r.insight.fez} de ${r.insight.rodadas}` });
+  if (linhas.length) listaRanking(ctx, linhas, y, Math.min(92, (A - 170 - y) / linhas.length), { semPodio: true });
+
+  rodape(ctx);
+  return canvas;
+}
+
+// ---------------------------------------------------------------------------
+// O Resumo dos Relatorios: a presenca total e a de cada tipo, cada um no
+// proprio periodo. Sem nomes - quem faltou e do texto. `d` e o mesmo
+// objeto do textoResumoRelatorios.
+export async function imagemResumoRelatorios(d) {
+  const { canvas, ctx, logo } = await novaTela();
+  const periodo = (m) => (m === 1 ? 'ÚLTIMO MÊS' : `ÚLTIMOS ${m} MESES`);
+  const r = d.total.r;
+  const sp = r.statusPeriodo;
+  emblema(ctx, logo, 45, 150);
+  let y = tituloMetal(ctx, '📋 Relatório de Presença', 275, 58, 980);
+  rotuloEspacado(ctx, `${d.escopo.toUpperCase()}${d.filtro ? '  ·  ' + d.filtro.toUpperCase() : ''}`, y + 2, 22, COR.ouro);
+  if (d.datas) {
+    fonte(ctx, 24, 600);
+    ctx.fillStyle = COR.apagado;
+    ctx.fillText(d.datas, L / 2, y + 40);
+    y += 30;
+  }
+
+  const raio = 115;
+  const cy = y + 55 + raio;
+  rosca(ctx, L / 2, cy, raio, [[sp.confirmado, COR.confirmado], [sp.justificada, COR.justificada], [sp.infracional, COR.infracional]],
+    sp.confirmado + sp.justificada + sp.infracional, r.pct === null ? '—' : `${r.pct}%`, 'PRESENÇA');
+  y = cy + raio + 50;
+  fonte(ctx, 30, 700);
+  ctx.fillStyle = COR.texto;
+  ctx.fillText(`🏁 Total · ${periodo(d.total.meses).toLowerCase()} · ${r.eventosNoPeriodo} ${r.eventosNoPeriodo === 1 ? 'evento' : 'eventos'}`, L / 2, y);
+  fonte(ctx, 26, 600);
+  ctx.fillStyle = COR.apagado;
+  ctx.fillText(`✅ ${sp.confirmado}     ❌ ${sp.justificada} justificadas     ⭕ ${sp.infracional} não justificadas`, L / 2, y + 44);
+
+  y += 80;
+  const linhas = d.tipos.map(t => ({
+    nome: `${t.emoji} ${t.tipo}`, pct: t.r.pct,
+    detalhe: `${t.r.eventosNoPeriodo} ${t.r.eventosNoPeriodo === 1 ? 'evento' : 'eventos'} · ${t.meses === 1 ? '1 mês' : t.meses + ' meses'}`,
+  }));
+  listaRanking(ctx, linhas, y, Math.min(96, (A - 170 - y) / Math.max(1, linhas.length)), { semPodio: true });
+
+  rodape(ctx);
+  return canvas;
+}
+
+// ---------------------------------------------------------------------------
 // As estatisticas de uma funcao especial (Batedores ou Caveiras) no
 // periodo: a presenca geral, as divisoes e os destaques. Como as outras,
 // sem nome de quem faltou - isso e do texto. `r` e o estatisticasFuncao.

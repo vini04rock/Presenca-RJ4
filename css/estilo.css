@@ -2888,3 +2888,15 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 .funcao-abrir { flex: none; padding: 9px 12px; font-size: 13px; white-space: nowrap; align-self: center; }
 .funcao-acoes { margin-top: 10px; }
 .funcao-acoes .btn-compacto { flex: 1; padding: 7px 6px; font-size: 12.5px; line-height: 1.25; }
+
+/* ---------- FOLHA DE IMPRESSAO (imprimirTexto, em nucleo/util.js) ----------
+   O PDF dos relatorios sem pagina propria na tela: o texto do WhatsApp numa
+   folha limpa. Na tela ela nunca aparece; no papel, so ela aparece. */
+#folha-impressao { display: none; }
+@media print {
+  body.com-folha > *:not(#folha-impressao) { display: none !important; }
+  body.com-folha #folha-impressao { display: block; color: #111; font-family: 'IBM Plex Sans', sans-serif; font-size: 11.5pt; line-height: 1.45; }
+  #folha-impressao .folha-cabecalho { font-family: 'Rye', serif; font-size: 13pt; letter-spacing: 0.08em; border-bottom: 1px solid #999; padding-bottom: 6px; margin-bottom: 12px; }
+  #folha-impressao .folha-vazia { height: 0.7em; }
+  #folha-impressao .folha-rodape { margin-top: 16px; padding-top: 6px; border-top: 1px solid #ccc; font-size: 9pt; color: #555; }
+}

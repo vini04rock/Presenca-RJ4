@@ -8,7 +8,8 @@ import { agruparMembrosRodadaPorDivisao } from '../dominio/divisoes.js';
 import { estatisticasInsightsPorPeriodo, numerosInsightDivisao } from '../dominio/estatisticas.js';
 import { divisoesSemRegional } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
-import { dataDoCampoOuAvisar, escapeHtml, formatDataBR } from '../nucleo/util.js';
+import { copiarTexto, dataDoCampoOuAvisar, escapeHtml, formatDataBR, imprimirTexto } from '../nucleo/util.js';
+import { buildInsightReportText, textoRelatorioInsight } from '../dominio/relatorio-texto.js';
 import { formatMedia, renderRankInsightsConteudo } from '../ui/insights.js';
 import { botaoAbrirRelatorio, botaoGerarRelatorio, campoData, opcoesGerarRelatorio } from '../ui/comuns.js';
 import { loadInsightStats } from '../dados/carregar.js';
@@ -231,6 +232,7 @@ export function renderAdminInsights() {
           </div>
           ${opcoesGerarRelatorio('rodada:' + r.id, [
             { acao: 'copy-insight-report', id: r.id, rotulo: state.copiedInsightRodadaId === r.id ? 'Copiado ✓' : '📋 WhatsApp' },
+            { acao: 'pdf-rodada-insight', id: r.id, rotulo: '📄 PDF' },
             { acao: 'imagem-rodada-insight', id: r.id, rotulo: '🖼️ Imagem' },
           ])}
         </div>
@@ -309,6 +311,7 @@ export function renderAdminInsights() {
       ${renderFiltroPeriodoInsight(filtrado)}
       <div class="print-only" style="margin:10px 0; font-size:12px; color:var(--text-muted);">Gerado em ${escapeHtml(new Date().toLocaleString('pt-BR'))}</div>
       ${botaoGerarRelatorio('insight-completo', [
+        { acao: 'copiar-relatorio-insight', rotulo: '📋 WhatsApp' },
         { acao: 'imprimir-relatorio', rotulo: '📄 PDF' },
         { acao: 'imagem-relatorio-insight', rotulo: '🖼️ Imagem' },
       ], 'margin:0 0 14px;')}
@@ -324,6 +327,20 @@ export function renderAdminInsights() {
   `;
 }
 
+// O mesmo recorte que a aba "Relatorio completo" desenha: com periodo,
+// refaz a conta so com as rodadas dele (estatisticasInsightsPorPeriodo).
+function recorteDoRelatorioInsight() {
+  const d = state.insightStats;
+  if (!d) return null;
+  const inicio = state.insightFiltroDataInicio;
+  const fim = state.insightFiltroDataFim;
+  const dados = inicio || fim ? estatisticasInsightsPorPeriodo(d, state.insightRodadasHistorico, inicio, fim).stats : d;
+  const periodo = inicio || fim
+    ? `${inicio ? formatDataBR(inicio) : 'início'} a ${fim ? formatDataBR(fim) : 'hoje'}`
+    : 'Desde sempre';
+  return { dados, periodo };
+}
+
 // Acoes das tres abas de Insights: marcar a rodada, confirmar, ajustar uma
 // ja registrada, e quem entra ou sai do insight.
 export const acoes = {
@@ -333,18 +350,18 @@ export const acoes = {
     if (!r) return;
     return mostrarPreviaImagem(() => imagemRodadaInsight(r), `insight-${r.data || 'rodada'}.png`);
   },
+  // O PDF de uma rodada leva o mesmo texto do WhatsApp (imprimirTexto).
+  'pdf-rodada-insight': async (id, target, action, e) => {
+    const r = (state.insightRodadasHistorico || []).find(x => x.id === id);
+    if (r) return imprimirTexto(buildInsightReportText(r));
+  },
   'imagem-relatorio-insight': async (id, target, action, e) => {
-    const d = state.insightStats;
-    if (!d) return;
-    // O mesmo recorte que a aba desenha: com periodo, refaz a conta so com
-    // as rodadas dele (estatisticasInsightsPorPeriodo).
-    const inicio = state.insightFiltroDataInicio;
-    const fim = state.insightFiltroDataFim;
-    const dados = inicio || fim ? estatisticasInsightsPorPeriodo(d, state.insightRodadasHistorico, inicio, fim).stats : d;
-    const periodo = inicio || fim
-      ? `${inicio ? formatDataBR(inicio) : 'início'} a ${fim ? formatDataBR(fim) : 'hoje'}`
-      : 'Desde sempre';
-    return mostrarPreviaImagem(() => imagemRelatorioInsight(dados, periodo), 'rank-insights.png');
+    const x = recorteDoRelatorioInsight();
+    if (x) return mostrarPreviaImagem(() => imagemRelatorioInsight(x.dados, x.periodo), 'rank-insights.png');
+  },
+  'copiar-relatorio-insight': async (id, target, action, e) => {
+    const x = recorteDoRelatorioInsight();
+    if (x) return copiarTexto(textoRelatorioInsight(x.dados, x.periodo));
   },
   'retry-insight-stats': async (id, target, action, e) => {
     return loadInsightStats();

@@ -13,7 +13,7 @@ import { salvarDoacoes } from '../fluxos/doacoes-caixinha.js';
 import { corTipoEvento, emojiTipoEvento, escopoPorChave } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
-import { copiarTexto, escapeHtml, formatDataCurta, hexParaRgba } from '../nucleo/util.js';
+import { copiarTexto, escapeHtml, formatDataCurta, hexParaRgba, imprimirTexto } from '../nucleo/util.js';
 import { botaoGerarRelatorio, linhaFuncoes, medalha, posicoesDoPodio, selinhoIniciais } from '../ui/comuns.js';
 import { esqueletoLista, renderDonutChart, renderSparklineTendencia } from '../ui/graficos.js';
 import { imagemDoacoes, mostrarPreviaImagem } from '../ui/imagem.js';
@@ -163,6 +163,7 @@ function renderRank(d) {
       ${renderSparklineTendencia(r.porEvento.map(x => ({ ev: x.ev, pct: x.pct })))}
       ${botaoGerarRelatorio('doacoes-rank', [
         { acao: 'copiar-texto-doacoes', rotulo: '📋 WhatsApp' },
+        { acao: 'pdf-doacoes', rotulo: '📄 PDF' },
         { acao: 'imagem-doacoes', rotulo: '🖼️ Imagem' },
       ])}
     </div>
@@ -286,6 +287,13 @@ export const acoes = {
     if (!d) return;
     const r = rankDoacoes(d, membrosDoEscopo(), state.doacoesPeriodo);
     return copiarTexto(textoDoacoes(r, state.adminEscopo, state.doacoesPeriodo));
+  },
+  // O PDF leva o mesmo texto do WhatsApp, numa folha limpa (imprimirTexto).
+  'pdf-doacoes': async (id, target, action, e) => {
+    const d = dados();
+    if (!d) return;
+    const r = rankDoacoes(d, membrosDoEscopo(), state.doacoesPeriodo);
+    return imprimirTexto(textoDoacoes(r, state.adminEscopo, state.doacoesPeriodo));
   },
   'imagem-doacoes': async (id, target, action, e) => {
     const d = dados();

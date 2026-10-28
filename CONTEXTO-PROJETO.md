@@ -1170,10 +1170,18 @@ valem antes de mexer:
   os encerrados ganharam o PDF, que sai só com aquele evento), nas rodadas
   e no relatório completo do Insight, no Relatório individual, na Caixinha
   (cada mês, Rank e Controle financeiro), no Rank de Doações, no relatório
-  do Estoque e na Entrada/Saída. Onde há uma saída só (imagem do Rank,
-  imagem do estoque, PDF dos Relatórios) o botão continua direto. Ficaram
-  de fora o Calendário, que não é relatório, e os chamados e a chamada,
-  que são mensagens.
+  do Estoque e na Entrada/Saída. **Desde 28/10/2026 todo relatório tem as
+  três** (pedido do clube): o Resumo dos Relatórios ganhou o WhatsApp e a
+  imagem (`textoResumoRelatorios`/`imagemResumoRelatorios`, cada tipo no
+  período do próprio card), o Relatório individual a imagem, o Relatório
+  completo do Insight o WhatsApp, o saldo do Estoque e o Rank de Presença
+  (público) o WhatsApp e o PDF. Onde a tela não tem uma página própria pro
+  papel (cada mês e o Rank da Caixinha, o Rank das Doações, cada rodada de
+  Insight, a Entrada/Saída, o saldo do Estoque e o Rank), o **PDF leva o
+  mesmo texto do WhatsApp** numa folha limpa (`imprimirTexto`, em
+  `nucleo/util.js`, montada fora do `#app` só durante a impressão), então
+  os dois nunca discordam. Ficaram de fora o Calendário, que não é
+  relatório, e os chamados e a chamada, que são mensagens.
 - **Prévia do link** no WhatsApp: as tags `og:` no `index.html` e a
   imagem `img/compartilhar.jpg` (1200×630). O WhatsApp guarda a prévia de
   um link por um tempo, então mudança ali demora a aparecer.

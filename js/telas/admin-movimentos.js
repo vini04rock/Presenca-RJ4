@@ -9,7 +9,7 @@ import { PERIODOS_MOVIMENTOS, TIPOS_MOVIMENTO, quadroRegional, rotuloMovimento, 
 import { escopoPorChave } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
-import { copiarTexto, dataDoCampoOuAvisar, escapeHtml, formatDataBR } from '../nucleo/util.js';
+import { copiarTexto, dataDoCampoOuAvisar, escapeHtml, formatDataBR, imprimirTexto } from '../nucleo/util.js';
 import { botaoGerarRelatorio, campoData, selinhoIniciais } from '../ui/comuns.js';
 import { esqueletoLista, renderPizza } from '../ui/graficos.js';
 import { imagemMovimentos, imagemQuadroMovimentos, mostrarPreviaImagem } from '../ui/imagem.js';
@@ -110,9 +110,10 @@ function relatorioDivisao(movimentos, chave) {
       <div class="info-line" style="padding:10px 0 0; color:var(--text-muted); font-size:12px;">Entraram, desligados e transferências: no período. Afastados: quem está afastado hoje.</div>
       ${botaoGerarRelatorio('movimentos:' + chave, [
         { acao: 'copiar-texto-movimentos', valor: chave, rotulo: '📋 WhatsApp' },
+        { acao: 'pdf-movimentos', valor: chave, rotulo: '📄 PDF' },
         { acao: 'imagem-movimentos', valor: chave, rotulo: '🖼️ Imagem' },
       ])}
-      <div class="info-line" style="padding:6px 0 0; color:var(--text-muted); font-size:11.5px;">O motivo não vai no texto nem na imagem.</div>
+      <div class="info-line" style="padding:6px 0 0; color:var(--text-muted); font-size:11.5px;">O motivo não vai no texto, no PDF nem na imagem.</div>
     </div>
     ${r.afastadosAgora.length ? `
       <div class="card" style="padding: 4px 16px;">
@@ -152,6 +153,7 @@ function quadro(movimentos) {
       <div class="info-line" style="padding:10px 0 0; color:var(--text-muted); font-size:12px;">A soma de todas as divisões. Transferência entre divisões da RJ4 não muda o total; só conta quem foi pra outra regional. Toque numa divisão abaixo pra ver só a dela.</div>
       ${botaoGerarRelatorio('movimentos-quadro', [
         { acao: 'copiar-quadro-movimentos', rotulo: '📋 WhatsApp' },
+        { acao: 'pdf-quadro-movimentos', rotulo: '📄 PDF' },
         { acao: 'imagem-quadro-movimentos', rotulo: '🖼️ Imagem' },
       ])}
     </div>
@@ -227,6 +229,18 @@ export const acoes = {
     if (!d) return;
     const r = resumoMovimentos(d, state.roster, target.dataset.value, state.movimentosPeriodo);
     return copiarTexto(textoMovimentos(r, state.movimentosPeriodo));
+  },
+  // O PDF leva o mesmo texto do WhatsApp (sem o motivo), numa folha limpa.
+  'pdf-movimentos': async (id, target, action, e) => {
+    const d = dados();
+    if (!d) return;
+    const r = resumoMovimentos(d, state.roster, target.dataset.value, state.movimentosPeriodo);
+    return imprimirTexto(textoMovimentos(r, state.movimentosPeriodo));
+  },
+  'pdf-quadro-movimentos': async (id, target, action, e) => {
+    const d = dados();
+    if (!d) return;
+    return imprimirTexto(textoQuadroRegional(quadroRegional(d, state.roster, state.movimentosPeriodo), state.movimentosPeriodo));
   },
   'imagem-movimentos': async (id, target, action, e) => {
     const d = dados();

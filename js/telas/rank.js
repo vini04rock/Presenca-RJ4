@@ -2,8 +2,9 @@
 
 import { escoposEmOrdemDeExibicao } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
-import { escapeHtml } from '../nucleo/util.js';
-import { medalha, posicoesDoPodio } from '../ui/comuns.js';
+import { copiarTexto, escapeHtml, imprimirTexto } from '../nucleo/util.js';
+import { botaoGerarRelatorio, medalha, posicoesDoPodio } from '../ui/comuns.js';
+import { textoRankPresenca } from '../dominio/relatorio-texto.js';
 import { carregarRank } from '../dados/carregar.js';
 import { render } from '../nucleo/render.js';
 import { imagemRank, mostrarPreviaImagem } from '../ui/imagem.js';
@@ -114,7 +115,11 @@ function renderRankConteudo(d) {
     `;
   }).join('');
 
-  const botaoImagem = `<button class="btn secondary block" style="margin:-4px 0 16px;" data-action="imagem-rank">🖼️ Imagem do rank pro grupo</button>`;
+  const botaoImagem = botaoGerarRelatorio('rank-presenca', [
+    { acao: 'copiar-rank', rotulo: '📋 WhatsApp' },
+    { acao: 'pdf-rank', rotulo: '📄 PDF' },
+    { acao: 'imagem-rank', rotulo: '🖼️ Imagem' },
+  ], 'margin:-4px 0 16px;');
   return cardTotal + blocoDivisoes + botaoImagem + blocoMembros;
 }
 
@@ -122,6 +127,13 @@ function renderRankConteudo(d) {
 // Cada entrada e o corpo do antigo "if (action === ...)" do app.js, tal
 // e qual. O app.js so olha o nome da acao neste mapa e chama.
 export const acoes = {
+  'copiar-rank': async (id, target, action, e) => {
+    if (state.rankData) return copiarTexto(textoRankPresenca(state.rankData, state.rankJanela));
+  },
+  // O PDF leva o mesmo texto do WhatsApp, numa folha limpa (imprimirTexto).
+  'pdf-rank': async (id, target, action, e) => {
+    if (state.rankData) return imprimirTexto(textoRankPresenca(state.rankData, state.rankJanela));
+  },
   'imagem-rank': async (id, target, action, e) => {
     if (!state.rankData) return;
     const janela = state.rankJanela;
