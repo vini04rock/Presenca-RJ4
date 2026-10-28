@@ -181,6 +181,7 @@ export const COR_TODOS_EVENTOS = '#D4A24C';
 export const FUNCOES = [
   { chave: 'sargento_armas', label: 'Sargento de Armas', selo: '⚔️' },
   { chave: 'caveira', label: 'Caveira', selo: '💀' },
+  { chave: 'caveira_suplente', label: 'Caveira Suplente', selo: '🪖' },
   { chave: 'combate_insanos', label: 'Combate Insanos', selo: '🥋' },
   { chave: 'batedor', label: 'Batedor', selo: '🛡️' },
   { chave: 'comunicacao', label: 'Comunicação', selo: '📷' },

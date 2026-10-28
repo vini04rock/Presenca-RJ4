@@ -13,7 +13,10 @@ import { estaAfastado, movimentosDoPeriodo, rotuloPeriodoMovimentos } from './mo
 
 export const FUNCOES_ESPECIAIS = [
   { chave: 'batedor', nome: 'Batedores', singular: 'Batedor', selo: '🛡️' },
-  { chave: 'caveira', nome: 'Caveiras', singular: 'Caveira', selo: '💀' },
+  // `tambem`: outras funcoes do cadastro que entram nos eventos desta. O
+  // Caveira Suplente e chamado pros eventos de Caveira (o Code.gs tem a
+  // mesma lista, em FUNCOES_QUE_ENTRAM).
+  { chave: 'caveira', nome: 'Caveiras', singular: 'Caveira', selo: '💀', tambem: ['caveira_suplente'] },
 ];
 export function dadosDaFuncao(chave) { return FUNCOES_ESPECIAIS.find(f => f.chave === chave) || FUNCOES_ESPECIAIS[0]; }
 
@@ -25,9 +28,12 @@ export const STATUS_MARCAVEIS = ['confirmado', 'familia', 'trabalho', 'justifica
 export function divisaoCurta(nome) { return String(nome || '').replace(/\s*-?\s*RJ4$/, '') || 'Sem divisão'; }
 
 // Quem entra num evento novo: so quem tem a funcao no cadastro (a regra do
-// clube - evento de Batedor so tem Batedor), e nao esta afastado.
+// clube - evento de Batedor so tem Batedor; o de Caveira, Caveira e
+// Caveira Suplente), e nao esta afastado.
 export function integrantesDaFuncao(roster, chave) {
-  const lista = (roster || []).filter(m => (m.funcoes || []).includes(chave) && !estaAfastado(m));
+  const f = FUNCOES_ESPECIAIS.find(x => x.chave === chave);
+  const aceitas = [chave, ...((f && f.tambem) || [])];
+  const lista = (roster || []).filter(m => (m.funcoes || []).some(c => aceitas.includes(c)) && !estaAfastado(m));
   return porDivisaoNaOrdemOficial(lista).flatMap(g => g.itens);
 }
 

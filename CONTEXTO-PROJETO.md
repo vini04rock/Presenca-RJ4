@@ -404,7 +404,7 @@ conta mudou, só a forma de mostrar.
 **Tipos de evento** — Pub 🍻, Bate e Volta 🏍️, Ação Social 🤝, Reunião 📊.
 Cada um com cor e arte próprias.
 
-**Funções** — Sargento de Armas ⚔️, Caveira 💀, Combate Insanos 🥋,
+**Funções** — Sargento de Armas ⚔️, Caveira 💀, Caveira Suplente 🪖, Combate Insanos 🥋,
 Batedor 🛡️, Comunicação 📷. Acumuláveis, aparecem como selos ao lado do nome.
 
 **Graus** — I a X. Atenção: o **mais alto na hierarquia é o de número
@@ -889,7 +889,10 @@ alta que as outras. Quantos têm cada função sai numa linha embaixo do card.
   por divisão na ordem oficial, e dá para desmarcar alguém. O `Code.gs`
   confere de novo e recusa quem não tem a função
   (`ajustarChamadosDaFuncao`). Quem já está num evento e perdeu a função
-  depois continua nele.
+  depois continua nele. O **🪖 Caveira Suplente** (28/10/2026) é uma função
+  do cadastro como as outras, com selo próprio, e é chamado também para os
+  eventos de Caveira (`tambem`, em `FUNCOES_ESPECIAIS` do domínio, e
+  `FUNCOES_QUE_ENTRAM`, no `Code.gs`: as duas listas andam juntas).
 - **O evento é só nome, data, horário e endereço** — sem tipo (Pub, Ação,
   Reunião) e sem chamada.
 - **O organizador marca a presença** (como no Insight; não há link

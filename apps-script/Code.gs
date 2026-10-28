@@ -212,6 +212,10 @@ var FOTO_MAX = 48000;
 var CAB_FUNCOES_EVENTOS = ['ID', 'Funcao', 'Nome', 'Data', 'Horario', 'Endereco', 'Status', 'Criado em'];
 var CAB_FUNCOES_PRESENCAS = ['ID Evento', 'ID Membro', 'Membro', 'Grau', 'Divisao', 'Status', 'Pelo Encerramento', 'Atualizado em'];
 var FUNCOES_ESPECIAIS = ['batedor', 'caveira'];
+// As funcoes do cadastro que entram nos eventos de cada uma. O Caveira
+// Suplente e chamado pros de Caveira (o app tem a mesma lista, no `tambem`
+// de FUNCOES_ESPECIAIS em dominio/funcoes-especiais.js).
+var FUNCOES_QUE_ENTRAM = { batedor: ['batedor'], caveira: ['caveira', 'caveira_suplente'] };
 
 // Na planilha fica o rotulo legivel; o app continua falando em chaves.
 var STATUS_ROTULO = {
@@ -2693,8 +2697,9 @@ function ajustarChamadosDaFuncao(eventoId, funcao, membroIds, novo) {
     if (atuais[mid]) return;
     var m = cadastro[mid];
     // A regra que o clube pediu: evento de Batedor so tem Batedor, e de
-    // Caveira so Caveira.
-    if (!m || m.funcoes.indexOf(funcao) === -1) {
+    // Caveira so Caveira (e o Caveira Suplente).
+    var aceitas = FUNCOES_QUE_ENTRAM[funcao] || [funcao];
+    if (!m || !m.funcoes.some(function (f) { return aceitas.indexOf(f) !== -1; })) {
       throw new Error((m ? m.nome : 'Integrante') + ' nao tem a funcao ' + (funcao === 'batedor' ? 'Batedor' : 'Caveira'));
     }
     novas.push([eventoId, mid, m.nome, m.grau, m.divisao, STATUS_ROTULO.aguardando, '', agora()]);

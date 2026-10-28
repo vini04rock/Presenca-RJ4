@@ -1473,7 +1473,8 @@ log('=== funções especiais: Batedores e Caveiras, à parte do resto ===');
     ['b1', 'Costa', 'VII', 'Barra - RJ4', 'batedor', '', '', '', '', ''],
     ['b2', 'Bull', 'IX', 'Oeste - RJ4', 'batedor,caveira', '', '', '', '', ''],
     ['c1', 'Tigre', 'VIII', 'Recreio - RJ4', 'caveira', '', '', '', '', ''],
-    ['x1', 'Zeca', 'X', 'Barra - RJ4', '', '', '', '', '', '']]);
+    ['x1', 'Zeca', 'X', 'Barra - RJ4', '', '', '', '', '', ''],
+    ['s1', 'Gato', 'IX', 'Recreio - RJ4', 'caveira_suplente', '', '', '', '', '']]);
   const { contexto } = carregaCodeGs(p, { PIN_REGIONAL: '0418', PIN_BARRA: '1801' });
   const reg = { escopo: 'regional', pin: '0418' };
   const tenta = (acao, params) => { try { return contexto.executar(acao, params); } catch (e) { return { ok: false, erro: e.message }; } };
@@ -1522,6 +1523,12 @@ log('=== funções especiais: Batedores e Caveiras, à parte do resto ===');
   ev = ler('batedor')[0];
   confere('editar troca o nome e a lista, e quem fica mantém o status',
     [ev.nome, ev.presencas.map(x => x.membroId + ':' + x.status)], ['Escolta Serra II', ['b2:infracional']]);
+
+  confere('o Caveira Suplente não entra no evento de Batedor',
+    tenta('funcaoEventoSalvar', { ...reg, funcao: 'batedor', nome: 'Escolta', membroIds: 'b1,s1' }).erro, 'Gato nao tem a funcao Batedor');
+  const idSup = contexto.executar('funcaoEventoSalvar', { ...reg, funcao: 'caveira', nome: 'Apoio', membroIds: 'c1,s1' }).id;
+  confere('mas entra no de Caveira', ler('caveira')[0].presencas.map(x => x.nome), ['Tigre', 'Gato']);
+  contexto.executar('funcaoEventoRemover', { ...reg, id: idSup });
 
   const idCav = contexto.executar('funcaoEventoSalvar', { ...reg, funcao: 'caveira', nome: 'Treino', data: daquiA(2), membroIds: 'b2,c1' }).id;
   contexto.executar('membroMovimentar', { ...reg, membroId: 'c1', tipo: 'afastamento' });

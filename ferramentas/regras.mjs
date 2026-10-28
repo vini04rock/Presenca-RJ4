@@ -1352,10 +1352,11 @@ log('');
     { id: 'b4', nome: 'Urso', grau: 'VIII', divisao: 'Recreio - RJ4', funcoes: ['batedor'], situacao: 'afastado' },
     { id: 'c1', nome: 'Tigre', grau: 'VIII', divisao: 'Recreio - RJ4', funcoes: ['caveira'] },
     { id: 'x1', nome: 'Zeca', grau: 'X', divisao: 'Barra - RJ4', funcoes: ['sargento_armas'] },
+    { id: 's1', nome: 'Gato', grau: 'IX', divisao: 'Recreio - RJ4', funcoes: ['caveira_suplente'] },
   ];
   confere('evento de Batedor: só Batedores, sem afastado, divisão na ordem oficial e hierarquia dentro',
     nomes(integrantesDaFuncao(roster, 'batedor')), ['Lobo', 'Bull', 'Costa']);
-  confere('evento de Caveira: só Caveiras', nomes(integrantesDaFuncao(roster, 'caveira')), ['Tigre', 'Bull']);
+  confere('evento de Caveira: Caveiras e Caveiras Suplentes', nomes(integrantesDaFuncao(roster, 'caveira')), ['Tigre', 'Gato', 'Bull']);
   confere('nome curto da divisão', ['Barra - RJ4', 'Regional RJ4', ''].map(divisaoCurta), ['Barra', 'Regional', 'Sem divisão']);
 
   const p = (membroId, nome, divisao, status) => ({ membroId, nome, grau: 'X', divisao, status });
