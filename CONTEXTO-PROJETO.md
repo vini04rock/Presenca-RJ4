@@ -901,7 +901,11 @@ alta que as outras. Quantos têm cada função sai numa linha embaixo do card.
   ❌ Trabalho, ❌ Justificada e ⭕ Não justificada. **Nos Caveiras é só
   ✅ Presente e ❌ Faltou** (29/10/2026, sem justificativa; `marcaveis`, em
   `FUNCOES_ESPECIAIS`): o Faltou grava como Não justificada, a mesma do
-  encerramento, e por isso nem o `Code.gs` nem o % mudaram. A marcação fica na tela
+  encerramento, e por isso nem o `Code.gs` nem o % mudaram. Os relatórios
+  dos Caveiras também não separam mais: texto, tela, rosca e imagem dizem
+  "❌ Faltaram", e uma Família/Trabalho/Justificada marcada antes da regra
+  soma na falta (`soFalta`/`statusDaConta`; a `chave` da função vai em
+  `contagemEvento` e `estatisticasFuncao`). A marcação fica na tela
   até o 💾 Salvar marcação, e trocar de evento ou de aba pergunta antes de
   perder.
 - **Encerrar é sempre manual.** Quem ficou sem marcação vira ⭕ Não

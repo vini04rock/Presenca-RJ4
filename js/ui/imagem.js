@@ -14,7 +14,7 @@ import { formatReais, nomeCurtoDoMes, nomeDoMes } from '../dominio/caixinha.js';
 import { formatKg } from '../dominio/doacoes.js';
 import { destinoPorChave, numeroEstoque, resumoDaLinha, textoQuantidade } from '../dominio/estoque.js';
 import { CONTEXTO_DOS_MESES, LEGENDA_CONTEXTO, MESES_NOMES, acoesDoMes, ehEscolhida, mesesDoAno, resumoDoAno, situacaoPorChave } from '../dominio/acoes-sociais.js';
-import { divisaoCurta } from '../dominio/funcoes-especiais.js';
+import { divisaoCurta, soFalta } from '../dominio/funcoes-especiais.js';
 import { posicoesDoPodio } from './comuns.js';
 
 const L = 1080, A = 1350; // retrato 4:5, o formato que o WhatsApp mostra maior
@@ -282,9 +282,15 @@ export async function imagemResultadoEvento(ev, contagem) {
 
   fonte(ctx, 28, 600);
   ctx.fillStyle = COR.apagado;
-  ctx.fillText(parcial
-    ? `✅ ${contagem.confirmado} confirmados     ❌ ${justificadas} justificadas     ⚠️ ${aguardando} aguardando`
-    : `✅ ${contagem.confirmado} confirmados     ❌ ${justificadas} justificadas     ⭕ ${naoJustificadas} não justificadas`, L / 2, y + 58);
+  // `soFalta`: os eventos de Caveira, que nao tem justificativa - a falta e
+  // uma so, o ❌.
+  ctx.fillText(ev.soFalta
+    ? (parcial
+      ? `✅ ${contagem.confirmado} presentes     ❌ ${naoJustificadas} faltaram     ⚠️ ${aguardando} sem marcação`
+      : `✅ ${contagem.confirmado} presentes     ❌ ${naoJustificadas} faltaram`)
+    : parcial
+      ? `✅ ${contagem.confirmado} confirmados     ❌ ${justificadas} justificadas     ⚠️ ${aguardando} aguardando`
+      : `✅ ${contagem.confirmado} confirmados     ❌ ${justificadas} justificadas     ⭕ ${naoJustificadas} não justificadas`, L / 2, y + 58);
 
   rodape(ctx);
   return canvas;
@@ -562,7 +568,7 @@ function pizzaEvento(ctx, cx, cy, r, c) {
   ctx.textBaseline = 'alphabetic';
 }
 
-function cartaoEvento(ctx, ev, c, y) {
+function cartaoEvento(ctx, ev, c, y, emojiFalta) {
   const x = 90, largura = L - 180, h = ALTURA_CARTAO, meio = y + h / 2;
   ctx.fillStyle = 'rgba(0,0,0,0.42)';
   ctx.beginPath(); retangulo(ctx, x, y, largura, h, 22); ctx.fill();
@@ -586,7 +592,7 @@ function cartaoEvento(ctx, ev, c, y) {
   const nome = nomeEmDuasLinhas(ctx, ev.nome, larguraNome);
   const alturaLinha = nome.tamanho * 1.18;
   const detalhe = `${c.confirmado} de ${c.total} presentes`
-    + (c.justificadas ? `  ·  ❌ ${c.justificadas}` : '') + (c.infracional ? `  ·  ⭕ ${c.infracional}` : '');
+    + (c.justificadas ? `  ·  ❌ ${c.justificadas}` : '') + (c.infracional ? `  ·  ${emojiFalta} ${c.infracional}` : '');
   const blocoAltura = nome.linhas.length * alturaLinha + 34;
   let ty = meio - blocoAltura / 2 + alturaLinha / 2;
   ctx.textAlign = 'left';
@@ -604,6 +610,8 @@ function cartaoEvento(ctx, ev, c, y) {
 
 export async function imagemEstatisticasFuncao(r, f, rotuloPeriodo) {
   const g = r.geral;
+  // Nos Caveiras a falta e uma so (r ja vem com elas somadas).
+  const semJustificativa = soFalta(f.chave);
   const grupos = [r.porEvento.slice(0, EVENTOS_NA_PRIMEIRA)];
   for (let i = EVENTOS_NA_PRIMEIRA; i < r.porEvento.length; i += EVENTOS_POR_PAGINA) grupos.push(r.porEvento.slice(i, i + EVENTOS_POR_PAGINA));
   const paginas = grupos.length;
@@ -624,7 +632,9 @@ export async function imagemEstatisticasFuncao(r, f, rotuloPeriodo) {
       fonte(ctx, 24, 600);
       ctx.textAlign = 'center';
       ctx.fillStyle = COR.texto;
-      ctx.fillText(`✅ ${g.confirmados} ${g.confirmados === 1 ? 'presença' : 'presenças'}    ❌ ${g.justificadas} ${g.justificadas === 1 ? 'justificada' : 'justificadas'}    ⭕ ${g.naoJustificadas} não justif.`, L / 2, cy + raio + 44);
+      ctx.fillText(semJustificativa
+        ? `✅ ${g.confirmados} ${g.confirmados === 1 ? 'presença' : 'presenças'}    ❌ ${g.naoJustificadas} ${g.naoJustificadas === 1 ? 'falta' : 'faltas'}`
+        : `✅ ${g.confirmados} ${g.confirmados === 1 ? 'presença' : 'presenças'}    ❌ ${g.justificadas} ${g.justificadas === 1 ? 'justificada' : 'justificadas'}    ⭕ ${g.naoJustificadas} não justif.`, L / 2, cy + raio + 44);
       y = cy + raio + 76;
     } else {
       emblema(ctx, logo, 34, 96);
@@ -632,7 +642,7 @@ export async function imagemEstatisticasFuncao(r, f, rotuloPeriodo) {
       rotuloEspacado(ctx, subtitulo, y + 2, 20, COR.ouro);
       y += 36;
     }
-    grupos[p].forEach(({ ev, c }, i) => cartaoEvento(ctx, ev, c, y + i * (ALTURA_CARTAO + ESPACO_CARTAO)));
+    grupos[p].forEach(({ ev, c }, i) => cartaoEvento(ctx, ev, c, y + i * (ALTURA_CARTAO + ESPACO_CARTAO), semJustificativa ? '❌' : '⭕'));
     // A numeracao no canto de cima: embaixo, a 1a imagem ja esta cheia.
     if (paginas > 1) rotuloEspacado(ctx, `${p + 1} / ${paginas}`, 70, 22, COR.apagado, L - 100);
     rodape(ctx);

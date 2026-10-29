@@ -15,7 +15,7 @@ import { IMG_FUNCOES_ESPECIAIS } from '../nucleo/imagens.js';
 import { render } from '../nucleo/render.js';
 import { copiarTexto, dataDoCampoOuAvisar, escapeHtml, formatDataBR, imprimirTexto, ordenarPorHierarquia } from '../nucleo/util.js';
 import { carregarFuncoesEspeciais } from '../dados/carregar.js';
-import { FUNCOES_ESPECIAIS, contagemEvento, divisaoCurta, dadosDaFuncao, estatisticasFuncao, integrantesDaFuncao, porDivisaoNaOrdemOficial, statusMarcaveis, statusNoEvento, textoEstatisticasFuncao, textoEventoFuncao, textoIndividuaisFuncao,
+import { FUNCOES_ESPECIAIS, contagemEvento, divisaoCurta, dadosDaFuncao, estatisticasFuncao, integrantesDaFuncao, porDivisaoNaOrdemOficial, soFalta, statusDaConta, statusMarcaveis, statusNoEvento, textoEstatisticasFuncao, textoEventoFuncao, textoIndividuaisFuncao,
   EMOJI_CAVEIRAS, relatorioCaveiras, textoRelatorioCaveiras } from '../dominio/funcoes-especiais.js';
 import { PERIODOS, rotuloPilula } from '../dominio/doacoes.js';
 import { nomeCurtoDoMes, nomeDoMes } from '../dominio/caixinha.js';
@@ -31,8 +31,16 @@ const ROTULO_CURTO = { confirmado: 'Presente', familia: 'Família', trabalho: 'T
 // Nos Caveiras so ha presente e falta, entao a falta e o ❌ Faltou, o mesmo
 // emoji de falta do Relatorio Caveiras.
 function rotuloMarcacao(st) {
-  if (state.funcaoEspecial === 'caveira' && st === 'infracional') return '❌ Faltou';
+  if (soFalta(state.funcaoEspecial) && st === 'infracional') return '❌ Faltou';
   return `${STATUS[st].emoji} ${ROTULO_CURTO[st]}`;
+}
+// As fatias da rosca. Sem justificativa, a falta e uma fatia so, "Faltas".
+function segmentosRosca(confirmado, justificadas, faltas) {
+  if (!soFalta(state.funcaoEspecial)) return segmentosDonutStatus({ confirmado, justificada: justificadas, infracional: faltas });
+  return [
+    { label: 'Presentes', value: confirmado, cor: 'var(--status-confirmado)' },
+    { label: 'Faltas', value: faltas, cor: 'var(--status-infracional)' },
+  ];
 }
 
 function funcao() { return dadosDaFuncao(state.funcaoEspecial); }
@@ -153,7 +161,7 @@ function painelMarcacao(ev) {
   return `
     <div class="no-print" style="border-top:1px solid var(--line); margin-top:12px; padding-top:12px;">
       <div class="fin-explica" style="margin-bottom:8px;">${aberto
-        ? `Toque no status de cada um. Tocar de novo no marcado volta para ⚠️ sem marcação. Ao encerrar, quem ficar sem marcação vira ${state.funcaoEspecial === 'caveira' ? '❌ Faltou' : '⭕ Não justificada'}.`
+        ? `Toque no status de cada um. Tocar de novo no marcado volta para ⚠️ sem marcação. Ao encerrar, quem ficar sem marcação vira ${soFalta(state.funcaoEspecial) ? '❌ Faltou' : '⭕ Não justificada'}.`
         : 'Corrigindo a marcação de um evento encerrado.'}</div>
       ${aberto ? '<button class="btn ghost" style="padding:0; margin-bottom:8px;" data-action="funcao-todos-presentes">✅ Marcar todos os sem marcação como presentes</button>' : ''}
       ${porDivisaoNaOrdemOficial(ev.presencas).map(g => `
@@ -173,13 +181,17 @@ function painelMarcacao(ev) {
 // ---------- o relatorio de um evento ----------
 
 function detalheEvento(ev) {
-  const c = contagemEvento(ev);
-  const segmentos = segmentosDonutStatus({ confirmado: c.confirmado, justificada: c.justificadas, infracional: c.infracional });
+  const c = contagemEvento(ev, null, state.funcaoEspecial);
+  const segmentos = segmentosRosca(c.confirmado, c.justificadas, c.infracional);
   if (ev.status !== 'encerrado') segmentos.push({ label: 'Sem marcação', value: c.aguardando, cor: 'var(--status-aguardando)' });
+  // Sem justificativa, toda falta (inclusive uma marcada antes da regra) e
+  // "Faltaram", sem motivo.
+  const semJustificativa = soFalta(state.funcaoEspecial);
+  const daConta = (st) => statusDaConta(st, state.funcaoEspecial);
   const nomes = (filtro) => porDivisaoNaOrdemOficial(ev.presencas).flatMap(g => g.itens)
-    .filter(p => filtro(statusNoEvento(ev, p)))
+    .filter(p => filtro(daConta(statusNoEvento(ev, p))))
     .map(p => {
-      const st = statusNoEvento(ev, p);
+      const st = daConta(statusNoEvento(ev, p));
       const motivo = ['familia', 'trabalho', 'justificada'].includes(st) ? ` - ${STATUS[st].label}` : '';
       return `${p.nome} (${divisaoCurta(p.divisao)})${motivo}`;
     });
@@ -195,7 +207,7 @@ function detalheEvento(ev) {
       ${secao('Presentes', '✅', nomes(st => st === 'confirmado'))}
       ${secao('Falta justificada', '❌', nomes(st => ['familia', 'trabalho', 'justificada'].includes(st)))}
       ${secao('Sem marcação', '⚠️', nomes(st => st === 'aguardando'))}
-      ${secao('Falta não justificada', '⭕', nomes(st => st === 'infracional'))}
+      ${semJustificativa ? secao('Faltaram', '❌', nomes(st => st === 'infracional')) : secao('Falta não justificada', '⭕', nomes(st => st === 'infracional'))}
     </div>
   `;
 }
@@ -227,7 +239,7 @@ function excluirEvento(ev) {
 // Um card de evento, ativo ou encerrado. Com o "Gerar relatorio" de um
 // evento aberto, o PDF sai so com ele: os outros cards ficam no-print.
 function cardEvento(ev, menuAberto) {
-  const c = contagemEvento(ev);
+  const c = contagemEvento(ev, null, state.funcaoEspecial);
   const aberto = state.funcoesAberto === ev.id;
   const encerrado = ev.status === 'encerrado';
   const esteMenu = state.gerarRelatorioAberto === 'funcao:' + ev.id;
@@ -246,8 +258,9 @@ function cardEvento(ev, menuAberto) {
       ${encerrado ? `
         <div class="count-grid">
           <div class="count-box-report">✅ Presentes <b>${c.confirmado}</b></div>
+          ${soFalta(state.funcaoEspecial) ? `<div class="count-box-report">❌ Faltaram <b>${c.infracional}</b></div>` : `
           <div class="count-box-report">❌ Falta justificada <b>${c.justificadas}</b></div>
-          <div class="count-box-report">⭕ Falta não justificada <b>${c.infracional}</b></div>
+          <div class="count-box-report">⭕ Falta não justificada <b>${c.infracional}</b></div>`}
         </div>
       ` : ''}
       <div class="row-gap no-print funcao-acoes">
@@ -351,7 +364,7 @@ function cardEventoEstatisticas(ev, c, menuAberto) {
     <div class="card ${menuAberto && !esteMenu ? 'no-print' : ''}" style="border-left:3px solid ${COR_FUNCAO[state.funcaoEspecial]};">
       <div class="nome-evento-card">${escapeHtml(ev.nome)}</div>
       <div style="color:var(--text-muted); font-size:12px; margin-top:5px;">🗓️ ${escapeHtml(quando(ev))} · ${c.confirmado} de ${c.total} · <b style="color:var(--white-strong);">${c.pct === null ? '—' : c.pct + '%'} de presença</b></div>
-      ${esteMenu ? detalheEvento(ev) : `<div style="margin-top:10px;">${renderDonutChart(segmentosDonutStatus({ confirmado: c.confirmado, justificada: c.justificadas, infracional: c.infracional }), c.pct === null ? '—' : c.pct + '%', 'presença', 100)}</div>`}
+      ${esteMenu ? detalheEvento(ev) : `<div style="margin-top:10px;">${renderDonutChart(segmentosRosca(c.confirmado, c.justificadas, c.infracional), c.pct === null ? '—' : c.pct + '%', 'presença', 100)}</div>`}
       ${botaoGerarRelatorio('funcao:' + ev.id, opcoesRelatorioEvento(ev))}
       ${esteMenu ? `<div class="print-only" style="margin-top:12px; font-size:12px; color:var(--text-muted);">Gerado em ${escapeHtml(new Date().toLocaleString('pt-BR'))}</div>` : ''}
     </div>
@@ -360,7 +373,7 @@ function cardEventoEstatisticas(ev, c, menuAberto) {
 
 function renderEstatisticas() {
   const fe = funcao();
-  const r = estatisticasFuncao(eventos(), state.funcoesPeriodo);
+  const r = estatisticasFuncao(eventos(), state.funcoesPeriodo, state.funcaoEspecial);
   const g = r.geral;
   if (!r.eventos) return semEventosNoPeriodo(fe);
   const menuEvento = r.porEvento.some(({ ev }) => state.gerarRelatorioAberto === 'funcao:' + ev.id);
@@ -371,7 +384,7 @@ function renderEstatisticas() {
       <div class="card donut-card donut-card-total">
         <div class="painel-titulo">${fe.selo} Presença dos ${escapeHtml(fe.nome)}</div>
         <div class="fin-explica">${escapeHtml(rotuloPeriodoMovimentos(state.funcoesPeriodo))} · ${r.eventos} ${r.eventos === 1 ? 'evento encerrado' : 'eventos encerrados'} · ${g.confirmados} de ${g.convites} presenças</div>
-        ${renderDonutChart(segmentosDonutStatus({ confirmado: g.confirmados, justificada: g.justificadas, infracional: g.naoJustificadas }), g.pct + '%', 'presença', 130)}
+        ${renderDonutChart(segmentosRosca(g.confirmados, g.justificadas, g.naoJustificadas), g.pct + '%', 'presença', 130)}
         ${botaoGerarRelatorio('funcoes-estatisticas', [
           { acao: 'funcao-copiar-estatisticas', rotulo: '📋 WhatsApp' },
           { acao: 'funcao-pdf-estatisticas', rotulo: '📄 PDF' },
@@ -389,7 +402,7 @@ function renderEstatisticas() {
 // aba Estatisticas (state.funcoesPeriodo e um so).
 function renderIndividuais() {
   const fe = funcao();
-  const r = estatisticasFuncao(eventos(), state.funcoesPeriodo);
+  const r = estatisticasFuncao(eventos(), state.funcoesPeriodo, state.funcaoEspecial);
   if (!r.eventos) return semEventosNoPeriodo(fe);
   const lugares = posicoesDoPodio(r.porIntegrante.map(p => (p.pct > 0 ? p.pct : null)));
   return `
@@ -406,7 +419,7 @@ function renderIndividuais() {
     </div>
     ${r.porIntegrante.map((p, i) => linhaPct(
       `${medalha(lugares[i])}${escapeHtml(p.nome)}${p.grau ? ` <span class="grade-box">${escapeHtml(p.grau)}</span>` : ''}`,
-      `${escapeHtml(divisaoCurta(p.divisao))} · ${p.confirmados} de ${p.eventos} ${p.eventos === 1 ? 'evento' : 'eventos'}${p.justificadas ? ` · ❌ ${p.justificadas}` : ''}${p.naoJustificadas ? ` · ⭕ ${p.naoJustificadas}` : ''}`,
+      `${escapeHtml(divisaoCurta(p.divisao))} · ${p.confirmados} de ${p.eventos} ${p.eventos === 1 ? 'evento' : 'eventos'}${p.justificadas ? ` · ❌ ${p.justificadas}` : ''}${p.naoJustificadas ? ` · ${soFalta(state.funcaoEspecial) ? '❌' : '⭕'} ${p.naoJustificadas}` : ''}`,
       p.pct)).join('')}
   `;
 }
@@ -677,8 +690,8 @@ export const acoes = {
     if (!ev) return;
     const encerrar = ev.status !== 'encerrado';
     if (encerrar) {
-      const c = contagemEvento(ev, state.funcoesAberto === id ? state.funcoesRascunho : null);
-      if (c.aguardando && !confirm(`${c.aguardando} ${c.aguardando === 1 ? 'integrante está' : 'integrantes estão'} sem marcação e ${c.aguardando === 1 ? 'vai virar' : 'vão virar'} ⭕ Não justificada. Encerrar mesmo assim?`)) return;
+      const c = contagemEvento(ev, state.funcoesAberto === id ? state.funcoesRascunho : null, state.funcaoEspecial);
+      if (c.aguardando && !confirm(`${c.aguardando} ${c.aguardando === 1 ? 'integrante está' : 'integrantes estão'} sem marcação e ${c.aguardando === 1 ? 'vai virar' : 'vão virar'} ${soFalta(state.funcaoEspecial) ? '❌ Faltou' : '⭕ Não justificada'}. Encerrar mesmo assim?`)) return;
     } else if (!podeDescartar()) return;
     return gravar(async () => {
       if (encerrar && state.funcoesAberto === id) await gravarMarcacao(ev);
@@ -709,10 +722,10 @@ export const acoes = {
     const ev = eventoPorId(id);
     if (!ev) return;
     const fe = funcao();
-    const c = contagemEvento(ev);
+    const c = contagemEvento(ev, null, state.funcaoEspecial);
     // O formato que o resultado de evento do clube espera: memberIds e as
     // contagens; a "origem" no lugar da divisao.
-    const comoEvento = { ...ev, tipo: '', memberIds: ev.presencas.map(p => p.membroId), origem: `${fe.selo} ${fe.nome}` };
+    const comoEvento = { ...ev, tipo: '', memberIds: ev.presencas.map(p => p.membroId), origem: `${fe.selo} ${fe.nome}`, soFalta: soFalta(fe.chave) };
     return mostrarPreviaImagem(() => imagemResultadoEvento(comoEvento, c), `${fe.chave}-${ev.data || 'evento'}.png`);
   },
 
@@ -728,13 +741,13 @@ export const acoes = {
     return render();
   },
   'funcao-copiar-estatisticas': async (id, target, action, e) => {
-    const r = estatisticasFuncao(eventos(), state.funcoesPeriodo);
+    const r = estatisticasFuncao(eventos(), state.funcoesPeriodo, state.funcaoEspecial);
     return copiarTexto(textoEstatisticasFuncao(r, state.funcaoEspecial, state.funcoesPeriodo));
   },
   'funcao-pdf-estatisticas': async (id, target, action, e) => { window.print(); },
   'funcao-imagem-estatisticas': async (id, target, action, e) => {
     const fe = funcao();
-    const r = estatisticasFuncao(eventos(), state.funcoesPeriodo);
+    const r = estatisticasFuncao(eventos(), state.funcoesPeriodo, state.funcaoEspecial);
     return mostrarPreviaImagem(() => imagemEstatisticasFuncao(r, fe, rotuloPeriodoMovimentos(state.funcoesPeriodo)), `${fe.chave}-estatisticas.png`);
   },
   'funcao-caveira01-abrir': async (id, target, action, e) => {
@@ -767,13 +780,13 @@ export const acoes = {
     if (patchs !== null) return imprimirTexto(textoRelatorioCaveiras(modeloCaveiras(), patchs));
   },
   'funcao-copiar-individuais': async (id, target, action, e) => {
-    const r = estatisticasFuncao(eventos(), state.funcoesPeriodo);
+    const r = estatisticasFuncao(eventos(), state.funcoesPeriodo, state.funcaoEspecial);
     return copiarTexto(textoIndividuaisFuncao(r, state.funcaoEspecial, state.funcoesPeriodo));
   },
   'funcao-pdf-individuais': async (id, target, action, e) => { window.print(); },
   'funcao-imagem-individuais': async (id, target, action, e) => {
     const fe = funcao();
-    const r = estatisticasFuncao(eventos(), state.funcoesPeriodo);
+    const r = estatisticasFuncao(eventos(), state.funcoesPeriodo, state.funcaoEspecial);
     return mostrarPreviaImagem(() => imagemIndividuaisFuncao(r, fe, rotuloPeriodoMovimentos(state.funcoesPeriodo)), `${fe.chave}-individuais.png`);
   },
 };

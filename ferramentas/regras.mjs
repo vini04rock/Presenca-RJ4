@@ -1380,6 +1380,14 @@ log('');
   confere('por integrante, do maior % pro menor', r.porIntegrante.map(x => [x.nome, x.pct, x.naoJustificadas]), [['Costa', 100, 0], ['Lobo', 50, 1], ['Bull', 0, 0]]);
   confere('mês a mês', r.porMes.map(m => [m.mes, m.pct]), [['2026-09', 33], ['2026-10', 100]]);
   confere('por período: só outubro', estatisticasFuncao(evs, { de: '2026-10-01', ate: '' }).eventos, 1);
+  // Caveiras: sem justificativa, toda falta (inclusive a Família marcada
+  // antes da regra) e uma so, e o texto diz "FALTARAM".
+  confere('caveiras: a Família antiga soma na falta', contagemEvento(evs[0], null, 'caveira'),
+    { confirmado: 1, familia: 0, trabalho: 0, justificada: 0, infracional: 2, aguardando: 0, total: 3, justificadas: 0, pct: 33 });
+  confere('caveiras: estatística sem justificadas', estatisticasFuncao(evs, 0, 'caveira').geral.justificadas, 0);
+  const txtCav = textoEventoFuncao(evs[0], 'caveira');
+  confere('caveiras: o texto tem FALTARAM e não tem justificativa', /❌ FALTARAM \(2\)/.test(txtCav) && !/JUSTIFICAD|NÃO PUDERAM/.test(txtCav), true);
+  confere('batedores continuam com as justificadas', contagemEvento(evs[0], null, 'batedor').justificadas, 1);
 
   const texto = textoEventoFuncao(evs[0], 'batedor').split('\n');
   confere('texto do evento: título da função e o %', [texto[0], texto[1], texto[5]],
@@ -1393,9 +1401,9 @@ log('');
     [textoStats[0], textoStats.slice(-3), textoStats.some(l => l.includes('Lobo'))],
     ['💀 *CAVEIRAS — ESTATÍSTICAS*', ['*POR EVENTO*', '- 10/10 · Treino: 100% (2 de 2)', '- 20/09 · Escolta Serra: 33% (1 de 3)'], false]);
   const textoInd = textoIndividuaisFuncao(r, 'caveira', 0).split('\n');
-  confere('texto das individuais: cada integrante e quem tem falta não justificada',
+  confere('texto das individuais: cada integrante e quem faltou (Caveiras: sem justificativa)',
     [textoInd[0], textoInd.includes('1. Costa (Barra) — 100% (2 de 2)'), textoInd.slice(-2)],
-    ['💀 *CAVEIRAS — ESTATÍSTICAS INDIVIDUAIS*', true, ['⭕ *FALTAS NÃO JUSTIFICADAS*', '- Lobo (Oeste): 1']]);
+    ['💀 *CAVEIRAS — ESTATÍSTICAS INDIVIDUAIS*', true, ['❌ *FALTAS*', '- Lobo (Oeste): 1']]);
 
   // O Relatorio Caveiras: um emoji por evento, do mais antigo pro mais novo.
   const { relatorioCaveiras, textoRelatorioCaveiras } = await import(url('dominio/funcoes-especiais.js'));

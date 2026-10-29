@@ -27,6 +27,12 @@ export function dadosDaFuncao(chave) { return FUNCOES_ESPECIAIS.find(f => f.chav
 // (ele e o "ainda nao marquei", e volta sozinho no Reabrir).
 export const STATUS_MARCAVEIS = ['confirmado', 'familia', 'trabalho', 'justificada', 'infracional'];
 export function statusMarcaveis(chave) { return dadosDaFuncao(chave).marcaveis || STATUS_MARCAVEIS; }
+// A funcao sem justificativa: toda falta e uma so, o ❌ Faltou. Nas contas
+// abaixo, Familia, Trabalho e Justificada (marcadas antes da regra) somam
+// na falta, e as justificadas ficam zeradas.
+export function soFalta(chave) { return !statusMarcaveis(chave).includes('justificada'); }
+const JUSTIFICADAS = ['familia', 'trabalho', 'justificada'];
+export function statusDaConta(st, chave) { return chave && soFalta(chave) && JUSTIFICADAS.includes(st) ? 'infracional' : st; }
 
 // "Barra - RJ4" -> "Barra"; "Regional RJ4" -> "Regional".
 export function divisaoCurta(nome) { return String(nome || '').replace(/\s*-?\s*RJ4$/, '') || 'Sem divisão'; }
@@ -61,18 +67,18 @@ export function statusNoEvento(ev, p, rascunho) {
   return ev.status === 'encerrado' && st === 'aguardando' ? 'infracional' : st;
 }
 
-export function contagemEvento(ev, rascunho) {
+export function contagemEvento(ev, rascunho, chave) {
   const c = { confirmado: 0, familia: 0, trabalho: 0, justificada: 0, infracional: 0, aguardando: 0 };
-  (ev.presencas || []).forEach(p => { c[statusNoEvento(ev, p, rascunho)]++; });
+  (ev.presencas || []).forEach(p => { c[statusDaConta(statusNoEvento(ev, p, rascunho), chave)]++; });
   const total = (ev.presencas || []).length;
   return { ...c, total, justificadas: c.familia + c.trabalho + c.justificada, pct: total ? Math.round(c.confirmado / total * 100) : null };
 }
 
 // Os nomes de cada status, por divisao na ordem oficial: "Costa (Barra)".
-function nomesPorStatus(ev) {
+function nomesPorStatus(ev, chave) {
   const g = { confirmado: [], familia: [], trabalho: [], justificada: [], infracional: [], aguardando: [] };
   porDivisaoNaOrdemOficial(ev.presencas || []).forEach(grupo => grupo.itens.forEach(p => {
-    g[statusNoEvento(ev, p)].push(`${p.nome} (${divisaoCurta(p.divisao)})`);
+    g[statusDaConta(statusNoEvento(ev, p), chave)].push(`${p.nome} (${divisaoCurta(p.divisao)})`);
   }));
   return g;
 }
@@ -86,14 +92,9 @@ function linhaQuando(ev) {
 // ainda nao foi marcado aparece como "sem marcação", nunca como falta.
 export function textoEventoFuncao(ev, chave) {
   const f = dadosDaFuncao(chave);
-  const g = nomesPorStatus(ev);
-  const c = contagemEvento(ev);
+  const g = nomesPorStatus(ev, chave);
+  const c = contagemEvento(ev, null, chave);
   const parcial = ev.status !== 'encerrado';
-  const naoPuderam = [
-    ...g.familia.map(n => `${n} - Família`),
-    ...g.trabalho.map(n => `${n} - Trabalho`),
-    ...g.justificada.map(n => `${n} - Justificada`),
-  ];
   const lista = (nomes, vazio) => (nomes.length ? nomes.map(n => '- ' + n) : ['- ' + vazio]);
   const linhas = [
     `${f.selo} *${f.nome.toUpperCase()} — ${parcial ? 'RELATÓRIO PARCIAL' : 'RELATÓRIO DE PRESENÇA'}*`,
@@ -103,12 +104,22 @@ export function textoEventoFuncao(ev, chave) {
   if (ev.endereco) linhas.push('📍 ' + ev.endereco);
   linhas.push('', `📊 ${c.pct === null ? 0 : c.pct}% DE PRESENÇA (${c.confirmado} de ${c.total})`, '');
   linhas.push(`✅ PRESENTES (${g.confirmado.length})`, ...lista(g.confirmado, 'Ninguém'), '');
-  linhas.push(`❌ NÃO PUDERAM IR (${naoPuderam.length})`, ...lista(naoPuderam, 'Ninguém'), '');
+  // Sem justificativa (Caveiras), a falta e uma so e nao ha "nao puderam ir".
+  const semJustificativa = soFalta(chave);
+  if (!semJustificativa) {
+    const naoPuderam = [
+      ...g.familia.map(n => `${n} - Família`),
+      ...g.trabalho.map(n => `${n} - Trabalho`),
+      ...g.justificada.map(n => `${n} - Justificada`),
+    ];
+    linhas.push(`❌ NÃO PUDERAM IR (${naoPuderam.length})`, ...lista(naoPuderam, 'Ninguém'), '');
+  }
+  const titulo = semJustificativa ? '❌ FALTARAM' : '⭕ FALTA NÃO JUSTIFICADA';
   if (parcial) {
     linhas.push(`⚠️ SEM MARCAÇÃO AINDA (${g.aguardando.length})`, ...lista(g.aguardando, 'Todos marcados'));
-    if (g.infracional.length) linhas.push('', `⭕ FALTA NÃO JUSTIFICADA (${g.infracional.length})`, ...lista(g.infracional, ''));
+    if (g.infracional.length) linhas.push('', `${titulo} (${g.infracional.length})`, ...lista(g.infracional, ''));
   } else {
-    linhas.push(`⭕ FALTA NÃO JUSTIFICADA (${g.infracional.length})`, ...lista(g.infracional, 'Nenhuma'));
+    linhas.push(`${titulo} (${g.infracional.length})`, ...lista(g.infracional, semJustificativa ? 'Ninguém' : 'Nenhuma'));
   }
   return linhas.join('\n');
 }
@@ -126,7 +137,7 @@ const pctDe = (sim, total) => (total ? Math.round(sim / total * 100) : null);
 // As estatisticas de uma funcao no periodo: o geral, cada evento, cada
 // integrante e cada mes. Nome, grau e divisao de um integrante sao os do
 // evento mais recente dele (o retrato gravado na planilha).
-export function estatisticasFuncao(eventos, periodo) {
+export function estatisticasFuncao(eventos, periodo, chave) {
   const evs = encerradosDoPeriodo(eventos, periodo);
   const geral = { convites: 0, confirmados: 0, justificadas: 0, naoJustificadas: 0 };
   const pessoas = {};
@@ -136,7 +147,7 @@ export function estatisticasFuncao(eventos, periodo) {
     if (mes) meses[mes] = meses[mes] || { mes, eventos: 0, convites: 0, confirmados: 0 };
     if (mes) meses[mes].eventos++;
     (ev.presencas || []).forEach(p => {
-      const st = statusNoEvento(ev, p);
+      const st = statusDaConta(statusNoEvento(ev, p), chave);
       const veio = st === 'confirmado';
       const nj = st === 'infracional';
       const pessoa = pessoas[p.membroId] = pessoas[p.membroId] ||
@@ -154,7 +165,7 @@ export function estatisticasFuncao(eventos, periodo) {
   // (sem data no fim). E o evento inteiro: a tela abre o relatorio dele.
   const porEvento = evs.slice()
     .sort((a, b) => (b.data || '').localeCompare(a.data || ''))
-    .map(ev => ({ ev, c: contagemEvento(ev) }));
+    .map(ev => ({ ev, c: contagemEvento(ev, null, chave) }));
   const porIntegrante = Object.values(pessoas)
     .map(x => ({ ...x, pct: pctDe(x.confirmados, x.eventos) }))
     .sort((a, b) => b.pct - a.pct || b.confirmados - a.confirmados || a.nome.localeCompare(b.nome));
@@ -186,7 +197,9 @@ export function textoEstatisticasFuncao(r, chave, periodo) {
   linhas.push(
     '',
     `📊 *${g.pct}% DE PRESENÇA* (${g.confirmados} de ${g.convites})`,
-    `${STATUS.confirmado.emoji} ${g.confirmados} presenças · ${STATUS.justificada.emoji} ${g.justificadas} justificadas · ${STATUS.infracional.emoji} ${g.naoJustificadas} não justificadas`,
+    soFalta(chave)
+      ? `${STATUS.confirmado.emoji} ${g.confirmados} presenças · ❌ ${g.naoJustificadas} faltas`
+      : `${STATUS.confirmado.emoji} ${g.confirmados} presenças · ${STATUS.justificada.emoji} ${g.justificadas} justificadas · ${STATUS.infracional.emoji} ${g.naoJustificadas} não justificadas`,
     '',
     '*POR EVENTO*',
     ...r.porEvento.map(({ ev, c }) => `- ${rotuloEventoCurto(ev)}: ${c.pct === null ? 0 : c.pct}% (${c.confirmado} de ${c.total})`),
@@ -209,7 +222,7 @@ export function textoIndividuaisFuncao(r, chave, periodo) {
   const faltosos = r.porIntegrante.filter(p => p.naoJustificadas > 0)
     .sort((a, b) => b.naoJustificadas - a.naoJustificadas || a.nome.localeCompare(b.nome));
   if (faltosos.length) {
-    linhas.push('', `${STATUS.infracional.emoji} *FALTAS NÃO JUSTIFICADAS*`,
+    linhas.push('', soFalta(chave) ? '❌ *FALTAS*' : `${STATUS.infracional.emoji} *FALTAS NÃO JUSTIFICADAS*`,
       ...faltosos.map(p => `- ${p.nome} (${divisaoCurta(p.divisao)}): ${p.naoJustificadas}`));
   }
   return linhas.join('\n');
