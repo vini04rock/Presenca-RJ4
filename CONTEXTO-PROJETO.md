@@ -942,7 +942,10 @@ alta que as outras. Quantos têm cada função sai numa linha embaixo do card.
   qualquer falta, ➖ não estava no evento — e o % dele (o ➖ não conta).
   Embaixo, a Avaliação (os meses do período), os eventos na ordem dos
   emojis, os "Patchs caveiras em uso" (digitados na hora, não gravados),
-  as Virtudes e o I.S.S.I. Sai em WhatsApp e PDF. Entram os que têm a
+  as Virtudes e o I.S.S.I. Sai em WhatsApp e PDF. Desde 29/10/2026 tem
+  uma **Observação** opcional, também digitada na hora e não gravada: com
+  texto, sai num bloco "Observação:" logo abaixo dos Patchs; em branco, o
+  bloco nem aparece. Entram os que têm a
   função hoje, afastados inclusive; Caveira e Suplente ao mesmo tempo
   conta só como titular. O **💀 Caveira 01** é escolhido na própria aba
   e fica gravado na aba `FuncoesConfig` (chave `caveira01`, ação

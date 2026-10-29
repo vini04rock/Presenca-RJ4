@@ -761,7 +761,7 @@ add('funções especiais / individuais',           { ...func, adminTab:'funcoes-
 add('funções especiais / individuais: relatório', { ...func, adminTab:'funcoes-individuais', gerarRelatorioAberto:'funcoes-individuais' }, T.renderAdmin);
 const cav = { ...func, funcaoEspecial:'caveira', funcoesDados:{ funcao:'caveira', eventos:funcoesEventos, config:{ caveira01:'m2' } }, adminTab:'funcoes-relatorio-caveiras' };
 add('funções especiais / relatório caveiras',          cav, T.renderAdmin);
-add('funções especiais / relatório caveiras: escolher 01', { ...cav, funcoesCaveira01Aberto:true, funcoesPatchs:'11' }, T.renderAdmin);
+add('funções especiais / relatório caveiras: escolher 01', { ...cav, funcoesCaveira01Aberto:true, funcoesPatchs:'11', funcoesObservacao:'Treino extra' }, T.renderAdmin);
 add('funções especiais / caveiras marcando',      { ...cav, adminTab:'funcoes-eventos', funcoesAberto:'fe3', funcoesRascunho:{ m2:'infracional' } }, T.renderAdmin);
 add('funções especiais / caveiras encerrados',    { ...cav, adminTab:'funcoes-encerrados', funcoesAberto:'fe1' }, T.renderAdmin);
 add('funções especiais / caveiras estatísticas',  { ...cav, adminTab:'funcoes-estatisticas' }, T.renderAdmin);

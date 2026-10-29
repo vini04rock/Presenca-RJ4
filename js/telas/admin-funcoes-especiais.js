@@ -499,6 +499,10 @@ function renderRelatorioCaveiras() {
         <label>Patchs caveiras em uso</label>
         <input type="number" inputmode="numeric" min="0" id="funcoes-patchs" value="${escapeHtml(state.funcoesPatchs)}" placeholder="Quantos patchs estão em uso hoje" autocomplete="off">
       </div>
+      <div class="field" style="margin-bottom:10px;">
+        <label>Observação (opcional)</label>
+        <textarea rows="3" maxlength="1000" id="funcoes-observacao" placeholder="Algo a mais pro relatório. Em branco, não sai no texto.">${escapeHtml(state.funcoesObservacao)}</textarea>
+      </div>
       <div class="row-gap">
         <button class="btn" style="flex:1;" data-action="funcao-copiar-caveiras">📋 Copiar pro WhatsApp</button>
         <button class="btn secondary" style="flex:1;" data-action="funcao-pdf-caveiras">📄 PDF</button>
@@ -532,6 +536,7 @@ export function tituloFuncaoEspecial() {
 // o teclado do celular. Devolve true se o campo era daqui.
 export function atualizarCampoFuncoes(el) {
   if (el.id === 'funcoes-patchs') { state.funcoesPatchs = el.value; return true; }
+  if (el.id === 'funcoes-observacao') { state.funcoesObservacao = el.value; return true; }
   const chave = el.dataset && el.dataset.funcoes;
   if (!chave || !state.funcoesForm) return false;
   state.funcoesForm[chave] = el.value;
@@ -773,12 +778,12 @@ export const acoes = {
   },
   'funcao-copiar-caveiras': async (id, target, action, e) => {
     const patchs = textoDosPatchs();
-    if (patchs !== null) return copiarTexto(textoRelatorioCaveiras(modeloCaveiras(), patchs));
+    if (patchs !== null) return copiarTexto(textoRelatorioCaveiras(modeloCaveiras(), patchs, state.funcoesObservacao));
   },
   // O PDF leva o mesmo texto do WhatsApp, numa folha limpa.
   'funcao-pdf-caveiras': async (id, target, action, e) => {
     const patchs = textoDosPatchs();
-    if (patchs !== null) return imprimirTexto(textoRelatorioCaveiras(modeloCaveiras(), patchs));
+    if (patchs !== null) return imprimirTexto(textoRelatorioCaveiras(modeloCaveiras(), patchs, state.funcoesObservacao));
   },
   'funcao-copiar-individuais': async (id, target, action, e) => {
     const r = estatisticasFuncao(eventos(), state.funcoesPeriodo, state.funcaoEspecial);

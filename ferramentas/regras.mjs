@@ -1453,6 +1453,12 @@ log('');
   confere('caveiras: avaliação, eventos numerados na ordem dos emojis e os patchs',
     [tc.includes('Avaliação Jun_26 a Dez_26'), tc.indexOf('1. Reunião Caveira') < tc.indexOf('2. Reunião Caveira'), tc.includes('20:30h'), tc.includes('Patchs caveiras em uso : 11'), tc[tc.length - 1]],
     [true, true, true, true, 'I.S.S.I']);
+  confere('caveiras: sem observação, o bloco não aparece', tc.includes('Observação:'), false);
+  const to = textoRelatorioCaveiras(rc, '11', '  Treino extra em novembro  ').split('\n');
+  const io = to.indexOf('Observação:');
+  confere('caveiras: a observação sai abaixo dos patchs, antes das virtudes',
+    [io > to.indexOf('Patchs caveiras em uso : 11'), to[io + 1], to[io + 2].startsWith('....'), to[io + 3]],
+    [true, 'Treino extra em novembro', true, 'Virtudes de um Caveira']);
 }
 {
   log('=== as três saídas: os textos novos (WhatsApp e PDF) ===');

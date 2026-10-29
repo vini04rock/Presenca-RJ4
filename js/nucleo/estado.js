@@ -310,9 +310,11 @@ export let state = {
   funcoesApagarId: null,
   funcoesPeriodo: 0,
   // O Relatorio Caveiras: a lista de escolher o Caveira 01 aberta, e os
-  // "Patchs caveiras em uso" digitados (vao so pro texto, nao sao gravados).
+  // "Patchs caveiras em uso" e a Observacao digitados (vao so pro texto,
+  // nao sao gravados).
   funcoesCaveira01Aberto: false,
   funcoesPatchs: '',
+  funcoesObservacao: '',
 
   // Secao Caixinha do organizador. Mesma ideia: os meses lancados da
   // divisao (e o controle financeiro dela, que vem junto), e o mes aberto

@@ -328,8 +328,11 @@ export function marcasCaveira(l) {
 
 const n2 = i => String(i).padStart(2, '0');
 
-export function textoRelatorioCaveiras(r, patchs) {
+// `observacao`: opcional (29/10/2026). Com texto, sai abaixo dos Patchs, no
+// bloco "Observação:"; em branco, o bloco nem aparece.
+export function textoRelatorioCaveiras(r, patchs, observacao) {
   const diretor = r.diretor || '(nome)', operacional = r.operacional || '(nome)';
+  const obs = String(observacao || '').trim();
   const titulares = [];
   for (let i = 0; i < Math.max(VAGAS_CAVEIRAS, r.titulares.length); i++) {
     const l = r.titulares[i];
@@ -379,6 +382,7 @@ export function textoRelatorioCaveiras(r, patchs) {
     `Patchs caveiras em uso : ${patchs}`,
     '............................................',
     '',
+    ...(obs ? ['Observação:', obs, '.................................................'] : []),
     'Virtudes de um Caveira',
     'Comprometimento, amor à causa, disponibilidade, postura, responsabilidade, respeito, atenção e sigilo.',
     '',
