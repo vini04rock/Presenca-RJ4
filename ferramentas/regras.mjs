@@ -1424,8 +1424,9 @@ log('');
     relatorioCaveiras(futuro, cadastro, 0, '').avaliacao, 'Nov_99 a Nov_99');
   confere('caveiras: o Caveira 01 escolhido abre a lista', relatorioCaveiras(evsCav, cadastro, 0, 'k1').titulares.map(l => l.nome), ['Bala', 'Vilão', 'Duplo']);
   const tc = textoRelatorioCaveiras(rc, '11').split('\n');
-  confere('caveiras: os dois cabeçalhos com o Diretor e o Operacional do cadastro',
-    [tc[0], tc[1], tc[2], tc[14], tc[15]], ['REGIONAL  RJ4', 'Diretor - PASTOR', 'Operacional - BULL', 'Diretor= Pastor', 'Operacional= Bull']);
+  confere('caveiras: o cabeçalho com o Diretor e o Operacional do cadastro, uma vez só, e a legenda vai direto pros titulares',
+    [tc[0], tc[1], tc[2], tc.some(l => l.startsWith('Diretor=')), tc.slice(8, 12)],
+    ['REGIONAL  RJ4', 'Diretor - PASTOR', 'Operacional - BULL', false, ['➖ Não estava na equipe', '', '-------------------------------', '💀 CAVEIRA TITULAR 💀']]);
   confere('caveiras: titulares completados até 10, com o % no fim',
     [tc.filter(l => l.startsWith('💀') && l.includes('-')).length, tc.find(l => l.startsWith('💀02-')), tc.includes('💀10-')], [10, '💀02- Bala ✅❌ — 50%', true]);
   confere('caveiras: suplentes completados até 10 (mais o título)', [tc.filter(l => l.startsWith('🪖')).length, tc.includes('🪖 Adam ➖❌ — 0%')], [11, true]);

@@ -920,8 +920,9 @@ alta que as outras. Quantos têm cada função sai numa linha embaixo do card.
 - **Relatório Caveiras** (28/10/2026): uma 5ª aba, **Relatório**, que só
   existe nos Caveiras (`soNaFuncao`, em `telas/admin.js`). Monta o texto no
   formato que o clube já usava no grupo (`relatorioCaveiras` /
-  `textoRelatorioCaveiras`): os dois cabeçalhos com o Diretor Regional e o
-  Operacional do cadastro, a legenda, os 💀 titulares e os 🪖 suplentes
+  `textoRelatorioCaveiras`): o cabeçalho com o Diretor Regional e o
+  Operacional do cadastro (uma vez só - o modelo do clube repetia, e o
+  clube pediu pra tirar), a legenda, os 💀 titulares e os 🪖 suplentes
   (completados até 10 linhas cada), cada um com um emoji por evento
   encerrado do período, do mais antigo pro mais novo — ✅ presente, ❌
   qualquer falta, ➖ não estava no evento — e o % dele (o ➖ não conta).
