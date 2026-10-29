@@ -15,7 +15,7 @@ import { IMG_FUNCOES_ESPECIAIS } from '../nucleo/imagens.js';
 import { render } from '../nucleo/render.js';
 import { copiarTexto, dataDoCampoOuAvisar, escapeHtml, formatDataBR, imprimirTexto, ordenarPorHierarquia } from '../nucleo/util.js';
 import { carregarFuncoesEspeciais } from '../dados/carregar.js';
-import { FUNCOES_ESPECIAIS, STATUS_MARCAVEIS, contagemEvento, divisaoCurta, dadosDaFuncao, estatisticasFuncao, integrantesDaFuncao, porDivisaoNaOrdemOficial, statusNoEvento, textoEstatisticasFuncao, textoEventoFuncao, textoIndividuaisFuncao,
+import { FUNCOES_ESPECIAIS, contagemEvento, divisaoCurta, dadosDaFuncao, estatisticasFuncao, integrantesDaFuncao, porDivisaoNaOrdemOficial, statusMarcaveis, statusNoEvento, textoEstatisticasFuncao, textoEventoFuncao, textoIndividuaisFuncao,
   EMOJI_CAVEIRAS, relatorioCaveiras, textoRelatorioCaveiras } from '../dominio/funcoes-especiais.js';
 import { PERIODOS, rotuloPilula } from '../dominio/doacoes.js';
 import { nomeCurtoDoMes, nomeDoMes } from '../dominio/caixinha.js';
@@ -28,6 +28,12 @@ const COR_FUNCAO = { batedor: '#5FA0C4', caveira: '#C9C2B4' };
 // Os rotulos curtos dos botoes de marcacao: cinco por linha nao cabem com o
 // nome inteiro num celular. O emoji e o do clube, sempre.
 const ROTULO_CURTO = { confirmado: 'Presente', familia: 'Família', trabalho: 'Trabalho', justificada: 'Justificada', infracional: 'Não justif.' };
+// Nos Caveiras so ha presente e falta, entao a falta e o ❌ Faltou, o mesmo
+// emoji de falta do Relatorio Caveiras.
+function rotuloMarcacao(st) {
+  if (state.funcaoEspecial === 'caveira' && st === 'infracional') return '❌ Faltou';
+  return `${STATUS[st].emoji} ${ROTULO_CURTO[st]}`;
+}
 
 function funcao() { return dadosDaFuncao(state.funcaoEspecial); }
 function eventos() { return (state.funcoesDados && state.funcoesDados.eventos) || []; }
@@ -135,7 +141,7 @@ function linhaMarcacao(ev, p) {
     <div class="funcao-linha${mudou ? ' mudou' : ''}">
       <div class="funcao-linha-nome">${selinhoIniciais(p)}<span>${escapeHtml(p.nome)}${p.grau ? ` <span class="grade-box">${escapeHtml(p.grau)}</span>` : ''}</span></div>
       <div class="funcao-status">
-        ${STATUS_MARCAVEIS.map(st => `<button class="chip-option ${atual === st ? 'active' : ''}" data-action="funcao-marcar" data-id="${escapeHtml(p.membroId)}" data-value="${st}" title="${escapeHtml(STATUS[st].label)}">${STATUS[st].emoji} ${ROTULO_CURTO[st]}</button>`).join('')}
+        ${statusMarcaveis(state.funcaoEspecial).map(st => `<button class="chip-option ${atual === st ? 'active' : ''}" data-action="funcao-marcar" data-id="${escapeHtml(p.membroId)}" data-value="${st}" title="${escapeHtml(STATUS[st].label)}">${rotuloMarcacao(st)}</button>`).join('')}
       </div>
     </div>
   `;
@@ -147,7 +153,7 @@ function painelMarcacao(ev) {
   return `
     <div class="no-print" style="border-top:1px solid var(--line); margin-top:12px; padding-top:12px;">
       <div class="fin-explica" style="margin-bottom:8px;">${aberto
-        ? 'Toque no status de cada um. Tocar de novo no marcado volta para ⚠️ sem marcação. Ao encerrar, quem ficar sem marcação vira ⭕ Não justificada.'
+        ? `Toque no status de cada um. Tocar de novo no marcado volta para ⚠️ sem marcação. Ao encerrar, quem ficar sem marcação vira ${state.funcaoEspecial === 'caveira' ? '❌ Faltou' : '⭕ Não justificada'}.`
         : 'Corrigindo a marcação de um evento encerrado.'}</div>
       ${aberto ? '<button class="btn ghost" style="padding:0; margin-bottom:8px;" data-action="funcao-todos-presentes">✅ Marcar todos os sem marcação como presentes</button>' : ''}
       ${porDivisaoNaOrdemOficial(ev.presencas).map(g => `

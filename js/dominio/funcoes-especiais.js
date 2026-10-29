@@ -16,13 +16,17 @@ export const FUNCOES_ESPECIAIS = [
   // `tambem`: outras funcoes do cadastro que entram nos eventos desta. O
   // Caveira Suplente e chamado pros eventos de Caveira (o Code.gs tem a
   // mesma lista, em FUNCOES_QUE_ENTRAM).
-  { chave: 'caveira', nome: 'Caveiras', singular: 'Caveira', selo: '💀', tambem: ['caveira_suplente'] },
+  // `marcaveis`: nos Caveiras e so presente ou faltou, sem justificativa
+  // (decisao do clube, 29/10/2026). A falta grava como Nao justificada, a
+  // mesma do encerramento, entao o % e a planilha nao mudam.
+  { chave: 'caveira', nome: 'Caveiras', singular: 'Caveira', selo: '💀', tambem: ['caveira_suplente'], marcaveis: ['confirmado', 'infracional'] },
 ];
 export function dadosDaFuncao(chave) { return FUNCOES_ESPECIAIS.find(f => f.chave === chave) || FUNCOES_ESPECIAIS[0]; }
 
 // Os status que o organizador marca: os da confirmacao, sem o Aguardando
 // (ele e o "ainda nao marquei", e volta sozinho no Reabrir).
 export const STATUS_MARCAVEIS = ['confirmado', 'familia', 'trabalho', 'justificada', 'infracional'];
+export function statusMarcaveis(chave) { return dadosDaFuncao(chave).marcaveis || STATUS_MARCAVEIS; }
 
 // "Barra - RJ4" -> "Barra"; "Regional RJ4" -> "Regional".
 export function divisaoCurta(nome) { return String(nome || '').replace(/\s*-?\s*RJ4$/, '') || 'Sem divisão'; }

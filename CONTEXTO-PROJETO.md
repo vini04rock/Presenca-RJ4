@@ -898,7 +898,10 @@ alta que as outras. Quantos têm cada função sai numa linha embaixo do card.
   Reunião) e sem chamada.
 - **O organizador marca a presença** (como no Insight; não há link
   público), com os status do clube: ✅ Presente (o Confirmado), ❌ Família,
-  ❌ Trabalho, ❌ Justificada e ⭕ Não justificada. A marcação fica na tela
+  ❌ Trabalho, ❌ Justificada e ⭕ Não justificada. **Nos Caveiras é só
+  ✅ Presente e ❌ Faltou** (29/10/2026, sem justificativa; `marcaveis`, em
+  `FUNCOES_ESPECIAIS`): o Faltou grava como Não justificada, a mesma do
+  encerramento, e por isso nem o `Code.gs` nem o % mudaram. A marcação fica na tela
   até o 💾 Salvar marcação, e trocar de evento ou de aba pergunta antes de
   perder.
 - **Encerrar é sempre manual.** Quem ficou sem marcação vira ⭕ Não
