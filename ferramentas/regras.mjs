@@ -1357,6 +1357,18 @@ log('');
   confere('evento de Batedor: só Batedores, sem afastado, divisão na ordem oficial e hierarquia dentro',
     nomes(integrantesDaFuncao(roster, 'batedor')), ['Lobo', 'Bull', 'Costa']);
   confere('evento de Caveira: Caveiras e Caveiras Suplentes', nomes(integrantesDaFuncao(roster, 'caveira')), ['Tigre', 'Gato', 'Bull']);
+  // Grau V fica de fora de tudo dos Caveiras (29/10/2026), mas nao dos Batedores.
+  const { eventosDaFuncao } = await import(url('dominio/funcoes-especiais.js'));
+  const comV = [...roster, { id: 'v1', nome: 'Rex', grau: 'V', cargo: 'Operacional', divisao: 'Regional RJ4', funcoes: ['caveira', 'batedor'] }];
+  confere('caveira: grau V não é chamado', nomes(integrantesDaFuncao(comV, 'caveira')), ['Tigre', 'Gato', 'Bull']);
+  confere('batedor: grau V continua chamado', nomes(integrantesDaFuncao(comV, 'batedor')).includes('Rex'), true);
+  const evV = [{ id: 'ev', status: 'encerrado', presencas: [{ membroId: 'v1', nome: 'Rex', grau: 'VI', status: 'confirmado' }, { membroId: 'c1', nome: 'Tigre', grau: 'VIII', status: 'confirmado' }] }];
+  confere('caveira: grau V sai dos eventos já gravados, pelo grau de hoje do cadastro',
+    eventosDaFuncao(evV, 'caveira', comV)[0].presencas.map(x => x.nome), ['Tigre']);
+  confere('batedor: os eventos não mudam', eventosDaFuncao(evV, 'batedor', comV)[0].presencas.length, 2);
+  const modV = await import(url('dominio/funcoes-especiais.js'));
+  confere('relatório caveiras: grau V fora dos titulares',
+    modV.relatorioCaveiras(evV, comV, 0, 'v1').titulares.map(x => x.nome).includes('Rex'), false);
   confere('nome curto da divisão', ['Barra - RJ4', 'Regional RJ4', ''].map(divisaoCurta), ['Barra', 'Regional', 'Sem divisão']);
 
   const p = (membroId, nome, divisao, status) => ({ membroId, nome, grau: 'X', divisao, status });

@@ -905,7 +905,14 @@ alta que as outras. Quantos têm cada função sai numa linha embaixo do card.
   dos Caveiras também não separam mais: texto, tela, rosca e imagem dizem
   "❌ Faltaram", e uma Família/Trabalho/Justificada marcada antes da regra
   soma na falta (`soFalta`/`statusDaConta`; a `chave` da função vai em
-  `contagemEvento` e `estatisticasFuncao`). A marcação fica na tela
+  `contagemEvento` e `estatisticasFuncao`). **O grau V fica de fora de
+  tudo dos Caveiras** (29/10/2026), mesmo com a função no cadastro: não é
+  chamado, some dos eventos já gravados (pelo grau de hoje no cadastro),
+  das estatísticas, das individuais, da lista do Relatório Caveiras e da
+  escolha do Caveira 01 (`semGraus`, `foraDaFuncao`, `eventosDaFuncao`).
+  O cabeçalho do Relatório, com o Diretor Regional e o Operacional, continua.
+  É só no app: a planilha guarda as linhas antigas, e o Editar do evento as
+  tira. Nos Batedores o grau V continua. A marcação fica na tela
   até o 💾 Salvar marcação, e trocar de evento ou de aba pergunta antes de
   perder.
 - **Encerrar é sempre manual.** Quem ficou sem marcação vira ⭕ Não

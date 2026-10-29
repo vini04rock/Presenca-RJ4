@@ -19,9 +19,30 @@ export const FUNCOES_ESPECIAIS = [
   // `marcaveis`: nos Caveiras e so presente ou faltou, sem justificativa
   // (decisao do clube, 29/10/2026). A falta grava como Nao justificada, a
   // mesma do encerramento, entao o % e a planilha nao mudam.
-  { chave: 'caveira', nome: 'Caveiras', singular: 'Caveira', selo: '💀', tambem: ['caveira_suplente'], marcaveis: ['confirmado', 'infracional'] },
+  // `semGraus`: os graus que ficam de fora de tudo da funcao - chamado,
+  // eventos ja gravados, relatorios e estatisticas. Nos Caveiras, o grau V
+  // (decisao do clube, 29/10/2026), mesmo com a funcao no cadastro.
+  { chave: 'caveira', nome: 'Caveiras', singular: 'Caveira', selo: '💀', tambem: ['caveira_suplente'], marcaveis: ['confirmado', 'infracional'], semGraus: ['V'] },
 ];
 export function dadosDaFuncao(chave) { return FUNCOES_ESPECIAIS.find(f => f.chave === chave) || FUNCOES_ESPECIAIS[0]; }
+
+// Se o integrante fica de fora da funcao pelo grau. `roster` acha o grau de
+// hoje de quem esta num evento (a planilha guarda o retrato de quando foi
+// chamado); quem saiu do cadastro fica com o do retrato.
+export function foraDaFuncao(chave, m, roster) {
+  const graus = dadosDaFuncao(chave).semGraus;
+  if (!graus) return false;
+  const id = m.membroId || m.id;
+  const atual = (roster || []).find(x => x.id === id);
+  return graus.includes(String((atual || m).grau || ''));
+}
+
+// Os eventos da funcao sem quem fica de fora pelo grau: e o que a tela, os
+// relatorios e as estatisticas enxergam.
+export function eventosDaFuncao(eventos, chave, roster) {
+  if (!dadosDaFuncao(chave).semGraus) return eventos || [];
+  return (eventos || []).map(ev => ({ ...ev, presencas: (ev.presencas || []).filter(p => !foraDaFuncao(chave, p, roster)) }));
+}
 
 // Os status que o organizador marca: os da confirmacao, sem o Aguardando
 // (ele e o "ainda nao marquei", e volta sozinho no Reabrir).
@@ -39,11 +60,11 @@ export function divisaoCurta(nome) { return String(nome || '').replace(/\s*-?\s*
 
 // Quem entra num evento novo: so quem tem a funcao no cadastro (a regra do
 // clube - evento de Batedor so tem Batedor; o de Caveira, Caveira e
-// Caveira Suplente), e nao esta afastado.
+// Caveira Suplente), nao esta afastado e nao fica de fora pelo grau.
 export function integrantesDaFuncao(roster, chave) {
   const f = FUNCOES_ESPECIAIS.find(x => x.chave === chave);
   const aceitas = [chave, ...((f && f.tambem) || [])];
-  const lista = (roster || []).filter(m => (m.funcoes || []).some(c => aceitas.includes(c)) && !estaAfastado(m));
+  const lista = (roster || []).filter(m => (m.funcoes || []).some(c => aceitas.includes(c)) && !estaAfastado(m) && !foraDaFuncao(chave, m));
   return porDivisaoNaOrdemOficial(lista).flatMap(g => g.itens);
 }
 
@@ -241,7 +262,7 @@ const VAGAS_CAVEIRAS = 10;
 // `caveira01` escolhido abre a lista; o resto vai na hierarquia.
 function listaCaveiras(roster, chave, caveira01) {
   const lista = ordenarPorHierarquia((roster || []).filter(m => (m.funcoes || []).includes(chave)
-    && (chave === 'caveira' || !(m.funcoes || []).includes('caveira'))));
+    && (chave === 'caveira' || !(m.funcoes || []).includes('caveira')) && !foraDaFuncao('caveira', m)));
   const i = lista.findIndex(m => m.id === caveira01);
   if (i > 0) lista.unshift(lista.splice(i, 1)[0]);
   return lista;

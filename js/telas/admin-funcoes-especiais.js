@@ -15,7 +15,7 @@ import { IMG_FUNCOES_ESPECIAIS } from '../nucleo/imagens.js';
 import { render } from '../nucleo/render.js';
 import { copiarTexto, dataDoCampoOuAvisar, escapeHtml, formatDataBR, imprimirTexto, ordenarPorHierarquia } from '../nucleo/util.js';
 import { carregarFuncoesEspeciais } from '../dados/carregar.js';
-import { FUNCOES_ESPECIAIS, contagemEvento, divisaoCurta, dadosDaFuncao, estatisticasFuncao, integrantesDaFuncao, porDivisaoNaOrdemOficial, soFalta, statusDaConta, statusMarcaveis, statusNoEvento, textoEstatisticasFuncao, textoEventoFuncao, textoIndividuaisFuncao,
+import { FUNCOES_ESPECIAIS, contagemEvento, divisaoCurta, dadosDaFuncao, estatisticasFuncao, eventosDaFuncao, foraDaFuncao, integrantesDaFuncao, porDivisaoNaOrdemOficial, soFalta, statusDaConta, statusMarcaveis, statusNoEvento, textoEstatisticasFuncao, textoEventoFuncao, textoIndividuaisFuncao,
   EMOJI_CAVEIRAS, relatorioCaveiras, textoRelatorioCaveiras } from '../dominio/funcoes-especiais.js';
 import { PERIODOS, rotuloPilula } from '../dominio/doacoes.js';
 import { nomeCurtoDoMes, nomeDoMes } from '../dominio/caixinha.js';
@@ -44,7 +44,8 @@ function segmentosRosca(confirmado, justificadas, faltas) {
 }
 
 function funcao() { return dadosDaFuncao(state.funcaoEspecial); }
-function eventos() { return (state.funcoesDados && state.funcoesDados.eventos) || []; }
+// Ja sem quem fica de fora da funcao pelo grau (o grau V nos Caveiras).
+function eventos() { return eventosDaFuncao(state.funcoesDados && state.funcoesDados.eventos, state.funcaoEspecial, state.roster); }
 function eventoPorId(id) { return eventos().find(e => e.id === id); }
 
 function aviso() {
@@ -432,7 +433,7 @@ function modeloCaveiras() { return relatorioCaveiras(eventos(), state.roster, st
 // O quadro de escolher quem abre a lista. A escolha fica gravada na
 // planilha (FuncoesConfig), pra valer em qualquer celular.
 function quadroCaveira01() {
-  const titulares = ordenarPorHierarquia((state.roster || []).filter(m => (m.funcoes || []).includes('caveira')));
+  const titulares = ordenarPorHierarquia((state.roster || []).filter(m => (m.funcoes || []).includes('caveira') && !foraDaFuncao('caveira', m)));
   const atual = titulares.find(m => m.id === caveira01());
   const aberto = state.funcoesCaveira01Aberto;
   return `
