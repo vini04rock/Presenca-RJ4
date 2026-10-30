@@ -722,9 +722,10 @@ add('ações sociais / editar texto',         { ...agen, adminTab:'acoes-sociais
 add('ações sociais / textos vazio',         { ...asoc, adminTab:'acoes-sociais-textos' }, T.renderAdmin);
 add('ações sociais / rascunho (Barra vazia)', { ...asoc, adminTab:'acoes-sociais', acoesSociaisDados:{ ideias:[], agenda:[], textos:[] } }, T.renderAdmin);
 add('ações sociais / rascunho confirmar',   { ...asoc, adminTab:'acoes-sociais', acoesSociaisDados:{ ideias:[], agenda:[], textos:[] }, acaoSocialRascunhoConfirmar:true }, T.renderAdmin);
-const cart = { isAdmin:true, adminEscopo:'barra', adminTab:'membros', carteirinhaMembroId: membros[0].id, carteirinhaPct: 67 };
+const cart = { isAdmin:true, adminEscopo:'barra', adminTab:'carteirinhas', carteirinhaMembroId: membros[0].id, carteirinhaPct: 67 };
 const fichaCheia = { telefone:'(21) 99999-0000', emergenciaNome:'Maria Costa', emergenciaParentesco:'Esposa', emergenciaTelefone:'21 98888-1111',
-  nascimento:'1985-03-12', tipoSanguineo:'O+', saude:'Alérgico a dipirona', foto:'' };
+  nascimento:'1985-03-12', tipoSanguineo:'O+', saude:'Alérgico a dipirona', foto:'', nomeCompleto:'João Carlos da Costa', planoSaude:'Unimed' };
+add('carteirinhas / lista',                { ...cart, carteirinhaMembroId: null }, T.renderAdmin);
 add('carteirinha / com os dados',           { ...cart, carteirinhaFicha: fichaCheia }, T.renderAdmin);
 add('carteirinha / vazia',                  { ...cart, carteirinhaFicha: {} }, T.renderAdmin);
 add('carteirinha / editando',               { ...cart, carteirinhaFicha: fichaCheia, carteirinhaForm: { ...fichaCheia, nascimentoTexto:'12/03/1985' } }, T.renderAdmin);

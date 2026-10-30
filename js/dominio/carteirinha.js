@@ -1,6 +1,10 @@
 // A carteirinha do integrante: as contas (idade, aniversario) e os links
 // de telefone. Os dados vem da aba MembrosFicha (Code.gs), atras do PIN.
 
+import { funcaoPorChave } from '../nucleo/config.js';
+import { formatDataBR } from '../nucleo/util.js';
+import { textoIngresso } from './movimentos.js';
+
 export const TIPOS_SANGUINEOS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
 // Quantos anos completos tem em `diaDeHoje` quem nasceu em `nascimentoISO`.
@@ -46,4 +50,34 @@ export function aniversariosProximos(lista, diaDeHoje, diasAntes = 7) {
     }
   });
   return saida.sort((a, b) => a.dias - b.dias || String(a.nome).localeCompare(String(b.nome)));
+}
+
+// O texto da carteirinha pro WhatsApp (30/10/2026): em cima o que o app ja
+// sabe do irmao, embaixo os dados da ficha. Campo vazio sai com "—", pra
+// ficar claro que falta preencher. `pct` = % total de presenca (ou null).
+export function textoCarteirinha(m, ficha, pct, diaDeHoje) {
+  const f = ficha || {};
+  const ou = v => (v ? String(v) : '—');
+  const idade = idadeEm(f.nascimento, diaDeHoje);
+  const funcoes = (m.funcoes || []).map(funcaoPorChave).filter(Boolean).map(x => `${x.selo} ${x.label}`).join(' · ');
+  const emergencia = f.emergenciaNome ? f.emergenciaNome + (f.emergenciaParentesco ? ` (${f.emergenciaParentesco})` : '') : '';
+  return [
+    '🪪 *CARTEIRINHA · INSANOS MC · REGIONAL RJ4*',
+    '',
+    `*${String(m.nome || '').toUpperCase()}*`,
+    [m.grau ? `Grau ${m.grau}` : '', m.cargo, m.divisao].filter(Boolean).join(' · ') || '—',
+    ...(funcoes ? [funcoes] : []),
+    `🗓️ ${textoIngresso(m.entrada || '')}`,
+    ...(pct === null || pct === undefined ? [] : [`📊 Presença: ${pct}%`]),
+    '',
+    `🧥 Nome de colete: ${ou(m.nome)}`,
+    `👤 Nome completo: ${ou(f.nomeCompleto)}`,
+    `📞 Telefone: ${ou(f.telefone)}`,
+    `🎂 Nascimento: ${f.nascimento ? formatDataBR(f.nascimento) + (idade !== null ? ` (${idade} anos)` : '') : '—'}`,
+    `🆘 Emergência: ${ou(emergencia)}`,
+    `🆘 Tel. emergência: ${ou(f.emergenciaTelefone)}`,
+    `🩸 Tipo sanguíneo: ${ou(f.tipoSanguineo)}`,
+    `🏥 Plano de saúde: ${ou(f.planoSaude)}`,
+    `⚕️ Alergias e condições: ${ou(f.saude)}`,
+  ].join('\n');
 }

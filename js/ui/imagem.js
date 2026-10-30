@@ -468,6 +468,89 @@ export async function imagemRelatorioIndividual(r, rotuloPeriodo) {
 }
 
 // ---------------------------------------------------------------------------
+// A carteirinha do integrante (30/10/2026): a foto (ou o emblema) e o que o
+// app sabe dele em cima; embaixo, num quadro, os dados da ficha. `c` traz
+// tudo pronto: { nome, linhaGrau, funcoes, ingresso, pct, foto, campos }.
+// `campos` sao linhas de um ou dois [rotulo, valor] (dois = duas colunas);
+// valor vazio sai como "—".
+export async function imagemCarteirinha(c) {
+  const { canvas, ctx, logo } = await novaTela();
+  const lado = 230, topo = 60;
+  let foto = null;
+  if (c.foto) { try { foto = await carregarImagem(c.foto); } catch (e) { /* sem a foto, vai o emblema */ } }
+  if (foto) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(L / 2, topo + lado / 2, lado / 2, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.drawImage(foto, L / 2 - lado / 2, topo, lado, lado);
+    ctx.restore();
+    ctx.strokeStyle = COR.ouro;
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.arc(L / 2, topo + lado / 2, lado / 2, 0, Math.PI * 2);
+    ctx.stroke();
+  } else {
+    emblema(ctx, logo, topo, lado);
+  }
+
+  let tamanho = 60;
+  fonte(ctx, tamanho, 400, 'rye');
+  while (tamanho > 40 && ctx.measureText(c.nome).width > 940) { tamanho -= 4; fonte(ctx, tamanho, 400, 'rye'); }
+  let y = tituloMetal(ctx, c.nome, topo + lado + 80, tamanho, 960);
+  if (c.linhaGrau) rotuloEspacado(ctx, c.linhaGrau.toUpperCase(), y + 2, 22, COR.ouro);
+  y += 44;
+  ctx.textAlign = 'center';
+  if (c.funcoes) {
+    fonte(ctx, 24, 600);
+    ctx.fillStyle = COR.texto;
+    ctx.fillText(caber(ctx, c.funcoes, 960), L / 2, y);
+    y += 38;
+  }
+  fonte(ctx, 22, 600);
+  ctx.fillStyle = COR.apagado;
+  ctx.fillText(caber(ctx, `🗓️ ${c.ingresso}`, 960), L / 2, y);
+  if (c.pct !== null && c.pct !== undefined) {
+    fonte(ctx, 26, 700);
+    ctx.fillStyle = COR.marfim;
+    ctx.fillText(`📊 ${c.pct}% de presença`, L / 2, y + 40);
+    y += 40;
+  }
+
+  // O quadro dos dados: rotulo em ouro, valor embaixo.
+  const qx = 70, qy = y + 36, ql = L - 140, qa = A - 150 - qy;
+  ctx.beginPath();
+  retangulo(ctx, qx, qy, ql, qa, 22);
+  ctx.fillStyle = 'rgba(255,255,255,0.05)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(212,162,76,0.45)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  const passo = Math.min(118, (qa - 30) / c.campos.length);
+  const coluna = (ql - 72 - 40) / 2;
+  ctx.textAlign = 'left';
+  c.campos.forEach((linha, i) => {
+    const ly = qy + 26 + i * passo;
+    linha.forEach(([rotulo, valor], j) => {
+      const x = qx + 36 + j * (coluna + 40);
+      const largura = linha.length === 1 ? ql - 72 : coluna;
+      fonte(ctx, 19, 700);
+      ctx.fillStyle = COR.ouro;
+      if ('letterSpacing' in ctx) ctx.letterSpacing = '3px';
+      ctx.fillText(caber(ctx, rotulo.toUpperCase(), largura), x, ly + 20);
+      if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+      fonte(ctx, Math.min(32, passo * 0.34), 600);
+      ctx.fillStyle = valor ? COR.texto : COR.apagado;
+      ctx.fillText(caber(ctx, valor || '—', largura), x, ly + 20 + Math.min(44, passo * 0.46));
+    });
+  });
+  ctx.textAlign = 'center';
+
+  rodape(ctx);
+  return canvas;
+}
+
+// ---------------------------------------------------------------------------
 // O Resumo dos Relatorios: a presenca total e a de cada tipo, cada um no
 // proprio periodo. Sem nomes - quem faltou e do texto. `d` e o mesmo
 // objeto do textoResumoRelatorios.

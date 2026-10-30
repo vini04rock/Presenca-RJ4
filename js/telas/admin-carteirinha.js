@@ -1,4 +1,7 @@
-// A carteirinha do integrante (botao 🪪 no cadastro de Membros, 21/10/2026).
+// A carteirinha do integrante (21/10/2026). Desde 30/10/2026 mora na aba
+// "Carteirinhas" de Membros: a lista dos irmaos em ordem de grau, e tocar no
+// nome abre a carteirinha dele (antes era um botao 🪪 em cada card do
+// cadastro).
 //
 // Em cima, a mesma carteirinha do Relatorio individual - emblema (ou a
 // foto), nome, grau, cargo, divisao, funcoes, tempo de clube e a % total de
@@ -7,28 +10,79 @@
 //
 // Os dados pessoais vem de uma aba a parte (fichaMembro, no Code.gs), lida
 // so com o PIN da divisao do integrante - a lista de membros e publica e
-// nao pode levar isso. E nada daqui sai do app: nao vira imagem, texto nem
-// PDF (decisao do clube).
+// nao pode levar isso. Ate 30/10/2026 nada daqui saia do app; desde entao,
+// a pedido, ha Imagem, PDF e WhatsApp no topo da carteirinha aberta.
 
 import { api, apiPost } from '../nucleo/api.js';
 import { LOGO_SRC } from '../nucleo/imagens.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
-import { dataISOdeBR, escapeHtml, formatDataBR, hojeISO, mostrarAviso } from '../nucleo/util.js';
+import { copiarTexto, dataISOdeBR, escapeHtml, formatDataBR, hojeISO, mostrarAviso, ordenarPorHierarquia } from '../nucleo/util.js';
 import { montarRelatorioIndividual } from '../dominio/relatorio-individual.js';
-import { textoIngresso } from '../dominio/movimentos.js';
-import { idadeEm, TIPOS_SANGUINEOS, linkWhatsApp, telefoneParaLink } from '../dominio/carteirinha.js';
-import { linhaFuncoes, nivelDoGrau } from '../ui/comuns.js';
+import { estaAfastado, textoIngresso } from '../dominio/movimentos.js';
+import { membrosDoEscopo } from '../dominio/estatisticas.js';
+import { idadeEm, TIPOS_SANGUINEOS, linkWhatsApp, telefoneParaLink, textoCarteirinha } from '../dominio/carteirinha.js';
+import { funcaoPorChave } from '../nucleo/config.js';
+import { linhaFuncoes, nivelDoGrau, selinhoIniciais } from '../ui/comuns.js';
+import { imagemCarteirinha, mostrarPreviaImagem } from '../ui/imagem.js';
 
 function membro() { return state.roster.find(m => m.id === state.carteirinhaMembroId); }
 function ficha() { return state.carteirinhaFicha || {}; }
+
+// A aba Carteirinhas: com uma carteirinha aberta, ela toma a aba inteira;
+// sem, a lista dos irmaos da divisao, um card por grau, na ordem
+// hierarquica (a mesma do cadastro).
+export function renderAdminCarteirinhas() {
+  if (state.carteirinhaMembroId) return renderCarteirinhaMembro();
+  const membros = membrosDoEscopo();
+  if (!membros.length) return '<div class="empty">Nenhum membro cadastrado ainda.</div>';
+  const grupos = [];
+  ordenarPorHierarquia(membros).forEach(m => {
+    const grau = m.grau || '';
+    const ultimo = grupos[grupos.length - 1];
+    if (ultimo && ultimo.grau === grau) ultimo.membros.push(m);
+    else grupos.push({ grau, membros: [m] });
+  });
+  return `
+    <div class="info-line" style="padding:0 0 10px; color:var(--text-muted); font-size:12px; text-align:center;">Toque no nome para abrir a carteirinha.</div>
+    ${grupos.map(g => `
+      <div class="card lista-cadastro">
+        <div class="division-subheader">
+          <span>${g.grau ? `GRAU ${escapeHtml(g.grau)}` : 'SEM GRAU'}</span>
+          <span class="division-counts">${g.membros.length} ${g.membros.length === 1 ? 'membro' : 'membros'}</span>
+        </div>
+        ${g.membros.map(linhaLista).join('')}
+      </div>
+    `).join('')}
+  `;
+}
+
+function linhaLista(m) {
+  return `
+    <div class="member-row lista-carteirinha${estaAfastado(m) ? ' afastado' : ''}" data-action="abrir-carteirinha" data-id="${m.id}">
+      <div class="member-info">
+        ${selinhoIniciais(m)}
+        <span class="member-name">${escapeHtml(m.nome)}</span>
+        ${m.grau ? `<span class="grade-box">${escapeHtml(m.grau)}</span>` : ''}
+        ${m.cargo ? `<span class="member-cargo-inline">${escapeHtml(m.cargo)}</span>` : ''}
+      </div>
+      <span class="lista-carteirinha-seta" aria-hidden="true">🪪 ›</span>
+    </div>
+  `;
+}
 
 export function renderCarteirinhaMembro() {
   const m = membro();
   if (!m) return '<div class="empty">Integrante não encontrado.</div>';
   const pronta = !state.carteirinhaErro && !state.carteirinhaCarregando;
   return `
-    <button class="btn ghost no-print" style="margin-bottom:10px;" data-action="fechar-carteirinha">‹ Voltar ao cadastro</button>
+    <button class="btn ghost no-print" style="margin-bottom:10px;" data-action="fechar-carteirinha">‹ Voltar à lista</button>
+    ${pronta && !state.carteirinhaForm ? `
+      <div class="row-gap no-print" style="margin-bottom:12px;">
+        <button class="btn secondary" style="flex:1;" data-action="imagem-carteirinha">🖼️ Imagem</button>
+        <button class="btn secondary" style="flex:1;" data-action="imprimir-carteirinha">📄 PDF</button>
+        <button class="btn secondary" style="flex:1;" data-action="copiar-carteirinha">${state.carteirinhaCopiado ? 'Copiado ✓' : '📋 WhatsApp'}</button>
+      </div>` : ''}
     ${cartao(m, pronta)}
     ${state.carteirinhaErro ? `
       <div class="alert">
@@ -38,8 +92,8 @@ export function renderCarteirinhaMembro() {
       </div>` : state.carteirinhaCarregando
         ? '<div class="loading">Buscando os dados do irmão…</div>'
         : (state.carteirinhaForm ? formulario() : `
-          <button class="btn block" data-action="editar-carteirinha">✏️ Editar dados</button>
-          <div class="info-line" style="padding:10px 0 0; color:var(--text-muted); font-size:11.5px; text-align:center;">🔒 Só quem entra com o PIN da divisão vê estes dados. Eles não saem do app.</div>
+          <button class="btn block no-print" data-action="editar-carteirinha">✏️ Editar dados</button>
+          <div class="info-line no-print" style="padding:10px 0 0; color:var(--text-muted); font-size:11.5px; text-align:center;">🔒 Só quem entra com o PIN da divisão vê estes dados. Cuidado ao exportar: telefone e saúde vão junto.</div>
         `)}
   `;
 }
@@ -71,7 +125,7 @@ function cartao(m, comDados) {
           <span>presença</span>
         </div>
       `}
-      ${comDados ? dadosNoCartao() : ''}
+      ${comDados ? dadosNoCartao(m) : ''}
     </div>
   `;
 }
@@ -92,19 +146,25 @@ function campoCartao(rotulo, valor, largo) {
   return `<div class="cart-campo${largo ? ' cart-campo-largo' : ''}"><div class="cart-rotulo">${rotulo}</div><div class="cart-conteudo">${valor}</div></div>`;
 }
 
-function dadosNoCartao() {
+// O nome de colete e o nome do cadastro (o que o app inteiro usa); o nome
+// completo e o plano de saude moram so na ficha (30/10/2026).
+function dadosNoCartao(m) {
   const f = ficha();
   const idade = idadeEm(f.nascimento, hojeISO());
+  const texto = v => (v ? `<span class="cart-valor">${escapeHtml(v)}</span>` : vazio);
   const emergencia = f.emergenciaNome
     ? `<span class="cart-valor">${escapeHtml(f.emergenciaNome)}${f.emergenciaParentesco ? ` <small>(${escapeHtml(f.emergenciaParentesco)})</small>` : ''}</span>`
     : vazio;
   return `
     <div class="cart-info">
+      ${campoCartao('🧥 Nome de colete', texto(m.nome))}
+      ${campoCartao('👤 Nome completo', texto(f.nomeCompleto))}
       ${campoCartao('📞 Telefone', telefone(f.telefone))}
       ${campoCartao('🎂 Nascimento', f.nascimento ? `<span class="cart-valor">${escapeHtml(formatDataBR(f.nascimento))}${idade !== null ? ` <small>· ${idade} anos</small>` : ''}</span>` : vazio)}
       ${campoCartao('🆘 Emergência', emergencia)}
       ${campoCartao('🆘 Tel. emergência', telefone(f.emergenciaTelefone))}
       ${campoCartao('🩸 Tipo sanguíneo', f.tipoSanguineo ? `<span class="cart-valor cart-sangue">${escapeHtml(f.tipoSanguineo)}</span>` : vazio)}
+      ${campoCartao('🏥 Plano de saúde', texto(f.planoSaude))}
       ${campoCartao('⚕️ Alergias e condições', f.saude ? `<span class="cart-valor">${escapeHtml(f.saude)}</span>` : vazio, true)}
     </div>
   `;
@@ -129,6 +189,8 @@ function formulario() {
           </div>
         </div>
       </div>
+      <div class="field"><label>Nome de colete</label><div style="padding:4px 0; color:var(--text-muted);">${escapeHtml((membro() || {}).nome || '')} <small>(muda no Cadastro)</small></div></div>
+      ${campo('nomeCompleto', 'Nome completo', 'maxlength="120" placeholder="Ex.: João Carlos da Costa" autocomplete="off"')}
       ${campo('telefone', 'Telefone / WhatsApp', 'inputmode="tel" maxlength="30" placeholder="(21) 99999-0000"')}
       <div class="painel-titulo" style="margin-top:6px; font-size:14px;">🆘 Contato de emergência</div>
       ${campo('emergenciaNome', 'Nome', 'maxlength="80" placeholder="Ex.: Maria Costa"')}
@@ -147,6 +209,7 @@ function formulario() {
           <button class="acao-escolha-opcao ${!f.tipoSanguineo ? 'ativo' : ''}" data-action="tipo-sanguineo-carteirinha" data-value="">Não sei</button>
         </div>
       </div>
+      ${campo('planoSaude', 'Plano de saúde', 'maxlength="80" placeholder="Ex.: Unimed, Amil, não tem…" autocomplete="off"')}
       <div class="field"><label>Alergias e condições de saúde</label><textarea rows="2" maxlength="300" data-carteirinha="saude" placeholder="Ex.: alérgico a dipirona, diabético…">${escapeHtml(f.saude || '')}</textarea></div>
       ${state.carteirinhaMsg ? `<div class="alert" style="margin-bottom:10px;"><div class="alert-msg">${escapeHtml(state.carteirinhaMsg)}</div></div>` : ''}
       <div class="row-gap">
@@ -231,6 +294,7 @@ export function fecharCarteirinha() {
   state.carteirinhaPct = null;
   state.carteirinhaErro = null;
   state.carteirinhaMsg = null;
+  state.carteirinhaCopiado = false;
 }
 
 export const acoes = {
@@ -241,6 +305,47 @@ export const acoes = {
     return buscar(id);
   },
   'recarregar-carteirinha': async (id, target, action, e) => buscar(state.carteirinhaMembroId),
+  // As tres saidas (30/10/2026, a pedido - antes a carteirinha nao saia do
+  // app). O PDF e a impressao da propria tela, como no Relatorio individual.
+  'imprimir-carteirinha': async (id, target, action, e) => { window.print(); },
+  'imagem-carteirinha': async (id, target, action, e) => {
+    const m = membro();
+    if (!m) return;
+    const f = ficha();
+    const idade = idadeEm(f.nascimento, hojeISO());
+    const emergencia = f.emergenciaNome ? f.emergenciaNome + (f.emergenciaParentesco ? ` (${f.emergenciaParentesco})` : '') : '';
+    const c = {
+      nome: m.nome,
+      linhaGrau: [m.grau ? `Grau ${m.grau}` : '', m.cargo, m.divisao].filter(Boolean).join('  ·  '),
+      funcoes: (m.funcoes || []).map(funcaoPorChave).filter(Boolean).map(x => `${x.selo} ${x.label}`).join('   '),
+      ingresso: textoIngresso(m.entrada || ''),
+      pct: state.carteirinhaPct,
+      foto: f.foto || '',
+      // Em linhas de um ou dois campos, na mesma ordem da tela.
+      campos: [
+        [['🧥 Nome de colete', m.nome], ['👤 Nome completo', f.nomeCompleto]],
+        [['📞 Telefone', f.telefone], ['🎂 Nascimento', f.nascimento ? formatDataBR(f.nascimento) + (idade !== null ? ` · ${idade} anos` : '') : '']],
+        [['🆘 Emergência', emergencia], ['🆘 Tel. emergência', f.emergenciaTelefone]],
+        [['🩸 Tipo sanguíneo', f.tipoSanguineo], ['🏥 Plano de saúde', f.planoSaude]],
+        [['⚕️ Alergias e condições', f.saude]],
+      ],
+    };
+    const nome = String(m.nome || 'integrante').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    return mostrarPreviaImagem(() => imagemCarteirinha(c), `carteirinha-${nome}.png`);
+  },
+  'copiar-carteirinha': async (id, target, action, e) => {
+    const m = membro();
+    if (!m) return;
+    const ok = await copiarTexto(textoCarteirinha(m, ficha(), state.carteirinhaPct, hojeISO()));
+    if (!ok) return;
+    state.carteirinhaCopiado = true;
+    render();
+    setTimeout(() => {
+      if (!state.carteirinhaCopiado) return;
+      state.carteirinhaCopiado = false;
+      render();
+    }, 1600);
+  },
   'fechar-carteirinha': async (id, target, action, e) => { fecharCarteirinha(); return render(); },
   'editar-carteirinha': async (id, target, action, e) => {
     const f = ficha();
@@ -269,6 +374,7 @@ export const acoes = {
     const salvo = {
       telefone: f.telefone || '', emergenciaNome: f.emergenciaNome || '', emergenciaParentesco: f.emergenciaParentesco || '',
       emergenciaTelefone: f.emergenciaTelefone || '', nascimento, tipoSanguineo: f.tipoSanguineo || '', saude: f.saude || '', foto: f.foto || '',
+      nomeCompleto: f.nomeCompleto || '', planoSaude: f.planoSaude || '',
     };
     state.carteirinhaSalvando = true;
     state.carteirinhaMsg = null;

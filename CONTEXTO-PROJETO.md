@@ -800,26 +800,35 @@ Regras que valem para as duas:
 
 ## Carteirinha do integrante
 
-Criada em 21/10/2026. O botão **🪪 Carteirinha** fica em cada integrante
-do cadastro de Membros, ao lado do Editar, e abre a carteirinha na própria
-aba (`telas/admin-carteirinha.js`; contas em `dominio/carteirinha.js`).
+Criada em 21/10/2026. Desde 30/10/2026 fica na aba **Carteirinhas** de
+Membros (ao lado de Cadastro e Presenças), no Regional e em cada divisão: a
+lista dos integrantes, um card por grau na ordem hierárquica, e tocar no
+nome abre a carteirinha na própria aba (`telas/admin-carteirinha.js`; contas
+em `dominio/carteirinha.js`). Antes era um botão 🪪 em cada card do cadastro,
+que saiu.
 
 - **Em cima, a mesma carteirinha do Relatório individual** (as mesmas
   classes `carteirinha*`): a foto no lugar do emblema quando houver, nome,
   grau, cargo, divisão, funções, tempo de clube e a **% total de
   presença**, calculada com `montarRelatorioIndividual` sem período.
-- **Embaixo, os dados pessoais:** telefone (📞 Ligar e 💬 WhatsApp),
-  contato de emergência (nome, parentesco e telefone), nascimento com a
-  idade, tipo sanguíneo e alergias/condições. Só o organizador preenche,
-  pelo ✏️ Editar dados.
+- **Embaixo, os dados pessoais:** 🧥 nome de colete (é o nome do cadastro,
+  o que o app inteiro usa; muda só no Cadastro), 👤 nome completo,
+  telefone (📞 Ligar e 💬 WhatsApp), contato de emergência (nome,
+  parentesco e telefone), nascimento com a idade, tipo sanguíneo, 🏥 plano
+  de saúde e alergias/condições. Nome completo e plano de saúde entraram em
+  30/10/2026, como as duas últimas colunas de `MembrosFicha`. Só o
+  organizador preenche, pelo ✏️ Editar dados.
 - **A foto** é reduzida no próprio celular para um quadrado de 320 px em
   JPEG, abaixando a qualidade até caber nos 48 mil caracteres de uma
   célula, e vai para a planilha por POST. Não usa Drive nem link público.
 - **Dado pessoal fica fora da lista pública.** A aba `MembrosFicha` é
   separada de `Membros` (que o `dados` entrega a qualquer um) e só se lê
   com o PIN conferido contra a divisão atual do integrante
-  (`integranteDaDivisao`, no `Code.gs`). **Nada sai do app** (decisão do
-  clube): sem imagem, texto nem PDF. O Remover, o Desligamento e a
+  (`integranteDaDivisao`, no `Code.gs`). Até 30/10/2026 nada saía do app;
+  desde então, a pedido, a carteirinha aberta tem no topo **🖼️ Imagem**
+  (`imagemCarteirinha`, em `ui/imagem.js`), **📄 PDF** (a impressão da
+  tela) e **📋 WhatsApp** (`textoCarteirinha`, em `dominio/carteirinha.js`),
+  com os dados da ficha junto. O Remover, o Desligamento e a
   Transferência para fora da RJ4 apagam a carteirinha (`apagarFicha`).
 - **🎂 O aniversário no mural:** com a data de nascimento na carteirinha,
   o mural do organizador avisa de 7 dias antes até o dia

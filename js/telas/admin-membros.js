@@ -10,7 +10,6 @@ import { FUNCOES, GRAUS, cargosDoGrau, escopoPorChave, escoposNaOrdemOficial, fu
 import { genId, state } from '../nucleo/estado.js';
 import { dataISOdeBR, escapeHtml, formatDataBR, hojeISO, ordenarPorHierarquia } from '../nucleo/util.js';
 import { selinhoIniciais } from '../ui/comuns.js';
-import { renderCarteirinhaMembro } from './admin-carteirinha.js';
 import { loadEstatisticas, salvarOuAvisar } from '../dados/carregar.js';
 import { render } from '../nucleo/render.js';
 
@@ -141,8 +140,6 @@ function blocoDatasDeIngresso(membros) {
 export function renderAdminMembros() {
   const membros = membrosDoEscopo();
   const editando = !!state.editingMemberId;
-  // A carteirinha de um integrante toma a aba inteira enquanto esta aberta.
-  if (state.carteirinhaMembroId) return renderCarteirinhaMembro();
   if (state.preencherEntradasIds) return blocoDatasDeIngresso(membros);
   return `
     ${editando ? '' : blocoDatasDeIngresso(membros)}
@@ -369,7 +366,6 @@ function linhaCadastro(m) {
           <div class="acoes-cadastro">
             <span class="acoes-cadastro-grupo">
               <button class="btn-mini" data-action="edit-member" data-id="${m.id}">✏️ Editar</button>
-              <button class="btn-mini" data-action="abrir-carteirinha" data-id="${m.id}">🪪 Carteirinha</button>
             </span>
             <button class="btn-mini perigo" data-action="remove-member" data-id="${m.id}" title="Para cadastro feito errado: apaga também o histórico. Quem saiu do clube é Desligamento.">Remover</button>
           </div>

@@ -262,6 +262,7 @@ export let state = {
   carteirinhaForm: null,
   carteirinhaSalvando: false,
   carteirinhaMsg: null,
+  carteirinhaCopiado: false,
   carteirinhaFotoProcessando: false,
   aniversarios: null,
   aniversariosEscopo: null,

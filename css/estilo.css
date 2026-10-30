@@ -2412,7 +2412,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
   .carteirinha-nome, .carteirinha-pct b { color: #000 !important; text-shadow: none !important; }
   .carteirinha-pct { box-shadow: none !important; background: none !important; }
   .tela-entrando > * { animation: none !important; }
-  .acoes-cadastro { display: none !important; }
+  .acoes-cadastro, .cart-acao { display: none !important; }
   #brasas, body::after { display: none !important; }
 }
 
@@ -2900,3 +2900,10 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
   #folha-impressao .folha-vazia { height: 0.7em; }
   #folha-impressao .folha-rodape { margin-top: 16px; padding-top: 6px; border-top: 1px solid #ccc; font-size: 9pt; color: #555; }
 }
+
+/* Aba Carteirinhas (Membros): a lista dos irmaos; tocar no nome abre a carteirinha. */
+.lista-carteirinha { display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer; }
+.lista-carteirinha:active { opacity: 0.7; }
+.lista-carteirinha .member-info { flex: 1; min-width: 0; align-items: center; }
+.lista-carteirinha.afastado .member-name { color: var(--text-muted); }
+.lista-carteirinha-seta { font-size: 13px; color: var(--text-muted); white-space: nowrap; flex-shrink: 0; }

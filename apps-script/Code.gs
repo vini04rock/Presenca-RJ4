@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-10-28-b-relatorio-caveiras';
+var VERSAO = '2026-10-30-carteirinha-nome-plano';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -194,7 +194,10 @@ var SITUACOES_ACAO_SOCIAL = ['ideia', 'planejada', 'confirmada', 'realizada'];
 // e um JPEG pequeno em base64 (o app reduz antes), dentro do limite de
 // 50 mil caracteres de uma celula.
 var CAB_FICHAS = ['ID Membro', 'Telefone', 'Emergencia Nome', 'Emergencia Parentesco', 'Emergencia Telefone',
-  'Nascimento', 'Tipo Sanguineo', 'Saude', 'Foto', 'Atualizado em'];
+  'Nascimento', 'Tipo Sanguineo', 'Saude', 'Foto', 'Atualizado em',
+  // 30/10/2026: o nome de verdade (o do colete e o nome do cadastro) e o
+  // plano de saude. No fim, pra aba() criar as colunas sozinha.
+  'Nome Completo', 'Plano de Saude'];
 var TIPOS_SANGUINEOS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 var FOTO_MAX = 48000;
 // As Funcoes especiais (28/10/2026): os eventos so dos Batedores e so dos
@@ -2184,7 +2187,8 @@ function fichaDaLinha(l) {
   return {
     telefone: String(l[1] || ''), emergenciaNome: String(l[2] || ''), emergenciaParentesco: String(l[3] || ''),
     emergenciaTelefone: String(l[4] || ''), nascimento: formatarData(l[5]), tipoSanguineo: String(l[6] || ''),
-    saude: String(l[7] || ''), foto: String(l[8] || '')
+    saude: String(l[7] || ''), foto: String(l[8] || ''),
+    nomeCompleto: String(l[10] || ''), planoSaude: String(l[11] || '')
   };
 }
 
@@ -2221,7 +2225,8 @@ function salvarFichaMembro(p) {
   }
   gravarLinhaComoTexto(s, achado ? achado.indice : s.getLastRow() + 1, [mid, telefoneLimpo(p.telefone),
     linhaCurta(p.emergenciaNome, 80), linhaCurta(p.emergenciaParentesco, 40), telefoneLimpo(p.emergenciaTelefone),
-    nascimento, tipo, linhaCurta(p.saude, 300), foto, agora()]);
+    nascimento, tipo, linhaCurta(p.saude, 300), foto, agora(),
+    linhaCurta(p.nomeCompleto, 120), linhaCurta(p.planoSaude, 80)]);
   return { ok: true };
 }
 

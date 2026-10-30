@@ -1429,10 +1429,12 @@ log('=== carteirinha: dado pessoal, só com o PIN da divisão do integrante ==='
   confere('ler sem PIN é recusado', contexto.executar('fichaMembro', { membroId: 'm1' }).ok, false);
   confere('sem carteirinha ainda: vazia', contexto.executar('fichaMembro', { ...barra, membroId: 'm1' }).ficha, null);
   confere('salva', tenta('fichaMembroSalvar', { ...barra, membroId: 'm1', telefone: '(21) 99999-0000 =x', emergenciaNome: ' Maria  Costa ',
-    emergenciaParentesco: 'Esposa', emergenciaTelefone: '21 98888-1111', nascimento: '1985-03-12', tipoSanguineo: 'O+', saude: 'Alérgico a dipirona', foto }).ok, true);
+    emergenciaParentesco: 'Esposa', emergenciaTelefone: '21 98888-1111', nascimento: '1985-03-12', tipoSanguineo: 'O+', saude: 'Alérgico a dipirona', foto,
+    nomeCompleto: ' João  Carlos da Costa ', planoSaude: 'Unimed' }).ok, true);
   confere('lê tudo de volta, com o telefone limpo', contexto.executar('fichaMembro', { ...barra, membroId: 'm1' }).ficha,
     { telefone: '(21) 99999-0000', emergenciaNome: 'Maria Costa', emergenciaParentesco: 'Esposa', emergenciaTelefone: '21 98888-1111',
-      nascimento: '1985-03-12', tipoSanguineo: 'O+', saude: 'Alérgico a dipirona', foto });
+      nascimento: '1985-03-12', tipoSanguineo: 'O+', saude: 'Alérgico a dipirona', foto,
+      nomeCompleto: 'João Carlos da Costa', planoSaude: 'Unimed' });
   tenta('fichaMembroSalvar', { ...barra, membroId: 'm1', telefone: '21 97777-2222', nascimento: '1985-03-12' });
   confere('editar sem mandar a foto mantém a foto', contexto.executar('fichaMembro', { ...barra, membroId: 'm1' }).ficha.foto, foto);
   // A tela manda a carteirinha inteira a cada salvar; so a foto e opcional.

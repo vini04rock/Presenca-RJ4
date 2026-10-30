@@ -20,7 +20,7 @@ import { renderAdminCaixinha } from './admin-caixinha.js';
 import { renderAdminMovimentos } from './admin-movimentos.js';
 import { renderAdminEstoqueAdm } from './admin-estoque-adm.js';
 import { renderAdminAcoesSociais } from './admin-acoes-sociais.js';
-import { fecharCarteirinha } from './admin-carteirinha.js';
+import { fecharCarteirinha, renderAdminCarteirinhas } from './admin-carteirinha.js';
 import { fecharFuncoesEspeciais, podeDescartar, renderAdminFuncoesEspeciais, tituloFuncaoEspecial } from './admin-funcoes-especiais.js';
 
 // As secoes do organizador. Cada card do menu abre uma secao, e a barra de
@@ -44,6 +44,7 @@ export const SECOES_ORGANIZADOR = {
     abas: [
       { chave: 'membros', label: 'Cadastro' },
       { chave: 'presencas', label: 'Presenças' },
+      { chave: 'carteirinhas', label: 'Carteirinhas' },
     ],
   },
   insights: {
@@ -152,6 +153,8 @@ export function renderAdmin(app) {
     content.innerHTML = renderAdminRelatorio();
   } else if (state.adminTab === 'presencas') {
     content.innerHTML = renderAdminPresencas();
+  } else if (state.adminTab === 'carteirinhas') {
+    content.innerHTML = renderAdminCarteirinhas();
   } else if (state.adminTab.startsWith('insights') && state.adminEscopo === 'regional') {
     content.innerHTML = renderAdminInsights();
   } else if (state.adminTab.startsWith('doacoes') && temDoacoesECaixinha(state.adminEscopo)) {
