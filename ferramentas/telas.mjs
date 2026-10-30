@@ -735,6 +735,7 @@ add('carteirinhas / prontas (whatsapp)',    { ...cartSel, carteirinhasExportar: 
 add('carteirinhas / regional fechado',      { ...cart, adminEscopo:'regional', carteirinhaMembroId: null }, T.renderAdmin);
 add('carteirinhas / regional com a Barra aberta', { ...cart, adminEscopo:'regional', carteirinhaMembroId: null, carteirinhasDivisoesAbertas: new Set(['barra']) }, T.renderAdmin);
 add('carteirinhas / regional selecionando', { ...cartSel, adminEscopo:'regional', carteirinhasDivisoesAbertas: new Set(['barra']) }, T.renderAdmin);
+add('carteirinhas / whatsapp simplificado', { ...cartSel, carteirinhasExportar: 'whatsapp', carteirinhasSimplificado: true }, T.renderAdmin);
 add('carteirinhas / prontas (nenhuma)',     { ...cartSel, carteirinhasProntas: [] }, T.renderAdmin);
 add('carteirinha / com os dados',           { ...cart, carteirinhaFicha: fichaCheia }, T.renderAdmin);
 add('carteirinha / vazia',                  { ...cart, carteirinhaFicha: {} }, T.renderAdmin);
@@ -833,7 +834,7 @@ const LIMPO = {
   acoesSociaisDados:null, acoesSociaisDadosEscopo:null, acoesSociaisCarregando:false, acoesSociaisErro:null,
   acoesSociaisSalvando:false, acoesSociaisMsg:null, acaoSocialIdeiaForm:null, acaoSocialApagarId:null,
   acoesSociaisAno:null, acaoSocialMesAberto:null, acaoSocialAgendaForm:null, acaoSocialCriarEventoId:null, acoesSociaisLegenda:false, acaoSocialTextoForm:null, acaoSocialRascunhoConfirmar:false,
-  carteirinhasExportar:null, carteirinhasMarcados:new Set(), carteirinhasCarregando:false, carteirinhasErro:null, carteirinhasProntas:null, carteirinhasCopiado:false, carteirinhasDivisoesAbertas:new Set(),
+  carteirinhasExportar:null, carteirinhasMarcados:new Set(), carteirinhasCarregando:false, carteirinhasErro:null, carteirinhasProntas:null, carteirinhasCopiado:false, carteirinhasSimplificado:false, carteirinhasDivisoesAbertas:new Set(),
   carteirinhaMembroId:null, carteirinhaFicha:null, carteirinhaPct:null, carteirinhaCarregando:false, carteirinhaErro:null,
   carteirinhaForm:null, carteirinhaSalvando:false, carteirinhaMsg:null, carteirinhaFotoProcessando:false, aniversarios:null, aniversariosEscopo:null,
   funcaoEspecial:null, funcoesDados:null, funcoesCarregando:false, funcoesErro:null, funcoesSalvando:false, funcoesMsg:null,

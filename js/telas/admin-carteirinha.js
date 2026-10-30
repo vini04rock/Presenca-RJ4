@@ -142,7 +142,10 @@ function topoSelecao(membros) {
     <div class="card" style="margin-bottom:14px;">
       <div style="font-weight:600; margin-bottom:4px;">Exportar carteirinhas em ${formato.nome}</div>
       <div style="color:var(--text-muted); font-size:12.5px; margin-bottom:10px;">Marque cada integrante, um grau inteiro ou todos. Telefone e saúde vão junto.</div>
-      <button class="btn secondary block" data-action="carteirinhas-marcar-todos" style="margin-bottom:8px;" ${carregando ? 'disabled' : ''}>${todos ? '☐ Desmarcar todos' : `☑️ Marcar todos (${membros.length})`}</button>
+      <div class="row-gap" style="margin-bottom:8px;">
+        <button class="btn secondary" style="flex:1;" data-action="carteirinhas-marcar-todos" ${carregando ? 'disabled' : ''}>${todos ? '☐ Desmarcar todos' : `☑️ Marcar todos (${membros.length})`}</button>
+        ${state.carteirinhasExportar === 'whatsapp' ? botaoSimplificado() : ''}
+      </div>
       ${state.carteirinhasErro ? `
         <div class="alert" style="margin-bottom:10px;">
           <div class="alert-title">Não consegui buscar as carteirinhas</div>
@@ -152,6 +155,13 @@ function topoSelecao(membros) {
       <button class="btn secondary block" data-action="carteirinhas-cancelar" ${carregando ? 'disabled' : ''}>Cancelar</button>
     </div>
   `;
+}
+
+// So no texto pro WhatsApp: sem ingresso, sem % e sem o nome de colete
+// repetido embaixo (ver textoCarteirinha).
+function botaoSimplificado() {
+  const ativo = state.carteirinhasSimplificado;
+  return `<button class="toggle-chip carteirinhas-simplificado ${ativo ? 'active' : ''}" data-action="carteirinhas-simplificado" aria-pressed="${ativo}">${ativo ? '✅' : '⬜'} Simplificado</button>`;
 }
 
 // A caixa de um grupo (um grau, ou a divisao inteira no Regional): marcada
@@ -174,6 +184,7 @@ function renderProntas() {
     <button class="btn ghost no-print" style="margin-bottom:10px;" data-action="carteirinhas-voltar">‹ Voltar à lista</button>
     <div class="card no-print" style="margin-bottom:14px;">
       <div style="font-weight:600; margin-bottom:10px;">${lista.length} ${lista.length === 1 ? 'carteirinha pronta' : 'carteirinhas prontas'}</div>
+      ${k === 'whatsapp' ? `<div class="row-gap" style="margin-bottom:10px;">${botaoSimplificado()}</div>` : ''}
       ${botao}
     </div>
     ${lista.length ? lista.map(x => `<div class="carteirinha-pagina">${cartao(x.membro, x.ficha, x.pct, true)}</div>`).join('')
@@ -505,6 +516,11 @@ export const acoes = {
     state.carteirinhasExportar = target.dataset.value;
     return render();
   },
+  'carteirinhas-simplificado': async (id, target, action, e) => {
+    state.carteirinhasSimplificado = !state.carteirinhasSimplificado;
+    state.carteirinhasCopiado = false;
+    return render();
+  },
   'carteirinhas-cancelar': async (id, target, action, e) => { sairDaSelecao(); return render(); },
   'carteirinhas-marcar': async (id, target, action, e) => {
     if (state.carteirinhasCarregando) return;
@@ -575,7 +591,7 @@ export const acoes = {
     const lista = state.carteirinhasProntas;
     if (!lista || !lista.length) return;
     const hoje = hojeISO();
-    const ok = await copiarTexto(lista.map(x => textoCarteirinha(x.membro, x.ficha, x.pct, hoje)).join('\n\n━━━━━━━━━━━━━━━━\n\n'));
+    const ok = await copiarTexto(lista.map(x => textoCarteirinha(x.membro, x.ficha, x.pct, hoje, { simplificado: state.carteirinhasSimplificado })).join('\n\n━━━━━━━━━━━━━━━━\n\n'));
     if (!ok) return;
     state.carteirinhasCopiado = true;
     render();

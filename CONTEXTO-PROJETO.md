@@ -838,7 +838,9 @@ que saiu.
   divisão; e `relatorioIndividualVarios`, para a %). As prontas aparecem
   embaixo de um botão do formato — o toque nele é que gera as imagens,
   imprime ou copia, porque o navegador só deixa copiar logo depois de um
-  toque. O Remover, o Desligamento e a
+  toque. No 📋 WhatsApp há o **Simplificado**, ao lado do Marcar todos:
+  sem a data de ingresso, sem a % e sem o "Nome de colete" repetido
+  embaixo (para relatório com os dados do irmão). O Remover, o Desligamento e a
   Transferência para fora da RJ4 apagam a carteirinha (`apagarFicha`).
 - **🎂 O aniversário no mural:** com a data de nascimento na carteirinha,
   o mural do organizador avisa de 7 dias antes até o dia

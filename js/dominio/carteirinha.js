@@ -55,7 +55,10 @@ export function aniversariosProximos(lista, diaDeHoje, diasAntes = 7) {
 // O texto da carteirinha pro WhatsApp (30/10/2026): em cima o que o app ja
 // sabe do irmao, embaixo os dados da ficha. Campo vazio sai com "—", pra
 // ficar claro que falta preencher. `pct` = % total de presenca (ou null).
-export function textoCarteirinha(m, ficha, pct, diaDeHoje) {
+// Simplificado (30/10/2026, pra relatorio com os dados do irmao): sem a
+// data de ingresso, sem a % e sem o "Nome de colete" embaixo - o nome ja
+// vai em cima.
+export function textoCarteirinha(m, ficha, pct, diaDeHoje, { simplificado = false } = {}) {
   const f = ficha || {};
   const ou = v => (v ? String(v) : '—');
   const idade = idadeEm(f.nascimento, diaDeHoje);
@@ -67,10 +70,10 @@ export function textoCarteirinha(m, ficha, pct, diaDeHoje) {
     `*${String(m.nome || '').toUpperCase()}*`,
     [m.grau ? `Grau ${m.grau}` : '', m.cargo, m.divisao].filter(Boolean).join(' · ') || '—',
     ...(funcoes ? [funcoes] : []),
-    `🗓️ ${textoIngresso(m.entrada || '')}`,
-    ...(pct === null || pct === undefined ? [] : [`📊 Presença: ${pct}%`]),
+    ...(simplificado ? [] : [`🗓️ ${textoIngresso(m.entrada || '')}`]),
+    ...(simplificado || pct === null || pct === undefined ? [] : [`📊 Presença: ${pct}%`]),
     '',
-    `🧥 Nome de colete: ${ou(m.nome)}`,
+    ...(simplificado ? [] : [`🧥 Nome de colete: ${ou(m.nome)}`]),
     `👤 Nome completo: ${ou(f.nomeCompleto)}`,
     `📞 Telefone: ${ou(f.telefone)}`,
     `🎂 Nascimento: ${f.nascimento ? formatDataBR(f.nascimento) + (idade !== null ? ` (${idade} anos)` : '') : '—'}`,

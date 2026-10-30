@@ -2915,3 +2915,5 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 @media print { .carteirinha-pagina { break-inside: avoid; } }
 /* No Regional: os graus dentro do card da divisao aberta. */
 .carteirinhas-grau .division-subheader { padding-top: 10px; font-size: 10.5px; }
+/* O "Simplificado" do texto pro WhatsApp, ao lado do Marcar todos. */
+.carteirinhas-simplificado { flex: none; padding: 8px 14px; font-size: 13px; }

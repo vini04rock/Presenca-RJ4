@@ -272,6 +272,8 @@ export let state = {
   carteirinhasErro: null,
   carteirinhasProntas: null,
   carteirinhasCopiado: false,
+  // O texto pro WhatsApp sem ingresso, % e nome de colete repetido.
+  carteirinhasSimplificado: false,
   // No Regional, as divisoes abertas na lista de Carteirinhas.
   carteirinhasDivisoesAbertas: new Set(),
   carteirinhaFotoProcessando: false,
