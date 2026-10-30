@@ -32,7 +32,7 @@ const ACOES_PROTEGIDAS = [
   'estoqueAdm', 'estoqueAdmMovimentar', 'estoqueAdmAnular',
   'acoesSociais', 'acaoSocialIdeiaSalvar', 'acaoSocialIdeiaRemover', 'acaoSocialAgendaSalvar',
   'acaoSocialAgendaRemover', 'acaoSocialTextoSalvar', 'acaoSocialTextoRemover', 'acoesSociaisImportar',
-  'fichaMembro', 'fichaMembroSalvar', 'aniversarios',
+  'fichaMembro', 'fichaMembroSalvar', 'fichasVarias', 'aniversarios',
   'funcoesEspeciais', 'funcaoEventoSalvar', 'funcaoEventoStatus', 'funcaoEventoRemover', 'funcaoPresencasSalvar',
   'funcaoConfigSalvar',
 ];

@@ -263,6 +263,17 @@ export let state = {
   carteirinhaSalvando: false,
   carteirinhaMsg: null,
   carteirinhaCopiado: false,
+  // Exportar varias carteirinhas (aba Carteirinhas): o formato escolhido
+  // ('imagem' | 'pdf' | 'whatsapp', null = sem selecao), os marcados e as
+  // prontas ({ membro, ficha, pct }).
+  carteirinhasExportar: null,
+  carteirinhasMarcados: new Set(),
+  carteirinhasCarregando: false,
+  carteirinhasErro: null,
+  carteirinhasProntas: null,
+  carteirinhasCopiado: false,
+  // No Regional, as divisoes abertas na lista de Carteirinhas.
+  carteirinhasDivisoesAbertas: new Set(),
   carteirinhaFotoProcessando: false,
   aniversarios: null,
   aniversariosEscopo: null,

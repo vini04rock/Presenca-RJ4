@@ -803,7 +803,9 @@ Regras que valem para as duas:
 Criada em 21/10/2026. Desde 30/10/2026 fica na aba **Carteirinhas** de
 Membros (ao lado de Cadastro e Presenças), no Regional e em cada divisão: a
 lista dos integrantes, um card por grau na ordem hierárquica, e tocar no
-nome abre a carteirinha na própria aba (`telas/admin-carteirinha.js`; contas
+nome abre a carteirinha na própria aba. No Regional a lista é de todas as
+divisões: um card por divisão, fechado, e tocar no nome dela abre os
+integrantes por grau (`telas/admin-carteirinha.js`; contas
 em `dominio/carteirinha.js`). Antes era um botão 🪪 em cada card do cadastro,
 que saiu.
 
@@ -828,7 +830,15 @@ que saiu.
   desde então, a pedido, a carteirinha aberta tem no topo **🖼️ Imagem**
   (`imagemCarteirinha`, em `ui/imagem.js`), **📄 PDF** (a impressão da
   tela) e **📋 WhatsApp** (`textoCarteirinha`, em `dominio/carteirinha.js`),
-  com os dados da ficha junto. O Remover, o Desligamento e a
+  com os dados da ficha junto. **No topo da lista** os mesmos três botões
+  exportam várias: o botão liga a seleção (tocar na linha marca; caixa por
+  grau e, no Regional, por divisão; "Marcar todos" marca todas as
+  divisões juntas), e Exportar busca tudo em duas chamadas
+  (`fichasVarias`, protegida, que recusa tudo se um só for de outra
+  divisão; e `relatorioIndividualVarios`, para a %). As prontas aparecem
+  embaixo de um botão do formato — o toque nele é que gera as imagens,
+  imprime ou copia, porque o navegador só deixa copiar logo depois de um
+  toque. O Remover, o Desligamento e a
   Transferência para fora da RJ4 apagam a carteirinha (`apagarFicha`).
 - **🎂 O aniversário no mural:** com a data de nascimento na carteirinha,
   o mural do organizador avisa de 7 dias antes até o dia

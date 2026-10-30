@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-10-30-carteirinha-nome-plano';
+var VERSAO = '2026-10-30-b-carteirinhas-varias';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -327,7 +327,7 @@ var ACOES_PROTEGIDAS = [
   'acoesSociais', 'acaoSocialIdeiaSalvar', 'acaoSocialIdeiaRemover', 'acaoSocialAgendaSalvar',
   'acaoSocialAgendaRemover', 'acaoSocialTextoSalvar', 'acaoSocialTextoRemover', 'acoesSociaisImportar',
   // A carteirinha: dado pessoal, ate pra ler. E os aniversarios do mural.
-  'fichaMembro', 'fichaMembroSalvar', 'aniversarios',
+  'fichaMembro', 'fichaMembroSalvar', 'fichasVarias', 'aniversarios',
   // As Funcoes especiais (Batedores e Caveiras): so do Regional, ate pra ler.
   'funcoesEspeciais', 'funcaoEventoSalvar', 'funcaoEventoStatus', 'funcaoEventoRemover', 'funcaoPresencasSalvar',
   'funcaoConfigSalvar'
@@ -419,6 +419,7 @@ function executar(action, p) {
   if (action === 'acaoSocialTextoSalvar') return comTrava(function () { return salvarTextoAcaoSocial(p); });
   if (action === 'acoesSociaisImportar') return comTrava(function () { return importarAcoesSociais(p); });
   if (action === 'fichaMembro') return lerFichaMembro(p);
+  if (action === 'fichasVarias') return lerFichasVarias(p);
   if (action === 'fichaMembroSalvar') return comTrava(function () { return salvarFichaMembro(p); });
   if (action === 'aniversarios') return lerAniversarios(String(p.divisao || ''), String(p.pin || ''));
   if (action === 'acaoSocialTextoRemover') return comTrava(function () { return removerLinhaAcaoSocial(ABA_ACOES_SOCIAIS_TEXTOS, CAB_ACOES_SOCIAIS_TEXTOS, p); });
@@ -2198,6 +2199,27 @@ function lerFichaMembro(p) {
   if (dono.recusa) return dono.recusa;
   var achado = acharLinha(aba(ABA_FICHAS, CAB_FICHAS), function (l) { return String(l[0]) === mid; });
   return { ok: true, ficha: achado ? fichaDaLinha(achado.valores) : null };
+}
+
+// Varias carteirinhas numa chamada so (exportar varias, 30/10/2026): le
+// Membros e MembrosFicha uma vez. O PIN tem de valer pra divisao de cada um
+// - um so de fora recusa tudo. Quem nao existe mais fica de fora em
+// silencio; quem nao tem ficha vem com {}.
+function lerFichasVarias(p) {
+  var ids = listaDe(p.membroIds);
+  if (!ids.length) throw new Error('Nenhum integrante marcado');
+  var pin = String(p.pin || '');
+  var membros = {}, fichas = {}, saida = {};
+  linhas(aba(ABA_MEMBROS, CAB_MEMBROS)).forEach(function (l) { membros[String(l[0])] = l; });
+  linhas(aba(ABA_FICHAS, CAB_FICHAS)).forEach(function (l) { fichas[String(l[0])] = l; });
+  for (var i = 0; i < ids.length; i++) {
+    var l = membros[ids[i]];
+    if (!l) continue;
+    var divisao = CHAVE_POR_NOME_DIVISAO[String(l[3] || '')];
+    if (!divisao || !podeNaDivisao(divisao, pin)) return SEM_PERMISSAO_DIVISAO;
+    saida[ids[i]] = fichas[ids[i]] ? fichaDaLinha(fichas[ids[i]]) : {};
+  }
+  return { ok: true, fichas: saida };
 }
 
 // Telefone: so o que se escreve num telefone, sem letra nem formula.

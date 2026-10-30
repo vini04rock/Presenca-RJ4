@@ -2907,3 +2907,11 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 .lista-carteirinha .member-info { flex: 1; min-width: 0; align-items: center; }
 .lista-carteirinha.afastado .member-name { color: var(--text-muted); }
 .lista-carteirinha-seta { font-size: 13px; color: var(--text-muted); white-space: nowrap; flex-shrink: 0; }
+.lista-carteirinha .relind-check { margin-right: 0; }
+.division-subheader .relind-check { vertical-align: middle; margin-top: -2px; }
+/* As prontas (exportar varias): um espaco entre elas e, no PDF, nenhuma
+   cortada ao meio entre duas paginas. */
+.carteirinha-pagina + .carteirinha-pagina { margin-top: 14px; }
+@media print { .carteirinha-pagina { break-inside: avoid; } }
+/* No Regional: os graus dentro do card da divisao aberta. */
+.carteirinhas-grau .division-subheader { padding-top: 10px; font-size: 10.5px; }

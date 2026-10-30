@@ -1452,6 +1452,14 @@ log('=== carteirinha: dado pessoal, só com o PIN da divisão do integrante ==='
     [tenta('fichaMembro', { ...barra, membroId: 'o9' }).ok, tenta('fichaMembroSalvar', { ...barra, membroId: 'o9', telefone: '1' }).ok], [false, false]);
   confere('o Regional (chave-mestra) grava a do Oeste', tenta('fichaMembroSalvar', { escopo: 'barra', pin: '0418', membroId: 'o9', nascimento: '1990-10-25' }).ok, true);
 
+  // Varias de uma vez (exportar varias): o PIN vale pra cada um.
+  confere('várias sem PIN é recusado', tenta('fichasVarias', { membroIds: 'm1,m2' }).ok, false);
+  const varias = tenta('fichasVarias', { ...barra, membroIds: 'm1,m2,sumiu' });
+  confere('várias: a de cada um, {} pra quem não tem e quem sumiu fica de fora',
+    [Object.keys(varias.fichas).sort(), varias.fichas.m1.nascimento, varias.fichas.m2], [['m1', 'm2'], '1985-03-12', {}]);
+  confere('várias: um só de outra divisão recusa tudo', tenta('fichasVarias', { ...barra, membroIds: 'm1,o9' }).ok, false);
+  confere('várias: o Regional lê de todas', Object.keys(tenta('fichasVarias', { escopo: 'regional', pin: '0418', membroIds: 'm1,o9' }).fichas).sort(), ['m1', 'o9']);
+
   // Os aniversarios: so nome, divisao e data - nada de telefone.
   tenta('fichaMembroSalvar', { ...barra, membroId: 'm2', nascimento: '1992-10-23' });
   const aniv = contexto.executar('aniversarios', { ...barra, divisao: 'barra' }).aniversarios;

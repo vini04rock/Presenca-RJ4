@@ -726,6 +726,16 @@ const cart = { isAdmin:true, adminEscopo:'barra', adminTab:'carteirinhas', carte
 const fichaCheia = { telefone:'(21) 99999-0000', emergenciaNome:'Maria Costa', emergenciaParentesco:'Esposa', emergenciaTelefone:'21 98888-1111',
   nascimento:'1985-03-12', tipoSanguineo:'O+', saude:'Alérgico a dipirona', foto:'', nomeCompleto:'João Carlos da Costa', planoSaude:'Unimed' };
 add('carteirinhas / lista',                { ...cart, carteirinhaMembroId: null }, T.renderAdmin);
+const cartSel = { ...cart, carteirinhaMembroId: null, carteirinhasExportar: 'imagem', carteirinhasMarcados: new Set([membros[0].id]) };
+add('carteirinhas / selecionando',          cartSel, T.renderAdmin);
+add('carteirinhas / selecionando (erro)',   { ...cartSel, carteirinhasErro: 'Sem permissao para os dados desta divisao' }, T.renderAdmin);
+add('carteirinhas / buscando',              { ...cartSel, carteirinhasCarregando: true }, T.renderAdmin);
+add('carteirinhas / prontas (pdf)',         { ...cartSel, carteirinhasExportar: 'pdf', carteirinhasProntas: [{ membro: membros[0], ficha: fichaCheia, pct: 67 }, { membro: membros[1], ficha: {}, pct: null }] }, T.renderAdmin);
+add('carteirinhas / prontas (whatsapp)',    { ...cartSel, carteirinhasExportar: 'whatsapp', carteirinhasProntas: [{ membro: membros[0], ficha: fichaCheia, pct: 67 }] }, T.renderAdmin);
+add('carteirinhas / regional fechado',      { ...cart, adminEscopo:'regional', carteirinhaMembroId: null }, T.renderAdmin);
+add('carteirinhas / regional com a Barra aberta', { ...cart, adminEscopo:'regional', carteirinhaMembroId: null, carteirinhasDivisoesAbertas: new Set(['barra']) }, T.renderAdmin);
+add('carteirinhas / regional selecionando', { ...cartSel, adminEscopo:'regional', carteirinhasDivisoesAbertas: new Set(['barra']) }, T.renderAdmin);
+add('carteirinhas / prontas (nenhuma)',     { ...cartSel, carteirinhasProntas: [] }, T.renderAdmin);
 add('carteirinha / com os dados',           { ...cart, carteirinhaFicha: fichaCheia }, T.renderAdmin);
 add('carteirinha / vazia',                  { ...cart, carteirinhaFicha: {} }, T.renderAdmin);
 add('carteirinha / editando',               { ...cart, carteirinhaFicha: fichaCheia, carteirinhaForm: { ...fichaCheia, nascimentoTexto:'12/03/1985' } }, T.renderAdmin);
@@ -823,6 +833,7 @@ const LIMPO = {
   acoesSociaisDados:null, acoesSociaisDadosEscopo:null, acoesSociaisCarregando:false, acoesSociaisErro:null,
   acoesSociaisSalvando:false, acoesSociaisMsg:null, acaoSocialIdeiaForm:null, acaoSocialApagarId:null,
   acoesSociaisAno:null, acaoSocialMesAberto:null, acaoSocialAgendaForm:null, acaoSocialCriarEventoId:null, acoesSociaisLegenda:false, acaoSocialTextoForm:null, acaoSocialRascunhoConfirmar:false,
+  carteirinhasExportar:null, carteirinhasMarcados:new Set(), carteirinhasCarregando:false, carteirinhasErro:null, carteirinhasProntas:null, carteirinhasCopiado:false, carteirinhasDivisoesAbertas:new Set(),
   carteirinhaMembroId:null, carteirinhaFicha:null, carteirinhaPct:null, carteirinhaCarregando:false, carteirinhaErro:null,
   carteirinhaForm:null, carteirinhaSalvando:false, carteirinhaMsg:null, carteirinhaFotoProcessando:false, aniversarios:null, aniversariosEscopo:null,
   funcaoEspecial:null, funcoesDados:null, funcoesCarregando:false, funcoesErro:null, funcoesSalvando:false, funcoesMsg:null,

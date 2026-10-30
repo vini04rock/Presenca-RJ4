@@ -11,7 +11,8 @@
 // Os dados pessoais vem de uma aba a parte (fichaMembro, no Code.gs), lida
 // so com o PIN da divisao do integrante - a lista de membros e publica e
 // nao pode levar isso. Ate 30/10/2026 nada daqui saia do app; desde entao,
-// a pedido, ha Imagem, PDF e WhatsApp no topo da carteirinha aberta.
+// a pedido, ha Imagem, PDF e WhatsApp no topo da carteirinha aberta - e no
+// topo da lista, pra varias de uma vez (marcando quem vai, ou todos).
 
 import { api, apiPost } from '../nucleo/api.js';
 import { LOGO_SRC } from '../nucleo/imagens.js';
@@ -22,7 +23,7 @@ import { montarRelatorioIndividual } from '../dominio/relatorio-individual.js';
 import { estaAfastado, textoIngresso } from '../dominio/movimentos.js';
 import { membrosDoEscopo } from '../dominio/estatisticas.js';
 import { idadeEm, TIPOS_SANGUINEOS, linkWhatsApp, telefoneParaLink, textoCarteirinha } from '../dominio/carteirinha.js';
-import { funcaoPorChave } from '../nucleo/config.js';
+import { escopoPorChave, escoposEmOrdemDeExibicao, funcaoPorChave } from '../nucleo/config.js';
 import { linhaFuncoes, nivelDoGrau, selinhoIniciais } from '../ui/comuns.js';
 import { imagemCarteirinha, mostrarPreviaImagem } from '../ui/imagem.js';
 
@@ -30,12 +31,74 @@ function membro() { return state.roster.find(m => m.id === state.carteirinhaMemb
 function ficha() { return state.carteirinhaFicha || {}; }
 
 // A aba Carteirinhas: com uma carteirinha aberta, ela toma a aba inteira;
-// sem, a lista dos irmaos da divisao, um card por grau, na ordem
-// hierarquica (a mesma do cadastro).
+// sem, a lista dos irmaos, um card por grau, na ordem hierarquica (a mesma
+// do cadastro). No Regional (30/10/2026) a lista e de todas as divisoes: um
+// card por divisao, fechado, e tocar no nome dela abre os integrantes, por
+// grau. "Marcar todos" marca todas as divisoes juntas.
 export function renderAdminCarteirinhas() {
   if (state.carteirinhaMembroId) return renderCarteirinhaMembro();
-  const membros = membrosDoEscopo();
+  if (state.carteirinhasProntas) return renderProntas();
+  const membros = membrosDaLista();
   if (!membros.length) return '<div class="empty">Nenhum membro cadastrado ainda.</div>';
+  const topo = state.carteirinhasExportar ? topoSelecao(membros) : topoLista();
+  if (state.adminEscopo !== 'regional') {
+    return topo + gruposPorGrau(membrosDoEscopo()).map(g => `
+      <div class="card lista-cadastro">${blocoGrau(state.adminEscopo, g)}</div>
+    `).join('');
+  }
+  return topo + escoposEmOrdemDeExibicao().map(e => {
+    const doEscopo = membrosDe(e);
+    const aberto = state.carteirinhasDivisoesAbertas.has(e.chave);
+    return `
+      <div class="card lista-cadastro">
+        <div class="division-subheader clicavel" data-action="carteirinhas-abrir-divisao" data-value="${e.chave}">
+          <span style="display:flex; align-items:center;">${state.carteirinhasExportar && doEscopo.length ? caixa(doEscopo, 'carteirinhas-marcar-grupo', e.chave) : ''}${aberto ? '▾' : '▸'} ${escapeHtml(e.nome.toUpperCase())}</span>
+          <span class="division-counts">${contagem(doEscopo)}</span>
+        </div>
+        ${aberto ? (doEscopo.length
+          ? gruposPorGrau(doEscopo).map(g => `<div class="carteirinhas-grau">${blocoGrau(e.chave, g)}</div>`).join('')
+          : '<div class="empty">Nenhum integrante cadastrado.</div>') : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+// Quem esta na lista: os da divisao, ou - no Regional - os de todas, na
+// ordem da tela (divisao por divisao, cada uma por grau).
+function membrosDe(e) { return state.roster.filter(m => m.divisao === e.nome); }
+function membrosDaLista() {
+  if (state.adminEscopo !== 'regional') return membrosDoEscopo();
+  return escoposEmOrdemDeExibicao().flatMap(e => gruposPorGrau(membrosDe(e)).flatMap(g => g.membros));
+}
+
+// O cabecalho de um grau (com a caixa, na selecao) e as linhas dele.
+function blocoGrau(chave, g) {
+  return `
+    <div class="division-subheader">
+      <span style="display:flex; align-items:center;">${state.carteirinhasExportar ? caixa(g.membros, 'carteirinhas-marcar-grupo', `${chave}|${g.grau}`) : ''}${g.grau ? `GRAU ${escapeHtml(g.grau)}` : 'SEM GRAU'}</span>
+      <span class="division-counts">${contagem(g.membros)}</span>
+    </div>
+    ${g.membros.map(linhaLista).join('')}
+  `;
+}
+
+function contagem(membros) {
+  const n = membros.length;
+  if (state.carteirinhasExportar) return `${membros.filter(m => state.carteirinhasMarcados.has(m.id)).length}/${n} ${n === 1 ? 'marcado' : 'marcados'}`;
+  return `${n} ${n === 1 ? 'membro' : 'membros'}`;
+}
+
+// Os integrantes de um grupo da lista: 'barra' (a divisao inteira) ou
+// 'barra|VI' (um grau dela).
+function membrosDoGrupo(valor) {
+  const [chave, grau] = String(valor).split('|');
+  const e = escopoPorChave(chave);
+  const doEscopo = e ? membrosDe(e) : [];
+  return grau === undefined ? doEscopo : doEscopo.filter(m => (m.grau || '') === grau);
+}
+
+// Um card por grau, na ordem hierarquica (a mesma do cadastro).
+function gruposPorGrau(membros) {
   const grupos = [];
   ordenarPorHierarquia(membros).forEach(m => {
     const grau = m.grau || '';
@@ -43,30 +106,93 @@ export function renderAdminCarteirinhas() {
     if (ultimo && ultimo.grau === grau) ultimo.membros.push(m);
     else grupos.push({ grau, membros: [m] });
   });
+  return grupos;
+}
+
+// ---------- exportar varias ----------------------------------------------
+// Tocar num dos tres botoes liga a selecao: tocar na linha marca (em vez de
+// abrir), a caixa do grau marca o grau inteiro e "Marcar todos" marca a
+// lista. Exportar busca as fichas e a presenca de todos numa chamada so de
+// cada (fichasVarias e relatorioIndividualVarios) e mostra as carteirinhas
+// prontas, com o botao do formato - o toque nele e que gera a imagem, abre a
+// impressao ou copia (o navegador so deixa copiar logo depois de um toque).
+const FORMATOS = {
+  imagem: { rotulo: '🖼️ Imagem', nome: 'imagem' },
+  pdf: { rotulo: '📄 PDF', nome: 'PDF' },
+  whatsapp: { rotulo: '📋 WhatsApp', nome: 'texto pro WhatsApp' },
+};
+
+function topoLista() {
   return `
-    <div class="info-line" style="padding:0 0 10px; color:var(--text-muted); font-size:12px; text-align:center;">Toque no nome para abrir a carteirinha.</div>
-    ${grupos.map(g => `
-      <div class="card lista-cadastro">
-        <div class="division-subheader">
-          <span>${g.grau ? `GRAU ${escapeHtml(g.grau)}` : 'SEM GRAU'}</span>
-          <span class="division-counts">${g.membros.length} ${g.membros.length === 1 ? 'membro' : 'membros'}</span>
-        </div>
-        ${g.membros.map(linhaLista).join('')}
-      </div>
-    `).join('')}
+    <div class="row-gap no-print" style="margin-bottom:8px;">
+      ${Object.keys(FORMATOS).map(k => `<button class="btn secondary" style="flex:1;" data-action="carteirinhas-exportar" data-value="${k}">${FORMATOS[k].rotulo}</button>`).join('')}
+    </div>
+    <div class="info-line" style="padding:0 0 10px; color:var(--text-muted); font-size:12px; text-align:center;">Toque no nome para abrir a carteirinha, ou num botão acima para exportar várias.</div>
+  `;
+}
+
+function topoSelecao(membros) {
+  const n = state.carteirinhasMarcados.size;
+  const todos = n === membros.length;
+  const carregando = state.carteirinhasCarregando;
+  const formato = FORMATOS[state.carteirinhasExportar];
+  const rotulo = carregando ? `Buscando ${n} ${n === 1 ? 'carteirinha' : 'carteirinhas'}…`
+    : n ? `${formato.rotulo} · exportar ${n} ${n === 1 ? 'carteirinha' : 'carteirinhas'}` : 'Marque quem vai';
+  return `
+    <div class="card" style="margin-bottom:14px;">
+      <div style="font-weight:600; margin-bottom:4px;">Exportar carteirinhas em ${formato.nome}</div>
+      <div style="color:var(--text-muted); font-size:12.5px; margin-bottom:10px;">Marque cada integrante, um grau inteiro ou todos. Telefone e saúde vão junto.</div>
+      <button class="btn secondary block" data-action="carteirinhas-marcar-todos" style="margin-bottom:8px;" ${carregando ? 'disabled' : ''}>${todos ? '☐ Desmarcar todos' : `☑️ Marcar todos (${membros.length})`}</button>
+      ${state.carteirinhasErro ? `
+        <div class="alert" style="margin-bottom:10px;">
+          <div class="alert-title">Não consegui buscar as carteirinhas</div>
+          <div class="alert-msg">${escapeHtml(state.carteirinhasErro)}.</div>
+        </div>` : ''}
+      <button class="btn block" data-action="carteirinhas-gerar" style="margin-bottom:8px;" ${n && !carregando ? '' : 'disabled'}>${rotulo}</button>
+      <button class="btn secondary block" data-action="carteirinhas-cancelar" ${carregando ? 'disabled' : ''}>Cancelar</button>
+    </div>
+  `;
+}
+
+// A caixa de um grupo (um grau, ou a divisao inteira no Regional): marcada
+// com todos dele. Tem acao propria - no Regional, marcar a divisao nao abre
+// nem fecha o card.
+function caixa(membros, acao, valor) {
+  const todos = membros.every(m => state.carteirinhasMarcados.has(m.id));
+  return `<input type="checkbox" class="relind-check" data-action="${acao}" data-value="${escapeHtml(valor)}" ${todos ? 'checked' : ''}>`;
+}
+
+// As prontas: o botao do formato e, embaixo, as carteirinhas - que sao
+// tambem a folha do PDF, uma por bloco, sem quebrar no meio.
+function renderProntas() {
+  const lista = state.carteirinhasProntas;
+  const k = state.carteirinhasExportar;
+  const botao = k === 'imagem' ? `<button class="btn block" data-action="carteirinhas-imagens">🖼️ Gerar ${lista.length === 1 ? 'a imagem' : `as ${lista.length} imagens`}</button>`
+    : k === 'pdf' ? '<button class="btn block" data-action="imprimir-carteirinha">🖨️ Imprimir / Exportar PDF</button>'
+    : `<button class="btn block" data-action="carteirinhas-copiar">${state.carteirinhasCopiado ? 'Copiado ✓' : `📋 Copiar ${lista.length === 1 ? 'a carteirinha' : `as ${lista.length} carteirinhas`}`}</button>`;
+  return `
+    <button class="btn ghost no-print" style="margin-bottom:10px;" data-action="carteirinhas-voltar">‹ Voltar à lista</button>
+    <div class="card no-print" style="margin-bottom:14px;">
+      <div style="font-weight:600; margin-bottom:10px;">${lista.length} ${lista.length === 1 ? 'carteirinha pronta' : 'carteirinhas prontas'}</div>
+      ${botao}
+    </div>
+    ${lista.length ? lista.map(x => `<div class="carteirinha-pagina">${cartao(x.membro, x.ficha, x.pct, true)}</div>`).join('')
+      : '<div class="empty">Nenhum dos marcados foi encontrado na planilha.</div>'}
   `;
 }
 
 function linhaLista(m) {
+  const sel = !!state.carteirinhasExportar;
   return `
-    <div class="member-row lista-carteirinha${estaAfastado(m) ? ' afastado' : ''}" data-action="abrir-carteirinha" data-id="${m.id}">
+    <div class="member-row lista-carteirinha${estaAfastado(m) ? ' afastado' : ''}" data-action="${sel ? 'carteirinhas-marcar' : 'abrir-carteirinha'}" data-id="${m.id}">
+      ${sel ? `<input type="checkbox" class="relind-check" ${state.carteirinhasMarcados.has(m.id) ? 'checked' : ''}>` : ''}
       <div class="member-info">
         ${selinhoIniciais(m)}
         <span class="member-name">${escapeHtml(m.nome)}</span>
         ${m.grau ? `<span class="grade-box">${escapeHtml(m.grau)}</span>` : ''}
         ${m.cargo ? `<span class="member-cargo-inline">${escapeHtml(m.cargo)}</span>` : ''}
       </div>
-      <span class="lista-carteirinha-seta" aria-hidden="true">🪪 ›</span>
+      ${sel ? '' : '<span class="lista-carteirinha-seta" aria-hidden="true">🪪 ›</span>'}
     </div>
   `;
 }
@@ -83,7 +209,7 @@ export function renderCarteirinhaMembro() {
         <button class="btn secondary" style="flex:1;" data-action="imprimir-carteirinha">📄 PDF</button>
         <button class="btn secondary" style="flex:1;" data-action="copiar-carteirinha">${state.carteirinhaCopiado ? 'Copiado ✓' : '📋 WhatsApp'}</button>
       </div>` : ''}
-    ${cartao(m, pronta)}
+    ${cartao(m, state.carteirinhaForm ? { ...ficha(), foto: state.carteirinhaForm.foto } : ficha(), state.carteirinhaPct, pronta)}
     ${state.carteirinhaErro ? `
       <div class="alert">
         <div class="alert-title">Não consegui buscar a carteirinha</div>
@@ -102,11 +228,10 @@ export function renderCarteirinhaMembro() {
 // individual (mesmas classes), com a foto no lugar do emblema quando
 // houver e a % total de presenca; embaixo, os dados do irmao, no estilo de
 // documento. Editando, ela mostra o que ja estava salvo - o formulario vem
-// embaixo, e salvar atualiza a carteirinha.
-function cartao(m, comDados) {
+// embaixo, e salvar atualiza a carteirinha. `f` e a ficha, `pct` a % total.
+function cartao(m, f, pct, comDados) {
   const detalhe = [m.cargo, m.divisao].filter(Boolean).map(escapeHtml).join(' · ');
-  const pct = state.carteirinhaPct;
-  const foto = state.carteirinhaForm ? state.carteirinhaForm.foto : ficha().foto;
+  const foto = f.foto;
   return `
     <div class="carteirinha carteirinha-${nivelDoGrau(m.grau)} carteirinha-membro">
       ${foto
@@ -125,7 +250,7 @@ function cartao(m, comDados) {
           <span>presença</span>
         </div>
       `}
-      ${comDados ? dadosNoCartao(m) : ''}
+      ${comDados ? dadosNoCartao(m, f) : ''}
     </div>
   `;
 }
@@ -148,8 +273,7 @@ function campoCartao(rotulo, valor, largo) {
 
 // O nome de colete e o nome do cadastro (o que o app inteiro usa); o nome
 // completo e o plano de saude moram so na ficha (30/10/2026).
-function dadosNoCartao(m) {
-  const f = ficha();
+function dadosNoCartao(m, f) {
   const idade = idadeEm(f.nascimento, hojeISO());
   const texto = v => (v ? `<span class="cart-valor">${escapeHtml(v)}</span>` : vazio);
   const emergencia = f.emergenciaNome
@@ -276,9 +400,7 @@ async function buscar(id) {
     const [f, rel] = await Promise.all([api('fichaMembro', { membroId: id }), api('relatorioIndividual', { membroId: id })]);
     if (state.carteirinhaMembroId !== id) return;
     state.carteirinhaFicha = f.ficha || {};
-    const r = montarRelatorioIndividual(rel, '', '');
-    const bloco = r.divisao || r.regional;
-    state.carteirinhaPct = bloco && bloco.geral.percentual !== null ? bloco.geral.percentual : null;
+    state.carteirinhaPct = pctDoRelatorio(rel);
   } catch (e) {
     if (state.carteirinhaMembroId !== id) return;
     state.carteirinhaErro = e.message;
@@ -295,6 +417,54 @@ export function fecharCarteirinha() {
   state.carteirinhaErro = null;
   state.carteirinhaMsg = null;
   state.carteirinhaCopiado = false;
+  sairDaSelecao();
+}
+
+function sairDaSelecao() {
+  state.carteirinhasExportar = null;
+  state.carteirinhasMarcados = new Set();
+  state.carteirinhasCarregando = false;
+  state.carteirinhasErro = null;
+  state.carteirinhasProntas = null;
+  state.carteirinhasCopiado = false;
+}
+
+// A % total de presenca, a partir do relatorio individual (sem periodo).
+function pctDoRelatorio(rel) {
+  const r = montarRelatorioIndividual(rel, '', '');
+  const bloco = r.divisao || r.regional;
+  return bloco && bloco.geral.percentual !== null ? bloco.geral.percentual : null;
+}
+
+// O que a imagem precisa de um integrante, ja escrito.
+function dadosDaImagem(m, f, pct) {
+  const idade = idadeEm(f.nascimento, hojeISO());
+  const emergencia = f.emergenciaNome ? f.emergenciaNome + (f.emergenciaParentesco ? ` (${f.emergenciaParentesco})` : '') : '';
+  return {
+    nome: m.nome,
+    linhaGrau: [m.grau ? `Grau ${m.grau}` : '', m.cargo, m.divisao].filter(Boolean).join('  ·  '),
+    funcoes: (m.funcoes || []).map(funcaoPorChave).filter(Boolean).map(x => `${x.selo} ${x.label}`).join('   '),
+    ingresso: textoIngresso(m.entrada || ''),
+    pct,
+    foto: f.foto || '',
+    // Em linhas de um ou dois campos, na mesma ordem da tela.
+    campos: [
+      [['🧥 Nome de colete', m.nome], ['👤 Nome completo', f.nomeCompleto]],
+      [['📞 Telefone', f.telefone], ['🎂 Nascimento', f.nascimento ? formatDataBR(f.nascimento) + (idade !== null ? ` · ${idade} anos` : '') : '']],
+      [['🆘 Emergência', emergencia], ['🆘 Tel. emergência', f.emergenciaTelefone]],
+      [['🩸 Tipo sanguíneo', f.tipoSanguineo], ['🏥 Plano de saúde', f.planoSaude]],
+      [['⚕️ Alergias e condições', f.saude]],
+    ],
+  };
+}
+
+function nomeDeArquivo(m) {
+  return String(m.nome || 'integrante').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+}
+
+// Os marcados, na ordem da lista - e a ordem do PDF, das imagens e do texto.
+function marcadosEmOrdem() {
+  return membrosDaLista().filter(m => state.carteirinhasMarcados.has(m.id));
 }
 
 export const acoes = {
@@ -311,27 +481,8 @@ export const acoes = {
   'imagem-carteirinha': async (id, target, action, e) => {
     const m = membro();
     if (!m) return;
-    const f = ficha();
-    const idade = idadeEm(f.nascimento, hojeISO());
-    const emergencia = f.emergenciaNome ? f.emergenciaNome + (f.emergenciaParentesco ? ` (${f.emergenciaParentesco})` : '') : '';
-    const c = {
-      nome: m.nome,
-      linhaGrau: [m.grau ? `Grau ${m.grau}` : '', m.cargo, m.divisao].filter(Boolean).join('  ·  '),
-      funcoes: (m.funcoes || []).map(funcaoPorChave).filter(Boolean).map(x => `${x.selo} ${x.label}`).join('   '),
-      ingresso: textoIngresso(m.entrada || ''),
-      pct: state.carteirinhaPct,
-      foto: f.foto || '',
-      // Em linhas de um ou dois campos, na mesma ordem da tela.
-      campos: [
-        [['🧥 Nome de colete', m.nome], ['👤 Nome completo', f.nomeCompleto]],
-        [['📞 Telefone', f.telefone], ['🎂 Nascimento', f.nascimento ? formatDataBR(f.nascimento) + (idade !== null ? ` · ${idade} anos` : '') : '']],
-        [['🆘 Emergência', emergencia], ['🆘 Tel. emergência', f.emergenciaTelefone]],
-        [['🩸 Tipo sanguíneo', f.tipoSanguineo], ['🏥 Plano de saúde', f.planoSaude]],
-        [['⚕️ Alergias e condições', f.saude]],
-      ],
-    };
-    const nome = String(m.nome || 'integrante').toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    return mostrarPreviaImagem(() => imagemCarteirinha(c), `carteirinha-${nome}.png`);
+    const c = dadosDaImagem(m, ficha(), state.carteirinhaPct);
+    return mostrarPreviaImagem(() => imagemCarteirinha(c), `carteirinha-${nomeDeArquivo(m)}.png`);
   },
   'copiar-carteirinha': async (id, target, action, e) => {
     const m = membro();
@@ -347,6 +498,93 @@ export const acoes = {
     }, 1600);
   },
   'fechar-carteirinha': async (id, target, action, e) => { fecharCarteirinha(); return render(); },
+
+  // ---- exportar varias ----
+  'carteirinhas-exportar': async (id, target, action, e) => {
+    sairDaSelecao();
+    state.carteirinhasExportar = target.dataset.value;
+    return render();
+  },
+  'carteirinhas-cancelar': async (id, target, action, e) => { sairDaSelecao(); return render(); },
+  'carteirinhas-marcar': async (id, target, action, e) => {
+    if (state.carteirinhasCarregando) return;
+    if (state.carteirinhasMarcados.has(id)) state.carteirinhasMarcados.delete(id);
+    else state.carteirinhasMarcados.add(id);
+    return render();
+  },
+  'carteirinhas-marcar-grupo': async (id, target, action, e) => {
+    if (state.carteirinhasCarregando) return;
+    const membros = membrosDoGrupo(target.dataset.value);
+    if (!membros.length) return;
+    const todos = membros.every(m => state.carteirinhasMarcados.has(m.id));
+    membros.forEach(m => (todos ? state.carteirinhasMarcados.delete(m.id) : state.carteirinhasMarcados.add(m.id)));
+    return render();
+  },
+  'carteirinhas-abrir-divisao': async (id, target, action, e) => {
+    const chave = target.dataset.value;
+    if (state.carteirinhasDivisoesAbertas.has(chave)) state.carteirinhasDivisoesAbertas.delete(chave);
+    else state.carteirinhasDivisoesAbertas.add(chave);
+    return render();
+  },
+  'carteirinhas-marcar-todos': async (id, target, action, e) => {
+    if (state.carteirinhasCarregando) return;
+    const membros = membrosDaLista();
+    state.carteirinhasMarcados = state.carteirinhasMarcados.size === membros.length ? new Set() : new Set(membros.map(m => m.id));
+    return render();
+  },
+  'carteirinhas-gerar': async (id, target, action, e) => {
+    if (state.carteirinhasCarregando) return;
+    const membros = marcadosEmOrdem();
+    if (!membros.length) return;
+    const ids = membros.map(m => m.id).join(',');
+    state.carteirinhasCarregando = true;
+    state.carteirinhasErro = null;
+    render();
+    try {
+      const [f, rel] = await Promise.all([api('fichasVarias', { membroIds: ids }), api('relatorioIndividualVarios', { membroIds: ids })]);
+      if (!state.carteirinhasExportar) return;
+      const fichas = f.fichas || {};
+      const pcts = {};
+      (rel.relatorios || []).forEach(r => { if (r.membro) pcts[r.membro.id] = pctDoRelatorio(r); });
+      state.carteirinhasProntas = membros.filter(m => fichas[m.id])
+        .map(m => ({ membro: m, ficha: fichas[m.id], pct: pcts[m.id] === undefined ? null : pcts[m.id] }));
+      window.scrollTo(0, 0);
+    } catch (err) {
+      state.carteirinhasErro = err.message;
+    }
+    state.carteirinhasCarregando = false;
+    return render();
+  },
+  'carteirinhas-voltar': async (id, target, action, e) => {
+    state.carteirinhasProntas = null;
+    state.carteirinhasCopiado = false;
+    return render();
+  },
+  // Uma imagem por integrante, uma depois da outra (todas juntas pesariam
+  // demais num celular), e a previa com todas.
+  'carteirinhas-imagens': async (id, target, action, e) => {
+    const lista = state.carteirinhasProntas;
+    if (!lista || !lista.length) return;
+    return mostrarPreviaImagem(async () => {
+      const telas = [];
+      for (const x of lista) telas.push(await imagemCarteirinha(dadosDaImagem(x.membro, x.ficha, x.pct)));
+      return telas;
+    }, lista.length === 1 ? `carteirinha-${nomeDeArquivo(lista[0].membro)}.png` : 'carteirinhas.png');
+  },
+  'carteirinhas-copiar': async (id, target, action, e) => {
+    const lista = state.carteirinhasProntas;
+    if (!lista || !lista.length) return;
+    const hoje = hojeISO();
+    const ok = await copiarTexto(lista.map(x => textoCarteirinha(x.membro, x.ficha, x.pct, hoje)).join('\n\n━━━━━━━━━━━━━━━━\n\n'));
+    if (!ok) return;
+    state.carteirinhasCopiado = true;
+    render();
+    setTimeout(() => {
+      if (!state.carteirinhasCopiado) return;
+      state.carteirinhasCopiado = false;
+      render();
+    }, 1600);
+  },
   'editar-carteirinha': async (id, target, action, e) => {
     const f = ficha();
     state.carteirinhaForm = { ...f, nascimentoTexto: formatDataBR(f.nascimento || '') };
