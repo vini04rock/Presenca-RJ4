@@ -135,14 +135,18 @@ export function eventosDoRelatorioEscopo() {
 // - na TELA, cada grafico tem os botoes 1/6/12 meses (relatorioPeriodoPorGrafico),
 //   de hoje pra tras, so pra olhar;
 // - o RELATORIO gerado (WhatsApp, PDF, imagem, no card "Gerar relatorio")
-//   usa so as datas daquele card, em tudo - em branco, o ultimo mes.
+//   usa so o periodo daquele card, em tudo: as datas, ou - em branco - os
+//   botoes 1/6/12 meses do card (relatorioGerarMeses, de hoje pra tras).
 // Enquanto o relatorio e montado, state.relatorioGerando liga o segundo.
 // As abas por tipo (Pub, Bate e Volta...) seguem com o "Filtrar por periodo"
 // de sempre (relatorioFiltroData*), que filtra a tela.
 export function periodoDoRelatorioGerado() {
   const ini = state.relatorioGerarInicio, fim = state.relatorioGerarFim;
-  if (!ini && !fim) return { ini: dataCorteMeses(1), fim: hojeISO(), ultimoMes: true };
-  return { ini, fim, ultimoMes: false };
+  if (!ini && !fim) {
+    const meses = state.relatorioGerarMeses || 1;
+    return { ini: dataCorteMeses(meses), fim: hojeISO(), meses };
+  }
+  return { ini, fim, meses: null };
 }
 
 // As datas que filtram os eventos agora ('' = sem limite daquele lado).
@@ -164,7 +168,8 @@ export function janelaDoGrafico(chave) {
 export function textoDoPeriodoGerado() {
   const p = periodoDoRelatorioGerado();
   const datas = `${p.ini ? formatDataBR(p.ini) : 'início'} até ${p.fim ? formatDataBR(p.fim) : 'hoje'}`;
-  return p.ultimoMes ? `último mês (${datas})` : datas;
+  if (!p.meses) return datas;
+  return `${p.meses === 1 ? 'último mês' : `últimos ${p.meses} meses`} (${datas})`;
 }
 
 // Como se escreve a janela de um grafico: 'último mês', 'últimos 6 meses'

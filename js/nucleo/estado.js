@@ -492,6 +492,8 @@ export let state = {
   // periodoDoRelatorioGerado em dominio/estatisticas.js.
   relatorioGerarInicio: '',
   relatorioGerarFim: '',
+  // Os botoes 1/6/12 meses do card (valem com as datas em branco).
+  relatorioGerarMeses: 1,
   relatorioGerando: false,
   // "Exportar para PDF" de dentro do Modo organizador (aba Eventos) - so
   // trava o botao enquanto pula pra tela de Relatorios e carrega os dados,

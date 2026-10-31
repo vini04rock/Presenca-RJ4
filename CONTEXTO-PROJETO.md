@@ -397,8 +397,9 @@ dele; presença em evento regional conta para o Regional e não mistura.
 cada um no seu lugar. Na **tela**, cada gráfico tem os botões 1/6/12 meses
 (de hoje para trás; sempre abre em 1 mês), só para olhar. O **relatório
 gerado** sai do card **📊 Gerar relatório** (no lugar do "Filtrar por
-período", só no Resumo): datas inicial/final e os botões 📋 WhatsApp, 📄 PDF
-e 🖼️ Imagem; em branco, o último mês. O relatório usa só as datas do card,
+período", só no Resumo): botões 1/6/12 meses (de hoje para trás; tocar
+num limpa as datas), ou datas inicial/final (com datas, valem as datas), e
+os botões 📋 WhatsApp, 📄 PDF e 🖼️ Imagem; abre em 1 mês. O relatório usa só as datas do card,
 em tudo (gráficos, mais faltas, % de cada integrante). O PDF redesenha a tela
 com esse período (`state.relatorioGerando`) e volta no `afterprint`. As abas
 por tipo (Pub, Bate e Volta…) seguem com o "Filtrar por período" de antes.

@@ -3,7 +3,7 @@
 import { estatisticasMembrosPorPeriodo, estatisticasMembrosPorTipo, eventosDoRelatorioEscopo, janelaDoGrafico, rankingFaltasInfracionais, resumoDonutPeriodo, rotuloDaJanela, textoDoPeriodoGerado } from '../dominio/estatisticas.js';
 import { textoResumoRelatorios } from '../dominio/relatorio-texto.js';
 import { computeCounts, statusEfetivo } from '../dominio/status.js';
-import { ABAS_COM_FILTRO_DIVISAO, RELATORIO_TABS, STATUS, STATUS_TOTAIS_LABEL, TIPOS_EVENTO, TIPOS_EVENTO_TABS_ORDEM, emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao, escoposNaOrdemOficial } from '../nucleo/config.js';
+import { ABAS_COM_FILTRO_DIVISAO, RELATORIO_PERIODOS, RELATORIO_TABS, STATUS, STATUS_TOTAIS_LABEL, TIPOS_EVENTO, TIPOS_EVENTO_TABS_ORDEM, emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao, escoposNaOrdemOficial } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { copiarTexto, dataCorteMeses, dataDoCampoOuAvisar, escapeHtml, formatDataBR } from '../nucleo/util.js';
 import { campoData, renderFichaMembro, renderListaEstatisticasPorDivisao } from '../ui/comuns.js';
@@ -57,26 +57,32 @@ function renderRelatorioFiltroPeriodo() {
 
 // No Resumo o card de periodo e o "Gerar relatorio" (31/10/2026): as datas
 // dele so valem pro relatorio gerado - os graficos da tela seguem os botoes
-// 1/6/12 meses de cada um. Em branco, o ultimo mes. As datas sao lidas no
-// toque do botao (ver lerPeriodoGerar).
+// 1/6/12 meses de cada um. O card tem os mesmos botoes (de hoje pra tras):
+// tocar num limpa as datas; com datas preenchidas, valem as datas. As datas
+// sao lidas no toque de exportar (ver lerPeriodoGerar).
 function renderGerarRelatorio() {
   const ativo = state.relatorioGerarInicio || state.relatorioGerarFim;
+  const meses = state.relatorioGerarMeses || 1;
   return `
     <div class="card no-print" style="margin-bottom:14px;">
       <div class="painel-titulo">📊 Gerar relatório</div>
+      <div class="pilulas-periodo">
+        ${RELATORIO_PERIODOS.map(m => `
+          <button class="pilula ${!ativo && meses === m ? 'active' : ''}" data-action="set-relatorio-gerar-meses" data-value="${m}">${m === 1 ? '1 mês' : m + ' meses'}</button>
+        `).join('')}
+      </div>
+      <div style="color:var(--text-muted); font-size:12px; margin:2px 0 8px;">ou escolha as datas:</div>
       <div class="row-gap">
         ${campoData({ id: 'relatorio-gerar-inicio', rotulo: 'Data inicial', valor: state.relatorioGerarInicio, estilo: 'margin-bottom:0; flex:1;' })}
         ${campoData({ id: 'relatorio-gerar-fim', rotulo: 'Data final', valor: state.relatorioGerarFim, estilo: 'margin-bottom:0; flex:1;' })}
       </div>
-      <div style="color:var(--text-muted); font-size:12px; margin:6px 0 10px;">${ativo
-        ? `O relatório sai de ${escapeHtml(textoDoPeriodoGerado())}.`
-        : `Em branco, sai o ${escapeHtml(textoDoPeriodoGerado())}.`}</div>
+      <div style="color:var(--text-muted); font-size:12px; margin:6px 0 10px;">O relatório sai ${ativo ? 'de' : (state.relatorioGerarMeses || 1) === 1 ? 'do' : 'dos'} ${escapeHtml(textoDoPeriodoGerado())}.</div>
       <div class="row-gap">
         <button class="btn secondary" style="flex:1;" data-action="copiar-resumo-relatorios">📋 WhatsApp</button>
         <button class="btn secondary" style="flex:1;" data-action="imprimir-relatorio">📄 PDF</button>
         <button class="btn secondary" style="flex:1;" data-action="imagem-resumo-relatorios">🖼️ Imagem</button>
       </div>
-      ${ativo ? '<div class="btn ghost" data-action="limpar-relatorio-gerar" style="margin-top:8px; padding:2px 0; font-size:12px;">Limpar (voltar ao último mês)</div>' : ''}
+      ${ativo ? '<div class="btn ghost" data-action="limpar-relatorio-gerar" style="margin-top:8px; padding:2px 0; font-size:12px;">Limpar as datas</div>' : ''}
     </div>
     ${state.relatorioGerando ? `<div class="print-only" style="margin-bottom:10px; font-size:13px; color:var(--text-muted);">Período: ${escapeHtml(textoDoPeriodoGerado())}</div>` : ''}
   `;
@@ -132,6 +138,7 @@ export async function entrarNosRelatorios() {
   state.relatorioPeriodoPorGrafico = { total: 1, 'Pub': 1, 'Bate e Volta': 1, 'Ação Social': 1, 'Reunião': 1 };
   state.relatorioGerarInicio = '';
   state.relatorioGerarFim = '';
+  state.relatorioGerarMeses = 1;
   state.relatorioGerando = false;
   state.view = 'relatorio';
   render();
@@ -644,6 +651,12 @@ export const acoes = {
     const d = comoRelatorio(dadosDoResumo);
     render();
     return mostrarPreviaImagem(() => imagemResumoRelatorios(d), `relatorio-presenca-${state.adminEscopo}.png`);
+  },
+  'set-relatorio-gerar-meses': async (id, target, action, e) => {
+    state.relatorioGerarMeses = Number(target.dataset.value);
+    state.relatorioGerarInicio = '';
+    state.relatorioGerarFim = '';
+    return render();
   },
   'limpar-relatorio-gerar': async (id, target, action, e) => {
     state.relatorioGerarInicio = '';

@@ -402,6 +402,8 @@ for (const aba of ['resumo','enviar','Pub','Bate e Volta','Reunião','Ação Soc
 add('relatorios / resumo com datas no card', { isAdmin:true, adminEscopo:'regional',
   relatorioCategoriaAlvo:'regional', relatorioTab:'resumo', relatorioFiltroDivisao:'todas',
   relatorioGerarInicio:'2026-07-01', relatorioGerarFim:'2026-07-31' }, T.renderRelatorioShell);
+add('relatorios / card em 6 meses', { isAdmin:true, adminEscopo:'regional',
+  relatorioCategoriaAlvo:'regional', relatorioTab:'resumo', relatorioFiltroDivisao:'todas', relatorioGerarMeses:6 }, T.renderRelatorioShell);
 add('relatorios / pdf de julho', { isAdmin:true, adminEscopo:'regional',
   relatorioCategoriaAlvo:'regional', relatorioTab:'resumo', relatorioFiltroDivisao:'todas',
   relatorioGerarInicio:'2026-07-01', relatorioGerarFim:'2026-07-31', relatorioGerando:true }, T.renderRelatorioShell);
@@ -843,6 +845,7 @@ const LIMPO = {
   acoesSociaisDados:null, acoesSociaisDadosEscopo:null, acoesSociaisCarregando:false, acoesSociaisErro:null,
   acoesSociaisSalvando:false, acoesSociaisMsg:null, acaoSocialIdeiaForm:null, acaoSocialApagarId:null,
   acoesSociaisAno:null, acaoSocialMesAberto:null, acaoSocialAgendaForm:null, acaoSocialCriarEventoId:null, acoesSociaisLegenda:false, acaoSocialTextoForm:null, acaoSocialRascunhoConfirmar:false,
+  relatorioGerarInicio:'', relatorioGerarFim:'', relatorioGerarMeses:1, relatorioGerando:false,
   carteirinhasExportar:null, carteirinhasMarcados:new Set(), carteirinhasCarregando:false, carteirinhasErro:null, carteirinhasProntas:null, carteirinhasCopiado:false, carteirinhasSimplificado:false, carteirinhasDivisoesAbertas:new Set(),
   carteirinhaMembroId:null, carteirinhaFicha:null, carteirinhaPct:null, carteirinhaCarregando:false, carteirinhaErro:null,
   carteirinhaForm:null, carteirinhaSalvando:false, carteirinhaMsg:null, carteirinhaFotoProcessando:false, aniversarios:null, aniversariosEscopo:null,
