@@ -221,6 +221,9 @@ export let state = {
   // { idMembro: kg }. Sem kg (ou 0) = nao levou.
   doacoesEventoId: null,
   doacoesMarcacoes: {},
+  // As doacoes de fora do evento aberto: [{ descricao, quantidade, medida }],
+  // sempre com uma linha vazia no fim (ver admin-doacoes.js).
+  doacoesExternas: [],
   doacoesSalvando: false,
   // { ok, texto } - o aviso depois de salvar, na lista de eventos.
   doacoesMsg: null,

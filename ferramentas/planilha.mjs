@@ -815,6 +815,55 @@ log('=== estoque das doações: o livro de entradas e saídas ===');
 }
 
 log('');
+log('=== doações de fora: as do evento que vêm de quem não é do clube ===');
+{
+  const p = montaPlanilha([ev('b1', '2026-10-05', 'encerrado'), ev('b2', '2026-10-12', 'ativo')], []);
+  p.abas.Membros = novaAba('Membros', [['ID', 'Nome', 'Grau', 'Divisao', 'Funcoes', 'Cargo'],
+    ['m1', 'Costa', 'VI', 'Barra - RJ4', '', '']]);
+  const { contexto } = carregaCodeGs(p, { PIN_REGIONAL: '0418', PIN_BARRA: '1801', PIN_OESTE: '1802' });
+  const barra = { escopo: 'barra', pin: '1801', divisao: 'barra' };
+  const tentar = (fn) => { try { const r = fn(); return r.ok === false ? r.erro : 'ok'; } catch (e) { return e.message; } };
+  const ler = () => contexto.executar('doacoes', barra);
+  const saldo = (nome) => (ler().estoque.itens.find(x => x.nome === nome) || {}).saldo;
+  const salvar = (eventoId, kgs, externas) => contexto.executar('doacoesSalvar', { ...barra, eventoId, kgs: JSON.stringify(kgs),
+    ...(externas === undefined ? {} : { externas: JSON.stringify(externas) }) });
+  const doEvento = (id, item) => ler().estoque.movimentos.filter(m => m.eventoId === id && m.item === item).map(m => [m.tipo, m.quantidade, m.descricao]).reverse();
+
+  contexto.executar('estoqueDoacoesMovimentar', { ...barra, tipo: 'entrada', itemNome: 'Agasalho', medida: 'un', quantidade: 2 });
+  const r = salvar('b1', { m1: 1 }, [{ descricao: ' Agasalho ', quantidade: '10', medida: 'kg' }, { descricao: 'Cesta básica', quantidade: 3, medida: 'un' },
+    { descricao: '', quantidade: '' }, { descricao: 'Arroz', quantidade: '5,5', medida: 'kg' }]);
+  confere('salva junto com os kg, e conta as de fora', [r.ok, r.doadores, r.externas], [true, 1, 3]);
+  confere('voltam no evento (linha vazia some; item que já existe fica com a medida dele)', ler().eventos.find(e => e.id === 'b1').externas,
+    [{ descricao: 'Agasalho', medida: 'un', quantidade: 10 }, { descricao: 'Cesta básica', medida: 'un', quantidade: 3 }, { descricao: 'Arroz', medida: 'kg', quantidade: 5.5 }]);
+  confere('entram no estoque: no item que já existia e em itens novos', [saldo('Agasalho'), saldo('Cesta básica'), saldo('Arroz')], [12, 3, 5.5]);
+  confere('com a data do evento e "De fora" na descrição', ler().estoque.movimentos.filter(m => m.item === 'Cesta básica').map(m => [m.data, m.origem, m.descricao]),
+    [['2026-10-05', 'evento', 'De fora · Evento b1']]);
+  confere('os kg dos integrantes seguem só nos Alimentos', saldo('Alimentos (dos eventos)'), 1);
+
+  salvar('b1', { m1: 1 }, [{ descricao: 'Agasalho', quantidade: 10 }, { descricao: 'Cesta básica', quantidade: 3 }, { descricao: 'Arroz', quantidade: 5.5, medida: 'kg' }]);
+  confere('salvar de novo igual não soma duas vezes', [saldo('Agasalho'), doEvento('b1', 'Agasalho').length, saldo('Alimentos (dos eventos)')], [12, 1, 1]);
+  salvar('b1', { m1: 1 }, [{ descricao: 'Agasalho', quantidade: 4 }, { descricao: 'Cesta básica', quantidade: 5 }]);
+  confere('menos vira correção, mais vira acréscimo, tirar da lista corrige tudo',
+    [doEvento('b1', 'Agasalho'), doEvento('b1', 'Cesta básica'), saldo('Arroz')],
+    [[['entrada', 10, 'De fora · Evento b1'], ['correcao', -6, 'Correção · De fora · Evento b1']],
+     [['entrada', 3, 'De fora · Evento b1'], ['entrada', 2, 'De fora · Evento b1 (acréscimo)']], 0]);
+  salvar('b1', { m1: 2 });
+  confere('sem a lista no pedido (app antigo), as de fora ficam como estavam', [ler().eventos.find(e => e.id === 'b1').externas.length, saldo('Agasalho'), saldo('Alimentos (dos eventos)')], [2, 6, 2]);
+
+  confere('quantidade quebrada em unidade é recusada', tentar(() => salvar('b2', {}, [{ descricao: 'Cobertor', quantidade: '1,5', medida: 'un' }])), 'Quantidade invalida em "Cobertor" (numero inteiro)');
+  confere('sem quantidade é recusada', tentar(() => salvar('b2', {}, [{ descricao: 'Cobertor', quantidade: '' }])), 'Quantidade invalida em "Cobertor" (numero inteiro)');
+  confere('recusado não grava nada', [ler().eventos.find(e => e.id === 'b2').externas, saldo('Cobertor')], [[], undefined]);
+  confere('o que veio de fora não se anula na mão no estoque',
+    tentar(() => contexto.executar('estoqueDoacoesAnular', { ...barra, id: ler().estoque.movimentos.find(m => m.item === 'Agasalho' && m.eventoId).id })),
+    'Lancamento automatico do evento: corrija pelas doacoes do evento');
+
+  contexto.executar('eventoRemover', { ...barra, id: 'b1' });
+  confere('remover o evento tira as de fora do estoque, em correção', [saldo('Agasalho'), saldo('Cesta básica'), saldo('Alimentos (dos eventos)'), doEvento('b1', 'Cesta básica').pop()],
+    [2, 0, 0, ['correcao', -5, 'Evento removido · De fora · Evento b1']]);
+  confere('e apaga as linhas dele em DoacoesExternas', p.abas.DoacoesExternas.dados.length, 1);
+}
+
+log('');
 log('=== caixinha: um mês por vez, atrás do PIN da divisão ===');
 {
   const p = montaPlanilha([], []);

@@ -198,6 +198,7 @@ export async function abrirAbaOrganizador(aba) {
   state.insightMostrarExcluidos = false;
   state.doacoesEventoId = null;
   state.doacoesMarcacoes = {};
+  state.doacoesExternas = [];
   state.doacoesMsg = null;
   // O estoque abre no painel, sem formulario nem relatorio aberto.
   state.estoqueMsg = null;

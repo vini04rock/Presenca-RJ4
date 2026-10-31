@@ -7,13 +7,14 @@
 
 import { carregarDoacoes } from '../dados/carregar.js';
 import { PERIODOS, dataDoEvento, formatKg, membrosParaMarcar, nomeDoPeriodo, rankDoacoes, rotuloPilula, somaKg, textoDoacoes } from '../dominio/doacoes.js';
+import { proximaMedida, sugerirMedida } from '../dominio/estoque.js';
 import { membrosDoEscopo } from '../dominio/estatisticas.js';
 import { soAtivos } from '../dominio/movimentos.js';
 import { salvarDoacoes } from '../fluxos/doacoes-caixinha.js';
 import { corTipoEvento, emojiTipoEvento, escopoPorChave } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
-import { copiarTexto, escapeHtml, formatDataCurta, hexParaRgba, imprimirTexto } from '../nucleo/util.js';
+import { copiarTexto, escapeHtml, formatDataCurta, hexParaRgba, imprimirTexto, normalizarBusca } from '../nucleo/util.js';
 import { botaoGerarRelatorio, linhaFuncoes, medalha, posicoesDoPodio, selinhoIniciais } from '../ui/comuns.js';
 import { esqueletoLista, renderDonutChart, renderSparklineTendencia } from '../ui/graficos.js';
 import { imagemDoacoes, mostrarPreviaImagem } from '../ui/imagem.js';
@@ -43,9 +44,11 @@ function cardEvento(ev) {
   const kg = somaKg(ev.doacoes);
   const doadores = Object.keys(ev.doacoes).length;
   const levaram = ev.confirmados.filter(id => ev.doacoes[id]).length;
-  const resumo = doadores
+  const externas = (ev.externas || []).length;
+  const resumo = (doadores
     ? `🥫 <b style="color:var(--white-strong);">${formatKg(kg)}</b> · ${doadores} ${doadores === 1 ? 'levou' : 'levaram'}`
-    : 'Nenhuma doação marcada';
+    : (externas ? '' : 'Nenhuma doação marcada'))
+    + (externas ? `${doadores ? ' · ' : ''}🤝 ${externas} de fora` : '');
   // Do lado da regra: dos ✅ do evento, quantos levaram. So faz sentido
   // depois que o evento acontece.
   const regra = ev.status === 'encerrado' && ev.confirmados.length
@@ -127,11 +130,95 @@ function painelMarcar(ev) {
     <div class="card" style="padding: 4px 16px;">
       ${membros.length ? membros.map(m => linhaMarcar(m, ev)).join('') : '<div class="empty">Ninguém convocado neste evento.</div>'}
     </div>
+    ${cardExternas()}
     <div class="row-gap" style="margin-bottom:16px;">
       <button class="btn block" data-action="salvar-doacoes" ${state.doacoesSalvando ? 'disabled' : ''}>${state.doacoesSalvando ? 'Salvando…' : '✅ Salvar doações'}</button>
       <button class="btn secondary block" data-action="fechar-doacoes-evento" ${state.doacoesSalvando ? 'disabled' : ''}>Cancelar</button>
     </div>
   `;
+}
+
+// ---------- as doacoes de fora (31/10/2026) ----------
+// O que veio de gente de fora do clube ou de outro motoclube no evento:
+// uma linha por coisa, texto livre e quantidade. Escrever na ultima linha
+// abre outra embaixo. A medida (un, par, kg) e a do item do estoque com o
+// mesmo nome; se o item e novo, vem sugerida pelo nome (sugerirMedida) e um
+// toque troca. Salva junto com os kg e vai sozinha pro estoque (Code.gs,
+// registrarExternasDoEvento). Nao entra no rank: nao e de integrante.
+
+// O item do estoque com esse nome (o mesmo criterio do Code.gs), se houver.
+function itemDoEstoque(descricao) {
+  const d = dados();
+  const chave = normalizarBusca(descricao).trim().replace(/\s+/g, ' ');
+  if (!d || !d.estoque || !chave) return null;
+  return d.estoque.itens.find(i => !i.automatico && normalizarBusca(i.nome).trim().replace(/\s+/g, ' ') === chave) || null;
+}
+
+// A medida de uma linha: a do item que ja existe; senao a escolhida no
+// toque, ou a sugerida pelo nome.
+function medidaDaLinha(x) {
+  const item = itemDoEstoque(x.descricao);
+  if (item) return { medida: item.medida, fixa: true };
+  return { medida: x.medida || sugerirMedida(x.descricao), fixa: false };
+}
+
+function linhaExterna(x, i) {
+  const { medida, fixa } = medidaDaLinha(x);
+  return `
+    <div class="externa-linha" data-externa-linha="${i}">
+      <input type="text" class="externa-texto" data-externa="${i}" data-campo="descricao" maxlength="60" autocomplete="off"
+             placeholder="${i === 0 ? 'Ex.: Agasalho, cesta básica…' : 'Outra doação…'}" value="${escapeHtml(x.descricao)}">
+      <input type="text" class="externa-qtd" data-externa="${i}" data-campo="quantidade" inputmode="decimal" maxlength="7" autocomplete="off"
+             placeholder="Qtd" value="${escapeHtml(x.quantidade)}">
+      <button class="externa-medida${fixa ? ' fixa' : ''}" data-action="doacao-externa-medida" data-value="${i}"
+              title="${fixa ? 'Medida do item no estoque' : 'Tocar troca: un → par → kg'}">${medida}</button>
+      ${x.descricao || x.quantidade ? `<button class="externa-tirar" data-action="doacao-externa-tirar" data-value="${i}" aria-label="Tirar esta doação">✕</button>` : '<span class="externa-tirar vazio"></span>'}
+    </div>
+  `;
+}
+
+function cardExternas() {
+  // Sempre ha onde escrever: a lista nunca fica sem a linha vazia do fim.
+  state.doacoesExternas = comLinhaVazia(state.doacoesExternas);
+  const lista = state.doacoesExternas;
+  const preenchidas = lista.filter(x => x.descricao.trim()).length;
+  return `
+    <div class="card externas-card">
+      <div class="painel-titulo" style="margin-bottom:2px;">🤝 Doações de fora</div>
+      <div style="color:var(--text-muted); font-size:12px; margin-bottom:10px;">De quem não é do clube ou de outro motoclube: agasalho, roupa, comida… Vai junto pro estoque.${preenchidas ? ` · <b>${preenchidas}</b> ${preenchidas === 1 ? 'doação' : 'doações'}` : ''}</div>
+      <div class="externas-lista">${lista.map(linhaExterna).join('')}</div>
+    </div>
+  `;
+}
+
+// Sempre uma linha vazia no fim, pra proxima doacao.
+function comLinhaVazia(lista) {
+  const ultima = lista[lista.length - 1];
+  return ultima && !ultima.descricao && !ultima.quantidade ? lista : lista.concat([{ descricao: '', quantidade: '', medida: '' }]);
+}
+
+// Digitacao numa linha: so lembra, sem redesenhar (o teclado fecharia).
+// Escrever na ultima linha poe outra embaixo direto na tela; a medida
+// acompanha o nome. Devolve true se o campo era daqui.
+export function atualizarCampoDoacaoExterna(el) {
+  if (!el.dataset || el.dataset.externa === undefined) return false;
+  const i = Number(el.dataset.externa);
+  const x = state.doacoesExternas[i];
+  if (!x) return true;
+  x[el.dataset.campo] = el.value;
+  const linha = el.closest('.externa-linha');
+  const botao = linha && linha.querySelector('.externa-medida');
+  if (botao && el.dataset.campo === 'descricao') {
+    const { medida, fixa } = medidaDaLinha(x);
+    botao.textContent = medida;
+    botao.classList.toggle('fixa', fixa);
+  }
+  if (i === state.doacoesExternas.length - 1 && (x.descricao || x.quantidade)) {
+    state.doacoesExternas.push({ descricao: '', quantidade: '', medida: '' });
+    const lista = linha && linha.parentElement;
+    if (lista) lista.insertAdjacentHTML('beforeend', linhaExterna(state.doacoesExternas[i + 1], i + 1));
+  }
+  return true;
 }
 
 // ---------- aba "Rank" ----------
@@ -245,6 +332,7 @@ export const acoes = {
     state.doacoesEventoId = id;
     // Comeca com o que ja estava gravado - abrir de novo e corrigir.
     state.doacoesMarcacoes = { ...ev.doacoes };
+    state.doacoesExternas = comLinhaVazia((ev.externas || []).map(x => ({ descricao: x.descricao, quantidade: String(x.quantidade).replace('.', ','), medida: x.medida })));
     state.doacoesMsg = null;
     window.scrollTo(0, 0);
     return render();
@@ -252,6 +340,7 @@ export const acoes = {
   'fechar-doacoes-evento': async (id, target, action, e) => {
     state.doacoesEventoId = null;
     state.doacoesMarcacoes = {};
+    state.doacoesExternas = [];
     state.doacoesMsg = null;
     return render();
   },
@@ -272,7 +361,20 @@ export const acoes = {
     return render();
   },
   'salvar-doacoes': async (id, target, action, e) => {
-    return salvarDoacoes();
+    return salvarDoacoes(state.doacoesExternas.map(x => ({ ...x, medida: medidaDaLinha(x).medida })));
+  },
+  // A medida de uma doacao de fora: un -> par -> kg. A de um item que ja
+  // existe no estoque nao muda (e a dele).
+  'doacao-externa-medida': async (id, target, action, e) => {
+    const x = state.doacoesExternas[Number(target.dataset.value)];
+    if (!x || medidaDaLinha(x).fixa) return;
+    x.medida = proximaMedida(medidaDaLinha(x).medida);
+    return render();
+  },
+  'doacao-externa-tirar': async (id, target, action, e) => {
+    state.doacoesExternas.splice(Number(target.dataset.value), 1);
+    state.doacoesExternas = comLinhaVazia(state.doacoesExternas);
+    return render();
   },
   'doacoes-mais-eventos': async (id, target, action, e) => {
     state.doacoesQtdEncerrados += 10;

@@ -11,23 +11,43 @@ import { carregarCaixinha, carregarDoacoes } from '../dados/carregar.js';
 import { divisoesContribuintes, formatReais, lerValor, nomeDoMes, vocabularioCaixinha } from '../dominio/caixinha.js';
 import { formatKg } from '../dominio/doacoes.js';
 import { lerQuantidade, textoQuantidade } from '../dominio/estoque.js';
-import { api } from '../nucleo/api.js';
+import { api, apiPost } from '../nucleo/api.js';
 import { CATEGORIA_ENTRADA_CAIXINHA } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
 import { dataISOdeBR, hojeISO, mostrarAviso } from '../nucleo/util.js';
 
-export async function salvarDoacoes() {
+// `linhas`: as doacoes de fora da tela, cada uma ja com a medida certa (a do
+// item do estoque, ou a escolhida) - quem sabe disso e a tela.
+export async function salvarDoacoes(linhas = []) {
   const eventoId = state.doacoesEventoId;
   if (!eventoId) return;
+  // As doacoes de fora: linha sem nada fica de fora; com quantidade e sem o
+  // que foi, ou com o que foi e sem quantidade valida, nao deixa salvar (a
+  // mesma conta do Code.gs, pra avisar antes de ir ate a planilha).
+  const externas = [];
+  for (const x of linhas) {
+    const descricao = x.descricao.trim();
+    if (!descricao && !x.quantidade.trim()) continue;
+    if (!descricao) { state.doacoesMsg = { ok: false, texto: 'Escreva o que foi doado na linha com a quantidade ' + x.quantidade + '.' }; return render(); }
+    const medida = x.medida || 'un';
+    if (!lerQuantidade(x.quantidade, medida)) {
+      state.doacoesMsg = { ok: false, texto: `Quantidade inválida em "${descricao}"${medida === 'kg' ? ' (kg, até uma casa decimal)' : ' (número inteiro)'}.` };
+      return render();
+    }
+    externas.push({ descricao, quantidade: x.quantidade.trim().replace(',', '.'), medida });
+  }
   state.doacoesSalvando = true;
   render();
   try {
-    const r = await api('doacoesSalvar', { eventoId, kgs: JSON.stringify(state.doacoesMarcacoes) });
+    // POST: a lista das de fora pode nao caber numa URL.
+    const r = await apiPost('doacoesSalvar', { eventoId, kgs: JSON.stringify(state.doacoesMarcacoes), externas: JSON.stringify(externas) });
     const ev = ((state.doacoesDados && state.doacoesDados.eventos) || []).find(e => e.id === eventoId);
-    state.doacoesMsg = { ok: true, texto: `✅ ${ev ? ev.nome : 'Evento'}: ${r.doadores} ${r.doadores === 1 ? 'integrante levou' : 'integrantes levaram'} ${formatKg(r.totalKg)}.` };
+    const deFora = r.externas ? ` + ${r.externas} ${r.externas === 1 ? 'doação' : 'doações'} de fora` : '';
+    state.doacoesMsg = { ok: true, texto: `✅ ${ev ? ev.nome : 'Evento'}: ${r.doadores} ${r.doadores === 1 ? 'integrante levou' : 'integrantes levaram'} ${formatKg(r.totalKg)}${deFora}.` };
     state.doacoesEventoId = null;
     state.doacoesMarcacoes = {};
+    state.doacoesExternas = [];
     mostrarAviso('🥫 Doações salvas');
     state.doacoesSalvando = false;
     return carregarDoacoes();

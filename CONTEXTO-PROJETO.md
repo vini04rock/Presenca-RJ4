@@ -636,6 +636,17 @@ regra do clube é levar 1 kg de alimento em todo evento.
   no nome marca 1 kg, e o − / + ajusta de 1 em 1. Salvar troca as doações
   do evento inteiro, então abrir de novo é corrigir. Evento sem convocado
   mostra a divisão inteira.
+- **🤝 Doações de fora** (desde 31/10/2026): no evento aberto, acima do
+  Salvar, uma lista do que veio de gente de fora do clube ou de outro
+  motoclube — texto livre (agasalho, roupa, comida…) e quantidade; escrever
+  na última linha abre outra embaixo. A medida é a do item do estoque com o
+  mesmo nome; item novo vem com a medida sugerida pelo nome, e um toque
+  troca (un → par → kg). Dinheiro não entra (é da Caixinha). Salva junto com
+  os kg, na aba `DoacoesExternas`, e **vai sozinha para o estoque**, item por
+  item, pela mesma regra da diferença dos alimentos
+  (`registrarExternasDoEvento`; descrição "De fora · evento", ícone 🤝 no
+  extrato). **Não conta no Rank nem no cumprimento.** O card do evento
+  mostra "🤝 N de fora".
 - **Rank:** o kg de cada um e o **cumprimento**: dos eventos *encerrados*
   em que a pessoa estava ✅ Confirmada, em quantos ela levou. São dois
   números de propósito. O kg é o lado de quem está bem; o cumprimento é o
@@ -1234,7 +1245,8 @@ valem antes de mexer:
 - **Imagens para o grupo** (`ui/imagem.js`): o resultado de um evento
   encerrado (aba Encerrados do organizador), o Rank de Presença, cada rodada
   de Insight (ranking das divisões naquela rodada) e o relatório completo do
-  Insight no período (com os destaques: quem mais fez). Nenhuma traz nome de
+  Insight no período (média e divisões; os "destaques", quem mais fez, saíram
+  em 31/10/2026 para não gerar comparação entre os irmãos). Nenhuma traz nome de
   quem faltou ou não fez: a imagem circula, e a cobrança é do texto. Desenhadas
   num `<canvas>` com o fundo, o emblema e a Rye. Abrem numa prévia com
   Compartilhar/Baixar, e não direto: o celular só deixa compartilhar

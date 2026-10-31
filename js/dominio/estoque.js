@@ -99,7 +99,9 @@ export function tituloDoMovimento(m) {
     return `${d.emoji} ${d.label}${m.descricao ? ' · ' + m.descricao : ''}`;
   }
   if (m.tipo === 'correcao') return m.descricao || 'Correção';
-  if (m.origem === 'evento') return `🥫 ${m.descricao || 'Evento'}`;
+  // Do evento: os kg dos integrantes (🥫) ou as doacoes de fora (🤝 - o
+  // Code.gs grava "De fora · <evento>" na descricao).
+  if (m.origem === 'evento') return `${/^De fora · /.test(m.descricao || '') ? '🤝' : '🥫'} ${m.descricao || 'Evento'}`;
   return m.descricao || 'Entrada avulsa';
 }
 

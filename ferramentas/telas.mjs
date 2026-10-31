@@ -530,6 +530,10 @@ const dc = { isAdmin:true, adminEscopo:'barra', doacoesDados:doacoesFalsas, doac
 add('doações / por evento',            { ...dc, adminTab:'doacoes' }, T.renderAdmin);
 add('doações / por evento (salvo)',    { ...dc, adminTab:'doacoes', doacoesMsg:{ ok:true, texto:'✅ Pub do mes: 2 integrantes levaram 3 kg.' } }, T.renderAdmin);
 add('doações / marcando um evento',    { ...dc, adminTab:'doacoes', doacoesEventoId:'e1', doacoesMarcacoes:{ m1:1, m3:2 } }, T.renderAdmin);
+add('doações / marcando com doações de fora', { ...dc, adminTab:'doacoes', doacoesEventoId:'e1', doacoesMarcacoes:{ m1:1 },
+  doacoesExternas:[{ descricao:'Agasalho', quantidade:'10', medida:'' }, { descricao:'Arroz', quantidade:'5,5', medida:'' }, { descricao:'', quantidade:'', medida:'' }] }, T.renderAdmin);
+add('doações / marcando sem doações de fora', { ...dc, adminTab:'doacoes', doacoesEventoId:'e1', doacoesMarcacoes:{},
+  doacoesExternas:[{ descricao:'', quantidade:'', medida:'' }] }, T.renderAdmin);
 add('doações / marcando (erro ao salvar)', { ...dc, adminTab:'doacoes', doacoesEventoId:'e2', doacoesMarcacoes:{},
   doacoesMsg:{ ok:false, texto:'Não consegui salvar: Falha de conexao.' } }, T.renderAdmin);
 add('doações / rank',                  { ...dc, adminTab:'doacoes-rank' }, T.renderAdmin);
@@ -826,7 +830,7 @@ const LIMPO = {
   relIndFiltroInicio:'', relIndFiltroFim:'', relIndDivisoesAbertas:new Set(),
   relIndCopiado:false, relIndSelecionando:false, relIndMarcados:new Set(), relIndVarios:null,
   relIndVariosCarregando:false, relIndVariosErro:null, obrigatoriedadeAberta:null, calendarioDiasVazios:false,
-  doacoesDados:null, doacoesDadosEscopo:null, doacoesErro:null, doacoesEventoId:null, doacoesMarcacoes:{},
+  doacoesDados:null, doacoesDadosEscopo:null, doacoesErro:null, doacoesEventoId:null, doacoesMarcacoes:{}, doacoesExternas:[],
   doacoesMsg:null, doacoesSalvando:false, doacoesQtdEncerrados:8, doacoesPeriodo:0,
   estoqueItemId:null, estoqueForm:null, estoqueSalvando:false, estoqueMsg:null, estoqueRelatorio:false, estoquePeriodo:0,
   estoqueAnularId:null, estoqueQtdExtrato:15,

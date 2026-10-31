@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-10-30-b-carteirinhas-varias';
+var VERSAO = '2026-10-31-doacoes-de-fora';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -37,6 +37,7 @@ var ABA_INSIGHT_EXCLUIDOS = 'InsightExcluidos';
 var ABA_RESPONSAVEIS = 'Responsaveis';
 var ABA_TEXTOS_CHAMADA = 'TextosChamada';
 var ABA_DOACOES = 'Doacoes';
+var ABA_DOACOES_EXTERNAS = 'DoacoesExternas';
 var ABA_CAIXINHA = 'Caixinha';
 var ABA_CAIXINHA_FINANCEIRO = 'CaixinhaFinanceiro';
 var ABA_ESTOQUE_DOACOES_ITENS = 'EstoqueDoacoesItens';
@@ -102,6 +103,13 @@ var CHAVES_TEXTO_CHAMADA = ['regras', 'atencao'];
 // "Membro" um retrato do nome, igual em Presencas: o historico sobrevive a
 // um integrante que sai do clube.
 var CAB_DOACOES = ['ID Evento', 'Evento', 'Divisao', 'ID Membro', 'Membro', 'Kg', 'Atualizado em'];
+// As doacoes de fora de um evento (31/10/2026): o que veio de gente de fora
+// do clube ou de outro motoclube - agasalho, roupa, comida... Uma linha por
+// coisa doada, com a quantidade e a medida (un, par ou kg, a do item do
+// estoque). Salvar troca as linhas do evento inteiro, como em Doacoes, e
+// cada coisa vai sozinha pro estoque (registrarExternasDoEvento). Nao conta
+// no rank nem no cumprimento: nao e de integrante.
+var CAB_DOACOES_EXTERNAS = ['ID Evento', 'Evento', 'Divisao', 'Descricao', 'Medida', 'Quantidade', 'Atualizado em'];
 // Caixinha mensal: uma linha por divisao x mes x integrante que devia
 // pagar naquele mes. A lista de quem devia e congelada quando o mes e
 // lancado - quem entra depois nao fica devendo mes antigo. "Mes" e
@@ -1294,7 +1302,7 @@ function organizarAbas() {
   var ordem = [ABA_CALENDARIO].concat(ORDEM_EXIBICAO_ESCOPOS.map(function (chave) { return ESCOPOS_NOME[chave]; }))
     .concat([ABA_INSIGHT_RESUMO, 'Relatorio', 'Membros', 'Eventos', 'Presencas',
              ABA_INSIGHT_RODADAS, ABA_INSIGHT_PRESENCAS, ABA_INSIGHT_EXCLUIDOS,
-             ABA_DOACOES, ABA_ESTOQUE_DOACOES_MOV, ABA_ESTOQUE_DOACOES_ITENS, ABA_CAIXINHA, ABA_CAIXINHA_FINANCEIRO, ABA_MOVIMENTOS,
+             ABA_DOACOES, ABA_DOACOES_EXTERNAS, ABA_ESTOQUE_DOACOES_MOV, ABA_ESTOQUE_DOACOES_ITENS, ABA_CAIXINHA, ABA_CAIXINHA_FINANCEIRO, ABA_MOVIMENTOS,
              ABA_ACOES_SOCIAIS_AGENDA, ABA_ACOES_SOCIAIS_IDEIAS, ABA_ACOES_SOCIAIS_TEXTOS, ABA_FICHAS,
              ABA_FUNCOES_EVENTOS, ABA_FUNCOES_PRESENCAS, ABA_FUNCOES_CONFIG, 'KV']);
   ordem.forEach(function (nome, i) {
@@ -1743,8 +1751,13 @@ function removerEvento(id) {
   // Sem o evento, a doacao dele nao tem a que se referir: sairia no rank
   // como quilos de um evento que nao existe mais.
   apagarLinhas(aba(ABA_DOACOES, CAB_DOACOES), function (l) { return String(l[0]) === String(id); });
-  // Os kg que o evento tinha posto no estoque saem, numa linha de correcao.
-  if (ev) registrarAlimentosDoEvento(categoriaDaLinha(ev.valores), String(id), String(ev.valores[1] || ''), '', true);
+  apagarLinhas(aba(ABA_DOACOES_EXTERNAS, CAB_DOACOES_EXTERNAS), function (l) { return String(l[0]) === String(id); });
+  // Os kg (e as doacoes de fora) que o evento tinha posto no estoque saem,
+  // em linhas de correcao.
+  if (ev) {
+    registrarAlimentosDoEvento(categoriaDaLinha(ev.valores), String(id), String(ev.valores[1] || ''), '', true);
+    registrarExternasDoEvento(categoriaDaLinha(ev.valores), String(id), String(ev.valores[1] || ''), '', true);
+  }
   return { ok: true };
 }
 
@@ -1960,7 +1973,7 @@ function lerDoacoes(divisao, pin) {
       return {
         id: String(l[0]), nome: String(l[1]), data: formatarData(l[2]),
         tipo: String(l[9] || ''), status: String(l[6] || 'ativo'),
-        convocados: [], confirmados: [], doacoes: {}
+        convocados: [], confirmados: [], doacoes: {}, externas: []
       };
     });
   var porId = {};
@@ -1982,6 +1995,11 @@ function lerDoacoes(divisao, pin) {
     if (!e || !l[3] || !kg) return;
     e.doacoes[String(l[3])] = kg;
     nomes[String(l[3])] = String(l[4] || '');
+  });
+  linhas(aba(ABA_DOACOES_EXTERNAS, CAB_DOACOES_EXTERNAS)).forEach(function (l) {
+    var e = porId[String(l[0])];
+    if (!e || !String(l[3] || '').trim()) return;
+    e.externas.push({ descricao: String(l[3]).trim(), medida: String(l[4] || 'un'), quantidade: Number(String(l[5]).replace(',', '.')) || 0 });
   });
   // O estoque vem junto: a secao inteira numa ida a planilha so.
   return { ok: true, eventos: eventos, nomes: nomes, estoque: dadosEstoqueDoacoes(divisao) };
@@ -2058,7 +2076,7 @@ function registrarAlimentosDoEvento(divisao, eventoId, nomeEvento, dataEvento, r
   if (!temAlimentosDosEventos(divisao)) return;
   var registrado = 0;
   linhas(aba(ABA_ESTOQUE_DOACOES_MOV, CAB_ESTOQUE_DOACOES_MOV)).forEach(function (l) {
-    if (String(l[1]) === divisao && String(l[11]) === String(eventoId)) registrado += sinalEstoqueDoacoes(l);
+    if (String(l[1]) === divisao && String(l[11]) === String(eventoId) && String(l[4]) === idAlimentos(divisao)) registrado += sinalEstoqueDoacoes(l);
   });
   registrado = umaCasaEstoque(registrado);
   var atual = removido ? 0 : umaCasaEstoque(kgDoEvento(eventoId));
@@ -2106,14 +2124,7 @@ function movimentarEstoqueDoacoes(p) {
   } else if (tipo === 'entrada') {
     var nome = String(p.itemNome || '').trim().replace(/\s+/g, ' ').slice(0, 60);
     if (!nome) throw new Error('Escreva o nome do item');
-    item = itens.filter(function (x) { return chaveDoItem(x.nome) === chaveDoItem(nome); })[0];
-    if (!item) {
-      item = { id: novoId(), nome: nome, medida: MEDIDAS_ESTOQUE.indexOf(String(p.medida)) !== -1 ? String(p.medida) : 'un' };
-      var si = aba(ABA_ESTOQUE_DOACOES_ITENS, CAB_ESTOQUE_DOACOES_ITENS);
-      var li = si.getLastRow() + 1;
-      si.getRange(li, 1, 1, CAB_ESTOQUE_DOACOES_ITENS.length).setNumberFormat('@');
-      si.getRange(li, 1, 1, CAB_ESTOQUE_DOACOES_ITENS.length).setValues([[item.id, divisao, item.nome, item.medida, agora()]]);
-    }
+    item = itemDoEstoquePeloNome(divisao, itens, nome, p.medida);
   } else {
     throw new Error('Escolha o item');
   }
@@ -2154,6 +2165,63 @@ function anularEstoqueDoacoes(p) {
   }
   s.getRange(achado.indice, 14).setValue(agora());
   return { ok: true, estoque: dadosEstoqueDoacoes(divisao) };
+}
+
+// O item do estoque com esse nome (sem diferenciar acento e maiuscula), ou
+// um novo, cadastrado agora com a medida dada. O dos alimentos dos eventos
+// fica de fora: nele so entram os kg dos integrantes. `itens` e a lista ja
+// lida (itensEstoqueDoacoes) - o item novo entra nela.
+function itemDoEstoquePeloNome(divisao, itens, nome, medida) {
+  var item = itens.filter(function (x) { return !x.automatico && chaveDoItem(x.nome) === chaveDoItem(nome); })[0];
+  if (item) return item;
+  item = { id: novoId(), nome: nome, medida: MEDIDAS_ESTOQUE.indexOf(String(medida)) !== -1 ? String(medida) : 'un' };
+  var si = aba(ABA_ESTOQUE_DOACOES_ITENS, CAB_ESTOQUE_DOACOES_ITENS);
+  var li = si.getLastRow() + 1;
+  si.getRange(li, 1, 1, CAB_ESTOQUE_DOACOES_ITENS.length).setNumberFormat('@');
+  si.getRange(li, 1, 1, CAB_ESTOQUE_DOACOES_ITENS.length).setValues([[item.id, divisao, item.nome, item.medida, agora()]]);
+  itens.push(item);
+  return item;
+}
+
+// As doacoes de fora de um evento no livro, item por item - a mesma regra
+// dos alimentos (registrarAlimentosDoEvento): compara o que o evento tem
+// salvo em DoacoesExternas com o que o livro ja recebeu dele naquele item e
+// grava so a diferenca. Mais vira entrada; menos - ou a coisa tirada da
+// lista, ou o evento removido - vira correcao, com sinal.
+function registrarExternasDoEvento(divisao, eventoId, nomeEvento, dataEvento, removido) {
+  var itens = itensEstoqueDoacoes(divisao);
+  var porItem = {};
+  var conta = function (item) {
+    if (!porItem[item.id]) porItem[item.id] = { item: item, quero: 0, tenho: 0 };
+    return porItem[item.id];
+  };
+  if (!removido) {
+    linhas(aba(ABA_DOACOES_EXTERNAS, CAB_DOACOES_EXTERNAS)).forEach(function (l) {
+      if (String(l[0]) !== String(eventoId) || !String(l[3] || '').trim()) return;
+      var item = itemDoEstoquePeloNome(divisao, itens, String(l[3]).trim(), String(l[4]));
+      conta(item).quero += Number(String(l[5]).replace(',', '.')) || 0;
+    });
+  }
+  linhas(aba(ABA_ESTOQUE_DOACOES_MOV, CAB_ESTOQUE_DOACOES_MOV)).forEach(function (l) {
+    if (String(l[1]) !== divisao || String(l[11]) !== String(eventoId) || String(l[4]) === idAlimentos(divisao)) return;
+    conta({ id: String(l[4]), nome: String(l[5] || ''), medida: String(l[6] || 'un') }).tenho += sinalEstoqueDoacoes(l);
+  });
+  var hoje = Utilities.formatDate(new Date(), fuso(), 'yyyy-MM-dd');
+  var dataPrimeira = /^\d{4}-\d{2}-\d{2}$/.test(String(dataEvento || '')) && dataEvento < hoje ? dataEvento : hoje;
+  var nome = 'De fora · ' + (nomeEvento || 'Evento');
+  Object.keys(porItem).forEach(function (id) {
+    var c = porItem[id];
+    var tenho = umaCasaEstoque(c.tenho);
+    var delta = umaCasaEstoque(c.quero - tenho);
+    if (!delta) return;
+    if (delta > 0) {
+      gravarMovEstoqueDoacoes([novoId(), divisao, tenho > 0 ? hoje : dataPrimeira, 'entrada', c.item.id, c.item.nome, c.item.medida,
+        delta, 'evento', '', tenho > 0 ? nome + ' (acréscimo)' : nome, String(eventoId), agora(), '']);
+    } else {
+      gravarMovEstoqueDoacoes([novoId(), divisao, hoje, 'correcao', c.item.id, c.item.nome, c.item.medida,
+        delta, 'evento', '', (removido ? 'Evento removido · ' : 'Correção · ') + nome, String(eventoId), agora(), '']);
+    }
+  });
 }
 
 // O total de kg ja gravado pras doacoes de um evento.
@@ -2848,12 +2916,42 @@ function salvarDoacoesEvento(p) {
     novas.push([eventoId, String(ev.valores[1] || ''), divisao, mid, nomes[mid] || '', kg, momento]);
   });
 
+  // As de fora: so quando o pedido traz a lista (um app antigo, sem ela,
+  // nao apaga as que ja estao salvas). Valida tudo antes de gravar nada.
+  var externas = null;
+  if (p.externas !== undefined) {
+    var lista = typeof p.externas === 'string' ? parseOuVazio(p.externas, []) : (p.externas || []);
+    if (!Array.isArray(lista) || lista.length > 50) throw new Error('Lista de doacoes de fora invalida');
+    var itens = itensEstoqueDoacoes(divisao);
+    externas = [];
+    lista.forEach(function (x) {
+      var descricao = linhaCurta(x && x.descricao, 60);
+      if (!descricao) return;
+      var existente = itens.filter(function (i) { return !i.automatico && chaveDoItem(i.nome) === chaveDoItem(descricao); })[0];
+      var medida = existente ? existente.medida : (MEDIDAS_ESTOQUE.indexOf(String(x.medida)) !== -1 ? String(x.medida) : 'un');
+      var q = quantidadeEstoqueDoacoes(x.quantidade, medida);
+      if (!q) throw new Error('Quantidade invalida em "' + descricao + '"' + (medida === 'kg' ? ' (kg, com ate uma casa decimal)' : ' (numero inteiro)'));
+      externas.push([eventoId, String(ev.valores[1] || ''), divisao, descricao, medida, q, momento]);
+    });
+  }
+
   var s = aba(ABA_DOACOES, CAB_DOACOES);
   apagarLinhas(s, function (l) { return String(l[0]) === eventoId; });
   if (novas.length) s.getRange(s.getLastRow() + 1, 1, novas.length, CAB_DOACOES.length).setValues(novas);
   // Os kg vao pro livro do estoque - so a diferenca do que ele ja tinha.
   registrarAlimentosDoEvento(divisao, eventoId, String(ev.valores[1] || ''), formatarData(ev.valores[2]), false);
-  return { ok: true, doadores: novas.length, totalKg: Math.round(totalKg * 10) / 10 };
+  if (externas) {
+    var se = aba(ABA_DOACOES_EXTERNAS, CAB_DOACOES_EXTERNAS);
+    apagarLinhas(se, function (l) { return String(l[0]) === eventoId; });
+    if (externas.length) {
+      var le = se.getLastRow() + 1;
+      se.getRange(le, 1, externas.length, CAB_DOACOES_EXTERNAS.length).setNumberFormat('@');
+      se.getRange(le, 6, externas.length, 1).setNumberFormat('0.0');
+      se.getRange(le, 1, externas.length, CAB_DOACOES_EXTERNAS.length).setValues(externas);
+    }
+    registrarExternasDoEvento(divisao, eventoId, String(ev.valores[1] || ''), formatarData(ev.valores[2]), false);
+  }
+  return { ok: true, doadores: novas.length, totalKg: Math.round(totalKg * 10) / 10, externas: externas ? externas.length : 0 };
 }
 
 // A celula do mes pode voltar como Date se alguem editar a planilha a mao

@@ -2917,3 +2917,18 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 .carteirinhas-grau .division-subheader { padding-top: 10px; font-size: 10.5px; }
 /* O "Simplificado" do texto pro WhatsApp, ao lado do Marcar todos. */
 .carteirinhas-simplificado { flex: none; padding: 8px 14px; font-size: 13px; }
+
+/* Doacoes de fora (Doacoes > Por evento): uma linha por coisa doada - o
+   que foi, a quantidade, a medida (toque troca) e o ✕. */
+.externas-card { margin-top: 14px; }
+.externa-linha { display: grid; grid-template-columns: 1fr 64px 46px 28px; gap: 6px; align-items: center; margin-bottom: 8px; }
+.externa-linha input { padding: 10px 10px; font-size: 14px; min-width: 0; }
+.externa-qtd { text-align: center; }
+.externa-medida {
+  font: inherit; font-size: 12.5px; font-weight: 700; height: 40px; border-radius: 8px; cursor: pointer;
+  background: var(--surface-alt); color: var(--text); border: 1px dashed var(--line-strong);
+}
+.externa-medida.fixa { border-style: solid; color: var(--text-muted); cursor: default; }
+.externa-tirar { font: inherit; font-size: 13px; height: 32px; border: none; background: none; color: var(--text-muted); cursor: pointer; }
+.externa-tirar.vazio { cursor: default; }
+

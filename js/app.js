@@ -22,7 +22,7 @@ import { acoes as acoesAdminEventos, aoDigitarNoFormulario, atualizarEtapasDoFor
 import { atualizarConfirmacoes } from './fluxos/evento.js';
 import { acoes as acoesAdminMembros } from './telas/admin-membros.js';
 import { acoes as acoesAdminInsights } from './telas/admin-insights.js';
-import { acoes as acoesAdminDoacoes } from './telas/admin-doacoes.js';
+import { acoes as acoesAdminDoacoes, atualizarCampoDoacaoExterna } from './telas/admin-doacoes.js';
 import { acoes as acoesAdminDoacoesEstoque, atualizarCampoEstoque, escolherNoEstoque } from './telas/admin-doacoes-estoque.js';
 import { acoes as acoesAdminCaixinha, atualizarValorCaixinha } from './telas/admin-caixinha.js';
 import { acoes as acoesAdminCaixinhaFinanceiro, escolherMesDoPeriodo } from './telas/admin-caixinha-financeiro.js';
@@ -306,6 +306,8 @@ document.getElementById('app').addEventListener('input', (e) => {
   if (atualizarCampoAcaoSocial(e.target)) return;
   // A carteirinha: os campos so lembram; a foto e reduzida e redesenha.
   if (atualizarCampoCarteirinha(e.target)) return;
+  // As doacoes de fora de um evento: lembra, e a ultima linha abre outra.
+  if (atualizarCampoDoacaoExterna(e.target)) return;
   // O formulario de evento das Funcoes especiais: so lembra.
   if (atualizarCampoFuncoes(e.target)) return;
   // O valor pago na Caixinha: acerta o selo e o total sem redesenhar, senao

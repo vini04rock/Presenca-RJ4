@@ -376,9 +376,11 @@ export async function imagemRodadaInsight(r) {
 }
 
 // ---------------------------------------------------------------------------
-// O relatorio completo do Insight no periodo: a media geral, o ranking das
-// divisoes e os destaques - quem mais fez. `d` e o mesmo objeto que a aba
-// "Relatorio completo" desenha (o do servidor, ou o refeito pro periodo).
+// O relatorio completo do Insight no periodo: a media geral e o ranking das
+// divisoes. `d` e o mesmo objeto que a aba "Relatorio completo" desenha (o
+// do servidor, ou o refeito pro periodo). Sem nomes de integrantes: os
+// "Destaques" (os 5 que mais fizeram) sairam em 31/10/2026, pra nao gerar
+// comparacao entre os irmaos.
 export async function imagemRelatorioInsight(d, rotuloPeriodo) {
   const { canvas, ctx, logo } = await novaTela();
   const totalMarcacoes = d.membros.reduce((s, m) => s + m.rodadas, 0);
@@ -388,13 +390,6 @@ export async function imagemRelatorioInsight(d, rotuloPeriodo) {
   const linhas = divisoesSemRegional()
     .map(e => { const item = porChave(e.chave); return { nome: e.nome, pct: item && item.percentual !== undefined ? item.percentual : null }; })
     .sort((a, b) => (b.pct ?? -1) - (a.pct ?? -1));
-  // Destaques: quem mais fez, entre quem teve rodada no periodo. Empate no %
-  // desempata por quem fez mais rodadas.
-  const destaques = d.membros
-    .filter(m => m.rodadas > 0 && m.percentual !== null)
-    .sort((a, b) => b.percentual - a.percentual || b.confirmacoes - a.confirmacoes || a.nome.localeCompare(b.nome))
-    .slice(0, 5);
-
   emblema(ctx, logo, 45, 150);
   let y = tituloMetal(ctx, '💡 Rank de Insights', 275, 62, 980);
   const rodadasTexto = `${d.rodadas} ${d.rodadas === 1 ? 'RODADA' : 'RODADAS'}`;
@@ -405,15 +400,7 @@ export async function imagemRelatorioInsight(d, rotuloPeriodo) {
   rosca(ctx, L / 2, cy, raio, [[totalFez, COR.confirmado], [totalMarcacoes - totalFez, COR.infracional]], totalMarcacoes, `${pct}%`, 'MÉDIA');
   y = cy + raio + 40;
 
-  const espacoDestaques = destaques.length ? 150 : 0;
-  y = listaRanking(ctx, linhas, y, Math.min(84, (A - 170 - espacoDestaques - y) / Math.max(1, linhas.length)));
-
-  if (destaques.length) {
-    rotuloEspacado(ctx, '⭐ DESTAQUES', y + 46, 24, COR.ouro);
-    fonte(ctx, 28, 600);
-    ctx.fillStyle = COR.texto;
-    textoCentral(ctx, destaques.map(m => `${m.nome} ${m.percentual}%`).join('  ·  '), y + 92, 38, 940);
-  }
+  listaRanking(ctx, linhas, y, Math.min(84, (A - 170 - y) / Math.max(1, linhas.length)));
 
   rodape(ctx);
   return canvas;
