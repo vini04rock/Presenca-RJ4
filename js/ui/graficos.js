@@ -1,6 +1,6 @@
 // Graficos em SVG: rosca, sparkline e o ranking de faltas.
 
-import { rankingFaltasInfracionais, resumoDonutPeriodo } from '../dominio/estatisticas.js';
+import { janelaDoGrafico, rankingFaltasInfracionais, resumoDonutPeriodo, rotuloDaJanela } from '../dominio/estatisticas.js';
 import { RELATORIO_PERIODOS, emojiTipoEvento } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { escapeHtml, formatDataBR } from '../nucleo/util.js';
@@ -126,14 +126,14 @@ export function segmentosDonutStatus(statusPeriodo) {
 // quando ninguem tem falta infracional no periodo, pra nao virar um card
 // vazio disputando espaco com o resto do resumo.
 export function renderRankingFaltasInfracionais(encerrados) {
-  const meses = state.relatorioPeriodoPorGrafico.total || 3;
+  const meses = janelaDoGrafico('total');
   const mostrarDivisao = state.adminEscopo === 'regional' && state.relatorioFiltroDivisao === 'todas';
   const ranking = rankingFaltasInfracionais(encerrados, meses).filter(r => r.total > 0).slice(0, 8);
   if (!ranking.length) return '';
   return `
     <div class="card" style="margin-top:14px;">
       <div class="painel-titulo" style="margin-bottom:2px;">⚠️ Mais faltas não justificadas</div>
-      <div style="color:var(--text-muted); font-size:12px; margin-bottom:8px;">Últimos ${meses === 1 ? 'mês' : meses + ' meses'}</div>
+      <div style="color:var(--text-muted); font-size:12px; margin-bottom:8px;">Período: ${escapeHtml(rotuloDaJanela(meses))}</div>
       ${ranking.map(r => `
         <div class="info-line" style="display:flex; justify-content:space-between; align-items:center;">
           <span>${escapeHtml(r.nome)}${mostrarDivisao && r.divisao ? ` <span style="color:var(--text-muted); font-size:11.5px;">· ${escapeHtml(r.divisao)}</span>` : ''}</span>
@@ -207,18 +207,20 @@ export function esqueletoLista(linhas = 4) {
 }
 
 export function renderDonutCard(titulo, chave, encerrados, destaque) {
-  const meses = state.relatorioPeriodoPorGrafico[chave] || 3;
+  const meses = janelaDoGrafico(chave);
   const r = resumoDonutPeriodo(encerrados, chave, meses);
   const emoji = chave === 'total' ? '🏁' : emojiTipoEvento(chave);
   return `
     <div class="card donut-card${destaque ? ' donut-card-total' : ''}">
       <div class="painel-titulo">${emoji} ${escapeHtml(titulo)}</div>
-      <div class="pilulas-periodo no-print">
-        ${RELATORIO_PERIODOS.map(m => `
-          <button class="pilula ${meses === m ? 'active' : ''}" data-action="set-relatorio-periodo-tipo" data-chave="${escapeHtml(chave)}" data-value="${m}">${m === 1 ? '1 mês' : m + ' meses'}</button>
-        `).join('')}
-      </div>
-      <div class="print-only" style="margin-bottom:10px; font-size:12px; color:var(--text-muted);">Período: últimos ${meses === 1 ? 'mês' : meses + ' meses'}</div>
+      ${meses ? `
+        <div class="pilulas-periodo no-print">
+          ${RELATORIO_PERIODOS.map(m => `
+            <button class="pilula ${meses === m ? 'active' : ''}" data-action="set-relatorio-periodo-tipo" data-chave="${escapeHtml(chave)}" data-value="${m}">${m === 1 ? '1 mês' : m + ' meses'}</button>
+          `).join('')}
+        </div>
+        <div class="print-only" style="margin-bottom:10px; font-size:12px; color:var(--text-muted);">Período: ${escapeHtml(rotuloDaJanela(meses))}</div>
+      ` : `<div style="margin-bottom:10px; font-size:12px; color:var(--text-muted);">🗓️ ${escapeHtml(rotuloDaJanela(meses))}</div>`}
       ${r.faltaCarregar ? esqueletoRosca(destaque ? 150 : 110) : renderDonutChart(segmentosDonutStatus(r.statusPeriodo), r.pct === null ? '—' : r.pct + '%', 'presença', destaque ? 150 : 110)}
       <div class="info-line" style="padding:8px 0 0; color:var(--text-muted); font-size:12px;">
         ${r.eventosNoPeriodo} ${r.eventosNoPeriodo === 1 ? 'evento encerrado' : 'eventos encerrados'} nesse período

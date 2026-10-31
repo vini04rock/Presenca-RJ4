@@ -86,7 +86,10 @@ export function buildInsightReportText(r) {
 // (ver dadosDoResumo em telas/relatorios.js):
 // { escopo, filtro, datas, total, tipos: [{ tipo, emoji, meses, r }], faltas, mesesLista, membros }.
 export function textoResumoRelatorios(d) {
+  // Sem janela (null), vale o periodo escolhido - ja escrito na linha 🗓️.
   const periodo = (m) => (m === 1 ? 'último mês' : `últimos ${m} meses`);
+  const traco = (m) => (m ? ` — ${periodo(m)}` : '');
+  const parenteses = (m) => (m ? ` (${periodo(m)})` : '');
   const numeros = (r) => `${r.pct === null ? '—' : r.pct + '%'} (${r.somaConfirmados} de ${r.somaConvidados}) · ${r.eventosNoPeriodo} ${r.eventosNoPeriodo === 1 ? 'evento' : 'eventos'}`;
   const sp = d.total.r.statusPeriodo;
   const linhas = [
@@ -96,20 +99,20 @@ export function textoResumoRelatorios(d) {
   if (d.datas) linhas.push('🗓️ ' + d.datas);
   linhas.push(
     '',
-    `🏁 *Presença total* — ${periodo(d.total.meses)}`,
+    `🏁 *Presença total*${traco(d.total.meses)}`,
     '📊 ' + numeros(d.total.r),
     `✅ ${sp.confirmado} · ❌ ${sp.justificada} justificadas · ⭕ ${sp.infracional} não justificadas`,
     '',
     '*POR TIPO*',
-    ...d.tipos.map(t => `${t.emoji} ${t.tipo} (${periodo(t.meses)}): ${numeros(t.r)}`),
+    ...d.tipos.map(t => `${t.emoji} ${t.tipo}${parenteses(t.meses)}: ${numeros(t.r)}`),
   );
   if (d.faltas.length) {
-    linhas.push('', `⭕ *MAIS FALTAS NÃO JUSTIFICADAS* (${periodo(d.mesesLista)})`,
+    linhas.push('', `⭕ *MAIS FALTAS NÃO JUSTIFICADAS*${parenteses(d.mesesLista)}`,
       ...d.faltas.map(f => `- ${f.nome}${d.filtro === 'Todas as divisões' && f.divisao ? ` (${f.divisao})` : ''}: ${f.total}`));
   }
   const grupos = agruparStatsPorDivisao(d.membros.filter(m => m.percentual !== null));
   if (grupos.length) {
-    linhas.push('', `*% DE CADA INTEGRANTE* (${periodo(d.mesesLista)})`);
+    linhas.push('', `*% DE CADA INTEGRANTE*${parenteses(d.mesesLista)}`);
     grupos.forEach(g => {
       linhas.push(`_${g.divisao}_`, ...g.itens.map(m => `- ${m.nome}: ${m.percentual}% (${m.confirmacoes} de ${m.convites})`));
     });

@@ -576,7 +576,8 @@ export async function imagemResumoRelatorios(d) {
   y = cy + raio + 50;
   fonte(ctx, 30, 700);
   ctx.fillStyle = COR.texto;
-  ctx.fillText(`🏁 Total · ${periodo(d.total.meses).toLowerCase()} · ${r.eventosNoPeriodo} ${r.eventosNoPeriodo === 1 ? 'evento' : 'eventos'}`, L / 2, y);
+  // Sem janela (null), vale o periodo escolhido - ja escrito embaixo do titulo.
+  ctx.fillText(`🏁 Total · ${d.total.meses ? periodo(d.total.meses).toLowerCase() + ' · ' : ''}${r.eventosNoPeriodo} ${r.eventosNoPeriodo === 1 ? 'evento' : 'eventos'}`, L / 2, y);
   fonte(ctx, 26, 600);
   ctx.fillStyle = COR.apagado;
   ctx.fillText(`✅ ${sp.confirmado}     ❌ ${sp.justificada} justificadas     ⭕ ${sp.infracional} não justificadas`, L / 2, y + 44);
@@ -584,7 +585,7 @@ export async function imagemResumoRelatorios(d) {
   y += 80;
   const linhas = d.tipos.map(t => ({
     nome: `${t.emoji} ${t.tipo}`, pct: t.r.pct,
-    detalhe: `${t.r.eventosNoPeriodo} ${t.r.eventosNoPeriodo === 1 ? 'evento' : 'eventos'} · ${t.meses === 1 ? '1 mês' : t.meses + ' meses'}`,
+    detalhe: `${t.r.eventosNoPeriodo} ${t.r.eventosNoPeriodo === 1 ? 'evento' : 'eventos'}${t.meses ? ` · ${t.meses === 1 ? '1 mês' : t.meses + ' meses'}` : ''}`,
   }));
   listaRanking(ctx, linhas, y, Math.min(96, (A - 170 - y) / Math.max(1, linhas.length)), { semPodio: true });
 

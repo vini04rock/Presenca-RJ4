@@ -1,6 +1,6 @@
 // Painel de Relatorios: as 7 abas, os filtros e o fluxo de colar convocacao.
 
-import { estatisticasMembrosPorPeriodo, estatisticasMembrosPorTipo, eventosDoRelatorioEscopo, rankingFaltasInfracionais, resumoDonutPeriodo } from '../dominio/estatisticas.js';
+import { estatisticasMembrosPorPeriodo, estatisticasMembrosPorTipo, eventosDoRelatorioEscopo, janelaDoGrafico, rankingFaltasInfracionais, resumoDonutPeriodo, rotuloDaJanela, textoDoFiltroDeDatas } from '../dominio/estatisticas.js';
 import { textoResumoRelatorios } from '../dominio/relatorio-texto.js';
 import { computeCounts, statusEfetivo } from '../dominio/status.js';
 import { ABAS_COM_FILTRO_DIVISAO, RELATORIO_TABS, STATUS, STATUS_TOTAIS_LABEL, TIPOS_EVENTO, TIPOS_EVENTO_TABS_ORDEM, emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao, escoposNaOrdemOficial } from '../nucleo/config.js';
@@ -414,7 +414,7 @@ function tabelaEventosPorDivisao(grupos) {
 // Drill-down de um card (chave = 'total' ou um tipo): grafico de barras +
 // tabela dos eventos que entraram na janela escolhida naquele card.
 function conteudoRelatorioTipoDetalhe(encerrados, chave) {
-  const meses = state.relatorioPeriodoPorGrafico[chave] || 3;
+  const meses = janelaDoGrafico(chave);
   const r = resumoDonutPeriodo(encerrados, chave, meses);
   const titulo = chave === 'total' ? 'Presença total' : chave;
   const emoji = chave === 'total' ? '🏁' : emojiTipoEvento(chave);
@@ -480,8 +480,8 @@ function conteudoRelatorioPresenca() {
   // no Code.gs (lerEstatisticasMembros) que ignorava o periodo escolhido
   // nos donuts acima; agora usa o mesmo state.reportData ja carregado pra
   // aba inteira, sem round-trip novo ao servidor.
-  const mesesLista = state.relatorioPeriodoPorGrafico.total || 3;
-  const corteLista = dataCorteMeses(mesesLista);
+  const mesesLista = janelaDoGrafico('total');
+  const corteLista = mesesLista ? dataCorteMeses(mesesLista) : '';
   const faltaCarregarLista = encerrados.some(e => e.data && e.data >= corteLista && !(e.id in state.reportData));
   const listaMembros = faltaCarregarLista ? null : estatisticasMembrosPorPeriodo(mesesLista);
 
@@ -506,7 +506,7 @@ function conteudoRelatorioPresenca() {
     ${corpoPrincipal}
 
     <div class="card" style="margin-top:14px;">
-      <div class="painel-titulo">% de cada integrante <span style="color:var(--text-muted); font-weight:400; font-size:12px;">(últimos ${mesesLista === 1 ? 'mês' : mesesLista + ' meses'})</span></div>
+      <div class="painel-titulo">% de cada integrante <span style="color:var(--text-muted); font-weight:400; font-size:12px;">(${escapeHtml(rotuloDaJanela(mesesLista))})</span></div>
       ${!listaMembros ? esqueletoLista() : !listaMembros.length ? '<div class="empty">Nenhum membro cadastrado ainda.</div>' : renderListaEstatisticasPorDivisao(listaMembros)}
     </div>
   `;
@@ -517,13 +517,12 @@ function conteudoRelatorioPresenca() {
 // filtros de divisao e de datas.
 function dadosDoResumo() {
   const encerrados = eventosDoRelatorioEscopo().filter(e => e.status === 'encerrado');
-  const meses = (chave) => state.relatorioPeriodoPorGrafico[chave] || 3;
+  const meses = janelaDoGrafico;
   const regional = state.adminEscopo === 'regional';
   const filtro = regional
     ? (state.relatorioFiltroDivisao === 'todas' ? 'Todas as divisões' : escopoPorChave(state.relatorioFiltroDivisao).nome)
     : '';
-  const ini = state.relatorioFiltroDataInicio, fim = state.relatorioFiltroDataFim;
-  const datas = ini || fim ? `${ini ? formatDataBR(ini) : 'início'} até ${fim ? formatDataBR(fim) : 'hoje'}` : '';
+  const datas = textoDoFiltroDeDatas();
   const mesesLista = meses('total');
   return {
     escopo: escopoPorChave(state.adminEscopo).nome, filtro, datas,

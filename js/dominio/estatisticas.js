@@ -5,7 +5,7 @@ import { normalizarNome } from './parser.js';
 import { computeCounts, statusEfetivo } from './status.js';
 import { TIPOS_EVENTO, escopoPorChave } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
-import { dataCorteMeses } from '../nucleo/util.js';
+import { dataCorteMeses, formatDataBR } from '../nucleo/util.js';
 
 // Grade de um mes, semana Segunda-a-Domingo: null nas celulas antes do dia 1
 // ou depois do ultimo dia, pra completar sempre um numero de semanas
@@ -130,6 +130,29 @@ export function eventosDoRelatorioEscopo() {
     .sort((a, b) => (b.data || '').localeCompare(a.data || '') || (b.criadoEm || '').localeCompare(a.criadoEm || ''));
 }
 
+// A janela de meses de um grafico do Resumo (os botoes 1/3/6/12 de cada
+// card). Com datas escolhidas no "Filtrar por periodo" do topo, os botoes
+// saem de cena e vale so o periodo escolhido: null = sem janela (31/10/2026 -
+// antes as duas coisas se somavam, e um periodo mais antigo que a janela
+// ficava vazio, com "Periodo: ultimos 3 meses" impresso embaixo).
+export function janelaDoGrafico(chave) {
+  if (state.relatorioFiltroDataInicio || state.relatorioFiltroDataFim) return null;
+  return state.relatorioPeriodoPorGrafico[chave] || 3;
+}
+
+// O periodo escolhido no topo, escrito ('' sem datas).
+export function textoDoFiltroDeDatas() {
+  const ini = state.relatorioFiltroDataInicio, fim = state.relatorioFiltroDataFim;
+  return ini || fim ? `${ini ? formatDataBR(ini) : 'início'} até ${fim ? formatDataBR(fim) : 'hoje'}` : '';
+}
+
+// Como se escreve a janela de um grafico: 'últimos 3 meses' ou, com datas
+// escolhidas, o periodo delas.
+export function rotuloDaJanela(meses) {
+  if (!meses) return textoDoFiltroDeDatas();
+  return meses === 1 ? 'último mês' : `últimos ${meses} meses`;
+}
+
 // Roster visivel no painel de Relatorios, respeitando o mesmo filtro de
 // divisao de eventosDoRelatorioEscopo() - usado pelas abas fixas de tipo
 // ("% de cada integrante em X"), onde faz sentido restringir a lista de
@@ -149,7 +172,7 @@ function membrosVisiveisRelatorio() {
 // mesma media) porque infracional e o dado que interessa pra acao
 // disciplinar, e fica diluido demais dentro de uma % geral.
 export function rankingFaltasInfracionais(encerrados, meses) {
-  const corte = dataCorteMeses(meses);
+  const corte = meses ? dataCorteMeses(meses) : '';
   const porMembro = {};
   encerrados.forEach(ev => {
     if (!ev.data || ev.data < corte) return;
@@ -172,7 +195,7 @@ export function rankingFaltasInfracionais(encerrados, meses) {
 // meses: soma por status (pro donut), % geral e a lista de eventos que
 // entraram na conta (pro drill-down em "Ver eventos").
 export function resumoDonutPeriodo(encerrados, chave, meses) {
-  const corte = dataCorteMeses(meses);
+  const corte = meses ? dataCorteMeses(meses) : '';
   const doGrupo = encerrados.filter(ev => chave === 'total' || ev.tipo === chave);
   let somaConfirmados = 0, somaConvidados = 0, eventosNoPeriodo = 0, faltaCarregar = false;
   const statusPeriodo = { confirmado: 0, aguardando: 0, justificada: 0, infracional: 0 };
@@ -244,7 +267,7 @@ export function estatisticasMembrosPorTipo(tipo) {
 // state.reportData (ja carregado pra aba Resumo Relatorio inteira), sem
 // round-trip novo ao servidor.
 export function estatisticasMembrosPorPeriodo(meses) {
-  const corte = dataCorteMeses(meses);
+  const corte = meses ? dataCorteMeses(meses) : '';
   const eventosNoPeriodo = eventosDoRelatorioEscopo().filter(e => e.status === 'encerrado' && e.data && e.data >= corte);
   return estatisticasDeContagem(membrosVisiveisRelatorio(), contarConfirmacoesPorMembro(eventosNoPeriodo));
 }

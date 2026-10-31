@@ -396,6 +396,11 @@ for (const aba of ['resumo','enviar','Pub','Bate e Volta','Reunião','Ação Soc
   add(`relatorios / ${aba}`, { isAdmin:true, adminEscopo:'regional',
     relatorioCategoriaAlvo:'regional', relatorioTab:aba, relatorioFiltroDivisao:'todas' }, T.renderRelatorioShell);
 }
+// Periodo escolhido no topo mais antigo que a janela de 3 meses dos cards:
+// vale so o periodo (antes os dois se somavam e julho saia vazio).
+add('relatorios / resumo de julho', { isAdmin:true, adminEscopo:'regional',
+  relatorioCategoriaAlvo:'regional', relatorioTab:'resumo', relatorioFiltroDivisao:'todas',
+  relatorioFiltroDataInicio:'2026-07-01', relatorioFiltroDataFim:'2026-07-31' }, T.renderRelatorioShell);
 add('relatorios / resumo (so barra)', { isAdmin:true, adminEscopo:'barra',
   relatorioCategoriaAlvo:'barra', relatorioTab:'resumo' }, T.renderRelatorioShell);
 // "Ver eventos" do Presença total: no Regional com todas as divisões sai

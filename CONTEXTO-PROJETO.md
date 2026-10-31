@@ -393,6 +393,15 @@ linha em `Presencas`. Assim quem entrou no clube depois não é penalizado por
 evento antigo. A % pessoal de um membro só soma eventos da própria divisão
 dele; presença em evento regional conta para o Regional e não mistura.
 
+**Período do Resumo dos Relatórios** — cada card tem os botões 1/3/6/12
+meses (a janela, contada de hoje para trás). Com datas no "Filtrar por
+período" do topo, os botões somem e vale **só** o período escolhido, em
+tudo: cards, mais faltas, % de cada integrante, texto, imagem e PDF
+(`janelaDoGrafico`, em `dominio/estatisticas.js`, devolve `null`). Até
+31/10/2026 as duas coisas se somavam: um período mais antigo que a janela
+saía vazio, e o PDF imprimia "Período: últimos 3 meses" embaixo de cada
+card.
+
 **Relatórios agrupados por divisão** — no Regional, com "Todas as
 divisões", a lista de eventos (o "Ver eventos" de cada card e as abas por
 tipo) sai em blocos, um por divisão, cada um com quantos eventos e o % do
