@@ -1,12 +1,12 @@
 // Painel de Relatorios: as 7 abas, os filtros e o fluxo de colar convocacao.
 
-import { estatisticasMembrosPorPeriodo, estatisticasMembrosPorTipo, eventosDoRelatorioEscopo, janelaDoGrafico, rankingFaltasInfracionais, resumoDonutPeriodo, rotuloDaJanela, textoDoFiltroDeDatas } from '../dominio/estatisticas.js';
+import { estatisticasMembrosPorPeriodo, estatisticasMembrosPorTipo, eventosDoRelatorioEscopo, janelaDoGrafico, rankingFaltasInfracionais, resumoDonutPeriodo, rotuloDaJanela, textoDoPeriodoGerado } from '../dominio/estatisticas.js';
 import { textoResumoRelatorios } from '../dominio/relatorio-texto.js';
 import { computeCounts, statusEfetivo } from '../dominio/status.js';
 import { ABAS_COM_FILTRO_DIVISAO, RELATORIO_TABS, STATUS, STATUS_TOTAIS_LABEL, TIPOS_EVENTO, TIPOS_EVENTO_TABS_ORDEM, emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao, escoposNaOrdemOficial } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { copiarTexto, dataCorteMeses, dataDoCampoOuAvisar, escapeHtml, formatDataBR } from '../nucleo/util.js';
-import { botaoGerarRelatorio, campoData, renderFichaMembro, renderListaEstatisticasPorDivisao } from '../ui/comuns.js';
+import { campoData, renderFichaMembro, renderListaEstatisticasPorDivisao } from '../ui/comuns.js';
 import { imagemResumoRelatorios, mostrarPreviaImagem } from '../ui/imagem.js';
 import { esqueletoLista, renderDonutCard, renderRankingFaltasInfracionais } from '../ui/graficos.js';
 import { loadReportData } from '../dados/carregar.js';
@@ -36,6 +36,7 @@ function renderRelatorioFiltroDivisao() {
 // nos dois campos = sem filtro (comportamento de sempre).
 function renderRelatorioFiltroPeriodo() {
   if (!ABAS_COM_FILTRO_DIVISAO.includes(state.relatorioTab)) return '';
+  if (state.relatorioTab === 'resumo') return renderGerarRelatorio();
   const ativo = state.relatorioFiltroDataInicio || state.relatorioFiltroDataFim;
   const textoAtivo = ativo
     ? `${state.relatorioFiltroDataInicio ? formatDataBR(state.relatorioFiltroDataInicio) : 'início'} até ${state.relatorioFiltroDataFim ? formatDataBR(state.relatorioFiltroDataFim) : 'hoje'}`
@@ -52,6 +53,51 @@ function renderRelatorioFiltroPeriodo() {
     </div>
     <div class="print-only" style="margin-bottom:10px; font-size:13px; color:var(--text-muted);">Período: ${escapeHtml(textoAtivo)}</div>
   `;
+}
+
+// No Resumo o card de periodo e o "Gerar relatorio" (31/10/2026): as datas
+// dele so valem pro relatorio gerado - os graficos da tela seguem os botoes
+// 1/6/12 meses de cada um. Em branco, o ultimo mes. As datas sao lidas no
+// toque do botao (ver lerPeriodoGerar).
+function renderGerarRelatorio() {
+  const ativo = state.relatorioGerarInicio || state.relatorioGerarFim;
+  return `
+    <div class="card no-print" style="margin-bottom:14px;">
+      <div class="painel-titulo">📊 Gerar relatório</div>
+      <div class="row-gap">
+        ${campoData({ id: 'relatorio-gerar-inicio', rotulo: 'Data inicial', valor: state.relatorioGerarInicio, estilo: 'margin-bottom:0; flex:1;' })}
+        ${campoData({ id: 'relatorio-gerar-fim', rotulo: 'Data final', valor: state.relatorioGerarFim, estilo: 'margin-bottom:0; flex:1;' })}
+      </div>
+      <div style="color:var(--text-muted); font-size:12px; margin:6px 0 10px;">${ativo
+        ? `O relatório sai de ${escapeHtml(textoDoPeriodoGerado())}.`
+        : `Em branco, sai o ${escapeHtml(textoDoPeriodoGerado())}.`}</div>
+      <div class="row-gap">
+        <button class="btn secondary" style="flex:1;" data-action="copiar-resumo-relatorios">📋 WhatsApp</button>
+        <button class="btn secondary" style="flex:1;" data-action="imprimir-relatorio">📄 PDF</button>
+        <button class="btn secondary" style="flex:1;" data-action="imagem-resumo-relatorios">🖼️ Imagem</button>
+      </div>
+      ${ativo ? '<div class="btn ghost" data-action="limpar-relatorio-gerar" style="margin-top:8px; padding:2px 0; font-size:12px;">Limpar (voltar ao último mês)</div>' : ''}
+    </div>
+    ${state.relatorioGerando ? `<div class="print-only" style="margin-bottom:10px; font-size:13px; color:var(--text-muted);">Período: ${escapeHtml(textoDoPeriodoGerado())}</div>` : ''}
+  `;
+}
+
+// Le as datas do card "Gerar relatorio". false = alguma errada (o aviso ja saiu).
+function lerPeriodoGerar() {
+  const inicio = dataDoCampoOuAvisar('relatorio-gerar-inicio', 'A data inicial');
+  if (inicio === null) return false;
+  const fim = dataDoCampoOuAvisar('relatorio-gerar-fim', 'A data final');
+  if (fim === null) return false;
+  if (inicio && fim && inicio > fim) { alert('A data inicial é depois da data final.'); return false; }
+  state.relatorioGerarInicio = inicio;
+  state.relatorioGerarFim = fim;
+  return true;
+}
+
+// Monta o que o relatorio precisa com o periodo do card ligado.
+function comoRelatorio(montar) {
+  state.relatorioGerando = true;
+  try { return montar(); } finally { state.relatorioGerando = false; }
 }
 
 // Entra nos Relatorios com tudo zerado, na divisao que o organizador ja
@@ -82,6 +128,11 @@ export async function entrarNosRelatorios() {
   state.relatorioFiltroDivisao = 'todas';
   state.relatorioFiltroDataInicio = '';
   state.relatorioFiltroDataFim = '';
+  // Os graficos sempre abrem no ultimo mes, e o relatorio sem datas.
+  state.relatorioPeriodoPorGrafico = { total: 1, 'Pub': 1, 'Bate e Volta': 1, 'Ação Social': 1, 'Reunião': 1 };
+  state.relatorioGerarInicio = '';
+  state.relatorioGerarFim = '';
+  state.relatorioGerando = false;
   state.view = 'relatorio';
   render();
   await loadReportData();
@@ -497,12 +548,6 @@ function conteudoRelatorioPresenca() {
 
   return `
     <div class="print-only" style="margin-bottom:10px; font-size:12px; color:var(--text-muted);">Gerado em ${escapeHtml(new Date().toLocaleString('pt-BR'))}</div>
-    ${botaoGerarRelatorio('relatorios-resumo', [
-      { acao: 'copiar-resumo-relatorios', rotulo: '📋 WhatsApp' },
-      { acao: 'imprimir-relatorio', rotulo: '📄 PDF' },
-      { acao: 'imagem-resumo-relatorios', rotulo: '🖼️ Imagem' },
-    ], 'margin-bottom:14px;')}
-
     ${corpoPrincipal}
 
     <div class="card" style="margin-top:14px;">
@@ -522,7 +567,7 @@ function dadosDoResumo() {
   const filtro = regional
     ? (state.relatorioFiltroDivisao === 'todas' ? 'Todas as divisões' : escopoPorChave(state.relatorioFiltroDivisao).nome)
     : '';
-  const datas = textoDoFiltroDeDatas();
+  const datas = textoDoPeriodoGerado();
   const mesesLista = meses('total');
   return {
     escopo: escopoPorChave(state.adminEscopo).nome, filtro, datas,
@@ -573,14 +618,37 @@ export const acoes = {
   'retry-relatorio-eventos': async (id, target, action, e) => {
     return loadReportData();
   },
+  // O PDF e a impressao da tela - desenhada de novo com o periodo do card
+  // (state.relatorioGerando) e devolvida aos botoes da tela depois.
   'imprimir-relatorio': async (id, target, action, e) => {
-    window.print(); return;
+    if (!lerPeriodoGerar()) return;
+    state.relatorioGerando = true;
+    render();
+    const voltar = () => {
+      window.removeEventListener('afterprint', voltar);
+      if (!state.relatorioGerando) return;
+      state.relatorioGerando = false;
+      render();
+    };
+    window.addEventListener('afterprint', voltar);
+    window.print();
   },
   'copiar-resumo-relatorios': async (id, target, action, e) => {
-    return copiarTexto(textoResumoRelatorios(dadosDoResumo()));
+    if (!lerPeriodoGerar()) return;
+    const texto = textoResumoRelatorios(comoRelatorio(dadosDoResumo));
+    render();
+    return copiarTexto(texto);
   },
   'imagem-resumo-relatorios': async (id, target, action, e) => {
-    return mostrarPreviaImagem(() => imagemResumoRelatorios(dadosDoResumo()), `relatorio-presenca-${state.adminEscopo}.png`);
+    if (!lerPeriodoGerar()) return;
+    const d = comoRelatorio(dadosDoResumo);
+    render();
+    return mostrarPreviaImagem(() => imagemResumoRelatorios(d), `relatorio-presenca-${state.adminEscopo}.png`);
+  },
+  'limpar-relatorio-gerar': async (id, target, action, e) => {
+    state.relatorioGerarInicio = '';
+    state.relatorioGerarFim = '';
+    return render();
   },
   'set-relatorio-categoria': async (id, target, action, e) => {
     state.relatorioCategoriaAlvo = target.dataset.value;

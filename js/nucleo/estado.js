@@ -487,6 +487,12 @@ export let state = {
   // exemplo. Ver eventosDoRelatorioEscopo().
   relatorioFiltroDataInicio: '',
   relatorioFiltroDataFim: '',
+  // No Resumo, as datas do card "Gerar relatorio" (so pro relatorio gerado;
+  // vazio = ultimo mes) e o "montando o relatorio agora" - ver
+  // periodoDoRelatorioGerado em dominio/estatisticas.js.
+  relatorioGerarInicio: '',
+  relatorioGerarFim: '',
+  relatorioGerando: false,
   // "Exportar para PDF" de dentro do Modo organizador (aba Eventos) - so
   // trava o botao enquanto pula pra tela de Relatorios e carrega os dados,
   // ver exportarRelatorioPdfAdmin().
@@ -536,7 +542,7 @@ exportandoPdfAdmin: false,
   // Janela (em meses) de cada donut do painel de Presenca - uma chave por
   // grafico ('total' + um por TIPOS_EVENTO), cada um navega o proprio
   // periodo independente dos outros.
-  relatorioPeriodoPorGrafico: { total: 3, 'Pub': 3, 'Bate e Volta': 3, 'Ação Social': 3, 'Reunião': 3 },
+  relatorioPeriodoPorGrafico: { total: 1, 'Pub': 1, 'Bate e Volta': 1, 'Ação Social': 1, 'Reunião': 1 },
   // null = mostra o painel de donuts; um tipo (ou 'total') escolhido =
   // mostra o grafico de barras + tabela so dos eventos daquele grupo.
   relatorioTipoDetalhe: null,

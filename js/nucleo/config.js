@@ -230,4 +230,4 @@ export const STATUS_TOTAIS_LABEL = {
   familia: 'faltas (família)', justificada: 'faltas justificadas', infracional: 'faltas não justificadas'
 };
 
-export const RELATORIO_PERIODOS = [1, 3, 6, 12];
+export const RELATORIO_PERIODOS = [1, 6, 12];

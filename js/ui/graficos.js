@@ -261,6 +261,7 @@ export const acoes = {
     legenda.textContent = rotulo + ' · ' + n;
   },
   'set-relatorio-periodo-tipo': async (id, target, action, e) => {
+    state.relatorioGerando = false;
     state.relatorioPeriodoPorGrafico[target.dataset.chave] = Number(target.dataset.value);
     return render();
   },

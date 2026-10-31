@@ -393,14 +393,17 @@ linha em `Presencas`. Assim quem entrou no clube depois não é penalizado por
 evento antigo. A % pessoal de um membro só soma eventos da própria divisão
 dele; presença em evento regional conta para o Regional e não mistura.
 
-**Período do Resumo dos Relatórios** — cada card tem os botões 1/3/6/12
-meses (a janela, contada de hoje para trás). Com datas no "Filtrar por
-período" do topo, os botões somem e vale **só** o período escolhido, em
-tudo: cards, mais faltas, % de cada integrante, texto, imagem e PDF
-(`janelaDoGrafico`, em `dominio/estatisticas.js`, devolve `null`). Até
-31/10/2026 as duas coisas se somavam: um período mais antigo que a janela
-saía vazio, e o PDF imprimia "Período: últimos 3 meses" embaixo de cada
-card.
+**Período do Resumo dos Relatórios** (desde 31/10/2026) — dois períodos,
+cada um no seu lugar. Na **tela**, cada gráfico tem os botões 1/6/12 meses
+(de hoje para trás; sempre abre em 1 mês), só para olhar. O **relatório
+gerado** sai do card **📊 Gerar relatório** (no lugar do "Filtrar por
+período", só no Resumo): datas inicial/final e os botões 📋 WhatsApp, 📄 PDF
+e 🖼️ Imagem; em branco, o último mês. O relatório usa só as datas do card,
+em tudo (gráficos, mais faltas, % de cada integrante). O PDF redesenha a tela
+com esse período (`state.relatorioGerando`) e volta no `afterprint`. As abas
+por tipo (Pub, Bate e Volta…) seguem com o "Filtrar por período" de antes.
+Ver `periodoDoRelatorioGerado` e `janelaDoGrafico`, em
+`dominio/estatisticas.js`.
 
 **Relatórios agrupados por divisão** — no Regional, com "Todas as
 divisões", a lista de eventos (o "Ver eventos" de cada card e as abas por

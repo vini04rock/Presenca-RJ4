@@ -5,7 +5,7 @@ import { normalizarNome } from './parser.js';
 import { computeCounts, statusEfetivo } from './status.js';
 import { TIPOS_EVENTO, escopoPorChave } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
-import { dataCorteMeses, formatDataBR } from '../nucleo/util.js';
+import { dataCorteMeses, formatDataBR, hojeISO } from '../nucleo/util.js';
 
 // Grade de um mes, semana Segunda-a-Domingo: null nas celulas antes do dia 1
 // ou depois do ultimo dia, pra completar sempre um numero de semanas
@@ -123,33 +123,54 @@ export function eventosDoRelatorioEscopo() {
       // ordem alfabetica bate com ordem cronologica. Evento sem data marcada
       // fica de fora assim que qualquer um dos dois limites for escolhido
       // (nao da pra saber se ele cai dentro do intervalo ou nao).
-      if (state.relatorioFiltroDataInicio && (!e.data || e.data < state.relatorioFiltroDataInicio)) return false;
-      if (state.relatorioFiltroDataFim && (!e.data || e.data > state.relatorioFiltroDataFim)) return false;
+      const { ini, fim } = datasEmVigor();
+      if (ini && (!e.data || e.data < ini)) return false;
+      if (fim && (!e.data || e.data > fim)) return false;
       return true;
     })
     .sort((a, b) => (b.data || '').localeCompare(a.data || '') || (b.criadoEm || '').localeCompare(a.criadoEm || ''));
 }
 
-// A janela de meses de um grafico do Resumo (os botoes 1/3/6/12 de cada
-// card). Com datas escolhidas no "Filtrar por periodo" do topo, os botoes
-// saem de cena e vale so o periodo escolhido: null = sem janela (31/10/2026 -
-// antes as duas coisas se somavam, e um periodo mais antigo que a janela
-// ficava vazio, com "Periodo: ultimos 3 meses" impresso embaixo).
+// O Resumo dos Relatorios tem dois periodos (31/10/2026):
+// - na TELA, cada grafico tem os botoes 1/6/12 meses (relatorioPeriodoPorGrafico),
+//   de hoje pra tras, so pra olhar;
+// - o RELATORIO gerado (WhatsApp, PDF, imagem, no card "Gerar relatorio")
+//   usa so as datas daquele card, em tudo - em branco, o ultimo mes.
+// Enquanto o relatorio e montado, state.relatorioGerando liga o segundo.
+// As abas por tipo (Pub, Bate e Volta...) seguem com o "Filtrar por periodo"
+// de sempre (relatorioFiltroData*), que filtra a tela.
+export function periodoDoRelatorioGerado() {
+  const ini = state.relatorioGerarInicio, fim = state.relatorioGerarFim;
+  if (!ini && !fim) return { ini: dataCorteMeses(1), fim: hojeISO(), ultimoMes: true };
+  return { ini, fim, ultimoMes: false };
+}
+
+// As datas que filtram os eventos agora ('' = sem limite daquele lado).
+function datasEmVigor() {
+  if (state.relatorioGerando) return periodoDoRelatorioGerado();
+  if (state.relatorioTab === 'resumo') return { ini: '', fim: '' };
+  return { ini: state.relatorioFiltroDataInicio, fim: state.relatorioFiltroDataFim };
+}
+
+// A janela de meses de um grafico do Resumo: a dos botoes dele na tela, ou
+// null (sem janela - vale o periodo do relatorio) quando o relatorio esta
+// sendo montado.
 export function janelaDoGrafico(chave) {
-  if (state.relatorioFiltroDataInicio || state.relatorioFiltroDataFim) return null;
-  return state.relatorioPeriodoPorGrafico[chave] || 3;
+  if (state.relatorioGerando) return null;
+  return state.relatorioPeriodoPorGrafico[chave] || 1;
 }
 
-// O periodo escolhido no topo, escrito ('' sem datas).
-export function textoDoFiltroDeDatas() {
-  const ini = state.relatorioFiltroDataInicio, fim = state.relatorioFiltroDataFim;
-  return ini || fim ? `${ini ? formatDataBR(ini) : 'início'} até ${fim ? formatDataBR(fim) : 'hoje'}` : '';
+// O periodo do relatorio gerado, escrito.
+export function textoDoPeriodoGerado() {
+  const p = periodoDoRelatorioGerado();
+  const datas = `${p.ini ? formatDataBR(p.ini) : 'início'} até ${p.fim ? formatDataBR(p.fim) : 'hoje'}`;
+  return p.ultimoMes ? `último mês (${datas})` : datas;
 }
 
-// Como se escreve a janela de um grafico: 'últimos 3 meses' ou, com datas
-// escolhidas, o periodo delas.
+// Como se escreve a janela de um grafico: 'último mês', 'últimos 6 meses'
+// ou, sem janela, o periodo do relatorio.
 export function rotuloDaJanela(meses) {
-  if (!meses) return textoDoFiltroDeDatas();
+  if (!meses) return textoDoPeriodoGerado();
   return meses === 1 ? 'último mês' : `últimos ${meses} meses`;
 }
 
