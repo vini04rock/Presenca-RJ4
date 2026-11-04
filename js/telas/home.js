@@ -4,6 +4,7 @@ import { COR_TODOS_EVENTOS, NOMES_MESES, TIPOS_EVENTO, TIPO_HOME_TAGLINE, classe
 import { state } from '../nucleo/estado.js';
 import { IMG_CALENDARIO_HOME, IMG_HOME_EVENTOS, IMG_MODO_ORGANIZADOR, IMG_RANK_INSIGHTS, IMG_RANK_PRESENCA, LOGO_SRC, TIPO_HOME_IMAGEM } from '../nucleo/imagens.js';
 import { diaDaSemana, escapeHtml, formatDataCurta, hexParaRgba, hojeISO, pastilhaQuando } from '../nucleo/util.js';
+import { soAtivos } from '../dominio/movimentos.js';
 import { renderCardEscopo, seloConfirmados, subtituloDoEvento } from '../ui/comuns.js';
 import { openEvent } from '../fluxos/evento.js';
 import { render } from '../nucleo/render.js';
@@ -72,6 +73,16 @@ function renderFaixaDestaque() {
   `;
 }
 
+// "Membros ativos: 87" ao lado do selo da regional (04/11/2026): todo o
+// cadastro da RJ4, divisoes e Regional, sem os afastados (soAtivos) - quem
+// saiu do clube ja nao esta no cadastro. Enquanto o cadastro nao chega, nao
+// aparece: "0" seria um numero errado, nao um "carregando".
+function seloMembrosAtivos() {
+  const ativos = soAtivos(state.roster).length;
+  if (!ativos) return '';
+  return `<div class="home-selo home-selo-ativos">Membros ativos: <b>${ativos}</b></div>`;
+}
+
 function renderHomeInicio(app) {
   app.innerHTML = `
     <div class="home-raiz">
@@ -80,7 +91,10 @@ function renderHomeInicio(app) {
         <div class="home-lemas">
           <span>IRMANDADE</span><span>RESPEITO</span><span>LIBERDADE</span><span>ESTRADA</span><span>SEMPRE</span>
         </div>
-        <div class="home-selo">Regional RJ4</div>
+        <div class="home-selos">
+          ${seloMembrosAtivos()}
+          <div class="home-selo">Regional RJ4</div>
+        </div>
       </div>
 
       <div class="crest-wrap home-crest">

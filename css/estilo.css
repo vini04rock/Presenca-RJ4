@@ -1110,6 +1110,8 @@ label {
   width: 1px; height: 8px; margin-right: clamp(5px, 1.4vw, 18px);
   background: var(--line-strong); vertical-align: -1px;
 }
+.home-selos { display: flex; gap: 6px; flex-wrap: wrap; }
+.home-selo-ativos b { color: var(--white-strong); font-weight: 700; }
 .home-selo {
   border: 1px solid #6B5A2E; background: rgba(10, 10, 10, 0.72);
   padding: 4px 11px; white-space: nowrap;
