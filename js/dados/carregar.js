@@ -1,7 +1,7 @@
 // Carrega da planilha para o state e redesenha. Nao decide nada de tela.
 
 import { api, apiPost } from '../nucleo/api.js';
-import { doacoesDesde, escoposEmOrdemDeExibicao, temDoacoesECaixinha } from '../nucleo/config.js';
+import { entraNasDoacoes, escoposEmOrdemDeExibicao, temDoacoesECaixinha } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
 import { emLotes } from '../nucleo/util.js';
@@ -208,12 +208,12 @@ export async function loadEstatisticas() {
 }
 
 // Os eventos das Doacoes de uma divisao, sem os de antes de ela comecar a
-// marcar (ver doacoesDesde) e com a divisao em cada um (a `categoria`, como
-// nos eventos do app). Todas as telas das Doacoes leem daqui.
+// marcar (ver entraNasDoacoes, com as excecoes) e com a divisao em cada um
+// (a `categoria`, como nos eventos do app). Todas as telas das Doacoes leem
+// daqui.
 function eventosDeDoacao(r, escopo) {
-  const desde = doacoesDesde(escopo);
   return (r.eventos || [])
-    .filter(e => !desde || !e.data || e.data >= desde)
+    .filter(e => entraNasDoacoes(escopo, e))
     .map(e => ({ ...e, categoria: escopo }));
 }
 

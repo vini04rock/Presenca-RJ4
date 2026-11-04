@@ -851,6 +851,13 @@ log('=== doações: kg, cumprimento e quem foi e não levou ===');
     porDiv.map(d => [d.divisao, d.cumprimento, d.kg, d.foi]),
     [['Oeste - RJ4', 100, 2, 1], ['Barra - RJ4', 67, 2, 3], ['Regional RJ4', null, 0, 0], ['Sem divisão', null, 0, 0]]);
   confere('doações regional: quem foi e não levou fica na divisão dele', porDiv.find(d => d.divisao === 'Barra - RJ4').melhorar.map(m => m.nome), ['Abel']);
+  // O corte das Doacoes do Regional (04/11/2026) e a excecao da Festa Halloween.
+  const { entraNasDoacoes } = await import(url('nucleo/config.js'));
+  confere('doações regional: antes do corte fica fora, a exceção e os novos entram',
+    [entraNasDoacoes('regional', { id: 'x', data: '2026-10-30' }), entraNasDoacoes('regional', { id: 'mvkvpv5j7du3r', data: '2026-10-30' }),
+      entraNasDoacoes('regional', { id: 'y', data: '2026-11-04' }), entraNasDoacoes('barra', { id: 'z', data: '2020-01-01' })],
+    [false, true, true, true]);
+
   // A lista colada de quem doou: titulo de divisao separa os blocos, ✅
   // colado ou nao, numeracao e grau na linha, e dois "Costa" de divisoes
   // diferentes.

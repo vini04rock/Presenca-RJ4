@@ -77,6 +77,15 @@ export function temDoacoesECaixinha(chave) { return DIVISOES_COM_DOACOES_E_CAIXI
 const DOACOES_DESDE = { regional: '2026-11-04' };
 export function doacoesDesde(chave) { return DOACOES_DESDE[chave] || ''; }
 
+// Os eventos de antes do corte que entram mesmo assim (pedido do clube,
+// 04/11/2026): a Festa Halloween - Comando I (30/10/2026), que o Regional
+// quis marcar. Pelo id, que nao muda se o nome for corrigido.
+const DOACOES_EXCECOES = { regional: ['mvkvpv5j7du3r'] };
+export function entraNasDoacoes(chave, ev) {
+  const desde = doacoesDesde(chave);
+  return !desde || !ev.data || ev.data >= desde || (DOACOES_EXCECOES[chave] || []).includes(ev.id);
+}
+
 // O valor comum da caixinha: o botao "💵 R$ 30" de cada integrante marca
 // este. Quem paga diferente digita na caixa ao lado. O Code.gs tem o mesmo
 // numero (VALOR_CAIXINHA_PADRAO), usado pros meses lancados antes de o app

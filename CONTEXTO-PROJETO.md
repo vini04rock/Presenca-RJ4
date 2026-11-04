@@ -646,7 +646,8 @@ qualquer uma.
   Os kg vão pro **estoque do Regional**, que ganhou o item dos alimentos.
   Só entram os eventos **de 04/11/2026 em diante** (`doacoesDesde`, em
   `nucleo/config.js`, aplicado em `carregarDoacoes`): os de antes nunca
-  foram marcados. O **Rank do Regional é por divisão** (`rankPorDivisao`):
+  foram marcados. A exceção é a **Festa Halloween - Comando I** (30/10/2026),
+  que entra pelo id (`DOACOES_EXCECOES`, em `entraNasDoacoes`). O **Rank do Regional é por divisão** (`rankPorDivisao`):
   a pizza do Regional inteiro e uma linha por divisão com o cumprimento e
   os kg de quem é dela, da que mais cumpre para a que menos; tocar numa
   abre os integrantes e o "📌 Foram e não levaram" dela. O texto pro
