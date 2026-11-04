@@ -231,6 +231,9 @@ export let state = {
   doacoesQtdEncerrados: 8,
   // Janela do rank, em meses (0 = desde sempre). Ver PERIODOS.
   doacoesPeriodo: 3,
+  // No Rank do Regional: a divisao aberta, com os integrantes (o nome dela,
+  // como no cadastro), ou null.
+  doacoesDivisaoAberta: null,
   // Aba "Estoque" de Doacoes: o livro de entradas e saidas (ver
   // dominio/estoque.js). estoqueItemId: o item que o painel mostra (null =
   // o primeiro). estoqueForm: a entrada ou saida sendo lancada
@@ -547,10 +550,15 @@ exportandoPdfAdmin: false,
   // Janela (em meses) de cada donut do painel de Presenca - uma chave por
   // grafico ('total' + um por TIPOS_EVENTO), cada um navega o proprio
   // periodo independente dos outros.
-  relatorioPeriodoPorGrafico: { total: 1, 'Pub': 1, 'Bate e Volta': 1, 'Ação Social': 1, 'Reunião': 1 },
+  relatorioPeriodoPorGrafico: { total: 1, 'Pub': 1, 'Bate e Volta': 1, 'Ação Social': 1, 'Reunião': 1, doacoes: 1 },
   // null = mostra o painel de donuts; um tipo (ou 'total') escolhido =
   // mostra o grafico de barras + tabela so dos eventos daquele grupo.
   relatorioTipoDetalhe: null,
+  // O card 🥫 Doacoes do Resumo: { escopo, eventos } (os eventos das Doacoes
+  // de cada divisao que usa, ver carregarDoacoesDoRelatorio), ou null
+  // enquanto busca ou quando nenhuma divisao do escopo usa as Doacoes.
+  relatorioDoacoes: null,
+  relatorioDoacoesErro: null,
 };
 
 export function genId() {

@@ -64,10 +64,18 @@ export function escoposAtivos() {
 //
 // O Regional entra com um jeito proprio (decisao do clube, 19/10/2026): a
 // caixinha dele vem das DIVISOES, nao de integrantes (ver
-// vocabularioCaixinha em dominio/caixinha.js), e das Doacoes ele tem so o
-// estoque (ver soNasDivisoes em telas/admin.js).
+// vocabularioCaixinha em dominio/caixinha.js). Das Doacoes, ate 04/11/2026
+// ele tinha so o estoque; agora marca as doacoes dos eventos dele tambem.
 const DIVISOES_COM_DOACOES_E_CAIXINHA = ['barra', 'regional'];
 export function temDoacoesECaixinha(chave) { return DIVISOES_COM_DOACOES_E_CAIXINHA.includes(chave); }
+
+// A partir de quando os eventos de uma divisao entram nas Doacoes. O
+// Regional comecou a marcar em 04/11/2026 (decisao do clube): os eventos
+// dele de antes nunca foram marcados, e entrar com eles seria "ninguem
+// levou" em evento que ninguem conferiu. Evento sem data fica (e dos novos).
+// Divisao fora daqui conta desde sempre.
+const DOACOES_DESDE = { regional: '2026-11-04' };
+export function doacoesDesde(chave) { return DOACOES_DESDE[chave] || ''; }
 
 // O valor comum da caixinha: o botao "💵 R$ 30" de cada integrante marca
 // este. Quem paga diferente digita na caixa ao lado. O Code.gs tem o mesmo

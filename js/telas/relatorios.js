@@ -1,15 +1,16 @@
 // Painel de Relatorios: as 7 abas, os filtros e o fluxo de colar convocacao.
 
-import { estatisticasMembrosPorPeriodo, estatisticasMembrosPorTipo, eventosDoRelatorioEscopo, janelaDoGrafico, rankingFaltasInfracionais, resumoDonutPeriodo, rotuloDaJanela, textoDoPeriodoGerado } from '../dominio/estatisticas.js';
+import { formatKg, resumoDoacoesPeriodo } from '../dominio/doacoes.js';
+import { estatisticasMembrosPorPeriodo, estatisticasMembrosPorTipo, eventosDoRelatorioEscopo, janelaDoGrafico, periodoDoRelatorioGerado, rankingFaltasInfracionais, resumoDonutPeriodo, rotuloDaJanela, textoDoPeriodoGerado } from '../dominio/estatisticas.js';
 import { textoResumoRelatorios } from '../dominio/relatorio-texto.js';
 import { computeCounts, statusEfetivo } from '../dominio/status.js';
-import { ABAS_COM_FILTRO_DIVISAO, RELATORIO_PERIODOS, RELATORIO_TABS, STATUS, STATUS_TOTAIS_LABEL, TIPOS_EVENTO, TIPOS_EVENTO_TABS_ORDEM, emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao, escoposNaOrdemOficial } from '../nucleo/config.js';
+import { ABAS_COM_FILTRO_DIVISAO, RELATORIO_PERIODOS, RELATORIO_TABS, STATUS, STATUS_TOTAIS_LABEL, TIPOS_EVENTO, TIPOS_EVENTO_TABS_ORDEM, emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao, escoposNaOrdemOficial, temDoacoesECaixinha } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { copiarTexto, dataCorteMeses, dataDoCampoOuAvisar, escapeHtml, formatDataBR } from '../nucleo/util.js';
 import { campoData, renderFichaMembro, renderListaEstatisticasPorDivisao } from '../ui/comuns.js';
 import { imagemResumoRelatorios, mostrarPreviaImagem } from '../ui/imagem.js';
-import { esqueletoLista, renderDonutCard, renderRankingFaltasInfracionais } from '../ui/graficos.js';
-import { loadReportData } from '../dados/carregar.js';
+import { esqueletoLista, esqueletoRosca, renderDonutCard, renderDonutChart, renderRankingFaltasInfracionais } from '../ui/graficos.js';
+import { carregarDoacoesDoRelatorio, loadReportData } from '../dados/carregar.js';
 import { analisarConvocacao, confirmarEventoParseado, iniciarCorrecaoConvocacao } from '../fluxos/convocacao.js';
 import { render } from '../nucleo/render.js';
 
@@ -135,14 +136,14 @@ export async function entrarNosRelatorios() {
   state.relatorioFiltroDataInicio = '';
   state.relatorioFiltroDataFim = '';
   // Os graficos sempre abrem no ultimo mes, e o relatorio sem datas.
-  state.relatorioPeriodoPorGrafico = { total: 1, 'Pub': 1, 'Bate e Volta': 1, 'Ação Social': 1, 'Reunião': 1 };
+  state.relatorioPeriodoPorGrafico = { total: 1, 'Pub': 1, 'Bate e Volta': 1, 'Ação Social': 1, 'Reunião': 1, doacoes: 1 };
   state.relatorioGerarInicio = '';
   state.relatorioGerarFim = '';
   state.relatorioGerarMeses = 1;
   state.relatorioGerando = false;
   state.view = 'relatorio';
   render();
-  await loadReportData();
+  await Promise.all([loadReportData(), carregarDoacoesDoRelatorio()]);
 }
 
 export function renderRelatorioShell(app) {
@@ -543,13 +544,15 @@ function conteudoRelatorioPresenca() {
   const faltaCarregarLista = encerrados.some(e => e.data && e.data >= corteLista && !(e.id in state.reportData));
   const listaMembros = faltaCarregarLista ? null : estatisticasMembrosPorPeriodo(mesesLista);
 
-  const corpoPrincipal = state.relatorioTipoDetalhe
+  const corpoPrincipal = state.relatorioTipoDetalhe === 'doacoes' ? conteudoDoacoesDetalhe()
+    : state.relatorioTipoDetalhe
     ? conteudoRelatorioTipoDetalhe(encerrados, state.relatorioTipoDetalhe)
     : `
       ${renderDonutCard('Presença total', 'total', encerrados, true)}
       <div class="donut-grid">
         ${TIPOS_EVENTO.map(tipo => renderDonutCard(tipo, tipo, encerrados, false)).join('')}
       </div>
+      ${renderCardDoacoes()}
       ${renderRankingFaltasInfracionais(encerrados)}
     `;
 
@@ -560,6 +563,153 @@ function conteudoRelatorioPresenca() {
     <div class="card" style="margin-top:14px;">
       <div class="painel-titulo">% de cada integrante <span style="color:var(--text-muted); font-weight:400; font-size:12px;">(${escapeHtml(rotuloDaJanela(mesesLista))})</span></div>
       ${!listaMembros ? esqueletoLista() : !listaMembros.length ? '<div class="empty">Nenhum membro cadastrado ainda.</div>' : renderListaEstatisticasPorDivisao(listaMembros)}
+    </div>
+  `;
+}
+
+// ---------- o card 🥫 Doacoes (04/11/2026) ----------
+// A copia, no Resumo, do relatorio da secao Doacoes (area Social): a pizza
+// de quem foi e levou alimento, e a % de cada evento. So o numero do grupo -
+// os nomes de quem nao levou ficam la, no relatorio de Doacoes.
+
+// As divisoes do card: as do escopo que usam as Doacoes, no filtro de
+// divisao do Regional. Nenhuma = o card nao aparece.
+function divisoesComDoacoesNoRelatorio() {
+  if (state.adminEscopo !== 'regional') return temDoacoesECaixinha(state.adminEscopo) ? [state.adminEscopo] : [];
+  const todas = escoposEmOrdemDeExibicao().map(e => e.chave).filter(temDoacoesECaixinha);
+  return state.relatorioFiltroDivisao === 'todas' ? todas : todas.filter(c => c === state.relatorioFiltroDivisao);
+}
+
+// A conta do card no periodo dele: a janela dos botoes na tela, ou o do
+// relatorio gerado (janelaDoGrafico devolve null). r = null enquanto busca.
+function doacoesDoResumo() {
+  const divisoes = divisoesComDoacoesNoRelatorio();
+  if (!divisoes.length) return null;
+  const meses = janelaDoGrafico('doacoes');
+  const dados = state.relatorioDoacoes && state.relatorioDoacoes.escopo === state.adminEscopo ? state.relatorioDoacoes : null;
+  if (!dados) return { meses, r: null, varias: divisoes.length > 1 };
+  const { ini, fim } = meses ? { ini: dataCorteMeses(meses), fim: '' } : periodoDoRelatorioGerado();
+  return { meses, r: resumoDoacoesPeriodo(dados.eventos.filter(e => divisoes.includes(e.categoria)), ini, fim), varias: divisoes.length > 1 };
+}
+
+const segmentosDoacao = r => [
+  { label: 'Foram e levaram', value: r.levaram, cor: 'var(--status-confirmado)' },
+  { label: 'Foram e não levaram', value: r.foram - r.levaram, cor: 'var(--status-infracional)' },
+];
+
+function avisoSemMarcacaoResumo(r) {
+  if (!r.semMarcacao) return '';
+  return `<div style="color:var(--text-muted); font-size:11.5px; margin-top:4px;">${r.semMarcacao} ${r.semMarcacao === 1 ? 'evento encerrado sem doação marcada ficou' : 'eventos encerrados sem doação marcada ficaram'} de fora.</div>`;
+}
+
+function renderCardDoacoes() {
+  const d = doacoesDoResumo();
+  if (!d) return '';
+  const { meses, r } = d;
+  let corpo;
+  if (state.relatorioDoacoesErro) {
+    corpo = `
+      <div class="alert" style="margin:4px 0;"><div class="alert-msg">Não consegui carregar as doações: ${escapeHtml(state.relatorioDoacoesErro)}.</div></div>
+      <button class="btn secondary block no-print" data-action="retry-relatorio-doacoes">Tentar de novo</button>
+    `;
+  } else if (!r) {
+    corpo = esqueletoRosca(110);
+  } else {
+    corpo = `
+      ${renderDonutChart(segmentosDoacao(r), r.pct === null ? '—' : r.pct + '%', 'cumprimento', 110)}
+      <div class="info-line" style="padding:8px 0 0; color:var(--text-muted); font-size:12px;">
+        ${r.eventos} ${r.eventos === 1 ? 'evento encerrado' : 'eventos encerrados'} com doação marcada · 🥫 ${escapeHtml(formatKg(r.kg))}
+      </div>
+      <div style="color:var(--text-muted); font-size:11.5px; margin-top:4px;">Dos ✅ confirmados em cada evento, quantos levaram alimento.</div>
+      ${avisoSemMarcacaoResumo(r)}
+      ${r.itens.length ? '<div class="btn ghost no-print" style="margin-top:6px; padding:4px 0;" data-action="abrir-relatorio-tipo-detalhe" data-value="doacoes">Ver eventos ›</div>' : ''}
+    `;
+  }
+  const pilulas = RELATORIO_PERIODOS.map(m => `
+    <button class="pilula ${meses === m ? 'active' : ''}" data-action="set-relatorio-periodo-tipo" data-chave="doacoes" data-value="${m}">${m === 1 ? '1 mês' : m + ' meses'}</button>
+  `).join('');
+  const periodo = meses
+    ? `<div class="pilulas-periodo no-print">${pilulas}</div>
+       <div class="print-only" style="margin-bottom:10px; font-size:12px; color:var(--text-muted);">Período: ${escapeHtml(rotuloDaJanela(meses))}</div>`
+    : `<div style="margin-bottom:10px; font-size:12px; color:var(--text-muted);">🗓️ ${escapeHtml(rotuloDaJanela(meses))}</div>`;
+  return `
+    <div class="card donut-card" style="margin-top:14px;">
+      <div class="painel-titulo">🥫 Doações de alimento</div>
+      ${periodo}
+      ${corpo}
+    </div>
+  `;
+}
+
+// "2 eventos · 67%" no titulo do bloco: dos ✅ do bloco, quantos levaram.
+function resumoDoGrupoDoacao(g) {
+  const foram = g.itens.reduce((s, i) => s + i.confirmados, 0);
+  const levaram = g.itens.reduce((s, i) => s + i.levaram, 0);
+  const n = g.itens.length;
+  return `${n} evento${n === 1 ? '' : 's'}${foram ? ' · ' + Math.round((levaram / foram) * 100) + '%' : ''}`;
+}
+
+function barrasDoacaoPorDivisao(grupos) {
+  return grupos.map(g => `
+    ${g.titulo ? `<div class="relatorio-grupo-titulo"><span>${escapeHtml(g.titulo)}</span><span>${resumoDoGrupoDoacao(g)}</span></div>` : ''}
+    ${g.itens.map(linhaBarraDoacao).join('')}
+  `).join('');
+}
+
+function linhaBarraDoacao({ ev, pct }) {
+  return `
+    <div class="chart-row">
+      <div class="chart-row-label" title="${escapeHtml(ev.nome)}">${escapeHtml(ev.nome)}</div>
+      <div class="chart-row-track"><div class="chart-row-fill" style="width:${pct || 0}%" data-anima="barra:${pct}"></div></div>
+      <div class="chart-row-value">${pct === null ? '—' : pct + '%'}</div>
+    </div>
+  `;
+}
+
+function linhaTabelaDoacao(i) {
+  return `
+    <tr>
+      <td>${escapeHtml(i.ev.nome)}</td>
+      <td>${formatDataBR(i.ev.data)}</td>
+      <td class="num">${i.levaram + '/' + i.confirmados}</td>
+      <td class="num">${i.pct === null ? '—' : i.pct + '%'}</td>
+      <td class="num">${escapeHtml(formatKg(i.kg))}</td>
+    </tr>
+  `;
+}
+
+function tabelaDoacaoPorDivisao(grupos) {
+  return `
+    <table class="relatorio-tabela">
+      <thead><tr><th>Evento</th><th>Data</th><th style="text-align:right;">Levaram</th><th style="text-align:right;">%</th><th style="text-align:right;">kg</th></tr></thead>
+      <tbody>
+        ${grupos.map(g => `
+          ${g.titulo ? `<tr class="relatorio-grupo"><td colspan="5"><span>${escapeHtml(g.titulo)}</span><span>${resumoDoGrupoDoacao(g)}</span></td></tr>` : ''}
+          ${g.itens.map(linhaTabelaDoacao).join('')}
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+// O "Ver eventos" do card: a % de doacao de cada evento, em barras e na
+// tabela - em blocos por divisao no Regional com "Todas as divisoes".
+function conteudoDoacoesDetalhe() {
+  const d = doacoesDoResumo();
+  const r = d && d.r;
+  const grupos = r ? agruparEventosPorDivisao(r.itens) : [];
+  const corpo = !r ? esqueletoLista()
+    : !r.itens.length ? '<div class="empty">Nenhum evento encerrado com doação marcada nesse período.</div>'
+    : `
+      ${barrasDoacaoPorDivisao(grupos)}
+      <div style="overflow-x:auto; margin-top:10px;">${tabelaDoacaoPorDivisao(grupos)}</div>
+      ${avisoSemMarcacaoResumo(r)}
+    `;
+  return `
+    <div class="card" style="margin-bottom:14px;">
+      <div class="btn ghost" style="margin-bottom:10px;" data-action="fechar-relatorio-tipo-detalhe">‹ Voltar ao painel</div>
+      <div class="painel-titulo">🥫 Doações por evento</div>
+      ${corpo}
     </div>
   `;
 }
@@ -584,6 +734,7 @@ function dadosDoResumo() {
       .map(f => ({ ...f, divisao: f.divisao.replace(/\s*-?\s*RJ4$/, '') })),
     mesesLista,
     membros: estatisticasMembrosPorPeriodo(mesesLista),
+    doacoes: doacoesDoResumo(),
   };
 }
 
@@ -624,6 +775,10 @@ export const acoes = {
   },
   'retry-relatorio-eventos': async (id, target, action, e) => {
     return loadReportData();
+  },
+  'retry-relatorio-doacoes': async (id, target, action, e) => {
+    render();
+    return carregarDoacoesDoRelatorio();
   },
   // O PDF e a impressao da tela - desenhada de novo com o periodo do card
   // (state.relatorioGerando) e devolvida aos botoes da tela depois.

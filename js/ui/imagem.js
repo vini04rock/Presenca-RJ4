@@ -574,6 +574,12 @@ export async function imagemResumoRelatorios(d) {
     nome: `${t.emoji} ${t.tipo}`, pct: t.r.pct,
     detalhe: `${t.r.eventosNoPeriodo} ${t.r.eventosNoPeriodo === 1 ? 'evento' : 'eventos'}${t.meses ? ` · ${t.meses === 1 ? '1 mês' : t.meses + ' meses'}` : ''}`,
   }));
+  // As doacoes (04/11/2026): o cumprimento, com os kg ao lado.
+  const dd = d.doacoes && d.doacoes.r;
+  if (dd) {
+    linhas.push({ nome: '🥫 Doações', pct: dd.pct,
+      detalhe: `${formatKg(dd.kg)}${d.doacoes.meses ? ` · ${d.doacoes.meses === 1 ? '1 mês' : d.doacoes.meses + ' meses'}` : ''}` });
+  }
   listaRanking(ctx, linhas, y, Math.min(96, (A - 170 - y) / Math.max(1, linhas.length)), { semPodio: true });
 
   rodape(ctx);
@@ -749,13 +755,18 @@ export async function imagemIndividuaisFuncao(r, f, rotuloPeriodo) {
 // Doacoes de alimento no periodo: o cumprimento da divisao (dos que foram,
 // quantos levaram), o total arrecadado e quem mais levou. Como as outras,
 // sem nome de quem nao levou - isso e do texto. `r` e o rankDoacoes.
-export async function imagemDoacoes(r, nomeDivisao, rotuloPeriodo) {
+export async function imagemDoacoes(r, nomeDivisao, rotuloPeriodo, porDivisao = null) {
   const { canvas, ctx, logo } = await novaTela();
   const pct = r.cumprimento === null ? 0 : r.cumprimento;
   const doaram = r.membros.filter(m => m.kg > 0).slice(0, 5);
   const maior = doaram.length ? doaram[0].kg : 0;
-  const linhas = doaram.map(m => ({ nome: m.nome, pct: maior ? Math.round((m.kg / maior) * 100) : 0,
-    texto: formatKg(m.kg), detalhe: m.grau || '' }));
+  // No Regional (porDivisao = rankPorDivisao), no lugar de quem mais levou
+  // vao as divisoes, com o cumprimento de cada uma - sem nome de integrante.
+  const linhas = porDivisao
+    ? porDivisao.slice(0, 7).map(d => ({ nome: d.divisao.replace(/\s*-?\s*RJ4$/, ''), pct: d.cumprimento || 0,
+      texto: d.cumprimento === null ? '—' : `${d.cumprimento}%`, detalhe: formatKg(d.kg) }))
+    : doaram.map(m => ({ nome: m.nome, pct: maior ? Math.round((m.kg / maior) * 100) : 0,
+      texto: formatKg(m.kg), detalhe: m.grau || '' }));
 
   emblema(ctx, logo, 45, 150);
   let y = tituloMetal(ctx, '🥫 Doações de Alimento', 275, 58, 980);
@@ -775,7 +786,7 @@ export async function imagemDoacoes(r, nomeDivisao, rotuloPeriodo) {
 
   if (linhas.length) {
     y += 100;
-    rotuloEspacado(ctx, '🏆 QUEM MAIS LEVOU', y, 24, COR.ouro);
+    rotuloEspacado(ctx, porDivisao ? '🏁 CUMPRIMENTO POR DIVISÃO' : '🏆 QUEM MAIS LEVOU', y, 24, COR.ouro);
     listaRanking(ctx, linhas, y + 14, Math.min(88, (A - 170 - y) / linhas.length));
   }
 

@@ -778,7 +778,7 @@ log('=== carteirinha: idade, telefone e aniversários do mural ===');
 log('');
 log('=== doações: kg, cumprimento e quem foi e não levou ===');
 {
-  const { rankDoacoes, membrosParaMarcar, textoDoacoes, formatKg, eventosDoPeriodo } = await import(url('dominio/doacoes.js'));
+  const { rankDoacoes, rankPorDivisao, membrosParaMarcar, blocosPorDivisao, textoDoacoes, formatKg, eventosDoPeriodo } = await import(url('dominio/doacoes.js'));
   const membros = [
     { id: 'd1', nome: 'Costa', grau: 'VI', cargo: 'Diretor' },
     { id: 'd2', nome: 'Raposo', grau: 'VI', cargo: 'Social' },
@@ -791,7 +791,10 @@ log('=== doações: kg, cumprimento e quem foi e não levou ===');
     // (2 kg num deles); Bravo foi em 1 e nao levou.
     evD('e1', '2026-08-01', 'encerrado', ['d1', 'd2'], { d1: 1, d2: 2 }),
     evD('e2', '2026-08-15', 'encerrado', ['d1', 'd2', 'd3'], { d1: 1, d2: 1 }),
-    evD('e3', '2026-09-01', 'encerrado', ['d1'], {}),
+    // e3: Costa foi e nao levou; quem levou foi d9, que saiu do clube.
+    evD('e3', '2026-09-01', 'encerrado', ['d1'], { d9: 1 }),
+    // Encerrado sem nenhuma doacao marcada: fora do cumprimento (04/11/2026).
+    evD('e7', '2026-09-25', 'encerrado', ['d1', 'd2', 'd3'], {}),
     // Evento aberto: o kg conta, o cumprimento nao (ainda pode mudar).
     evD('e4', '2099-01-01', 'ativo', [], { d3: 1.5 }),
     // Quem levou sem estar Confirmado: soma kg, nao conta no cumprimento.
@@ -805,7 +808,8 @@ log('=== doações: kg, cumprimento e quem foi e não levou ===');
   confere('cumprimento só conta evento encerrado em que estava Confirmado',
     [porId.d1.cumprimento, porId.d2.cumprimento, porId.d3.cumprimento], [67, 100, 0]);
   confere('empate em kg: quem cumpre mais vem antes', r.membros.map(m => m.nome), ['Raposo', 'Costa', 'Bravo']);
-  confere('o total da divisão inclui quem saiu do clube', r.totalKg, 8.5);
+  confere('o total da divisão inclui quem saiu do clube', r.totalKg, 9.5);
+  confere('evento encerrado sem nenhuma marcação fica fora, e é contado à parte', r.semMarcacao, 1);
   confere('cumprimento da divisão (4 de 6 presenças)', [r.presencasComDoacao, r.presencas, r.cumprimento], [4, 6, 67]);
   confere('quem foi e não levou, quem deixou mais primeiro', r.melhorar.map(m => m.nome), ['Bravo', 'Costa']);
   confere('ninguém que não foi aparece pra melhorar', r.melhorar.some(m => m.nome === 'Raposo'), false);
@@ -822,6 +826,38 @@ log('=== doações: kg, cumprimento e quem foi e não levou ===');
     nomes(membrosParaMarcar(evD('x', '', 'ativo', [], { d4: 1 }, ['d1']), roster, roster)), ['Costa', 'Alfa']);
   confere('marcar: evento sem convocados mostra a divisão inteira',
     membrosParaMarcar(evD('x', '', 'ativo', [], {}, []), membros, roster).length, 3);
+
+  // Evento do Regional: um bloco por divisao, na ordem oficial, cada um com
+  // a ordem da marcacao (os ✅ primeiro).
+  const deTodas = [
+    { id: 'b1', nome: 'Zeca', grau: 'X', divisao: 'Barra - RJ4' }, { id: 'o1', nome: 'Ugo', grau: 'X', divisao: 'Oeste - RJ4' },
+    { id: 'b2', nome: 'Abel', grau: 'VI', divisao: 'Barra - RJ4' }, { id: 'r1', nome: 'Rui', grau: 'V', divisao: 'Regional RJ4' },
+    { id: 'x1', nome: 'Sem', grau: 'X', divisao: '' },
+  ];
+  const blocos = blocosPorDivisao(membrosParaMarcar(evD('x', '', 'ativo', ['b1'], {}, deTodas.map(m => m.id)), deTodas, deTodas));
+  confere('doações regional: um bloco por divisão, na ordem oficial',
+    blocos.map(b => [b.divisao, nomes(b.membros)]),
+    [['Regional RJ4', ['Rui']], ['Oeste - RJ4', ['Ugo']], ['Barra - RJ4', ['Zeca', 'Abel']], ['Sem divisão', ['Sem']]]);
+
+  // O Rank do Regional: uma linha por divisao. Barra foi 3 vezes e levou 2
+  // (67%), Oeste foi 1 e levou 1 (100%), o Regional ninguem foi.
+  const dadosR = { eventos: [
+    evD('r1', '2026-11-05', 'encerrado', ['b1', 'b2', 'o1'], { b1: 1, o1: 2 }, ['b1', 'b2', 'o1', 'r1']),
+    evD('r2', '2026-11-06', 'encerrado', ['b1'], { b1: 1 }, ['b1', 'r1']),
+  ] };
+  const rR = rankDoacoes(dadosR, deTodas, 0);
+  const porDiv = rankPorDivisao(rR);
+  confere('doações regional: divisões por cumprimento, sem % no fim',
+    porDiv.map(d => [d.divisao, d.cumprimento, d.kg, d.foi]),
+    [['Oeste - RJ4', 100, 2, 1], ['Barra - RJ4', 67, 2, 3], ['Regional RJ4', null, 0, 0], ['Sem divisão', null, 0, 0]]);
+  confere('doações regional: quem foi e não levou fica na divisão dele', porDiv.find(d => d.divisao === 'Barra - RJ4').melhorar.map(m => m.nome), ['Abel']);
+  const textoR = textoDoacoes(rR, 'regional', 0, porDiv).split('\n');
+  confere('texto do regional: o bloco das divisões',
+    textoR.slice(textoR.indexOf('🏁 *POR DIVISÃO*') + 1, textoR.indexOf('🏁 *POR DIVISÃO*') + 3),
+    ['1. Oeste - RJ4 — *100%* (1 de 1) · 2 kg', '2. Barra - RJ4 — *67%* (2 de 3) · 2 kg']);
+  confere('texto do regional: quem levou com a divisão, e quem não levou por divisão',
+    [textoR.find(l => l.startsWith('1. Ugo')), textoR.slice(textoR.indexOf('📌 *FORAM E NÃO LEVARAM*') + 1, textoR.indexOf('📌 *FORAM E NÃO LEVARAM*') + 3)],
+    ['1. Ugo (X) · Oeste - RJ4 — 2 kg', ['*Barra - RJ4*', '1. Abel (VI) — levou em 0 de 1 evento']]);
 
   const texto = textoDoacoes(r, 'barra', 0).split('\n');
   confere('texto: o rank só com quem levou', texto.filter(l => /^\d+\. .* kg$/.test(l)),
@@ -1477,6 +1513,28 @@ log('');
   const rank = textoRankPresenca({ divisoes: [{ chave: 'barra', percentual: 80, convites: 10, confirmacoes: 8 }, { chave: 'regional', percentual: 50, convites: 4, confirmacoes: 2 }], membros: [] }, '6meses').split('\n');
   confere('rank de presença: o total da RJ4 e as divisões do maior % pro menor', [rank[1], rank[3], rank[6], rank[7]],
     ['Últimos 6 meses', '🏁 *Total Regional RJ4: 71%*', '1. Barra - RJ4: 80%', '2. Regional RJ4: 50%']);
+  // O card 🥫 do Resumo (04/11/2026): a conta e o texto.
+  const { resumoDoacoesPeriodo } = await import(url('dominio/doacoes.js'));
+  const evR = (id, categoria, data, confirmados, doacoes, status = 'encerrado') => ({ id, nome: id, categoria, data, status, confirmados, doacoes });
+  const rd = resumoDoacoesPeriodo([
+    evR('b1', 'barra', '2026-11-05', ['a', 'b', 'c'], { a: 1, b: 2 }),        // 2 de 3
+    evR('r1', 'regional', '2026-11-06', ['a', 'd'], { d: 1, x: 1 }),         // 1 de 2 (x nao estava ✅)
+    evR('b2', 'barra', '2026-11-07', ['a'], {}),                             // sem marcacao: fora
+    evR('b3', 'barra', '2026-11-08', ['a'], { a: 1 }, 'ativo'),             // aberto: fora
+    evR('b0', 'barra', '2026-09-01', ['a'], { a: 1 }),                       // fora da janela
+  ], '2026-10-01', '');
+  confere('resumo das doações: dos ✅ de cada evento encerrado e marcado, quantos levaram',
+    [rd.levaram, rd.foram, rd.pct, rd.kg, rd.eventos, rd.semMarcacao], [3, 5, 60, 5, 2, 1]);
+  confere('resumo das doações: por evento, do mais recente pro mais antigo', rd.itens.map(i => [i.ev.id, i.pct]), [['r1', 50], ['b1', 67]]);
+  confere('resumo das doações: por divisão, na ordem oficial', rd.porDivisao.map(d => [d.chave, d.pct]), [['regional', 50], ['barra', 67]]);
+  const comDoacoes = textoResumoRelatorios({ escopo: 'Regional RJ4', filtro: 'Todas as divisões', datas: '', total: { meses: 3, r: r(60, 30, 50, 6) },
+    tipos: [], faltas: [], mesesLista: 3, membros: [], doacoes: { meses: 1, r: rd, varias: true } }).split('\n');
+  const i0 = comDoacoes.indexOf('🥫 *Doações de alimento* — último mês');
+  confere('resumo dos relatórios: as doações, com cada divisão e sem nomes', comDoacoes.slice(i0, i0 + 6), [
+    '🥫 *Doações de alimento* — último mês', '📊 60% (3 de 5) · 5 kg · 2 eventos',
+    '- Regional RJ4: 50% (1 de 2) · 2 kg · 1 evento', '- Barra - RJ4: 67% (2 de 3) · 3 kg · 1 evento',
+    '_Dos ✅ confirmados em cada evento, quantos levaram alimento._', '_1 evento sem doação marcada ficou de fora._']);
+  confere('resumo dos relatórios: sem doações carregadas, a parte não aparece', resumo.some(l => l.includes('Doações')), false);
   confere('saldo do estoque, cada item na sua medida', textoSaldoEstoque([{ item: 'Sapatos', quantidade: 2, medida: 'par' }], 'barra').split('\n').pop(), '• *Sapatos*: 2 pares');
 }
 log(falhas === 0 ? 'TUDO OK' : `${falhas} FALHA(S) — veja acima`);

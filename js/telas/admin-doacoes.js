@@ -3,15 +3,17 @@
 // levou) e "Estoque" (o que o clube tem guardado, em
 // admin-doacoes-estoque.js). As contas moram em dominio/doacoes.js.
 //
-// So aparece nas divisoes de temDoacoesECaixinha (ver config.js).
+// So aparece nas divisoes de temDoacoesECaixinha (ver config.js). O
+// Regional tem o "Por evento" desde 04/11/2026, com a lista de cada evento
+// em blocos por divisao.
 
 import { carregarDoacoes } from '../dados/carregar.js';
-import { PERIODOS, dataDoEvento, formatKg, membrosParaMarcar, nomeDoPeriodo, rankDoacoes, rotuloPilula, somaKg, textoDoacoes } from '../dominio/doacoes.js';
+import { PERIODOS, blocosPorDivisao, dataDoEvento, formatKg, membrosParaMarcar, nomeDoPeriodo, rankDoacoes, rankPorDivisao, rotuloPilula, somaKg, textoDoacoes } from '../dominio/doacoes.js';
 import { proximaMedida, sugerirMedida } from '../dominio/estoque.js';
 import { membrosDoEscopo } from '../dominio/estatisticas.js';
 import { soAtivos } from '../dominio/movimentos.js';
 import { salvarDoacoes } from '../fluxos/doacoes-caixinha.js';
-import { corTipoEvento, emojiTipoEvento, escopoPorChave } from '../nucleo/config.js';
+import { corTipoEvento, doacoesDesde, emojiTipoEvento, escopoPorChave } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
 import { copiarTexto, escapeHtml, formatDataCurta, hexParaRgba, imprimirTexto, normalizarBusca } from '../nucleo/util.js';
@@ -73,7 +75,10 @@ function listaEventos(d) {
   const ativos = ordenados.filter(e => e.status !== 'encerrado');
   const encerrados = ordenados.filter(e => e.status === 'encerrado');
   const visiveis = encerrados.slice(0, state.doacoesQtdEncerrados);
-  if (!ordenados.length) return '<div class="empty">Nenhum evento desta divisão ainda.<br>Os eventos aparecem aqui assim que forem criados.</div>';
+  if (!ordenados.length) {
+    const desde = doacoesDesde(state.adminEscopo);
+    return `<div class="empty">Nenhum evento ${desde ? 'desde ' + escapeHtml(formatDataCurta(desde)) : 'desta divisão'} ainda.<br>Os eventos aparecem aqui assim que forem criados.</div>`;
+  }
   return `
     <div class="alert info" style="margin-bottom:14px;">
       <div class="alert-msg">Toque num evento pra marcar quem levou alimento. A regra do clube é 1 kg em todo evento.</div>
@@ -92,7 +97,7 @@ function linhaMarcar(m, ev) {
   const kg = state.doacoesMarcacoes[m.id] || 0;
   const confirmado = ev.confirmados.includes(m.id);
   return `
-    <div class="member-row">
+    <div class="member-row" data-busca="${escapeHtml(normalizarBusca(m.nome))}">
       <div class="member-head" data-action="doacao-alternar" data-id="${m.id}">
         <div class="member-info">
           ${selinhoIniciais(m)}
@@ -112,8 +117,30 @@ function linhaMarcar(m, ev) {
   `;
 }
 
+// No Regional, um bloco por divisao (blocosPorDivisao), sempre aberto - aqui
+// se marca, e abrir divisao por divisao seria um toque a mais por nome. O
+// titulo do bloco diz quantos daquela divisao ja levaram.
+function listaMarcar(ev, membros) {
+  if (!membros.length) return '<div class="empty">Ninguém convocado neste evento.</div>';
+  if (state.adminEscopo !== 'regional') return membros.map(m => linhaMarcar(m, ev)).join('');
+  return blocosPorDivisao(membros).map(b => {
+    const levaram = b.membros.filter(m => state.doacoesMarcacoes[m.id]).length;
+    return `
+      <div class="grupo-divisao aberto">
+        <div class="division-subheader"><span>${escapeHtml(b.divisao.toUpperCase())}</span><span class="division-counts">🥫 ${levaram} de ${b.membros.length}</span></div>
+        <div class="grupo-linhas">${b.membros.map(m => linhaMarcar(m, ev)).join('')}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// A partir de quantos nomes a busca aparece - o mesmo numero da tela do evento.
+const MINIMO_PRA_BUSCA = 10;
+
 function painelMarcar(ev) {
-  const membros = membrosParaMarcar(ev, soAtivos(membrosDoEscopo()), state.roster);
+  // Evento sem convocado: a divisao inteira, ou, no Regional, todo mundo.
+  const daCasa = state.adminEscopo === 'regional' ? state.roster : membrosDoEscopo();
+  const membros = membrosParaMarcar(ev, soAtivos(daCasa), state.roster);
   const kgs = Object.values(state.doacoesMarcacoes).filter(Boolean);
   const total = kgs.reduce((s, k) => s + k, 0);
   return `
@@ -127,8 +154,13 @@ function painelMarcar(ev) {
     <div class="alert info" style="margin-bottom:12px;">
       <div class="alert-msg">Toque no nome pra marcar 1 kg. Se alguém levou mais, use o +. Os ✅ confirmaram presença no evento.</div>
     </div>
-    <div class="card" style="padding: 4px 16px;">
-      ${membros.length ? membros.map(m => linhaMarcar(m, ev)).join('') : '<div class="empty">Ninguém convocado neste evento.</div>'}
+    ${membros.length >= MINIMO_PRA_BUSCA ? `
+      <input id="busca-membro" class="busca-membro" type="search" placeholder="🔎 Ache o nome…"
+        value="${escapeHtml(state.buscaMembro || '')}" autocomplete="off" autocorrect="off" spellcheck="false">
+    ` : ''}
+    <div class="card lista-membros" style="padding: 4px 16px;">
+      ${listaMarcar(ev, membros)}
+      <div class="empty busca-vazia" hidden>Ninguém com esse nome por aqui.</div>
     </div>
     ${cardExternas()}
     <div class="row-gap" style="margin-bottom:16px;">
@@ -231,13 +263,61 @@ function pilulas() {
   `;
 }
 
-function renderRank(d) {
-  const r = rankDoacoes(d, membrosDoEscopo(), state.doacoesPeriodo);
-  const naoLevaram = r.presencas - r.presencasComDoacao;
-  const doaram = r.membros.filter(m => m.kg > 0);
-  const lugares = posicoesDoPodio(r.membros.map(m => m.kg > 0 ? m.kg : null));
+// O rank que a tela, o texto, o PDF e a imagem usam - um so, pra nunca
+// discordarem. No Regional entra o cadastro inteiro (os eventos dele chamam
+// todas as divisoes) e vem junto o rank por divisao.
+function rankDaTela(d) {
+  const regional = state.adminEscopo === 'regional';
+  const r = rankDoacoes(d, regional ? state.roster : membrosDoEscopo(), state.doacoesPeriodo);
+  return { r, porDivisao: regional ? rankPorDivisao(r) : null };
+}
 
-  const cardTotal = `
+// Um integrante no rank: os kg e, embaixo, o cumprimento dele.
+function linhaRank(m, lugar) {
+  return `
+    <div class="member-row${lugar ? ' podio podio-' + lugar : ''}">
+      <div class="member-head" style="cursor:default;">
+        <div class="member-info">
+          ${medalha(lugar)}${selinhoIniciais(m)}
+          <span class="member-name">${escapeHtml(m.nome)}</span>
+          ${m.grau ? `<span class="grade-box">${escapeHtml(m.grau)}</span>` : ''}
+        </div>
+        <span class="status-badge ${m.kg ? 'status-confirmado' : 'status-nao-fez'}">${formatKg(m.kg)}</span>
+      </div>
+      ${linhaFuncoes(m.funcoes)}
+      <div class="doacao-detalhe">${m.foi
+        ? `Levou em ${m.levouQuandoFoi} de ${m.foi} ${m.foi === 1 ? 'evento' : 'eventos'} em que foi · <b class="${m.cumprimento === 100 ? 'cumpre' : 'falta-cumprir'}">${m.cumprimento}%</b>`
+        : 'Não foi a nenhum evento encerrado no período'}</div>
+    </div>
+  `;
+}
+
+// Quem foi e nao levou, com quantas vezes ficou sem levar.
+function linhaMelhorar(m) {
+  return `
+    <div class="member-row">
+      <div class="member-head" style="cursor:default;">
+        <div class="member-info">
+          ${selinhoIniciais(m)}
+          <span class="member-name">${escapeHtml(m.nome)}</span>
+          ${m.grau ? `<span class="grade-box">${escapeHtml(m.grau)}</span>` : ''}
+        </div>
+        <span class="status-badge status-nao-fez">${m.foi - m.levouQuandoFoi} sem levar</span>
+      </div>
+    </div>
+  `;
+}
+
+// "2 eventos encerrados sem doação marcada ficaram de fora" - pra conta nao
+// parecer errada a quem lembra de um evento que nao entrou (ver rankDoacoes).
+function avisoSemMarcacao(r) {
+  if (!r.semMarcacao) return '';
+  return `<div class="info-line" style="padding:2px 0 0; color:var(--text-muted); font-size:12px; text-align:center;">${r.semMarcacao} ${r.semMarcacao === 1 ? 'evento encerrado sem doação marcada ficou' : 'eventos encerrados sem doação marcada ficaram'} de fora da conta.</div>`;
+}
+
+function cardTotalRank(r) {
+  const naoLevaram = r.presencas - r.presencasComDoacao;
+  return `
     <div class="card donut-card donut-card-total" style="margin-bottom:14px;">
       <div class="painel-titulo">🥫 Doações de alimento</div>
       ${pilulas()}
@@ -247,6 +327,7 @@ function renderRank(d) {
       ], r.cumprimento === null ? '—' : r.cumprimento + '%', 'cumprimento', 150)}
       <div class="doacao-total" style="text-align:center;"><b>${formatKg(r.totalKg)}</b> arrecadados em ${r.eventosComDoacao} ${r.eventosComDoacao === 1 ? 'evento' : 'eventos'}</div>
       <div class="info-line" style="padding:2px 0 0; color:var(--text-muted); font-size:12px; text-align:center;">Cumprimento: dos que foram aos eventos encerrados, quantos levaram alimento.</div>
+      ${avisoSemMarcacao(r)}
       ${renderSparklineTendencia(r.porEvento.map(x => ({ ev: x.ev, pct: x.pct })))}
       ${botaoGerarRelatorio('doacoes-rank', [
         { acao: 'copiar-texto-doacoes', rotulo: '📋 WhatsApp' },
@@ -255,48 +336,68 @@ function renderRank(d) {
       ])}
     </div>
   `;
+}
+
+// O Rank do Regional: as divisoes, da que mais cumpre pra que menos. Tocar
+// numa abre os integrantes dela (kg e cumprimento) e quem foi e nao levou.
+function renderRankRegional(r, porDivisao) {
+  const lugares = posicoesDoPodio(porDivisao.map(x => x.cumprimento));
+  const linhas = porDivisao.map((x, i) => {
+    const aberta = state.doacoesDivisaoAberta === x.divisao;
+    const lugaresM = posicoesDoPodio(x.membros.map(m => m.kg > 0 ? m.kg : null));
+    return `
+      <div class="member-row${lugares[i] ? ' podio podio-' + lugares[i] : ''}">
+        <div class="member-head" data-action="doacoes-abrir-divisao" data-value="${escapeHtml(x.divisao)}">
+          <div class="member-info">
+            ${medalha(lugares[i])}
+            <span class="member-name">${escapeHtml(x.divisao)}</span>
+          </div>
+          <span class="status-badge ${x.cumprimento === 100 ? 'status-confirmado' : 'status-nao-fez'}">${x.cumprimento === null ? '—' : x.cumprimento + '%'}</span>
+        </div>
+        <div class="doacao-detalhe">${x.foi
+          ? `Levaram em ${x.levouQuandoFoi} de ${x.foi} ${x.foi === 1 ? 'presença' : 'presenças'}`
+          : 'Ninguém foi a evento encerrado no período'} · 🥫 ${formatKg(x.kg)} · ${aberta ? 'fechar ▲' : 'ver integrantes ▼'}</div>
+      </div>
+      ${aberta ? `
+        <div class="doacao-divisao-aberta">
+          ${x.membros.map((m, j) => linhaRank(m, lugaresM[j])).join('')}
+          ${x.melhorar.length ? `
+            <div class="division-subheader"><span>📌 FORAM E NÃO LEVARAM</span><span class="division-counts">${x.melhorar.length}</span></div>
+            ${x.melhorar.map(linhaMelhorar).join('')}
+          ` : ''}
+        </div>
+      ` : ''}
+    `;
+  }).join('');
+  return cardTotalRank(r) + `
+    <div class="card" style="padding: 4px 16px;">
+      <div class="division-subheader"><span>🏁 POR DIVISÃO</span><span class="division-counts">nos eventos do Regional</span></div>
+      ${porDivisao.length ? linhas : '<div class="empty">Nenhum integrante cadastrado.</div>'}
+    </div>
+  `;
+}
+
+function renderRank(d) {
+  const { r, porDivisao } = rankDaTela(d);
+  if (porDivisao) return renderRankRegional(r, porDivisao);
+  const doaram = r.membros.filter(m => m.kg > 0);
+  const lugares = posicoesDoPodio(r.membros.map(m => m.kg > 0 ? m.kg : null));
 
   const lista = `
     <div class="card" style="padding: 4px 16px;">
       <div class="division-subheader"><span>🏆 QUEM MAIS LEVOU</span><span class="division-counts">${doaram.length} de ${r.membros.length}</span></div>
-      ${r.membros.length === 0 ? '<div class="empty">Nenhum integrante cadastrado nesta divisão.</div>' : r.membros.map((m, i) => `
-        <div class="member-row${lugares[i] ? ' podio podio-' + lugares[i] : ''}">
-          <div class="member-head" style="cursor:default;">
-            <div class="member-info">
-              ${medalha(lugares[i])}${selinhoIniciais(m)}
-              <span class="member-name">${escapeHtml(m.nome)}</span>
-              ${m.grau ? `<span class="grade-box">${escapeHtml(m.grau)}</span>` : ''}
-            </div>
-            <span class="status-badge ${m.kg ? 'status-confirmado' : 'status-nao-fez'}">${formatKg(m.kg)}</span>
-          </div>
-          ${linhaFuncoes(m.funcoes)}
-          <div class="doacao-detalhe">${m.foi
-            ? `Levou em ${m.levouQuandoFoi} de ${m.foi} ${m.foi === 1 ? 'evento' : 'eventos'} em que foi · <b class="${m.cumprimento === 100 ? 'cumpre' : 'falta-cumprir'}">${m.cumprimento}%</b>`
-            : 'Não foi a nenhum evento encerrado no período'}</div>
-        </div>
-      `).join('')}
+      ${r.membros.length === 0 ? '<div class="empty">Nenhum integrante cadastrado nesta divisão.</div>' : r.membros.map((m, i) => linhaRank(m, lugares[i])).join('')}
     </div>
   `;
 
   const melhorar = r.melhorar.length ? `
     <div class="card" style="padding: 4px 16px; margin-top:14px;">
       <div class="division-subheader"><span>📌 FORAM E NÃO LEVARAM</span><span class="division-counts">${r.melhorar.length}</span></div>
-      ${r.melhorar.map(m => `
-        <div class="member-row">
-          <div class="member-head" style="cursor:default;">
-            <div class="member-info">
-              ${selinhoIniciais(m)}
-              <span class="member-name">${escapeHtml(m.nome)}</span>
-              ${m.grau ? `<span class="grade-box">${escapeHtml(m.grau)}</span>` : ''}
-            </div>
-            <span class="status-badge status-nao-fez">${m.foi - m.levouQuandoFoi} sem levar</span>
-          </div>
-        </div>
-      `).join('')}
+      ${r.melhorar.map(linhaMelhorar).join('')}
     </div>
   ` : '';
 
-  return cardTotal + lista + melhorar;
+  return cardTotalRank(r) + lista + melhorar;
 }
 
 export function renderAdminDoacoes() {
@@ -313,8 +414,7 @@ export function renderAdminDoacoes() {
   if (!d) return `<div class="card">${esqueletoLista(5)}</div>`;
 
   if (state.adminTab === 'doacoes-rank') return renderRank(d);
-  // No Regional, das Doacoes so existe o estoque.
-  if (state.adminTab === 'doacoes-estoque' || state.adminEscopo === 'regional') return renderEstoque();
+  if (state.adminTab === 'doacoes-estoque') return renderEstoque();
   const ev = eventoAberto();
   if (ev) return painelMarcar(ev);
   return aviso() + listaEventos(d);
@@ -334,6 +434,7 @@ export const acoes = {
     state.doacoesMarcacoes = { ...ev.doacoes };
     state.doacoesExternas = comLinhaVazia((ev.externas || []).map(x => ({ descricao: x.descricao, quantidade: String(x.quantidade).replace('.', ','), medida: x.medida })));
     state.doacoesMsg = null;
+    state.buscaMembro = '';
     window.scrollTo(0, 0);
     return render();
   },
@@ -387,20 +488,26 @@ export const acoes = {
   'copiar-texto-doacoes': async (id, target, action, e) => {
     const d = dados();
     if (!d) return;
-    const r = rankDoacoes(d, membrosDoEscopo(), state.doacoesPeriodo);
-    return copiarTexto(textoDoacoes(r, state.adminEscopo, state.doacoesPeriodo));
+    const { r, porDivisao } = rankDaTela(d);
+    return copiarTexto(textoDoacoes(r, state.adminEscopo, state.doacoesPeriodo, porDivisao));
   },
   // O PDF leva o mesmo texto do WhatsApp, numa folha limpa (imprimirTexto).
   'pdf-doacoes': async (id, target, action, e) => {
     const d = dados();
     if (!d) return;
-    const r = rankDoacoes(d, membrosDoEscopo(), state.doacoesPeriodo);
-    return imprimirTexto(textoDoacoes(r, state.adminEscopo, state.doacoesPeriodo));
+    const { r, porDivisao } = rankDaTela(d);
+    return imprimirTexto(textoDoacoes(r, state.adminEscopo, state.doacoesPeriodo, porDivisao));
   },
   'imagem-doacoes': async (id, target, action, e) => {
     const d = dados();
     if (!d) return;
-    const r = rankDoacoes(d, membrosDoEscopo(), state.doacoesPeriodo);
-    return mostrarPreviaImagem(() => imagemDoacoes(r, escopoPorChave(state.adminEscopo).nome, nomeDoPeriodo(state.doacoesPeriodo)), 'doacoes.png');
+    const { r, porDivisao } = rankDaTela(d);
+    return mostrarPreviaImagem(() => imagemDoacoes(r, escopoPorChave(state.adminEscopo).nome, nomeDoPeriodo(state.doacoesPeriodo), porDivisao), 'doacoes.png');
+  },
+  // No Rank do Regional: abre (ou fecha) os integrantes de uma divisao.
+  'doacoes-abrir-divisao': async (id, target, action, e) => {
+    const divisao = target.dataset.value;
+    state.doacoesDivisaoAberta = state.doacoesDivisaoAberta === divisao ? null : divisao;
+    return render();
   },
 };

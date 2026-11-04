@@ -54,8 +54,8 @@ export const IMG_AREAS = {
 //     antigas dos cards com o texto APAGADO; o app escreve nome e descricao
 //     no lugar, com as cores [nome, descricao] no tom da arte;
 //   - desc: [esquerda %, topo %, largura %] - Doacoes: o titulo e da arte,
-//     e a linha da descricao foi apagada porque muda no Regional ("O
-//     estoque do Regional"); o app escreve a descricao certa de cada um.
+//     e a linha da descricao foi apagada (ja mudou no Regional, ate
+//     04/11/2026); o app escreve a descricao.
 // Secao sem entrada aqui fica com o card de sempre, de icone e texto.
 export const IMG_SECOES = {
   eventos: { src: 'img/secao-eventos.webp', largura: 900, altura: 179, texto: [13, 40], cores: ['#F3E6C4', '#C9C2B4'] },

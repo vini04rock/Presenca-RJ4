@@ -1,6 +1,7 @@
 // Carrega da planilha para o state e redesenha. Nao decide nada de tela.
 
 import { api, apiPost } from '../nucleo/api.js';
+import { doacoesDesde, escoposEmOrdemDeExibicao, temDoacoesECaixinha } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
 import { emLotes } from '../nucleo/util.js';
@@ -206,6 +207,16 @@ export async function loadEstatisticas() {
   render();
 }
 
+// Os eventos das Doacoes de uma divisao, sem os de antes de ela comecar a
+// marcar (ver doacoesDesde) e com a divisao em cada um (a `categoria`, como
+// nos eventos do app). Todas as telas das Doacoes leem daqui.
+function eventosDeDoacao(r, escopo) {
+  const desde = doacoesDesde(escopo);
+  return (r.eventos || [])
+    .filter(e => !desde || !e.data || e.data >= desde)
+    .map(e => ({ ...e, categoria: escopo }));
+}
+
 // Doacoes e caixinha da divisao em que o organizador entrou. Busca de novo
 // a cada entrada na secao (ver abrirAbaOrganizador): outro organizador pode
 // ter marcado alguma coisa desde a ultima vez. Se a pessoa trocar de
@@ -219,13 +230,36 @@ export async function carregarDoacoes() {
     const r = await api('doacoes', { divisao: escopo });
     if (state.adminEscopo !== escopo) return;
     // O Estoque (o livro de entradas e saidas) vem na mesma resposta.
-    state.doacoesDados = { eventos: r.eventos || [], nomes: r.nomes || {}, estoque: r.estoque || { itens: [], movimentos: [] } };
+    state.doacoesDados = { eventos: eventosDeDoacao(r, escopo), nomes: r.nomes || {}, estoque: r.estoque || { itens: [], movimentos: [] } };
     state.doacoesDadosEscopo = escopo;
   } catch (e) {
     if (state.adminEscopo !== escopo) return;
     state.doacoesErro = e.message;
   }
   state.doacoesCarregando = false;
+  render();
+}
+
+// As doacoes pro card 🥫 do Resumo dos Relatorios (04/11/2026): a mesma
+// leitura da secao Doacoes, de cada divisao que usa as Doacoes e que quem
+// entrou pode ver - no Regional, todas elas (o PIN dele abre tudo); numa
+// divisao, so a dela. Busca a cada entrada nos Relatorios.
+export async function carregarDoacoesDoRelatorio() {
+  const escopo = state.adminEscopo;
+  const divisoes = escopo === 'regional'
+    ? escoposEmOrdemDeExibicao().map(e => e.chave).filter(temDoacoesECaixinha)
+    : [escopo].filter(temDoacoesECaixinha);
+  state.relatorioDoacoes = null;
+  state.relatorioDoacoesErro = null;
+  if (!divisoes.length) return;
+  try {
+    const respostas = await Promise.all(divisoes.map(d => api('doacoes', { divisao: d })));
+    if (state.adminEscopo !== escopo) return;
+    state.relatorioDoacoes = { escopo, eventos: respostas.flatMap((r, i) => eventosDeDoacao(r, divisoes[i])) };
+  } catch (e) {
+    if (state.adminEscopo !== escopo) return;
+    state.relatorioDoacoesErro = e.message;
+  }
   render();
 }
 

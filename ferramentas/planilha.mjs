@@ -749,7 +749,9 @@ log('=== estoque das doações: o livro de entradas e saídas ===');
   confere('movimentar sem PIN é recusado', contexto.executar('estoqueDoacoesMovimentar', { divisao: 'barra', tipo: 'entrada', itemNome: 'X', quantidade: 1 }).ok, false);
   confere('começa do zero, com o item dos alimentos (0 kg) já existindo', estoque(),
     { itens: [{ id: 'alimentos-barra', nome: 'Alimentos (dos eventos)', medida: 'kg', automatico: true, saldo: 0 }], movimentos: [] });
-  confere('o Regional não tem o item dos alimentos', estoque({ escopo: 'regional', pin: '0418', divisao: 'regional' }).itens, []);
+  // Desde 04/11/2026 o Regional marca as doacoes dos eventos dele.
+  confere('o Regional também tem o item dos alimentos', estoque({ escopo: 'regional', pin: '0418', divisao: 'regional' }).itens,
+    [{ id: 'alimentos-regional', nome: 'Alimentos (dos eventos)', medida: 'kg', automatico: true, saldo: 0 }]);
 
   // Entradas avulsas.
   const r = mover({ tipo: 'entrada', itemNome: '  Cobertor ', medida: 'un', quantidade: 12, data: '2026-10-10', descricao: 'família do Costa' });
@@ -1270,6 +1272,31 @@ log('=== isolamento: cada divisão só mexe no que é dela ===');
 }
 
 log('');
+log('=== doações nos eventos do Regional (04/11/2026) ===');
+{
+  const evR = (id, data, status) => { const l = ev(id, data, status); l[8] = 'regional'; return l; };
+  const p = montaPlanilha([evR('r1', '2026-11-02', 'ativo'), ev('b1', '2026-11-03', 'ativo')],
+    [pr('r1', 'm1', 'Confirmado'), pr('r1', 'o9', 'Aguardando')]);
+  p.abas.Membros = novaAba('Membros', [['ID', 'Nome', 'Grau', 'Divisao', 'Funcoes', 'Cargo'],
+    ['m1', 'Costa', 'VI', 'Barra - RJ4', '', ''], ['o9', 'Fabiano', 'X', 'Oeste - RJ4', '', '']]);
+  const { contexto } = carregaCodeGs(p, { PIN_REGIONAL: '0418', PIN_BARRA: '1801' });
+  const regional = { escopo: 'regional', pin: '0418', divisao: 'regional' };
+  const barra = { escopo: 'barra', pin: '1801', divisao: 'barra' };
+
+  const lido = contexto.executar('doacoes', regional);
+  confere('o Regional lê só os eventos dele, com os convocados de todas as divisões',
+    lido.eventos.map(e => [e.id, e.convocados, e.confirmados]), [['r1', ['m1', 'o9'], ['m1']]]);
+  const salvo = contexto.executar('doacoesSalvar', { ...regional, eventoId: 'r1', kgs: JSON.stringify({ m1: 1, o9: 2 }) });
+  confere('o Regional salva as doações do evento dele', [salvo.ok, salvo.doadores, salvo.totalKg], [true, 2, 3]);
+  const estoque = contexto.executar('doacoes', regional).estoque;
+  confere('o kg vai pro estoque do Regional, com a data do evento',
+    [estoque.itens[0].saldo, estoque.movimentos.map(m => [m.tipo, m.data, m.quantidade])], [3, [['entrada', '2026-11-02', 3]]]);
+  confere('e não pro da Barra', contexto.executar('doacoes', barra).estoque.itens[0].saldo, 0);
+  confere('a Barra NÃO grava no evento do Regional',
+    contexto.executar('doacoesSalvar', { ...barra, eventoId: 'r1', kgs: JSON.stringify({ m1: 5 }) }).ok, false);
+}
+
+log('');
 log('=== caixinha do Regional (das divisões) e o kg no estoque ===');
 {
   const p = montaPlanilha([], []);
@@ -1294,8 +1321,9 @@ log('=== caixinha do Regional (das divisões) e o kg no estoque ===');
   const entrar = (extra) => contexto.executar('estoqueDoacoesMovimentar', { ...regional, tipo: 'entrada', ...extra });
   entrar({ itemNome: 'Arroz', medida: 'kg', quantidade: 20.5 });
   entrar({ itemNome: 'Cobertor', medida: 'un', quantidade: 3 });
-  confere('o estoque do Regional, com kg e casa decimal (e sem os alimentos dos eventos)',
-    contexto.executar('doacoes', regional).estoque.itens.map(x => [x.nome, x.medida, x.saldo]), [['Arroz', 'kg', 20.5], ['Cobertor', 'un', 3]]);
+  confere('o estoque do Regional, com kg e casa decimal (e os alimentos dos eventos primeiro)',
+    contexto.executar('doacoes', regional).estoque.itens.map(x => [x.nome, x.medida, x.saldo]),
+    [['Alimentos (dos eventos)', 'kg', 0], ['Arroz', 'kg', 20.5], ['Cobertor', 'un', 3]]);
   confere('kg com duas casas decimais é recusado', tentar(() => entrar({ itemNome: 'Feijão', medida: 'kg', quantidade: 2.55 })), 'Quantidade invalida (kg, com ate uma casa decimal)');
   confere('un com decimal continua recusado', tentar(() => entrar({ itemNome: 'Blusa', quantidade: 1.5 })), 'Quantidade invalida (numero inteiro)');
 }

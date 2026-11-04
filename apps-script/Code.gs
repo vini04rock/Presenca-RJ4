@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-10-31-doacoes-de-fora';
+var VERSAO = '2026-11-04-doacoes-regional';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -143,7 +143,8 @@ var TIPOS_LANCAMENTO = { saldoInicial: 'Saldo inicial', entrada: 'Entrada', said
 // EstoqueDoacoesItens: o cadastro dos itens de cada divisao, com a medida
 // ('un', 'par' ou 'kg' - so o kg aceita uma casa decimal). O item dos
 // alimentos dos eventos nao precisa de linha: existe sozinho em toda
-// divisao (ITEM_ALIMENTOS, id 'alimentos-<divisao>'); o Regional nao tem.
+// divisao (ITEM_ALIMENTOS, id 'alimentos-<divisao>'), e desde 04/11/2026
+// tambem no Regional, que passou a marcar as doacoes dos eventos dele.
 //
 // EstoqueDoacoesMov: uma linha por movimento, e nada e apagado.
 //   Tipo 'entrada' - Origem 'avulsa' (lancada a mao) ou 'evento' (as
@@ -2005,10 +2006,12 @@ function lerDoacoes(divisao, pin) {
   return { ok: true, eventos: eventos, nomes: nomes, estoque: dadosEstoqueDoacoes(divisao) };
 }
 
-function temAlimentosDosEventos(divisao) { return divisao !== 'regional'; }
+// Toda divisao, e o Regional (desde 04/11/2026). Fica a funcao, e nao um
+// 'true' solto, pra que deixar alguem de fora de novo seja uma linha so.
+function temAlimentosDosEventos(divisao) { return !!divisao; }
 function idAlimentos(divisao) { return 'alimentos-' + divisao; }
 
-// Os itens da divisao: o dos alimentos primeiro (so nas divisoes), depois os
+// Os itens da divisao: o dos alimentos primeiro, depois os
 // cadastrados, na ordem em que entraram.
 function itensEstoqueDoacoes(divisao) {
   var itens = [];

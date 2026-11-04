@@ -1,6 +1,7 @@
 // Monta o texto do relatorio pronto para colar no WhatsApp.
 
 import { agruparNomesPorDivisaoParaTexto, agruparStatsPorDivisao } from './divisoes.js';
+import { formatKg } from './doacoes.js';
 import { getReportGroups } from './status.js';
 import { divisoesSemRegional, escoposEmOrdemDeExibicao } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
@@ -106,6 +107,15 @@ export function textoResumoRelatorios(d) {
     '*POR TIPO*',
     ...d.tipos.map(t => `${t.emoji} ${t.tipo}${parenteses(t.meses)}: ${numeros(t.r)}`),
   );
+  // As doacoes (04/11/2026): o mesmo numero do card 🥫, sem nomes.
+  const dd = d.doacoes && d.doacoes.r;
+  if (dd) {
+    const conta = x => `${x.pct === null ? '—' : x.pct + '%'} (${x.levaram} de ${x.foram}) · ${formatKg(x.kg)} · ${x.eventos} ${x.eventos === 1 ? 'evento' : 'eventos'}`;
+    linhas.push('', `🥫 *Doações de alimento*${traco(d.doacoes.meses)}`, '📊 ' + conta(dd));
+    if (d.doacoes.varias) dd.porDivisao.forEach(x => linhas.push(`- ${x.nome}: ${conta(x)}`));
+    linhas.push('_Dos ✅ confirmados em cada evento, quantos levaram alimento._');
+    if (dd.semMarcacao) linhas.push(`_${dd.semMarcacao} ${dd.semMarcacao === 1 ? 'evento sem doação marcada ficou' : 'eventos sem doação marcada ficaram'} de fora._`);
+  }
   if (d.faltas.length) {
     linhas.push('', `⭕ *MAIS FALTAS NÃO JUSTIFICADAS*${parenteses(d.mesesLista)}`,
       ...d.faltas.map(f => `- ${f.nome}${d.filtro === 'Todas as divisões' && f.divisao ? ` (${f.divisao})` : ''}: ${f.total}`));

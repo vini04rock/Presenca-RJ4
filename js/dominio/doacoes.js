@@ -17,7 +17,7 @@
 // { eventos: [{ id, nome, data, tipo, status, convocados, confirmados,
 //   doacoes: { idMembro: kg } }], nomes }.
 
-import { escopoPorChave } from '../nucleo/config.js';
+import { escopoPorChave, escoposNaOrdemOficial } from '../nucleo/config.js';
 import { dataCorteMeses, formatDataBR, ordenarPorHierarquia } from '../nucleo/util.js';
 
 // As janelas do filtro de periodo das duas secoes (Doacoes e Caixinha).
@@ -56,7 +56,11 @@ export function eventosDoPeriodo(eventos, meses) {
 // ele doou continua somando no total da divisao.
 export function rankDoacoes(dados, membros, meses) {
   const eventos = eventosDoPeriodo(dados && dados.eventos, meses);
-  const encerrados = eventos.filter(e => e.status === 'encerrado');
+  // Evento encerrado sem NENHUMA doacao marcada fica fora do cumprimento
+  // (decisao do clube, 04/11/2026): o mais provavel e que ninguem tenha
+  // conferido, e contar seria "ninguem levou" sem ninguem ter olhado.
+  const fechados = eventos.filter(e => e.status === 'encerrado');
+  const encerrados = fechados.filter(e => Object.keys(e.doacoes).length);
 
   const linhas = membros.map(m => {
     let kg = 0, vezes = 0, foi = 0, levouQuandoFoi = 0;
@@ -88,6 +92,7 @@ export function rankDoacoes(dados, membros, meses) {
 
   return {
     eventos: eventos.length,
+    semMarcacao: fechados.length - encerrados.length,
     eventosComDoacao: eventos.filter(e => Object.keys(e.doacoes).length).length,
     totalKg: umaCasa(eventos.reduce((s, e) => s + somaKg(e.doacoes), 0)),
     presencas: foiTotal,
@@ -119,12 +124,74 @@ export function membrosParaMarcar(ev, membrosDivisao, roster) {
   ];
 }
 
+// Num evento do Regional a lista e de todas as divisoes, entao ela sai em
+// blocos, um por divisao, na ordem oficial (a da lista do Bonde Regional).
+// Cada bloco mantem a ordem de membrosParaMarcar: os ✅ primeiro, depois a
+// hierarquia. Quem esta numa divisao fora da lista oficial vai pro fim.
+export function blocosPorDivisao(lista) {
+  const blocos = escoposNaOrdemOficial().map(e => ({ divisao: e.nome, membros: lista.filter(m => m.divisao === e.nome) }));
+  const nomes = new Set(blocos.map(b => b.divisao));
+  const fora = lista.filter(m => !nomes.has(m.divisao));
+  if (fora.length) blocos.push({ divisao: 'Sem divisão', membros: fora });
+  return blocos.filter(b => b.membros.length);
+}
+
+// O card 🥫 Doacoes do Resumo dos Relatorios (04/11/2026): o cumprimento
+// evento a evento numa janela de datas (ISO, '' = sem limite). `eventos` sao
+// os das Doacoes, cada um com a `categoria` (a divisao). Como no Rank, so
+// entram os encerrados com alguma doacao marcada; os outros so sao
+// contados (semMarcacao). Dos ✅ de cada evento, quantos levaram - a mesma
+// conta do card do evento em "Por evento".
+export function resumoDoacoesPeriodo(eventos, ini, fim) {
+  const naJanela = (eventos || []).filter(e => e.status === 'encerrado' && e.data
+    && (!ini || e.data >= ini) && (!fim || e.data <= fim));
+  const marcados = naJanela.filter(e => Object.keys(e.doacoes || {}).length);
+  const itens = marcados.map(e => {
+    const levaram = e.confirmados.filter(id => e.doacoes[id]).length;
+    return { ev: e, levaram, confirmados: e.confirmados.length, kg: somaKg(e.doacoes),
+      pct: e.confirmados.length ? Math.round((levaram / e.confirmados.length) * 100) : null };
+  }).sort((a, b) => b.ev.data.localeCompare(a.ev.data));
+  const conta = lista => {
+    const foram = lista.reduce((s, x) => s + x.confirmados, 0);
+    const levaram = lista.reduce((s, x) => s + x.levaram, 0);
+    return { foram, levaram, pct: foram ? Math.round((levaram / foram) * 100) : null,
+      kg: umaCasa(lista.reduce((s, x) => s + x.kg, 0)), eventos: lista.length };
+  };
+  // Uma linha por divisao, na ordem oficial - so as que tem evento.
+  const porDivisao = escoposNaOrdemOficial()
+    .map(e => ({ chave: e.chave, nome: e.nome, ...conta(itens.filter(x => x.ev.categoria === e.chave)) }))
+    .filter(d => d.eventos);
+  return { ...conta(itens), itens, porDivisao, semMarcacao: naJanela.length - marcados.length };
+}
+
+// O Rank do Regional: uma linha por divisao, com os kg e o cumprimento de
+// quem e dela nos eventos do Regional, a mesma conta do rank de integrantes
+// (`rank` e o rankDoacoes com todo o cadastro). Mais cumprimento primeiro;
+// empate, mais kg; depois a ordem oficial. Divisao sem ninguem que foi fica
+// sem % e vai pro fim.
+export function rankPorDivisao(rank) {
+  return blocosPorDivisao(rank.membros).map(b => {
+    const foi = b.membros.reduce((s, m) => s + m.foi, 0);
+    const levou = b.membros.reduce((s, m) => s + m.levouQuandoFoi, 0);
+    const ids = new Set(b.membros.map(m => m.id));
+    return {
+      divisao: b.divisao, membros: b.membros,
+      kg: umaCasa(b.membros.reduce((s, m) => s + m.kg, 0)),
+      foi, levouQuandoFoi: levou,
+      cumprimento: foi ? Math.round((levou / foi) * 100) : null,
+      melhorar: rank.melhorar.filter(m => ids.has(m.id)),
+    };
+  }).sort((a, b) => (b.cumprimento ?? -1) - (a.cumprimento ?? -1) || b.kg - a.kg);
+}
+
 const linhaNome = m => `${m.nome}${m.grau ? ` (${m.grau})` : ''}`;
 
 // O texto pro grupo: os numeros da divisao, o rank de quem levou e - pro
 // lado da melhoria - quem foi e nao levou. Diferente da imagem, o texto leva
 // nomes: e ele que serve pra cobrar.
-export function textoDoacoes(rank, escopo, meses) {
+// No Regional (porDivisao = rankPorDivisao) vem antes o bloco das divisoes,
+// e quem foi e nao levou sai separado por divisao.
+export function textoDoacoes(rank, escopo, meses, porDivisao = null) {
   const partes = [
     '🥫 *DOAÇÕES DE ALIMENTO* 🥫',
     `*${escopoPorChave(escopo).nome.toUpperCase()}* · ${nomeDoPeriodo(meses)}`,
@@ -134,12 +201,26 @@ export function textoDoacoes(rank, escopo, meses) {
   if (rank.cumprimento !== null) {
     partes.push(`Cumprimento: *${rank.cumprimento}%* (levaram alimento em ${rank.presencasComDoacao} de ${rank.presencas} presenças)`);
   }
+  if (rank.semMarcacao) {
+    partes.push(`_${rank.semMarcacao} ${rank.semMarcacao === 1 ? 'evento encerrado sem doação marcada ficou' : 'eventos encerrados sem doação marcada ficaram'} de fora da conta._`);
+  }
+  if (porDivisao) {
+    partes.push('', '🏁 *POR DIVISÃO*');
+    porDivisao.forEach((d, i) => partes.push(`${i + 1}. ${d.divisao} — ${d.cumprimento === null ? 'ninguém foi' : `*${d.cumprimento}%* (${d.levouQuandoFoi} de ${d.foi})`} · ${formatKg(d.kg)}`));
+  }
   const doaram = rank.membros.filter(m => m.kg > 0);
+  const daDivisao = m => porDivisao && m.divisao ? ` · ${m.divisao}` : '';
   if (doaram.length) {
     partes.push('', '🏆 *QUEM MAIS LEVOU*');
-    doaram.forEach((m, i) => partes.push(`${i + 1}. ${linhaNome(m)} — ${formatKg(m.kg)}`));
+    doaram.forEach((m, i) => partes.push(`${i + 1}. ${linhaNome(m)}${daDivisao(m)} — ${formatKg(m.kg)}`));
   }
-  if (rank.melhorar.length) {
+  if (porDivisao && rank.melhorar.length) {
+    partes.push('', '📌 *FORAM E NÃO LEVARAM*');
+    porDivisao.filter(d => d.melhorar.length).forEach(d => {
+      partes.push(`*${d.divisao}*`);
+      d.melhorar.forEach((m, i) => partes.push(`${i + 1}. ${linhaNome(m)} — levou em ${m.levouQuandoFoi} de ${m.foi} ${m.foi === 1 ? 'evento' : 'eventos'}`));
+    });
+  } else if (rank.melhorar.length) {
     partes.push('', '📌 *FORAM E NÃO LEVARAM*');
     rank.melhorar.forEach((m, i) => partes.push(`${i + 1}. ${linhaNome(m)} — levou em ${m.levouQuandoFoi} de ${m.foi} ${m.foi === 1 ? 'evento' : 'eventos'}`));
   }

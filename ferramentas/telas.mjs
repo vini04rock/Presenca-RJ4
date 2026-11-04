@@ -424,6 +424,24 @@ add('relatorios / revisão do colado', { isAdmin:true, adminEscopo:'barra',
   relatorioParsed:{ avisos:[], evento:{ nome:'Pub de teste', data:'2026-09-21', tipo:'Pub' },
     membrosParsed:[{ nome:'Costa', membroId:'m1', status:'confirmado', sugestoes:[], ignorado:false }] } },
   T.renderRelatorioShell);
+// O card 🥫 Doacoes do Resumo (04/11/2026): carregando, com dados (o
+// periodo de 12 meses e fixo, pro resultado nao mudar com o calendario), o
+// "Ver eventos" e o erro. Numa divisao sem Doacoes o card nao aparece.
+const doacoesDoRelatorio = { escopo:'regional', eventos:[
+  { id:'b1', nome:'Pub do mes', categoria:'barra', data:'2026-11-05', status:'encerrado', confirmados:['m1','m2','m3'], doacoes:{ m1:1, m2:2 } },
+  { id:'r1', nome:'Bonde Regional', categoria:'regional', data:'2026-11-06', status:'encerrado', confirmados:['m1','m6'], doacoes:{ m6:1 } },
+  { id:'r2', nome:'Reuniao Regional', categoria:'regional', data:'2026-11-07', status:'encerrado', confirmados:['m6'], doacoes:{} },
+] };
+const rel = { isAdmin:true, adminEscopo:'regional', relatorioCategoriaAlvo:'regional', relatorioTab:'resumo', relatorioFiltroDivisao:'todas' };
+add('relatorios / doações carregando', { ...rel, relatorioDoacoes:null }, T.renderRelatorioShell);
+add('relatorios / doações (12 meses)', { ...rel, relatorioDoacoes:doacoesDoRelatorio,
+  relatorioPeriodoPorGrafico:{ total:1, doacoes:12 } }, T.renderRelatorioShell);
+add('relatorios / doações ver eventos', { ...rel, relatorioDoacoes:doacoesDoRelatorio, relatorioTipoDetalhe:'doacoes',
+  relatorioPeriodoPorGrafico:{ total:1, doacoes:12 } }, T.renderRelatorioShell);
+add('relatorios / doações ver eventos (só barra)', { ...rel, relatorioFiltroDivisao:'barra', relatorioDoacoes:doacoesDoRelatorio,
+  relatorioTipoDetalhe:'doacoes', relatorioPeriodoPorGrafico:{ total:1, doacoes:12 } }, T.renderRelatorioShell);
+add('relatorios / doações erro', { ...rel, relatorioDoacoesErro:'A conexao demorou demais' }, T.renderRelatorioShell);
+add('relatorios / sem doações (oeste)', { ...rel, relatorioFiltroDivisao:'oeste', relatorioDoacoes:doacoesDoRelatorio }, T.renderRelatorioShell);
 add('relatorios / ficha do membro',   { isAdmin:true, adminEscopo:'regional',
   relatorioTab:'resumo', relatorioMembroFichaId:'m1' }, T.renderRelatorioShell);
 add('relatorios / detalhe por tipo',  { isAdmin:true, adminEscopo:'regional',
@@ -543,6 +561,24 @@ add('doações / carregando',            { ...dc, adminTab:'doacoes', doacoesDad
 // Dados de outra divisao na memoria: nao podem aparecer dentro da Barra.
 add('doações / dados de outra divisão', { ...dc, adminTab:'doacoes', doacoesDadosEscopo:'oeste' }, T.renderAdmin);
 add('doações / erro',                  { ...dc, adminTab:'doacoes', doacoesErro:'A conexao demorou demais' }, T.renderAdmin);
+// O Regional (desde 04/11/2026): os eventos dele, e a lista em blocos por divisao.
+const doacoesRegional = { eventos: [
+  { id:'r1', nome:'Bonde Regional', data:'2026-11-08', tipo:'Bate e Volta', status:'ativo',
+    convocados:['m1','m2','m4','m5','m6'], confirmados:['m2','m6'], doacoes:{ m2:1 }, externas:[] },
+], nomes:{ m2:'Bull' }, estoque:{ itens:[{ id:'alimentos-regional', nome:'Alimentos (dos eventos)', medida:'kg', automatico:true, saldo:1 }], movimentos:[] } };
+// Encerrado, e um sem nenhuma marcacao (fica de fora da conta).
+const doacoesRegionalEncerrado = { ...doacoesRegional, eventos: [
+  { ...doacoesRegional.eventos[0], status:'encerrado', confirmados:['m1','m2','m6'] },
+  { id:'r2', nome:'Reuniao Regional', data:'2026-11-06', tipo:'Reunião', status:'encerrado', convocados:['m1','m6'], confirmados:['m1'], doacoes:{}, externas:[] },
+] };
+const dr = { ...dc, adminEscopo:'regional', doacoesDados:doacoesRegional, doacoesDadosEscopo:'regional' };
+add('doações regional / por evento',      { ...dr, adminTab:'doacoes' }, T.renderAdmin);
+add('doações regional / marcando (blocos)', { ...dr, adminTab:'doacoes', doacoesEventoId:'r1', doacoesMarcacoes:{ m2:1, m4:2 } }, T.renderAdmin);
+add('doações regional / sem eventos',     { ...dr, adminTab:'doacoes', doacoesDados:{ ...doacoesRegional, eventos:[] } }, T.renderAdmin);
+add('doações regional / rank (por divisão)', { ...dr, adminTab:'doacoes-rank', doacoesDados:doacoesRegionalEncerrado }, T.renderAdmin);
+add('doações regional / rank (divisão aberta)', { ...dr, adminTab:'doacoes-rank', doacoesDados:doacoesRegionalEncerrado, doacoesDivisaoAberta:'Barra - RJ4' }, T.renderAdmin);
+add('doações regional / rank sem nada',   { ...dr, adminTab:'doacoes-rank', doacoesDados:{ ...doacoesRegional, eventos:[] } }, T.renderAdmin);
+add('doações regional / estoque',         { ...dr, adminTab:'doacoes-estoque' }, T.renderAdmin);
 add('estoque / painel (alimentos)',      { ...dc, adminTab:'doacoes-estoque' }, T.renderAdmin);
 add('estoque / painel de outro item',    { ...dc, adminTab:'doacoes-estoque', estoqueItemId:'it1' }, T.renderAdmin);
 add('estoque / confirmando anular',      { ...dc, adminTab:'doacoes-estoque', estoqueItemId:'it1', estoqueAnularId:'v1' }, T.renderAdmin);

@@ -43,11 +43,9 @@ const SECOES = [
   { area: 'operacional', aba: 'insights', nome: 'Insights', desc: 'Rodadas de Insight', icone: '💡', cor: '#B57EDC', visivel: () => state.adminEscopo === 'regional' },
   // Doacoes e Caixinha so nas divisoes liberadas - decisao que mora em
   // temDoacoesECaixinha(), pra replicar pras outras num lugar so.
-  // No Regional as duas tem jeito proprio: das Doacoes so o estoque, e a
-  // Caixinha vem das divisoes - "noRegional" troca a aba de entrada e a
-  // explicacao.
-  { area: 'social', aba: 'doacoes', nome: 'Doações', desc: 'Alimento de cada evento, o rank e o estoque', icone: '🥫', cor: '#4CAF6E',
-    noRegional: { aba: 'doacoes-estoque', desc: 'O estoque do Regional' },
+  // No Regional a Caixinha vem das divisoes - "noRegional" troca a
+  // explicacao (e poderia trocar a aba de entrada).
+  { area: 'social', aba: 'doacoes', nome: 'Doações', desc: 'Alimento de cada evento, o relatório e o estoque', icone: '🥫', cor: '#4CAF6E',
     visivel: () => temDoacoesECaixinha(state.adminEscopo) },
   // O planejador de Acoes Sociais: nas 7 divisoes, cada uma com o seu.
   { area: 'social', aba: 'acoes-sociais', nome: 'Ações Sociais', desc: 'Agenda do ano, banco de ideias e textos', icone: '🤝', cor: '#4CAF6E' },
@@ -118,7 +116,7 @@ function cardSecao(secao) {
   const gatilho = s.acao ? `data-action="${s.acao}"` : `data-action="abrir-secao-organizador" data-tab="${s.aba}"`;
   // Com arte: o card e a arte inteira (sem corte). O emoji da secao fica de
   // fora - a arte ja tem o proprio icone. A chave e a da secao original:
-  // no Regional o "noRegional" troca a aba (Doacoes abre no estoque).
+  // no Regional o "noRegional" pode trocar a aba.
   const arte = IMG_SECOES[secao.aba || secao.acao];
   if (arte) {
     let texto = '';

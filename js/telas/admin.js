@@ -58,10 +58,10 @@ export const SECOES_ORGANIZADOR = {
   doacoes: {
     titulo: 'Doações',
     abas: [
-      // No Regional, das Doacoes so o estoque: as duas primeiras sao do 1 kg
-      // de cada integrante, que e coisa de divisao (soNasDivisoes).
-      { chave: 'doacoes', label: 'Por evento', soNasDivisoes: true },
-      { chave: 'doacoes-rank', label: 'Rank', soNasDivisoes: true },
+      // Desde 04/11/2026 o Regional tem as tres, como as divisoes; o Rank
+      // dele e por divisao (renderRankRegional, em admin-doacoes.js).
+      { chave: 'doacoes', label: 'Por evento' },
+      { chave: 'doacoes-rank', label: 'Relatório' },
       { chave: 'doacoes-estoque', label: 'Estoque' },
     ],
   },
@@ -125,8 +125,7 @@ export function secaoDaAba(aba) {
 
 // As abas da secao que existem na divisao em que se entrou.
 function abasVisiveis(secao) {
-  return secao.abas.filter(a => !(a.soNasDivisoes && state.adminEscopo === 'regional')
-    && !(a.soNaFuncao && state.funcaoEspecial !== a.soNaFuncao));
+  return secao.abas.filter(a => !(a.soNaFuncao && state.funcaoEspecial !== a.soNaFuncao));
 }
 
 export function renderAdmin(app) {

@@ -406,6 +406,20 @@ por tipo (Pub, Bate e Volta…) seguem com o "Filtrar por período" de antes.
 Ver `periodoDoRelatorioGerado` e `janelaDoGrafico`, em
 `dominio/estatisticas.js`.
 
+**🥫 Doações no Resumo dos Relatórios** (04/11/2026) — a cópia, na área
+Operacional, do relatório de Doações da área Social. Um card embaixo dos
+tipos, com os botões 1/6/12 meses: a pizza "foram e levaram × foram e não
+levaram" (dos ✅ de cada evento encerrado com alguma doação marcada,
+quantos levaram), os kg e o **Ver eventos**, com a % de cada evento em
+barras e tabela (em blocos por divisão no Regional com "Todas"). Entra
+também no 📊 Gerar relatório: no texto, com uma linha por divisão; na
+imagem, como uma linha a mais embaixo dos tipos. **Sem nomes**: quem não
+levou fica no relatório de Doações. Só conta as divisões que usam as
+Doações (`temDoacoesECaixinha`); filtrado numa que não usa, o card some.
+Os dados vêm da mesma leitura das Doações, uma por divisão, na entrada dos
+Relatórios (`carregarDoacoesDoRelatorio`); a conta é
+`resumoDoacoesPeriodo`, em `dominio/doacoes.js`.
+
 **Relatórios agrupados por divisão** — no Regional, com "Todas as
 divisões", a lista de eventos (o "Ver eventos" de cada card e as abas por
 tipo) sai em blocos, um por divisão, cada um com quantos eventos e o % do
@@ -624,9 +638,20 @@ qualquer uma.
   (`vocabularioCaixinha`, em `dominio/caixinha.js`, usado pela tela, pelo
   texto e pela imagem). **Cada caixa lança o seu:** marcar que a Barra
   contribuiu não mexe no caixa da Barra, que lança a própria saída.
-- **Das Doações, o Regional tem só o estoque:** as abas "Por evento" e
-  "Rank" (o 1 kg de cada integrante) são de divisão (`soNasDivisoes`, em
-  `telas/admin.js`), e o card do menu abre direto no estoque.
+- **Das Doações, o Regional tinha só o estoque até 04/11/2026.** Desde
+  então ele tem o **Por evento** dos eventos dele, como a Barra: a lista de
+  cada evento sai em **um bloco por divisão**, na ordem oficial, com os ✅
+  primeiro e quantos daquela divisão levaram no título
+  (`blocosPorDivisao`, em `dominio/doacoes.js`), e a busca "Ache o nome".
+  Os kg vão pro **estoque do Regional**, que ganhou o item dos alimentos.
+  Só entram os eventos **de 04/11/2026 em diante** (`doacoesDesde`, em
+  `nucleo/config.js`, aplicado em `carregarDoacoes`): os de antes nunca
+  foram marcados. O **Rank do Regional é por divisão** (`rankPorDivisao`):
+  a pizza do Regional inteiro e uma linha por divisão com o cumprimento e
+  os kg de quem é dela, da que mais cumpre para a que menos; tocar numa
+  abre os integrantes e o "📌 Foram e não levaram" dela. O texto pro
+  WhatsApp (e o PDF) leva o bloco das divisões e quem não levou separado
+  por divisão; a imagem leva o cumprimento de cada divisão, sem nomes.
 
 **Doações** (`telas/admin-doacoes.js`, contas em `dominio/doacoes.js`). A
 regra do clube é levar 1 kg de alimento em todo evento.
@@ -647,13 +672,15 @@ regra do clube é levar 1 kg de alimento em todo evento.
   (`registrarExternasDoEvento`; descrição "De fora · evento", ícone 🤝 no
   extrato). **Não conta no Rank nem no cumprimento.** O card do evento
   mostra "🤝 N de fora".
-- **Rank:** o kg de cada um e o **cumprimento**: dos eventos *encerrados*
+- **Relatório** (a aba se chamava "Rank" até 04/11/2026): o kg de cada um e o **cumprimento**: dos eventos *encerrados*
   em que a pessoa estava ✅ Confirmada, em quantos ela levou. São dois
   números de propósito. O kg é o lado de quem está bem; o cumprimento é o
   da melhoria, e só cobra de quem foi. Quem faltou já responde pela falta,
   e cobrar a doação de um evento a que ele nem foi seria cobrar duas vezes.
   Doação de quem não estava como Confirmado soma no kg, mas fica fora do
-  cumprimento.
+  cumprimento. **Evento encerrado sem nenhuma doação marcada fica fora do
+  cumprimento** (decisão do clube, 04/11/2026): o mais provável é que
+  ninguém tenha conferido. A tela e o texto dizem quantos ficaram de fora.
 
 **Estoque** (`telas/admin-doacoes-estoque.js`, contas em
 `dominio/estoque.js`): a 3ª aba de Doações. É o **estoque do clube**, que
@@ -667,7 +694,8 @@ da quantidade de hoje, sem histórico; o clube começou o livro do zero).
 - **Entra** pelo **🟢 Lançar entrada** (item já cadastrado ou novo, com a
   medida **un**, **par** ou **kg** sugerida pelo nome — `sugerirMedida`;
   quantidade, data e "de onde veio") e, **sozinho, pelos eventos**: o item
-  "🥫 Alimentos (dos eventos)" existe em toda divisão (não no Regional), e
+  "🥫 Alimentos (dos eventos)" existe em toda divisão (e no Regional desde
+  04/11/2026), e
   cada vez que as doações de um evento são salvas em "Por evento" o
   `Code.gs` grava no livro só a **diferença** do que o evento já tinha
   posto (`registrarAlimentosDoEvento`). A primeira entrada leva a data do
