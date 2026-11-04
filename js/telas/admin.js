@@ -198,6 +198,8 @@ export async function abrirAbaOrganizador(aba) {
   state.doacoesEventoId = null;
   state.doacoesMarcacoes = {};
   state.doacoesExternas = [];
+  state.doacoesListaTexto = '';
+  state.doacoesListaLida = null;
   state.doacoesMsg = null;
   // O estoque abre no painel, sem formulario nem relatorio aberto.
   state.estoqueMsg = null;

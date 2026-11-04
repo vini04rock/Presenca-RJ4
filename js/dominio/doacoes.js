@@ -19,6 +19,7 @@
 
 import { escopoPorChave, escoposNaOrdemOficial } from '../nucleo/config.js';
 import { dataCorteMeses, formatDataBR, ordenarPorHierarquia } from '../nucleo/util.js';
+import { normalizarNome, sugerirCorrespondencias } from './parser.js';
 
 // As janelas do filtro de periodo das duas secoes (Doacoes e Caixinha).
 // 0 = desde sempre.
@@ -182,6 +183,42 @@ export function rankPorDivisao(rank) {
       melhorar: rank.melhorar.filter(m => ids.has(m.id)),
     };
   }).sort((a, b) => (b.cumprimento ?? -1) - (a.cumprimento ?? -1) || b.kg - a.kg);
+}
+
+// A lista colada de quem doou (04/11/2026): uma linha por integrante, com
+// ou sem ✅, e linhas com o nome de uma divisao ("Barra", "Regional",
+// "Div. Oeste") separando os blocos. Toda linha com nome e alguem que doou.
+// O titulo da divisao vale pros nomes embaixo dele - assim dois "Costa" de
+// divisoes diferentes nao se confundem. `roster` e o cadastro, e
+// `escopoChave` a divisao do evento (sem titulo, procura nela; no Regional,
+// em todas). Nao marca nada: devolve os achados (ids, sem repetir, na ordem
+// da lista) e os que nao bateram, com as sugestoes de "Quis dizer...?".
+const PALAVRAS_DE_DIVISAO = new Set(['div', 'divisao', 'rj4', 'rj', '4']);
+const chaveDaDivisao = s => normalizarNome(s).split(' ').filter(p => !PALAVRAS_DE_DIVISAO.has(p)).join(' ');
+const GRAU_NO_FIM = / (x|ix|viii|vii|vi|v|iv|iii|ii|i)$/;
+
+export function lerListaDeDoacao(texto, roster, escopoChave) {
+  const divisoes = escoposNaOrdemOficial().map(e => ({ nome: e.nome, chave: chaveDaDivisao(e.nome) }));
+  const daCasa = escopoChave === 'regional' ? roster : roster.filter(m => m.divisao === escopoPorChave(escopoChave).nome);
+  const achados = [], naoAchados = [];
+  let divisao = null;
+  String(texto || '').split(/\r?\n/).forEach(bruta => {
+    // "1. Costa (VI) ✅" -> "costa vi"; a numeracao da frente sai antes.
+    const linha = normalizarNome(bruta.replace(/^\s*\d+\s*[.)\-–]?\s+/, ''));
+    if (!linha) return;
+    const titulo = divisoes.find(d => d.chave && d.chave === chaveDaDivisao(linha));
+    if (titulo) { divisao = titulo.nome; return; }
+    const pool = divisao ? roster.filter(m => m.divisao === divisao) : daCasa;
+    const semGrau = linha.replace(GRAU_NO_FIM, '');
+    const bate = lista => lista.filter(m => { const n = normalizarNome(m.nome); return n === linha || n === semGrau; });
+    // No bloco certo; senao, um so com esse nome no cadastro inteiro (o
+    // titulo pode ter faltado ou vindo errado).
+    let m = bate(pool)[0];
+    if (!m) { const todos = bate(roster); if (todos.length === 1) m = todos[0]; }
+    if (m) { if (!achados.includes(m.id)) achados.push(m.id); return; }
+    naoAchados.push({ texto: bruta.trim(), divisao, sugestoes: sugerirCorrespondencias(semGrau, pool.length ? pool : roster).map(x => x.id) });
+  });
+  return { achados, naoAchados };
 }
 
 const linhaNome = m => `${m.nome}${m.grau ? ` (${m.grau})` : ''}`;

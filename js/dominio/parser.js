@@ -40,7 +40,8 @@ function distanciaLevenshtein(a, b) {
 // Sugestoes de "quer dizer" para um nome que nao bateu exato - so serve para
 // erro de digitacao/apelido parecido; apelido sem nada em comum com o nome
 // cadastrado (ex.: alcunha pura) nao e pego, e precisa de escolha manual.
-function sugerirCorrespondencias(nomeParsedNorm, candidatos) {
+// Tambem usado pela lista colada nas Doacoes (lerListaDeDoacao).
+export function sugerirCorrespondencias(nomeParsedNorm, candidatos) {
   return candidatos
     .map(m => ({ membro: m, dist: distanciaLevenshtein(nomeParsedNorm, normalizarNome(m.nome)) }))
     .filter(c => c.dist <= Math.max(2, Math.ceil(nomeParsedNorm.length * 0.4)))

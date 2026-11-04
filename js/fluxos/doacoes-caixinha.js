@@ -48,6 +48,8 @@ export async function salvarDoacoes(linhas = []) {
     state.doacoesEventoId = null;
     state.doacoesMarcacoes = {};
     state.doacoesExternas = [];
+    state.doacoesListaTexto = '';
+    state.doacoesListaLida = null;
     mostrarAviso('🥫 Doações salvas');
     state.doacoesSalvando = false;
     return carregarDoacoes();

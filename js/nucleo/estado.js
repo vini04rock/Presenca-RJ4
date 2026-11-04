@@ -224,6 +224,10 @@ export let state = {
   // As doacoes de fora do evento aberto: [{ descricao, quantidade, medida }],
   // sempre com uma linha vazia no fim (ver admin-doacoes.js).
   doacoesExternas: [],
+  // A lista colada de quem doou, no evento aberto: o texto da caixa, e o que
+  // o Reconhecer leu (lerListaDeDoacao), esperando o "Esta tudo ok".
+  doacoesListaTexto: '',
+  doacoesListaLida: null,
   doacoesSalvando: false,
   // { ok, texto } - o aviso depois de salvar, na lista de eventos.
   doacoesMsg: null,

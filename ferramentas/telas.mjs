@@ -575,6 +575,15 @@ const dr = { ...dc, adminEscopo:'regional', doacoesDados:doacoesRegional, doacoe
 add('doações regional / por evento',      { ...dr, adminTab:'doacoes' }, T.renderAdmin);
 add('doações regional / marcando (blocos)', { ...dr, adminTab:'doacoes', doacoesEventoId:'r1', doacoesMarcacoes:{ m2:1, m4:2 } }, T.renderAdmin);
 add('doações regional / marcando (Barra aberta)', { ...dr, adminTab:'doacoes', doacoesEventoId:'r1', doacoesMarcacoes:{ m2:1 }, expandedDivisoes:new Set(['Barra - RJ4']) }, T.renderAdmin);
+// A lista colada de quem doou: o texto na caixa, a conferencia (m3 e da
+// Barra mas nao foi convocado; um nome nao bateu) e, depois de marcar, o
+// bloco "Fora da convocacao" - no Regional e numa divisao.
+add('doações regional / lista colada (texto)', { ...dr, adminTab:'doacoes', doacoesEventoId:'r1', doacoesMarcacoes:{},
+  doacoesListaTexto:'Barra\nCosta ✅\nAlmeida ✅' }, T.renderAdmin);
+add('doações regional / lista colada (conferir)', { ...dr, adminTab:'doacoes', doacoesEventoId:'r1', doacoesMarcacoes:{},
+  doacoesListaLida:{ achados:['m1','m3'], naoAchados:[{ texto:'Bul ✅', divisao:'Barra - RJ4', sugestoes:['m2'] }, { texto:'Zebedeu', divisao:null, sugestoes:[] }] } }, T.renderAdmin);
+add('doações regional / fora da convocação', { ...dr, adminTab:'doacoes', doacoesEventoId:'r1', doacoesMarcacoes:{ m1:1, m3:1 } }, T.renderAdmin);
+add('doações / fora da convocação (barra)', { ...dc, adminTab:'doacoes', doacoesEventoId:'e4', doacoesMarcacoes:{ m1:1, m3:1 } }, T.renderAdmin);
 add('doações regional / sem eventos',     { ...dr, adminTab:'doacoes', doacoesDados:{ ...doacoesRegional, eventos:[] } }, T.renderAdmin);
 add('doações regional / rank (por divisão)', { ...dr, adminTab:'doacoes-rank', doacoesDados:doacoesRegionalEncerrado }, T.renderAdmin);
 add('doações regional / rank (divisão aberta)', { ...dr, adminTab:'doacoes-rank', doacoesDados:doacoesRegionalEncerrado, doacoesDivisaoAberta:'Barra - RJ4' }, T.renderAdmin);

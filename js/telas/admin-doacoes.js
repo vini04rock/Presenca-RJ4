@@ -8,7 +8,7 @@
 // em blocos por divisao.
 
 import { carregarDoacoes } from '../dados/carregar.js';
-import { PERIODOS, blocosPorDivisao, dataDoEvento, formatKg, membrosParaMarcar, nomeDoPeriodo, rankDoacoes, rankPorDivisao, rotuloPilula, somaKg, textoDoacoes } from '../dominio/doacoes.js';
+import { PERIODOS, blocosPorDivisao, dataDoEvento, formatKg, lerListaDeDoacao, membrosParaMarcar, nomeDoPeriodo, rankDoacoes, rankPorDivisao, rotuloPilula, somaKg, textoDoacoes } from '../dominio/doacoes.js';
 import { proximaMedida, sugerirMedida } from '../dominio/estoque.js';
 import { membrosDoEscopo } from '../dominio/estatisticas.js';
 import { soAtivos } from '../dominio/movimentos.js';
@@ -16,7 +16,7 @@ import { salvarDoacoes } from '../fluxos/doacoes-caixinha.js';
 import { corTipoEvento, doacoesDesde, emojiTipoEvento, escopoPorChave } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
-import { copiarTexto, escapeHtml, formatDataCurta, hexParaRgba, imprimirTexto, normalizarBusca } from '../nucleo/util.js';
+import { copiarTexto, escapeHtml, formatDataCurta, hexParaRgba, imprimirTexto, mostrarAviso, normalizarBusca } from '../nucleo/util.js';
 import { botaoGerarRelatorio, linhaFuncoes, medalha, posicoesDoPodio, selinhoIniciais } from '../ui/comuns.js';
 import { esqueletoLista, renderDonutChart, renderSparklineTendencia } from '../ui/graficos.js';
 import { imagemDoacoes, mostrarPreviaImagem } from '../ui/imagem.js';
@@ -124,6 +124,23 @@ function linhaMarcar(m, ev) {
 // quem ela acha (aplicarBusca).
 function listaMarcar(ev, membros) {
   if (!membros.length) return '<div class="empty">Ninguém convocado neste evento.</div>';
+  // Quem tem doacao mas nao estava convocado (marcado pela lista colada, ou
+  // a mao antes) vai num bloco proprio, sempre aberto, pra ninguem passar
+  // batido. Evento sem convocado nenhum mostra a divisao inteira, e ai nao
+  // ha "fora".
+  const convocados = new Set(ev.convocados || []);
+  const fora = convocados.size ? membros.filter(m => !convocados.has(m.id)) : [];
+  const dentro = membros.filter(m => !fora.includes(m));
+  return listaConvocados(ev, dentro) + (fora.length ? `
+    <div class="grupo-divisao aberto doacao-fora">
+      <div class="division-subheader"><span>🚩 FORA DA CONVOCAÇÃO</span><span class="division-counts">${fora.length}</span></div>
+      <div class="doacao-detalhe" style="margin:-2px 0 4px;">Não estavam convocados pra este evento, mas estão marcados como quem doou.</div>
+      <div class="grupo-linhas">${fora.map(m => linhaMarcar(m, ev)).join('')}</div>
+    </div>
+  ` : '');
+}
+
+function listaConvocados(ev, membros) {
   if (state.adminEscopo !== 'regional') return membros.map(m => linhaMarcar(m, ev)).join('');
   return blocosPorDivisao(membros).map(b => {
     const levaram = b.membros.filter(m => state.doacoesMarcacoes[m.id]).length;
@@ -150,8 +167,11 @@ const MINIMO_PRA_BUSCA = 10;
 
 function painelMarcar(ev) {
   // Evento sem convocado: a divisao inteira, ou, no Regional, todo mundo.
+  // Quem foi marcado agora (pela lista colada) entra na lista mesmo sem ter
+  // sido convocado, e continua nela se for desmarcado.
   const daCasa = state.adminEscopo === 'regional' ? state.roster : membrosDoEscopo();
-  const membros = membrosParaMarcar(ev, soAtivos(daCasa), state.roster);
+  const comMarcacoes = { ...ev, doacoes: { ...ev.doacoes, ...state.doacoesMarcacoes } };
+  const membros = membrosParaMarcar(comMarcacoes, soAtivos(daCasa), state.roster);
   const kgs = Object.values(state.doacoesMarcacoes).filter(Boolean);
   const total = kgs.reduce((s, k) => s + k, 0);
   return `
@@ -174,6 +194,7 @@ function painelMarcar(ev) {
       <div class="empty busca-vazia" hidden>Ninguém com esse nome por aqui.</div>
     </div>
     ${cardExternas()}
+    ${cardLista(ev)}
     <div class="row-gap" style="margin-bottom:16px;">
       <button class="btn block" data-action="salvar-doacoes" ${state.doacoesSalvando ? 'disabled' : ''}>${state.doacoesSalvando ? 'Salvando…' : '✅ Salvar doações'}</button>
       <button class="btn secondary block" data-action="fechar-doacoes-evento" ${state.doacoesSalvando ? 'disabled' : ''}>Cancelar</button>
@@ -232,6 +253,93 @@ function cardExternas() {
       <div class="externas-lista">${lista.map(linhaExterna).join('')}</div>
     </div>
   `;
+}
+
+// ---------- a lista colada de quem doou (04/11/2026) ----------
+// Cola a lista do grupo (com os titulos das divisoes) e o Reconhecer le os
+// nomes (lerListaDeDoacao). Antes de marcar, mostra o que leu pra conferir:
+// os convocados, os de fora da convocacao (marcados mesmo assim, com
+// aviso) e os que nao bateram, com o "Quis dizer...?". So o "Esta tudo ok"
+// marca - sempre 1 kg, e quem ja estava marcado fica como estava. Salvar
+// continua sendo o botao de sempre.
+
+const nomeComGrau = m => `${escapeHtml(m.nome)}${m.grau ? ` <span class="grade-box">${escapeHtml(m.grau)}</span>` : ''}`;
+const semRJ4 = d => escapeHtml(String(d || '').replace(/\s*-?\s*RJ4$/, ''));
+
+function linhaConferir(m) {
+  return `
+    <div class="member-row"><div class="member-head" style="cursor:default;">
+      <div class="member-info">${selinhoIniciais(m)}<span class="member-name">${nomeComGrau(m)}</span></div>
+      <span class="doacao-detalhe" style="margin:0;">${semRJ4(m.divisao)}</span>
+    </div></div>
+  `;
+}
+
+function linhaNaoAchado(x, i) {
+  const porId = id => state.roster.find(m => m.id === id);
+  const sugestoes = x.sugestoes.map(porId).filter(Boolean);
+  return `
+    <div class="member-row"><div class="member-head" style="cursor:default; flex-wrap:wrap; gap:6px;">
+      <span class="member-name">❓ ${escapeHtml(x.texto)}${x.divisao ? ` <span class="doacao-detalhe" style="margin:0;">· ${semRJ4(x.divisao)}</span>` : ''}</span>
+      <span style="display:flex; flex-wrap:wrap; gap:6px;">
+        ${sugestoes.map(m => `<span class="chip-option" data-action="doacao-lista-sugestao" data-value="${i}" data-id="${m.id}">Quis dizer ${escapeHtml(m.nome)}${m.grau ? ' (' + escapeHtml(m.grau) + ')' : ''}?</span>`).join('')}
+        <span class="chip-option" data-action="doacao-lista-ignorar" data-value="${i}">Ignorar</span>
+      </span>
+    </div></div>
+  `;
+}
+
+function conferirLista(ev, lida) {
+  const porId = id => state.roster.find(m => m.id === id);
+  const achados = lida.achados.map(porId).filter(Boolean);
+  const convocados = new Set(ev.convocados || []);
+  const fora = convocados.size ? achados.filter(m => !convocados.has(m.id)) : [];
+  const dentro = achados.filter(m => !fora.includes(m));
+  const semBater = lida.naoAchados.length;
+  return `
+    <div class="painel-titulo" style="margin:12px 0 2px;">Confere a lista</div>
+    <div style="color:var(--text-muted); font-size:12px; margin-bottom:8px;">Reconheci <b>${achados.length}</b> ${achados.length === 1 ? 'nome' : 'nomes'}. Cada um vai ser marcado com 1 kg.</div>
+    ${dentro.length ? `
+      <div class="division-subheader"><span>✅ NA CONVOCAÇÃO</span><span class="division-counts">${dentro.length}</span></div>
+      ${dentro.map(linhaConferir).join('')}
+    ` : ''}
+    ${fora.length ? `
+      <div class="division-subheader"><span>🚩 FORA DA CONVOCAÇÃO</span><span class="division-counts">${fora.length}</span></div>
+      <div class="alert" style="margin:4px 0 6px;"><div class="alert-msg">${fora.length === 1 ? 'Este não estava convocado' : 'Estes não estavam convocados'} pra este evento. ${fora.length === 1 ? 'Vai ser marcado' : 'Vão ser marcados'} mesmo assim, num bloco à parte.</div></div>
+      ${fora.map(linhaConferir).join('')}
+    ` : ''}
+    ${semBater ? `
+      <div class="division-subheader"><span>❓ NÃO RECONHECI</span><span class="division-counts">${semBater}</span></div>
+      <div style="color:var(--text-muted); font-size:12px; margin:2px 0 4px;">Toque na sugestão certa, ou em Ignorar. ${semBater === 1 ? 'Ele não vai' : 'Eles não vão'} ser marcados.</div>
+      ${lida.naoAchados.map(linhaNaoAchado).join('')}
+    ` : ''}
+    <div class="row-gap" style="margin-top:12px;">
+      <button class="btn block" data-action="doacao-lista-confirmar" ${achados.length ? '' : 'disabled'}>✅ Está tudo ok, marcar ${achados.length}</button>
+      <button class="btn secondary block" data-action="doacao-lista-cancelar">Corrigir o texto</button>
+    </div>
+  `;
+}
+
+function cardLista(ev) {
+  const lida = state.doacoesListaLida;
+  return `
+    <div class="card externas-card">
+      <div class="painel-titulo" style="margin-bottom:2px;">📋 Colar lista de quem doou</div>
+      <div style="color:var(--text-muted); font-size:12px; margin-bottom:10px;">Cole a lista do grupo, um nome por linha${state.adminEscopo === 'regional' ? ', com o nome da divisão antes de cada bloco' : ''}. O app reconhece e marca 1 kg pra cada um.</div>
+      ${lida ? conferirLista(ev, lida) : `
+        <textarea id="doacao-lista-texto" rows="6" autocomplete="off" spellcheck="false"
+          placeholder="${state.adminEscopo === 'regional' ? 'Regional&#10;Fulano ✅&#10;&#10;Barra&#10;Ciclano ✅' : 'Fulano ✅&#10;Ciclano ✅'}">${escapeHtml(state.doacoesListaTexto)}</textarea>
+        <button class="btn secondary block" data-action="doacao-lista-reconhecer" style="margin-top:8px;">🔎 Reconhecer</button>
+      `}
+    </div>
+  `;
+}
+
+// A caixa da lista: so lembra o texto, sem redesenhar (o teclado fecharia).
+export function atualizarListaDoacao(el) {
+  if (el.id !== 'doacao-lista-texto') return false;
+  state.doacoesListaTexto = el.value;
+  return true;
 }
 
 // Sempre uma linha vazia no fim, pra proxima doacao.
@@ -447,6 +555,8 @@ export const acoes = {
     state.doacoesMsg = null;
     state.buscaMembro = '';
     state.expandedDivisoes = new Set();
+    state.doacoesListaTexto = '';
+    state.doacoesListaLida = null;
     window.scrollTo(0, 0);
     return render();
   },
@@ -455,6 +565,49 @@ export const acoes = {
     state.doacoesMarcacoes = {};
     state.doacoesExternas = [];
     state.doacoesMsg = null;
+    state.doacoesListaTexto = '';
+    state.doacoesListaLida = null;
+    return render();
+  },
+  'doacao-lista-reconhecer': async (id, target, action, e) => {
+    const campo = document.getElementById('doacao-lista-texto');
+    if (campo) state.doacoesListaTexto = campo.value;
+    if (!state.doacoesListaTexto.trim()) return mostrarAviso('Cole a lista na caixa primeiro');
+    state.doacoesListaLida = lerListaDeDoacao(state.doacoesListaTexto, state.roster, state.adminEscopo);
+    return render();
+  },
+  // "Quis dizer Fulano?": passa pros reconhecidos; "Ignorar": so sai.
+  'doacao-lista-sugestao': async (id, target, action, e) => {
+    const lida = state.doacoesListaLida;
+    if (!lida) return;
+    lida.naoAchados.splice(Number(target.dataset.value), 1);
+    if (!lida.achados.includes(id)) lida.achados.push(id);
+    return render();
+  },
+  'doacao-lista-ignorar': async (id, target, action, e) => {
+    const lida = state.doacoesListaLida;
+    if (!lida) return;
+    lida.naoAchados.splice(Number(target.dataset.value), 1);
+    return render();
+  },
+  // Volta pra caixa com o texto, pra corrigir e reconhecer de novo.
+  'doacao-lista-cancelar': async (id, target, action, e) => {
+    state.doacoesListaLida = null;
+    return render();
+  },
+  // Marca 1 kg em cada um; quem ja estava marcado fica como estava.
+  'doacao-lista-confirmar': async (id, target, action, e) => {
+    const lida = state.doacoesListaLida;
+    if (!lida) return;
+    let novos = 0;
+    lida.achados.forEach(mid => {
+      if (state.doacoesMarcacoes[mid]) return;
+      state.doacoesMarcacoes[mid] = 1;
+      novos++;
+    });
+    state.doacoesListaLida = null;
+    state.doacoesListaTexto = '';
+    mostrarAviso(`🥫 ${novos} ${novos === 1 ? 'marcado' : 'marcados'}${lida.achados.length > novos ? ` (${lida.achados.length - novos} já estava${lida.achados.length - novos === 1 ? '' : 'm'})` : ''}. Confira e toque em Salvar.`);
     return render();
   },
   // O toque no nome: sem nada, marca a regra (1 kg); com qualquer coisa,

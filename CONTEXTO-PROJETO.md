@@ -672,6 +672,18 @@ regra do clube é levar 1 kg de alimento em todo evento.
   (`registrarExternasDoEvento`; descrição "De fora · evento", ícone 🤝 no
   extrato). **Não conta no Rank nem no cumprimento.** O card do evento
   mostra "🤝 N de fora".
+- **📋 Colar lista de quem doou** (04/11/2026): no evento aberto, entre as
+  Doações de fora e o Salvar. Cola-se a lista do grupo, um nome por linha
+  (com ou sem ✅; toda linha com nome é alguém que doou), com o nome da
+  divisão antes de cada bloco no Regional ("Barra", "Div. Oeste"), e o
+  **🔎 Reconhecer** lê os nomes (`lerListaDeDoacao`, em `dominio/doacoes.js`,
+  com a mesma comparação de nomes da convocação colada). Antes de marcar,
+  mostra para conferir: os da convocação, os **🚩 fora da convocação**
+  (marcados mesmo assim, com aviso) e os **❓ não reconhecidos**, com o
+  "Quis dizer…?" ou Ignorar. Só o "Está tudo ok" marca: **sempre 1 kg**, e
+  quem já estava marcado fica como estava. Nada é salvo sozinho. Quem tem
+  doação sem ter sido convocado aparece num bloco à parte, **🚩 Fora da
+  convocação**, na lista do evento.
 - **Relatório** (a aba se chamava "Rank" até 04/11/2026): o kg de cada um e o **cumprimento**: dos eventos *encerrados*
   em que a pessoa estava ✅ Confirmada, em quantos ela levou. São dois
   números de propósito. O kg é o lado de quem está bem; o cumprimento é o

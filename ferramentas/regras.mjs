@@ -778,7 +778,7 @@ log('=== carteirinha: idade, telefone e aniversários do mural ===');
 log('');
 log('=== doações: kg, cumprimento e quem foi e não levou ===');
 {
-  const { rankDoacoes, rankPorDivisao, membrosParaMarcar, blocosPorDivisao, textoDoacoes, formatKg, eventosDoPeriodo } = await import(url('dominio/doacoes.js'));
+  const { rankDoacoes, rankPorDivisao, membrosParaMarcar, blocosPorDivisao, lerListaDeDoacao, textoDoacoes, formatKg, eventosDoPeriodo } = await import(url('dominio/doacoes.js'));
   const membros = [
     { id: 'd1', nome: 'Costa', grau: 'VI', cargo: 'Diretor' },
     { id: 'd2', nome: 'Raposo', grau: 'VI', cargo: 'Social' },
@@ -851,6 +851,21 @@ log('=== doações: kg, cumprimento e quem foi e não levou ===');
     porDiv.map(d => [d.divisao, d.cumprimento, d.kg, d.foi]),
     [['Oeste - RJ4', 100, 2, 1], ['Barra - RJ4', 67, 2, 3], ['Regional RJ4', null, 0, 0], ['Sem divisão', null, 0, 0]]);
   confere('doações regional: quem foi e não levou fica na divisão dele', porDiv.find(d => d.divisao === 'Barra - RJ4').melhorar.map(m => m.nome), ['Abel']);
+  // A lista colada de quem doou: titulo de divisao separa os blocos, ✅
+  // colado ou nao, numeracao e grau na linha, e dois "Costa" de divisoes
+  // diferentes.
+  const rosterL = [
+    { id: 'rc', nome: 'Costa', grau: 'V', divisao: 'Regional RJ4' }, { id: 'bc', nome: 'Costa', grau: 'X', divisao: 'Barra - RJ4' },
+    { id: 'bj', nome: 'João Pedro', grau: 'VI', divisao: 'Barra - RJ4' }, { id: 'ou', nome: 'Ugo', grau: 'X', divisao: 'Oeste - RJ4' },
+    { id: 'cr', nome: 'Raposo', grau: 'VIII', divisao: 'Curicica - RJ4' },
+  ];
+  const lista = lerListaDeDoacao('Regional\nCosta ✅\n\nBarra\nCosta✅\n1. Joao Pedro (VI) ✅\n\nDiv. Oeste\nUgo\nUgo ✅\nZebedeu ✅\n\nCuricica\nRaposso ✅', rosterL, 'regional');
+  confere('lista de doação: cada nome no bloco da divisão, sem repetir', lista.achados, ['rc', 'bc', 'bj', 'ou']);
+  confere('lista de doação: quem não bateu vem com a sugestão', lista.naoAchados.map(x => [x.texto, x.divisao, x.sugestoes]),
+    [['Zebedeu ✅', 'Oeste - RJ4', []], ['Raposso ✅', 'Curicica - RJ4', ['cr']]]);
+  confere('lista de doação: sem título, procura na divisão do evento', lerListaDeDoacao('Costa ✅', rosterL, 'barra').achados, ['bc']);
+  confere('lista de doação: sem título, nome único no cadastro inteiro também vale', lerListaDeDoacao('Ugo', rosterL, 'barra').achados, ['ou']);
+
   const textoR = textoDoacoes(rR, 'regional', 0, porDiv).split('\n');
   confere('texto do regional: o bloco das divisões',
     textoR.slice(textoR.indexOf('🏁 *POR DIVISÃO*') + 1, textoR.indexOf('🏁 *POR DIVISÃO*') + 3),
