@@ -574,6 +574,7 @@ const doacoesRegionalEncerrado = { ...doacoesRegional, eventos: [
 const dr = { ...dc, adminEscopo:'regional', doacoesDados:doacoesRegional, doacoesDadosEscopo:'regional' };
 add('doações regional / por evento',      { ...dr, adminTab:'doacoes' }, T.renderAdmin);
 add('doações regional / marcando (blocos)', { ...dr, adminTab:'doacoes', doacoesEventoId:'r1', doacoesMarcacoes:{ m2:1, m4:2 } }, T.renderAdmin);
+add('doações regional / marcando (Barra aberta)', { ...dr, adminTab:'doacoes', doacoesEventoId:'r1', doacoesMarcacoes:{ m2:1 }, expandedDivisoes:new Set(['Barra - RJ4']) }, T.renderAdmin);
 add('doações regional / sem eventos',     { ...dr, adminTab:'doacoes', doacoesDados:{ ...doacoesRegional, eventos:[] } }, T.renderAdmin);
 add('doações regional / rank (por divisão)', { ...dr, adminTab:'doacoes-rank', doacoesDados:doacoesRegionalEncerrado }, T.renderAdmin);
 add('doações regional / rank (divisão aberta)', { ...dr, adminTab:'doacoes-rank', doacoesDados:doacoesRegionalEncerrado, doacoesDivisaoAberta:'Barra - RJ4' }, T.renderAdmin);

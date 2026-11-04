@@ -117,17 +117,28 @@ function linhaMarcar(m, ev) {
   `;
 }
 
-// No Regional, um bloco por divisao (blocosPorDivisao), sempre aberto - aqui
-// se marca, e abrir divisao por divisao seria um toque a mais por nome. O
-// titulo do bloco diz quantos daquela divisao ja levaram.
+// No Regional, um bloco por divisao (blocosPorDivisao), fechado ate o toque
+// no nome dela, como na tela do evento (as mesmas divisoes abertas,
+// state.expandedDivisoes). O titulo diz quantos daquela divisao ja levaram
+// e o %, sobre todos os nomes do bloco. A busca abre sozinha a divisao de
+// quem ela acha (aplicarBusca).
 function listaMarcar(ev, membros) {
   if (!membros.length) return '<div class="empty">Ninguém convocado neste evento.</div>';
   if (state.adminEscopo !== 'regional') return membros.map(m => linhaMarcar(m, ev)).join('');
   return blocosPorDivisao(membros).map(b => {
     const levaram = b.membros.filter(m => state.doacoesMarcacoes[m.id]).length;
+    const pct = Math.round((levaram / b.membros.length) * 100);
+    const aberto = state.expandedDivisoes.has(b.divisao);
     return `
-      <div class="grupo-divisao aberto">
-        <div class="division-subheader"><span>${escapeHtml(b.divisao.toUpperCase())}</span><span class="division-counts">🥫 ${levaram} de ${b.membros.length}</span></div>
+      <div class="grupo-divisao${aberto ? ' aberto' : ''}">
+        <div class="division-subheader clicavel" data-action="toggle-divisao-grupo" data-value="${escapeHtml(b.divisao)}">
+          <span>${aberto ? '▾' : '▸'} ${escapeHtml(b.divisao.toUpperCase())}</span>
+          <span class="division-counts">🥫 ${levaram} de ${b.membros.length} &nbsp;·&nbsp; <b>${pct}%</b></span>
+          <span class="barra-divisao" aria-hidden="true">
+            <i class="barra-divisao-confirmado" style="flex-grow:${levaram}"></i>
+            <i class="barra-divisao-aguardando" style="flex-grow:${b.membros.length - levaram}"></i>
+          </span>
+        </div>
         <div class="grupo-linhas">${b.membros.map(m => linhaMarcar(m, ev)).join('')}</div>
       </div>
     `;
@@ -435,6 +446,7 @@ export const acoes = {
     state.doacoesExternas = comLinhaVazia((ev.externas || []).map(x => ({ descricao: x.descricao, quantidade: String(x.quantidade).replace('.', ','), medida: x.medida })));
     state.doacoesMsg = null;
     state.buscaMembro = '';
+    state.expandedDivisoes = new Set();
     window.scrollTo(0, 0);
     return render();
   },
