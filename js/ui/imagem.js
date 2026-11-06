@@ -15,6 +15,7 @@ import { formatKg } from '../dominio/doacoes.js';
 import { destinoPorChave, numeroEstoque, resumoDaLinha, textoQuantidade } from '../dominio/estoque.js';
 import { CONTEXTO_DOS_MESES, LEGENDA_CONTEXTO, MESES_NOMES, acoesDoMes, ehEscolhida, mesesDoAno, resumoDoAno, situacaoPorChave } from '../dominio/acoes-sociais.js';
 import { divisaoCurta, soFalta } from '../dominio/funcoes-especiais.js';
+import { resumoGrauV } from '../dominio/movimentos.js';
 import { posicoesDoPodio } from './comuns.js';
 
 const L = 1080, A = 1350; // retrato 4:5, o formato que o WhatsApp mostra maior
@@ -1536,9 +1537,17 @@ export async function imagemMovimentos(r, nomeDivisao, rotuloPeriodo) {
     [`🚪 DESLIGADOS (${r.desligamentos.length})`, COR_MOV.desligamento, '🚪', r.desligamentos.map(m => comData(m, m.data))],
     [`🔁 CHEGARAM POR TRANSFERÊNCIA (${r.chegaram.length})`, COR_MOV.transferencia, '🔁', r.chegaram.map(m => comData(m, m.data, `de ${m.dePara} · `))],
     [`🔁 SAÍRAM POR TRANSFERÊNCIA (${r.sairam.length})`, COR_MOV.transferencia, '🔁', r.sairam.map(m => comData(m, m.data, `para ${m.dePara} · `))],
-  ].filter(s => s[3].length);
+  ];
+  // Subir pro grau V ou sair dele: listas a parte, nao e transferencia.
+  const v = resumoGrauV(r);
+  if (v) {
+    const comLado = m => comData(m, m.data, v.detalhe(m) ? `${v.detalhe(m)} · ` : '');
+    secoes.push([`⬆️ ${v.tituloSubiram} (${r.subiram.length})`, COR.ouro, '⬆️', r.subiram.map(comLado)]);
+    secoes.push([`⬇️ ${v.tituloDesceram} (${r.desceram.length})`, COR.ouro, '⬇️', r.desceram.map(comLado)]);
+  }
+  const comNomes = secoes.filter(s => s[3].length);
   const topoListas = 690;
-  const alturaListas = secoes.reduce((s, sec) => s + 70 + sec[3].length * alturaLinha + 18 + 24, 0);
+  const alturaListas = comNomes.reduce((s, sec) => s + 70 + sec[3].length * alturaLinha + 18 + 24, 0);
   const altura = Math.max(A, topoListas + alturaListas + 190);
   const { canvas, ctx, logo } = await novaTela(altura);
 
@@ -1549,13 +1558,13 @@ export async function imagemMovimentos(r, nomeDivisao, rotuloPeriodo) {
     ['🔁 TRANSFERÊNCIAS', r.chegaram.length + r.sairam.length]);
 
   let yl = topoListas;
-  if (!secoes.length) {
+  if (!comNomes.length) {
     fonte(ctx, 30, 600);
     ctx.fillStyle = COR.apagado;
     ctx.textAlign = 'center';
     ctx.fillText('Nenhuma movimentação no período', L / 2, yl + 60);
   }
-  secoes.forEach(([titulo, cor, emoji, membros]) => {
+  comNomes.forEach(([titulo, cor, emoji, membros]) => {
     yl = colunaNomes(ctx, 80, yl, L - 160, alturaLinha, titulo, cor, emoji, membros) + 24;
   });
 

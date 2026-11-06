@@ -4,8 +4,8 @@
 // Mesma gente vista dos dois lados, entao moram no mesmo arquivo.
 
 import { membrosDoEscopo } from '../dominio/estatisticas.js';
-import { TIPOS_MOVIMENTO, estaAfastado, semDataDeIngresso } from '../dominio/movimentos.js';
-import { confirmarGrauDoMembro, confirmarMovimento, fecharPainelMovimento, salvarDatasDeIngresso } from '../fluxos/movimentos.js';
+import { TIPOS_MOVIMENTO, divisaoDeOrigem, estaAfastado, mudancaDeNivel, semDataDeIngresso } from '../dominio/movimentos.js';
+import { confirmarGrauDoMembro, confirmarMovimento, fecharPainelMovimento, salvarDatasDeIngresso, salvarMudancaDeNivel } from '../fluxos/movimentos.js';
 import { FUNCOES, GRAUS, cargosDoGrau, escopoPorChave, escoposNaOrdemOficial, funcaoPorChave } from '../nucleo/config.js';
 import { genId, state } from '../nucleo/estado.js';
 import { dataISOdeBR, escapeHtml, formatDataBR, hojeISO, ordenarPorHierarquia } from '../nucleo/util.js';
@@ -91,6 +91,59 @@ function blocoCargo() {
       `;
 }
 
+// O grau V e o Regional (06/11/2026). No Editar, escolher o V pra um irmao
+// de divisao (ou tirar do V um irmao do Regional) muda ele de lugar ao
+// salvar - este aviso diz isso antes, e na descida pergunta pra qual
+// divisao. No cadastro novo de uma divisao, o V e do Regional.
+function avisoGrauV(original) {
+  if (!original) {
+    if (state.adminEscopo === 'regional' || state.newMemberGrau !== 'V') return '';
+    return `
+      <div class="mov-painel mov-grau-v-aviso">
+        <div class="mov-titulo">⬆️ Grau V é do Regional</div>
+        <div class="mov-explica">Irmão de grau V fica no Regional, não numa divisão. Cadastre ele pelo Regional RJ4 — ou, se ele já é desta divisão, cadastre com o grau de hoje e depois o Regional sobe ele pelo Editar.</div>
+      </div>
+    `;
+  }
+  const nivel = mudancaDeNivel(original, state.newMemberGrau);
+  const erro = state.nivelErro ? `<div class="alert" style="margin:10px 0 0;"><div class="alert-msg">${escapeHtml(state.nivelErro)}</div></div>` : '';
+  if (nivel === 'sobe') {
+    return `
+      <div class="mov-painel mov-grau-v-aviso">
+        <div class="mov-titulo">⬆️ Grau V é do Regional</div>
+        <div class="mov-explica">Ao salvar, ${escapeHtml(original.nome)} sai de ${escapeHtml(original.divisao)} e passa para o Regional RJ4, com o mesmo cadastro e todo o histórico. Sai dos eventos ainda abertos da divisão e entra como ⚠️ Aguardando nos abertos do Regional. O cargo de divisão sai: marque abaixo o cargo dele no grau V, se tiver. Fica no Entrada/Saída das duas.</div>
+        <div class="mov-explica" style="margin-bottom:0;"><b>Só o PIN do Regional faz essa mudança.</b></div>
+        ${erro}
+      </div>
+    `;
+  }
+  if (nivel === 'desce') {
+    const divisoes = escoposNaOrdemOficial().filter(e => e.chave !== 'regional');
+    return `
+      <div class="mov-painel mov-grau-v-aviso">
+        <div class="mov-titulo">⬇️ Saindo do grau V, ele deixa o Regional</div>
+        <div class="mov-explica">Ao salvar, ${escapeHtml(original.nome)} vai para a divisão escolhida, com o mesmo cadastro e todo o histórico. Continua nos eventos abertos do Regional e entra como ⚠️ Aguardando nos abertos da divisão, de hoje em diante. Fica no Entrada/Saída das duas.</div>
+        <label>Para qual divisão ele vai?</label>
+        <div class="chip-grid wide" style="margin-bottom:0;">
+          ${divisoes.map(e => `<button class="chip-option ${state.newMemberDestino === e.chave ? 'active' : ''}" data-action="pick-destino-nivel" data-value="${e.chave}">${escapeHtml(e.nome)}</button>`).join('')}
+        </div>
+        ${erro}
+      </div>
+    `;
+  }
+  return erro;
+}
+
+// O texto do botao de salvar do Editar: diz pra onde ele vai quando o grau
+// muda ele de lugar.
+function rotuloSalvarEdicao(original) {
+  if (state.nivelSalvando) return 'Salvando…';
+  const nivel = mudancaDeNivel(original, state.newMemberGrau);
+  if (nivel === 'sobe') return '⬆️ Salvar e passar pro Regional';
+  if (nivel === 'desce') return state.newMemberDestino ? `⬇️ Salvar e passar pra ${escopoPorChave(state.newMemberDestino).nome}` : '⬇️ Salvar e passar pra divisão';
+  return 'Salvar alterações';
+}
+
 // "⚠️ 8 integrantes sem data de ingresso" no topo do cadastro, e o modo de
 // preencher todas de uma vez: uma lista so com eles, cada um com o campo de
 // data, e um Salvar no fim. A lista e a de quando o modo abriu - quem vai
@@ -140,6 +193,7 @@ function blocoDatasDeIngresso(membros) {
 export function renderAdminMembros() {
   const membros = membrosDoEscopo();
   const editando = !!state.editingMemberId;
+  const original = editando ? state.roster.find(x => x.id === state.editingMemberId) : null;
   if (state.preencherEntradasIds) return blocoDatasDeIngresso(membros);
   return `
     ${editando ? '' : blocoDatasDeIngresso(membros)}
@@ -153,7 +207,7 @@ export function renderAdminMembros() {
       <div class="chip-grid">
         ${GRAUS.map(g => `<button class="chip-option ${state.newMemberGrau === g ? 'active' : ''}" data-action="pick-grau" data-value="${g}">${g}</button>`).join('')}
       </div>
-      ${blocoCargo()}<label>Função (opcional, pode marcar mais de uma)</label>
+      ${avisoGrauV(original)}${blocoCargo()}<label>Função (opcional, pode marcar mais de uma)</label>
       <div class="row-gap" style="margin-bottom: 14px;">
         ${FUNCOES.map(f => `<button class="toggle-chip ${state.newMemberFuncoes.has(f.chave) ? 'active' : ''}" data-action="toggle-funcao" data-value="${f.chave}" style="flex: none; padding: 8px 12px;">${f.selo} ${escapeHtml(f.label)}</button>`).join('')}
       </div>
@@ -164,8 +218,8 @@ export function renderAdminMembros() {
                  value="${escapeHtml(state.newMemberEntrada)}" placeholder="dd/mm/aaaa" autocomplete="off">
         </div>
         <div class="row-gap">
-          <button class="btn" data-action="save-member-edit">Salvar alterações</button>
-          <button class="btn secondary" data-action="cancel-member-edit">Cancelar</button>
+          <button class="btn" data-action="save-member-edit" ${state.nivelSalvando ? 'disabled' : ''}>${escapeHtml(rotuloSalvarEdicao(original))}</button>
+          <button class="btn secondary" data-action="cancel-member-edit" ${state.nivelSalvando ? 'disabled' : ''}>Cancelar</button>
         </div>
       ` : `
         <div class="field">
@@ -390,6 +444,19 @@ export const acoes = {
     // Cargo pertence a um grau - trocar de grau derruba o que estava marcado,
     // senao sobraria um "Diretor" (grau VI) preso num membro grau X.
     state.newMemberCargo = null;
+    state.nivelErro = null;
+    // Saindo do grau V: ja marca a divisao de onde ele subiu, quando o livro
+    // de Entrada/Saida estiver na memoria e tiver a subida dele.
+    const original = state.editingMemberId ? state.roster.find(x => x.id === state.editingMemberId) : null;
+    if (mudancaDeNivel(original, state.newMemberGrau) === 'desce' && !state.newMemberDestino) {
+      state.newMemberDestino = divisaoDeOrigem(state.movimentosDadosEscopo === 'regional' ? state.movimentosDados : null, original.id) || null;
+    }
+    return render();
+  },
+
+  'pick-destino-nivel': async (id, target, action, e) => {
+    state.newMemberDestino = target.dataset.value;
+    state.nivelErro = null;
     return render();
   },
 
@@ -408,6 +475,11 @@ export const acoes = {
   'add-member': async (id, target, action, e) => {
     const nome = (document.getElementById('new-member-nome').value || '').trim();
     if (!nome) return;
+    // Grau V e do Regional: numa divisao, nao nasce cadastro de grau V.
+    if (state.adminEscopo !== 'regional' && state.newMemberGrau === 'V') {
+      alert('Grau V é do Regional: cadastre este irmão pelo Regional RJ4.');
+      return;
+    }
     // A data de entrada: vazia = hoje; escrita, tem que ser uma data de
     // verdade e nao pode ser no futuro. E ela que conta no Entrada/Saida.
     const brutoEntrada = (state.newMemberEntrada || '').trim();
@@ -506,11 +578,15 @@ export const acoes = {
     state.newMemberCargo = m.cargo || null;
     state.newMemberFuncoes = new Set(m.funcoes || []);
     state.newMemberEntrada = m.entrada ? formatDataBR(m.entrada) : '';
+    state.newMemberDestino = null;
+    state.nivelErro = null;
     return render();
   },
 
   'cancel-member-edit': async (id, target, action, e) => {
     state.editingMemberId = null;
+    state.newMemberDestino = null;
+    state.nivelErro = null;
     state.newMemberEntrada = '';
     state.newMemberNome = '';
     state.newMemberGrau = null;
@@ -533,10 +609,25 @@ export const acoes = {
       return;
     }
     // Divisao nao muda por aqui - so nome, grau, funcoes e a data de ingresso.
+    // A excecao e o grau V (ver avisoGrauV): ai espera a planilha, que confere
+    // o PIN do Regional e muda ele de lugar.
     const member = {
       ...original, nome, grau: state.newMemberGrau || '',
       funcoes: Array.from(state.newMemberFuncoes), cargo: state.newMemberCargo || '', entrada
     };
+    const nivel = mudancaDeNivel(original, member.grau);
+    if (nivel) {
+      if (state.nivelSalvando) return;
+      if (!(await salvarMudancaDeNivel(member, nivel))) return;
+      state.editingMemberId = null;
+      state.newMemberGrau = null;
+      state.newMemberCargo = null;
+      state.newMemberFuncoes = new Set();
+      state.newMemberNome = '';
+      state.newMemberEntrada = '';
+      state.newMemberDestino = null;
+      return render();
+    }
     state.roster = state.roster.map(x => x.id === member.id ? member : x);
     state.editingMemberId = null;
     state.newMemberGrau = null;

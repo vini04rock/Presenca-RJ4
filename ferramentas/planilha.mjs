@@ -1195,6 +1195,78 @@ log('=== entrada/saída: transferência de divisão e grau a confirmar ===');
 }
 
 log('');
+log('=== grau V: subir leva pro Regional, sair do V leva pra divisão ===');
+{
+  const evc = (id, data, status, categoria) => { const l = ev(id, data, status); l[8] = categoria; return l; };
+  const p = montaPlanilha([
+    evc('velhoB', '2026-09-05', 'encerrado', 'barra'), evc('abertoB', daquiA(3), 'ativo', 'barra'),
+    evc('abertoR', daquiA(4), 'ativo', 'regional'), evc('abertoR2', daquiA(6), 'ativo', 'regional'),
+    evc('abertoO', daquiA(5), 'ativo', 'oeste'),
+  ], [
+    pr('velhoB', 'm1', 'Confirmado'), pr('abertoB', 'm1', 'Aguardando'), pr('abertoR', 'm1', 'Aguardando'),
+    pr('abertoR', 'r1', 'Aguardando'),
+  ]);
+  p.abas.Membros = novaAba('Membros', [['ID', 'Nome', 'Grau', 'Divisao', 'Funcoes', 'Cargo', 'Situacao', 'Situacao Desde', 'Entrada', 'Grau a Confirmar'],
+    ['m1', 'Costa', 'VI', 'Barra - RJ4', 'batedor', 'Diretor', '', '', '2019-03-12', ''],
+    ['m4', 'Antigo', 'V', 'Barra - RJ4', '', '', '', '', '', ''],
+    ['m5', 'Parado', 'VIII', 'Barra - RJ4', '', '', 'Afastado', '2026-10-01', '', ''],
+    ['r1', 'Lobo', 'V', 'Regional RJ4', '', 'Operacional', '', '', '', '']]);
+  const { contexto } = carregaCodeGs(p, { PIN_REGIONAL: '0418', PIN_BARRA: '1801', PIN_OESTE: '1802' });
+  const barra = { escopo: 'barra', pin: '1801' };
+  const regionalNaBarra = { escopo: 'barra', pin: '0418' }, regional = { escopo: 'regional', pin: '0418' };
+  const membro = (id) => contexto.executar('dados', {}).membros.find(m => m.id === id);
+  const eventosDe = (mid) => p.abas.Presencas.dados.slice(1).filter(l => l[2] === mid).map(l => l[0]).sort();
+  const tentar = (fn) => { try { const r = fn(); return r.ok === false ? r.erro : 'ok'; } catch (e) { return e.message; } };
+  const salvar = (cred, extra) => contexto.executar('membroSalvar', { ...cred, funcoes: '', cargo: '', ...extra });
+  const livro = (divisao) => contexto.executar('movimentos', { ...regional, divisao: 'regional' }).movimentos
+    .filter(m => m.divisao === divisao).map(m => [m.tipo, m.membroId, m.dePara]);
+
+  confere('a Barra NÃO sobe ninguém pro V', tentar(() => salvar(barra, { id: 'm1', nome: 'Costa', grau: 'V' })),
+    'Só o Regional sobe um irmão pro grau V. Entre no modo organizador com o PIN do Regional');
+  confere('e o irmão fica como estava', [membro('m1').divisao, membro('m1').grau, membro('m1').cargo], ['Barra - RJ4', 'VI', 'Diretor']);
+  confere('o Editar comum da Barra continua igual', [salvar(barra, { id: 'm1', nome: 'Costa', grau: 'VI', funcoes: 'batedor', cargo: 'Diretor' }).ok,
+    membro('m1').divisao, livro('barra').length], [true, 'Barra - RJ4', 0]);
+
+  // O Regional entra na Barra com o PIN dele e sobe o Costa.
+  const r = salvar(regionalNaBarra, { id: 'm1', nome: 'Costa', grau: 'V', funcoes: 'batedor', cargo: 'Social Regional' });
+  confere('o Regional sobe: vai pro Regional', [r.ok, r.nivel, r.divisao, r.eventosAbertosTirados, r.eventosAbertosColocados],
+    [true, 'sobe', 'regional', 1, 1]);
+  const m1 = membro('m1');
+  confere('mesmo cadastro, no Regional, grau V com o cargo do V, funções e ingresso ficam',
+    [m1.id, m1.divisao, m1.grau, m1.cargo, m1.funcoes, m1.entrada, m1.grauPendente],
+    ['m1', 'Regional RJ4', 'V', 'Social Regional', ['batedor'], '2019-03-12', false]);
+  confere('eventos: sai do aberto da Barra, o encerrado fica, entra nos abertos do Regional que faltavam',
+    eventosDe('m1'), ['abertoR', 'abertoR2', 'velhoB']);
+  confere('no livro da Barra: subiu, pro Regional', livro('barra'), [['subidaRegional', 'm1', 'Regional RJ4']]);
+  confere('no livro do Regional: subiu, vindo da Barra', livro('regional'), [['subidaRegional', 'm1', 'Barra - RJ4']]);
+  confere('a Barra não edita mais quem subiu', salvar(barra, { id: 'm1', nome: 'Costa', grau: 'V' }).ok, false);
+
+  // Descer do V pede a divisao, e nunca o proprio Regional.
+  confere('descer sem a divisão é recusado', tentar(() => salvar(regional, { id: 'm1', nome: 'Costa', grau: 'VI' })), 'Escolha a divisão para onde ele vai');
+  confere('descer "pro Regional" é recusado', tentar(() => salvar(regional, { id: 'm1', nome: 'Costa', grau: 'VI', destino: 'regional' })),
+    'Escolha a divisão para onde ele vai');
+  const d = salvar(regional, { id: 'm1', nome: 'Costa', grau: 'VI', funcoes: 'batedor', cargo: 'Subdiretor', destino: 'oeste' });
+  confere('o Regional desce pro Oeste', [d.ok, d.nivel, d.divisao, d.eventosAbertosTirados, d.eventosAbertosColocados], [true, 'desce', 'oeste', 0, 1]);
+  confere('no Oeste, grau VI com o cargo novo', [membro('m1').divisao, membro('m1').grau, membro('m1').cargo], ['Oeste - RJ4', 'VI', 'Subdiretor']);
+  confere('eventos: continua nos do Regional e entra no aberto do Oeste', eventosDe('m1'), ['abertoO', 'abertoR', 'abertoR2', 'velhoB']);
+  confere('no livro: desceu, dos dois lados', [livro('regional').filter(m => m[0] === 'descidaDivisao'), livro('oeste')],
+    [[['descidaDivisao', 'm1', 'Oeste - RJ4']], [['descidaDivisao', 'm1', 'Regional RJ4']]]);
+
+  // O que NAO muda ninguem de lugar.
+  salvar(regional, { id: 'r1', nome: 'Lobo Mau', grau: 'V', cargo: 'Operacional' });
+  confere('editar um grau V do Regional sem mudar o grau: fica', [membro('r1').nome, membro('r1').divisao], ['Lobo Mau', 'Regional RJ4']);
+  salvar(regional, { id: 'r1', nome: 'Lobo Mau', grau: 'II' });
+  confere('do V pros graus I a IV: fica no Regional (outro comando, mais pra frente)', [membro('r1').grau, membro('r1').divisao], ['II', 'Regional RJ4']);
+  salvar(barra, { id: 'm4', nome: 'Antigo Jr', grau: 'V' });
+  confere('quem já era V numa divisão, de antes da regra, a divisão edita e ele fica', [membro('m4').nome, membro('m4').divisao], ['Antigo Jr', 'Barra - RJ4']);
+
+  // Afastado sobe, mas nao entra em evento.
+  const a = salvar(regionalNaBarra, { id: 'm5', nome: 'Parado', grau: 'V' });
+  confere('afastado sobe sem entrar nos eventos do Regional', [a.nivel, a.eventosAbertosColocados, eventosDe('m5'), membro('m5').situacao],
+    ['sobe', 0, [], 'afastado']);
+}
+
+log('');
 log('=== abertura do app: os convocados de cada evento numa leitura só ===');
 {
   // Presencas misturadas fora de ordem, um evento sem ninguem e uma linha

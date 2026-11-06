@@ -121,6 +121,60 @@ function transferirNaMemoria(membroId, params, data) {
     : { ...x, divisao: escopoPorChave(destino).nome, cargo: '', grauPendente: true });
 }
 
+// Subir pro grau V (vai pro Regional) ou sair dele (vai pra divisao
+// escolhida), pelo Editar do cadastro (06/11/2026). Diferente do Editar
+// comum, espera a planilha: so o PIN do Regional pode, e quem confere e o
+// Code.gs (salvarMembro). Com erro, o formulario continua aberto, com o que
+// foi escolhido. Devolve true quando deu certo.
+export async function salvarMudancaDeNivel(member, nivel) {
+  const destino = nivel === 'sobe' ? 'regional' : state.newMemberDestino;
+  if (!destino) {
+    state.nivelErro = 'Escolha a divisão para onde ele vai.';
+    render();
+    return false;
+  }
+  state.nivelSalvando = true;
+  state.nivelErro = null;
+  render();
+  try {
+    const r = await api('membroSalvar', { ...member, funcoes: member.funcoes.join(','), destino });
+    mudarNivelNaMemoria(member, r.nivel ? destino : null, r.data || hojeISO());
+    mostrarAviso(nivel === 'sobe'
+      ? `⬆️ ${member.nome} subiu pro grau V e foi pro Regional`
+      : `⬇️ ${member.nome} saiu do grau V e foi para ${escopoPorChave(destino).nome}`);
+    state.movimentosDados = null;
+    state.nivelSalvando = false;
+    return true;
+  } catch (e) {
+    state.nivelErro = 'Não consegui salvar: ' + e.message + '.';
+    state.nivelSalvando = false;
+    render();
+    return false;
+  }
+}
+
+// O mesmo que o Code.gs fez (mudarDeNivel), na memoria do app: o cadastro
+// com a divisao nova e, nos eventos abertos, a saida da divisao antiga (so
+// na subida) e a entrada como Aguardando nos do lugar novo, de hoje em
+// diante. destino null = a planilha nao mudou ele de lugar (so gravou).
+function mudarNivelNaMemoria(member, destino, data) {
+  if (!destino) {
+    state.roster = state.roster.map(x => x.id === member.id ? member : x);
+    return;
+  }
+  const origem = (escoposEmOrdemDeExibicao().find(e => e.nome === member.divisao) || {}).chave;
+  const sobe = destino === 'regional';
+  state.events = state.events.map(ev => {
+    if (ev.status === 'encerrado') return ev;
+    const ids = ev.memberIds || [];
+    if (sobe && ev.categoria === origem && ids.includes(member.id)) return { ...ev, memberIds: ids.filter(id => id !== member.id) };
+    if (ev.categoria === destino && !estaAfastado(member) && (!ev.data || ev.data >= data) && !ids.includes(member.id)) return { ...ev, memberIds: [...ids, member.id] };
+    return ev;
+  });
+  state.roster = state.roster.map(x => x.id !== member.id ? x
+    : { ...member, divisao: escopoPorChave(destino).nome, grauPendente: false });
+}
+
 // O "Confirmar grau" de quem chegou por transferencia: grava o grau (e o
 // cargo, nos graus VI e V) e tira o lembrete. Espera a planilha, como as
 // movimentacoes.

@@ -154,6 +154,12 @@ export let state = {
   newMemberCargo: null,
   newMemberFuncoes: new Set(),
   editingMemberId: null,
+  // Subir pro grau V ou sair dele, pelo Editar (06/11/2026): a divisao pra
+  // onde vai quem sai do V, e o salvar que espera a planilha (so o Regional
+  // pode, e a planilha e quem confere o PIN).
+  newMemberDestino: null,
+  nivelSalvando: false,
+  nivelErro: null,
   rankData: null,
   rankJanela: 'sempre',
   rankLoading: false,

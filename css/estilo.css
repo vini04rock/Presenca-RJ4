@@ -2697,6 +2697,14 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 .mov-linha.mov-afastamento .mov-tipo { color: #E0B24D; }
 .mov-linha.mov-desligamento .mov-tipo { color: var(--status-infracional); }
 .mov-linha.mov-transferenciaSaida .mov-tipo, .mov-linha.mov-transferenciaEntrada .mov-tipo { color: #5FA0C4; }
+.mov-linha.mov-subidaRegional .mov-tipo, .mov-linha.mov-descidaDivisao .mov-tipo { color: #D4A24C; }
+/* A contagem a parte da subida e descida do grau V, embaixo do placar. */
+.mov-grau-v {
+  margin-top: 8px; padding: 8px 10px; border-radius: 12px; text-align: center;
+  font-size: 12px; font-weight: 600; color: #D4A24C;
+  background-color: rgba(212, 162, 76, 0.07); border: 1px solid rgba(212, 162, 76, 0.4);
+}
+.mov-painel.mov-grau-v-aviso { border-left-color: #D4A24C; }
 .mov-motivo { color: var(--text-muted); font-style: italic; }
 .mov-quadro-linha { cursor: pointer; }
 .mov-quadro-linha:active { opacity: 0.7; }

@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-11-04-doacoes-regional';
+var VERSAO = '2026-11-06-grau-v-regional';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -174,7 +174,12 @@ var DESTINOS_SAIDA_ESTOQUE = ['acao_social', 'familia', 'instituicao', 'outro'];
 var CAB_MOVIMENTOS = ['ID', 'Data', 'Divisao', 'ID Membro', 'Membro', 'Grau', 'Tipo', 'Motivo', 'Registrado em', 'De/Para'];
 var TIPOS_MOVIMENTO = {
   entrada: 'Entrada', afastamento: 'Afastamento', retorno: 'Retorno', desligamento: 'Desligamento',
-  transferenciaSaida: 'Transferencia (saida)', transferenciaEntrada: 'Transferencia (entrada)'
+  transferenciaSaida: 'Transferencia (saida)', transferenciaEntrada: 'Transferencia (entrada)',
+  // Mudar de grau pro V (ou sair dele) troca o irmao de lugar sem ser
+  // transferencia (06/11/2026): o grau V e o Regional. Duas linhas, como na
+  // transferencia - uma na divisao, outra no Regional -, com o outro lado
+  // no De/Para.
+  subidaRegional: 'Subida ao Regional', descidaDivisao: 'Descida para divisao'
 };
 var SITUACAO_AFASTADO = 'Afastado';
 // Estoque de materiais administrativos do Regional. A primeira aba e o
@@ -1400,9 +1405,28 @@ function salvarMembro(p) {
     // divisao e Transferencia, que fica no livro. Fica a da planilha - assim
     // um celular com a lista velha, editando quem acabou de ser transferido,
     // nao o devolve pra divisao antiga.
-    linha[3] = achado.valores[3];
+    // A excecao e o grau V (06/11/2026), que e o Regional: subir pro V leva
+    // o irmao pro Regional, e descer dele leva pra divisao escolhida. Ver
+    // mudancaDeNivel.
+    var origem = CHAVE_POR_NOME_DIVISAO[String(achado.valores[3] || '')];
+    var nivel = mudancaDeNivel(origem, String(achado.valores[2] || ''), String(p.grau || ''));
+    var destino = '';
+    if (nivel === 'sobe') {
+      if (!verificarPin('regional', String(p.pin || '')).valido) {
+        return { ok: false, erro: 'Só o Regional sobe um irmão pro grau V. Entre no modo organizador com o PIN do Regional' };
+      }
+      destino = 'regional';
+    } else if (nivel === 'desce') {
+      destino = String(p.destino || '');
+      if (ESCOPOS_VALIDOS.indexOf(destino) === -1 || destino === 'regional') throw new Error('Escolha a divisão para onde ele vai');
+    }
+    linha[3] = destino ? ESCOPOS_NOME[destino] : achado.valores[3];
     s.getRange(achado.indice, 1, 1, linha.length).setValues([linha]);
     if (p.entrada !== undefined && p.entrada !== null) gravarDataDeIngresso(s, achado.indice, String(id), validarDataDeIngresso(p.entrada));
+    if (nivel) {
+      renomearEmPresencas(2, id, p.nome);
+      return mudarDeNivel(s, achado, nivel, origem, destino, String(id), String(p.nome), String(p.grau || ''));
+    }
   } else {
     // Integrante novo: a data de entrada vai pro cadastro e pro livro de
     // Entrada/Saida. Sem data valida, vale hoje.
@@ -1415,6 +1439,42 @@ function salvarMembro(p) {
   }
   renomearEmPresencas(2, id, p.nome);
   return { ok: true, id: id };
+}
+
+// O grau V e o Regional (06/11/2026): todos os regionais sao grau V, e o
+// Regional fica acima das divisoes. Mudar o grau atravessando o V muda o
+// irmao de lugar, com o mesmo ID e todo o historico:
+//   'sobe'  - de uma divisao, de outro grau pro V: vai pro Regional;
+//   'desce' - do Regional, do V pra VI ou abaixo: vai pra divisao escolhida.
+// Os graus I a IV ficam de fora por enquanto (sao outro comando, a criar).
+// Quem ja estava no V dentro de uma divisao, de antes da regra, fica onde
+// esta ao ser editado sem mudar de grau. '' = nao muda de lugar.
+var GRAUS_ABAIXO_DO_V = ['VI', 'VII', 'VIII', 'IX', 'X'];
+function mudancaDeNivel(divisao, grauAntes, grauNovo) {
+  if (!divisao) return '';
+  if (divisao !== 'regional' && grauNovo === 'V' && grauAntes !== 'V') return 'sobe';
+  if (divisao === 'regional' && grauAntes === 'V' && GRAUS_ABAIXO_DO_V.indexOf(grauNovo) !== -1) return 'desce';
+  return '';
+}
+
+// O resto da subida/descida, depois do cadastro ja gravado com a divisao
+// nova: o lembrete de grau a confirmar sai (o grau foi decidido agora), os
+// eventos abertos e o livro.
+//   - sobe: sai dos eventos abertos da divisao e entra como Aguardando nos
+//     abertos do Regional, de hoje em diante (os do Regional costumam ja
+//     te-lo; quem ja esta fica como esta);
+//   - desce: continua nos do Regional (sao de todo mundo, como na
+//     transferencia) e entra nos abertos da divisao nova, de hoje em diante.
+// Afastado nao entra em evento nenhum.
+function mudarDeNivel(s, achado, nivel, origem, destino, mid, nome, grau) {
+  s.getRange(achado.indice, 10).setValue('');
+  var hoje = Utilities.formatDate(new Date(), fuso(), 'yyyy-MM-dd');
+  var tirados = nivel === 'sobe' ? tirarDosEventosAbertos(mid, origem) : 0;
+  var colocados = estaAfastado(achado.valores) ? 0 : colocarNosEventosAbertos(mid, nome, destino, hoje);
+  var tipo = nivel === 'sobe' ? 'subidaRegional' : 'descidaDivisao';
+  anotarMovimento(hoje, origem, mid, nome, grau, tipo, '', ESCOPOS_NOME[destino]);
+  anotarMovimento(hoje, destino, mid, nome, grau, tipo, '', ESCOPOS_NOME[origem]);
+  return { ok: true, id: mid, nivel: nivel, divisao: destino, data: hoje, eventosAbertosTirados: tirados, eventosAbertosColocados: colocados };
 }
 
 // A data de ingresso no clube: '' (sem data) ou 'yyyy-mm-dd' de verdade,

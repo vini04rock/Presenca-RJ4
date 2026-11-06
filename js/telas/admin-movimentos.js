@@ -5,7 +5,7 @@
 
 import { carregarMovimentos } from '../dados/carregar.js';
 import { rotuloPilula } from '../dominio/doacoes.js';
-import { PERIODOS_MOVIMENTOS, TIPOS_MOVIMENTO, quadroRegional, rotuloMovimento, rotuloPeriodoMovimentos, resumoMovimentos, textoMovimentos, textoQuadroRegional } from '../dominio/movimentos.js';
+import { PERIODOS_MOVIMENTOS, TIPOS_MOVIMENTO, quadroRegional, resumoGrauV, rotuloMovimento, rotuloPeriodoMovimentos, resumoMovimentos, textoMovimentos, textoQuadroRegional } from '../dominio/movimentos.js';
 import { escopoPorChave } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
@@ -97,7 +97,8 @@ function linhaMovimento(m) {
 
 function relatorioDivisao(movimentos, chave) {
   const r = resumoMovimentos(movimentos, state.roster, chave, state.movimentosPeriodo);
-  const voltar = state.adminEscopo === 'regional'
+  const grauV = resumoGrauV(r);
+  const voltar =state.adminEscopo === 'regional'
     ? '<div class="btn ghost" style="margin-bottom:10px;" data-action="voltar-quadro-movimentos">‹ Todas as divisões</div>'
     : '';
   return `
@@ -106,8 +107,9 @@ function relatorioDivisao(movimentos, chave) {
       <div class="painel-titulo">🔄 ${escapeHtml(escopoPorChave(chave).nome)}</div>
       ${pilulas()}
       ${placar(r.entradas.length, r.afastadosAgora.length, r.desligamentos.length, transferenciasDaDivisao(r))}
+      ${grauV ? `<div class="mov-grau-v">${escapeHtml(grauV.linha)}</div>` : ''}
       ${pizzaMovimentos(r.entradas.length, r.afastadosAgora.length, r.desligamentos.length, transferenciasDaDivisao(r))}
-      <div class="info-line" style="padding:10px 0 0; color:var(--text-muted); font-size:12px;">Entraram, desligados e transferências: no período. Afastados: quem está afastado hoje.</div>
+      <div class="info-line" style="padding:10px 0 0; color:var(--text-muted); font-size:12px;">Entraram, desligados e transferências: no período. Afastados: quem está afastado hoje.${grauV ? ' Subir ou sair do grau V não é transferência: fica à parte.' : ''}</div>
       ${botaoGerarRelatorio('movimentos:' + chave, [
         { acao: 'copiar-texto-movimentos', valor: chave, rotulo: '📋 WhatsApp' },
         { acao: 'pdf-movimentos', valor: chave, rotulo: '📄 PDF' },

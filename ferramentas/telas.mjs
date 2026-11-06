@@ -696,6 +696,14 @@ add('membros / datas com erro',          { isAdmin:true, adminEscopo:'barra', ad
   entradasRascunho:{ m1:'31/02/2019' }, entradasMsg:{ ok:false, texto:'A data de Costa ("31/02/2019") não é uma data válida - escreva como 12/03/2019.' } }, T.renderAdmin);
 add('membros / editando com ingresso',   { isAdmin:true, adminEscopo:'barra', adminTab:'membros', editingMemberId:'m1',
   newMemberNome:'Costa', newMemberEntrada:'12/03/2019' }, T.renderAdmin);
+// O grau V e o Regional (06/11/2026): o Editar avisa antes de mudar de lugar.
+add('membros / subindo pro grau V',      { isAdmin:true, adminEscopo:'barra', adminTab:'membros', editingMemberId:'m1',
+  newMemberNome:'Costa', newMemberGrau:'V', newMemberCargo:'Social Regional' }, T.renderAdmin);
+add('membros / subir pro V recusado',    { isAdmin:true, adminEscopo:'barra', adminTab:'membros', editingMemberId:'m1',
+  newMemberNome:'Costa', newMemberGrau:'V', nivelErro:'Não consegui salvar: Só o Regional sobe um irmão pro grau V.' }, T.renderAdmin);
+add('membros / saindo do grau V',        { isAdmin:true, adminEscopo:'regional', adminTab:'membros', editingMemberId:'m6',
+  roster:membros.map(m => m.id === 'm6' ? { ...m, grau:'V' } : m), newMemberNome:'Chefe', newMemberGrau:'VI', newMemberDestino:'oeste' }, T.renderAdmin);
+add('membros / novo grau V numa divisão', { isAdmin:true, adminEscopo:'barra', adminTab:'membros', newMemberGrau:'V' }, T.renderAdmin);
 add('membros / confirmando remover',     { isAdmin:true, adminEscopo:'barra', adminTab:'membros', removerMembroId:'m1' }, T.renderAdmin);
 add('membros / desligando (com erro)',   { isAdmin:true, adminEscopo:'barra', adminTab:'membros', movMembroId:'m3', movTipo:'desligamento',
   movMotivo:'Pediu pra sair', movErro:'Não consegui registrar: Falha de conexao.' }, T.renderAdmin);
@@ -712,8 +720,16 @@ const comTransferencias = movimentosFalsos.concat([
   { id:'t2', data:'2026-10-05', divisao:'oeste', membroId:'m5', nome:'Lobo', grau:'X', tipo:'transferenciaEntrada', motivo:'Mudou de bairro', dePara:'Barra - RJ4' },
   { id:'t3', data:'2026-10-06', divisao:'barra', membroId:'m6', nome:'Puma', grau:'IX', tipo:'transferenciaSaida', motivo:'', dePara:'RJ2 · Centro' },
 ]);
+const comGrauV = movimentosFalsos.concat([
+  { id:'v1', data:'2026-10-07', divisao:'barra', membroId:'m1', nome:'Costa', grau:'V', tipo:'subidaRegional', motivo:'', dePara:'Regional RJ4' },
+  { id:'v2', data:'2026-10-07', divisao:'regional', membroId:'m1', nome:'Costa', grau:'V', tipo:'subidaRegional', motivo:'', dePara:'Barra - RJ4' },
+  { id:'v3', data:'2026-10-08', divisao:'regional', membroId:'m6', nome:'Chefe', grau:'VI', tipo:'descidaDivisao', motivo:'', dePara:'Oeste - RJ4' },
+  { id:'v4', data:'2026-10-08', divisao:'oeste', membroId:'m6', nome:'Chefe', grau:'VI', tipo:'descidaDivisao', motivo:'', dePara:'Regional RJ4' },
+]);
 const mvs = { isAdmin:true, adminTab:'movimentos', roster:rosterComAfastado, movimentosDados:movimentosFalsos, movimentosPeriodo:0 };
 add('entrada/saída / com transferências', { ...mvs, adminEscopo:'barra', movimentosDadosEscopo:'barra', movimentosDados:comTransferencias }, T.renderAdmin);
+add('entrada/saída / barra com grau V',  { ...mvs, adminEscopo:'barra', movimentosDadosEscopo:'barra', movimentosDados:comGrauV }, T.renderAdmin);
+add('entrada/saída / regional com grau V', { ...mvs, adminEscopo:'regional', movimentosDadosEscopo:'regional', movimentosDivisaoAberta:'regional', movimentosDados:comGrauV }, T.renderAdmin);
 add('entrada/saída / quadro com transferências', { ...mvs, adminEscopo:'regional', movimentosDadosEscopo:'regional', movimentosDados:comTransferencias }, T.renderAdmin);
 add('entrada/saída / divisão',           { ...mvs, adminEscopo:'barra', movimentosDadosEscopo:'barra' }, T.renderAdmin);
 add('entrada/saída / divisão vazia',     { ...mvs, adminEscopo:'oeste', movimentosDadosEscopo:'oeste', movimentosDados:[] }, T.renderAdmin);
@@ -857,7 +873,7 @@ const LIMPO = {
   convocacaoEventoSalvando:false, convocacaoEventoMsg:null,
   newEventForm:null, newEventChamada:null, newEventTipo:null,
   convocacaoTextos:{}, convocacaoTextoEditando:null, convocacaoTextoRascunho:'', convocacaoTextoSalvando:false, convocacaoTextoMsg:null,
-  newMemberGrau:null, newMemberCargo:null,
+  newMemberGrau:null, newMemberCargo:null, editingMemberId:null, newMemberDestino:null, nivelSalvando:false, nivelErro:null,
   pinErro:null, pinVerificando:false,
   calendarioPinErro:null, calendarioPinVerificando:false,
   homeEventosAberto:false, homeEscopo:null, homeTipo:null, relatorioMembroFichaId:null,

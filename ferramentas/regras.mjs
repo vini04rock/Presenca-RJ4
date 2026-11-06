@@ -1378,6 +1378,36 @@ log('=== entrada/saída: o relatório de cada divisão e o quadro do Regional ==
     textoT.includes('pessoal')], [true, true, true, false]);
   confere('o texto do quadro leva +chegaram −saíram', textoQuadroRegional(qt, 6).split('\n').find(l => l.startsWith('*Barra')),
     '*Barra - RJ4*: 🟢 1 · ⏸️ 1 · 🚪 1 · 🔁 +0 −2');
+
+  // O grau V e o Regional (06/11/2026): Urso subiu da Barra pro Regional, e
+  // Leao desceu do Regional pro Oeste. Duas linhas cada no livro.
+  const { mudancaDeNivel, divisaoDeOrigem, resumoGrauV } = await import(url('dominio/movimentos.js'));
+  const bv = { id: 'b1', grau: 'VI', divisao: 'Barra - RJ4' }, rv = { id: 'r1', grau: 'V', divisao: 'Regional RJ4' };
+  confere('mudar pro V numa divisão sobe; do V pra VI–X no Regional desce', [
+    mudancaDeNivel(bv, 'V'), mudancaDeNivel(rv, 'VI'), mudancaDeNivel(rv, 'X'), mudancaDeNivel(bv, 'VII'),
+    mudancaDeNivel(rv, 'V'), mudancaDeNivel(rv, 'II'), mudancaDeNivel({ ...bv, grau: 'V' }, 'V'), mudancaDeNivel(null, 'V'),
+  ], ['sobe', 'desce', 'desce', '', '', '', '', '']);
+  const nv = (nome, divisao, tipo, dePara, data) => ({ ...mv(data || emDias(-1), divisao, nome, tipo, 'pessoal'), dePara });
+  const comV = movimentos.concat([
+    nv('Urso', 'barra', 'subidaRegional', 'Regional RJ4'), nv('Urso', 'regional', 'subidaRegional', 'Barra - RJ4'),
+    nv('Leao', 'regional', 'descidaDivisao', 'Oeste - RJ4'), nv('Leao', 'oeste', 'descidaDivisao', 'Regional RJ4'),
+  ]);
+  const vb = resumoMovimentos(comV, roster, 'barra', 6), vr = resumoMovimentos(comV, roster, 'regional', 6);
+  confere('subida e descida não são transferência', [vb.sairam.length, vr.chegaram.length, nomes(vb.subiram), nomes(vr.subiram), nomes(vr.desceram)],
+    [0, 0, ['Urso'], ['Urso'], ['Leao']]);
+  confere('o rótulo muda com o lado do livro', [rotuloMovimento(vb.subiram[0]), rotuloMovimento(vr.subiram[0]), rotuloMovimento(vr.desceram[0]),
+    rotuloMovimento(resumoMovimentos(comV, roster, 'oeste', 6).desceram[0])],
+    ['Subiu pro grau V e foi pro Regional', 'Subiu pro grau V, vindo de Barra - RJ4', 'Saiu do grau V e foi para Oeste - RJ4', 'Saiu do grau V e veio do Regional']);
+  confere('a contagem à parte, de cada lado', [resumoGrauV(vb).linha, resumoGrauV(vr).linha, resumoGrauV(rb)],
+    ['⬆️ 1 subiu pro Regional · ⬇️ 0 vieram do Regional', '⬆️ 1 chegou das divisões · ⬇️ 1 desceu pra divisão', null]);
+  const textoV = textoMovimentos(vr, 6).split('\n');
+  confere('o texto do Regional: a contagem logo depois das transferências, e as listas', [
+    textoV[7], textoV.includes('⬆️ Urso (X) — de Barra - RJ4 — ' + formatDataBR(emDias(-1))), textoV.includes('⬇️ Leao (X) — para Oeste - RJ4 — ' + formatDataBR(emDias(-1))),
+    textoV.join('\n').includes('pessoal')], ['⬆️ 1 chegou das divisões · ⬇️ 1 desceu pra divisão', true, true, false]);
+  confere('sem subida nem descida, o texto da divisão fica igual', textoMovimentos(rb, 6).includes('⬆️'), false);
+  confere('de que divisão ele subiu: a subida mais recente', [
+    divisaoDeOrigem(comV.concat([nv('Urso', 'oeste', 'subidaRegional', 'Regional RJ4', emDias(-40))]), 'Urso'),
+    divisaoDeOrigem(comV, 'Leao'), divisaoDeOrigem(null, 'Urso')], ['barra', '', '']);
 }
 
 log('');

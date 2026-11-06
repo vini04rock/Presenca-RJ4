@@ -616,6 +616,39 @@ criar outro cadastro e perder o histórico. O painel pede a **Regional**
   divisão nova, começa do zero. O histórico da antiga continua no Relatório
   individual, evento a evento.
 
+**Grau V é o Regional** (06/11/2026). Todos os regionais são grau V, e o
+Regional fica acima das divisões. Mudar o grau de um irmão atravessando o V,
+pelo próprio **Editar** do cadastro, muda ele de lugar com o **mesmo
+cadastro**, sem ser transferência (`mudancaDeNivel`, no `Code.gs` e em
+`dominio/movimentos.js`; `mudarDeNivel`, no `Code.gs`):
+
+- **Subir** (irmão de divisão, de outro grau pro V): vai pro Regional. Só
+  com o **PIN do Regional** (a chave-mestra, entrando na divisão): com o
+  da divisão, o `salvarMembro` recusa e nada muda. Antes de salvar, o
+  formulário avisa o que vai acontecer e mostra os cargos do V; o cargo de
+  divisão sai. Ele sai dos eventos abertos da divisão e entra como
+  ⚠️ Aguardando nos abertos do Regional, de hoje em diante.
+- **Descer** (irmão do Regional, do V pra VI a X): o formulário pede a
+  divisão, em botões, já marcando a de onde ele subiu quando o livro de
+  Entrada/Saída estiver carregado (`divisaoDeOrigem`). Continua nos eventos
+  do Regional e entra nos abertos da divisão, de hoje em diante.
+- **No livro, duas linhas** (uma na divisão e outra no Regional, com o
+  outro lado no `De/Para`): ⬆️ `Subida ao Regional` e ⬇️ `Descida para
+  divisao`. **Não conta como transferência** nem como saída: no relatório
+  de Entrada/Saída aparece numa contagem à parte, embaixo dos quatro
+  números, na linha do tempo, no texto e na imagem (`resumoGrauV`). O
+  quadro do Regional não muda.
+- O resto vem sozinho de o cadastro estar no Regional: o % passa a contar
+  os eventos do Regional (o histórico da divisão fica no Relatório
+  individual), ele sai do Insight e da caixinha da divisão (meses novos), e
+  dos Caveiras, que deixam o grau V de fora.
+- **Não muda de lugar:** quem já era V numa divisão antes da regra (a
+  divisão edita e ele fica), e os graus **I a IV**, que serão outro comando,
+  a criar mais pra frente. Cadastro **novo** de grau V numa divisão é
+  recusado no app: o V se cadastra pelo Regional.
+- Subir ou descer de grau dentro da divisão, trocar cargo e função
+  continuam sendo só o Editar.
+
 ## Doações e Caixinha
 
 Duas seções do menu do organizador, criadas em 18/10/2026 para dar número
