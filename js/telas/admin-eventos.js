@@ -552,6 +552,13 @@ export const acoes = {
     if (data === null) return;
     const checked = [...(state.newEventSelected || [])];
     if (!nome || checked.length === 0) return;
+    // Sem tipo, o evento some do Calendario e nao conta nas Obrigatoriedades
+    // do mes (aconteceu com o PUB GARDENIA de 10/11/2026: tocar de novo no
+    // tipo escolhido desmarca, e o evento foi salvo sem ele).
+    if (!state.newEventTipo) {
+      alert('Escolha o tipo do evento (Pub, Bate e Volta, Ação Social ou Reunião).\n\nSem o tipo, o evento não aparece no Calendário nem conta nas obrigatoriedades do mês.');
+      return;
+    }
     const chamada = chamadaParaGuardar(state.newEventChamada);
     if (state.adminEscopo === 'regional') chamada.dispensaObrigatoriedade = f.dispensaObrigatoriedade !== false;
     const evento = {
