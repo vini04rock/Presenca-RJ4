@@ -13,6 +13,7 @@ import { eventosProximos, semResposta } from '../dominio/pendencias.js';
 import { alertasHonrarias, textoPrazoHonraria } from '../dominio/honrarias.js';
 import { carregarAniversarios, carregarTextosChamada, loadPresencasProximas } from '../dados/carregar.js';
 import { aniversariosProximos } from '../dominio/carteirinha.js';
+import { obrigatoriasParaAvisar, textoPrazoObrigatoria } from '../dominio/painel-social.js';
 import { escopoPorChave, escoposAtivos, temDoacoesECaixinha } from '../nucleo/config.js';
 import { TIPOS_OBRIGATORIOS, obrigatoriedadesDoMes, rotuloTipo, textoCobrancaObrigatoriedades, textoDiasRestantes, textoEventoMarcado, textoFaltam } from '../dominio/obrigatoriedades.js';
 import { copiarTexto, diaDaSemana, formatDataBR, hojeISO, quando } from '../nucleo/util.js';
@@ -47,6 +48,10 @@ const SECOES = [
   // explicacao (e poderia trocar a aba de entrada).
   { area: 'social', aba: 'doacoes', nome: 'Doações', desc: 'Alimento de cada evento, o relatório e o estoque', icone: '🥫', cor: '#4CAF6E',
     visivel: () => temDoacoesECaixinha(state.adminEscopo) },
+  // O acompanhamento do Social Regional (10/11/2026): a Acao Social de cada
+  // divisao, mes a mes. So no Regional.
+  { area: 'social', aba: 'painel-social', nome: 'Painel Social', desc: 'Ação Social das divisões: calendário, quem fez, obrigatórias e relatório de 10 dias', icone: '📅', cor: '#4CAF6E',
+    visivel: () => state.adminEscopo === 'regional' },
   // O planejador de Acoes Sociais: nas 7 divisoes, cada uma com o seu.
   { area: 'social', aba: 'acoes-sociais', nome: 'Ações Sociais', desc: 'Agenda do ano, banco de ideias e textos', icone: '🤝', cor: '#4CAF6E' },
   { area: 'adm', aba: 'caixinha', nome: 'Caixinha', desc: 'Quem pagou, quanto entrou e saiu, e o saldo do caixa', icone: '💰', cor: '#C9A227',
@@ -71,7 +76,7 @@ const AREAS = [
 const ORDEM_POR_AREA = {
   adm: ['caixinha', 'estoque-adm-movimentar', 'movimentos', 'membros'],
   operacional: ['abrir-relatorios-organizador', 'abrir-relatorio-individual', 'insights', 'funcoes-especiais', 'eventos'],
-  social: ['doacoes', 'acoes-sociais'],
+  social: ['painel-social', 'doacoes', 'acoes-sociais'],
 };
 // O Regional tem a propria ordem no Operacional (pedido do clube,
 // 28/10/2026): Eventos no topo. As divisoes seguem com a de cima.
@@ -239,6 +244,25 @@ function linhaGrauPendente(membros) {
   `;
 }
 
+// So no Regional: uma das 4 Acoes Sociais obrigatorias dele chegando (ate
+// DIAS_AVISO_OBRIGATORIA dias) sem evento marcado. Amarelo; vermelho nos
+// ultimos dias. Tocar abre o Painel Social.
+function linhaObrigatoriaRegional(s) {
+  const cor = s.urgente ? '#D9573C' : '#E0B24D';
+  const detalhe = [diaDaSemana(s.data), formatDataBR(s.data) + (s.ob.dataSugerida ? ' (sugerida)' : '')].join(' · ');
+  return `
+    <div class="aviso-linha" style="border-left-color:${cor};" data-action="abrir-secao-organizador" data-tab="painel-social">
+      <div class="aviso-icone${s.urgente ? ' pulsando' : ''}" style="border-color:${cor};">${s.ob.emoji}</div>
+      <div class="aviso-texto">
+        <div class="aviso-nome">${escapeHtml(s.ob.nome)} — Ação Social do Regional</div>
+        <div class="aviso-meta">${escapeHtml(detalhe)}</div>
+        <div class="aviso-contagem" style="color:${cor};">Ainda sem evento · ${escapeHtml(textoPrazoObrigatoria(s))}</div>
+      </div>
+      <div class="aviso-seta">›</div>
+    </div>
+  `;
+}
+
 function avisosDoMural() {
   const nomeDivisao = escopoPorChave(state.adminEscopo).nome;
   const grauAConfirmar = state.roster.filter(m => m.grauPendente && m.divisao === nomeDivisao);
@@ -259,7 +283,10 @@ function avisosDoMural() {
   const aniversarios = aniversariosProximos(lista, hojeISO(), 7).map(a => ({
     tipo:'aniversario', prioridade:a.dias === 0 ? 1 : 2, ordem:String(a.dias).padStart(4, '0') + '|' + a.nome, dados:a,
   }));
-  return eventos.concat(graus, honrarias, aniversarios).sort((a, b) => a.prioridade - b.prioridade || a.ordem.localeCompare(b.ordem));
+  const obrigatorias = state.adminEscopo !== 'regional' ? [] : obrigatoriasParaAvisar(state.events, hojeISO()).map(o => ({
+    tipo:'obrigatoria', prioridade:o.urgente ? 0 : 1, ordem:String(o.dias + 1000).padStart(4, '0'), dados:o,
+  }));
+  return eventos.concat(obrigatorias, graus, honrarias, aniversarios).sort((a, b) => a.prioridade - b.prioridade || a.ordem.localeCompare(b.ordem));
 }
 
 // O mural fica na tela mesmo sem nenhum aviso, com a mesma altura de
@@ -273,7 +300,8 @@ function muralDeAvisos() {
   const avisos = avisosDoMural();
   const conteudo = avisos.length
     ? avisos.map(a => a.tipo === 'evento' ? linhaAviso(a.dados) : a.tipo === 'grau' ? linhaGrauPendente(a.dados)
-      : a.tipo === 'aniversario' ? linhaAniversario(a.dados) : linhaHonraria(a.dados)).join('')
+      : a.tipo === 'aniversario' ? linhaAniversario(a.dados) : a.tipo === 'obrigatoria' ? linhaObrigatoriaRegional(a.dados)
+      : linhaHonraria(a.dados)).join('')
     : '<div class="aviso-vazio">Nenhum aviso no momento</div>';
   return `
     <div class="rotulo-secao">Mural de avisos</div>

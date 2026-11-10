@@ -28,6 +28,14 @@ export const DIAS_URGENTES = 10;
 
 const dois = n => String(n).padStart(2, '0');
 
+// Um evento do Regional atende a obrigacao das divisoes? Sim, a nao ser que
+// a caixa "Evento regional" tenha sido desmarcada (eventos antigos, sem a
+// opcao, contam). Usada tambem pelo Painel Social (dominio/painel-social.js),
+// pra os dois nunca discordarem.
+export function valeParaAsDivisoes(ev) {
+  return ev.categoria === 'regional' && (!ev.chamada || ev.chamada.dispensaObrigatoriedade !== false);
+}
+
 export function obrigatoriedadesDoMes(eventos, base = new Date()) {
   const mes = `${base.getFullYear()}-${dois(base.getMonth() + 1)}`;
   const ultimoDia = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
@@ -36,7 +44,7 @@ export function obrigatoriedadesDoMes(eventos, base = new Date()) {
   // O primeiro do mes, se houver mais de um do mesmo tipo.
   const primeiro = (categoria, tipo) => doMes
     .filter(ev => ev.categoria === categoria && ev.tipo === tipo)
-    .filter(ev => categoria !== 'regional' || !ev.chamada || ev.chamada.dispensaObrigatoriedade !== false)
+    .filter(ev => categoria !== 'regional' || valeParaAsDivisoes(ev))
     .sort((a, b) => a.data.localeCompare(b.data))[0] || null;
 
   const divisoes = escoposNaOrdemOficial().filter(e => e.chave !== 'regional').map(e => {

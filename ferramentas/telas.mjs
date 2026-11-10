@@ -283,6 +283,40 @@ add('organizador / menu (oeste)',    { isAdmin:true, adminEscopo:'oeste' }, T.re
 add('organizador / área ADM (regional)', { isAdmin:true, adminEscopo:'regional', organizadorArea:'adm' }, T.renderMenuOrganizador);
 add('organizador / área Operacional (regional)', { isAdmin:true, adminEscopo:'regional', organizadorArea:'operacional' }, T.renderMenuOrganizador);
 add('organizador / área Social (regional)', { isAdmin:true, adminEscopo:'regional', organizadorArea:'social' }, T.renderMenuOrganizador);
+add('organizador / área Social (oeste, sem Painel Social)', { isAdmin:true, adminEscopo:'oeste', organizadorArea:'social' }, T.renderMenuOrganizador);
+// Painel Social (10/11/2026): olha o mes de hoje, entao os eventos andam
+// com o relogio, como os das Obrigatoriedades.
+const evSocial = (categoria, dias, status, extra = {}) => ({ ...evProximo, id:'ps-' + categoria + dias, nome:'Ação ' + categoria,
+  categoria, tipo:'Ação Social', data:daquiA(dias), status, ...extra });
+const ps = { isAdmin:true, adminEscopo:'regional', adminTab:'painel-social', painelSocialAno:null, painelSocialMes:null };
+add('painel social / com ações', { ...ps, events:[evSocial('barra', 0, 'encerrado'), evSocial('oeste', 0, 'ativo'),
+  evSocial('regional', 0, 'ativo', { nome:'Doação de sangue' }), { ...evMes('taquara', 'Pub') }] }, T.renderAdmin);
+add('painel social / regional desmarcado', { ...ps, events:[evSocial('regional', 0, 'ativo', { chamada:{ dispensaObrigatoriedade:false } })] }, T.renderAdmin);
+add('painel social / nada no mês', { ...ps, events:[] }, T.renderAdmin);
+add('painel social / outro ano', { ...ps, events:[evSocial('barra', 0, 'encerrado')], painelSocialAno:2025, painelSocialMes:0 }, T.renderAdmin);
+add('painel social / buscando', { ...ps, events:[], eventosAtualizando:true }, T.renderAdmin);
+add('painel social / erro ao buscar', { ...ps, events:[], eventosErro:'A conexao demorou demais' }, T.renderAdmin);
+// As 4 obrigatorias do Regional: o card no painel e o aviso no mural. Os
+// eventos andam com o relogio; o mural so mostra se alguma estiver a ate
+// 45 dias, entao aqui o teste so garante que nada quebra em qualquer data.
+add('painel social / obrigatória marcada no mês', { ...ps, events:[evSocial('regional', 0, 'ativo', { nome:'Natal solidário' })] }, T.renderAdmin);
+add('painel social / obrigatórias de 2025 (todas passaram)', { ...ps, events:[], painelSocialAno:2025, painelSocialMes:11 }, T.renderAdmin);
+add('organizador / menu regional com obrigatórias', { isAdmin:true, adminEscopo:'regional', events:[] }, T.renderMenuOrganizador);
+add('relatório 10 dias / com ações', { ...ps, adminTab:'painel-social-relatorio', relatorioSocialInicio:null, events:[evSocial('barra', 0, 'encerrado'),
+  evSocial('oeste', 0, 'ativo'), evSocial('regional', 0, 'ativo', { nome:'Doação de sangue' })] }, T.renderAdmin);
+add('relatório 10 dias / período vazio', { ...ps, adminTab:'painel-social-relatorio', relatorioSocialInicio:'2025-01-21', events:[] }, T.renderAdmin);
+add('relatório 10 dias / buscando', { ...ps, adminTab:'painel-social-relatorio', relatorioSocialInicio:null, events:[], eventosAtualizando:true }, T.renderAdmin);
+const planos = { barra:{ agenda:[{ id:'p1', mes:daquiA(0).slice(0, 7), acao:'Agasalho', emoji:'🧥', situacao:'confirmada', data:daquiA(0), horario:'09:00', local:'Sede', eventoId:'ps-barra0' },
+  { id:'p2', mes:daquiA(0).slice(0, 7), acao:'Sopão', emoji:'🍲', situacao:'ideia' }] }, oeste:{ agenda:[] }, recreio:{ erro:'A conexao demorou demais' } };
+add('planejadores / com planos', { ...ps, adminTab:'painel-social-planejadores', planejadoresDados:planos, events:[evSocial('barra', 0, 'ativo')] }, T.renderAdmin);
+add('planejadores / buscando', { ...ps, adminTab:'painel-social-planejadores', planejadoresDados:null, planejadoresCarregando:true, events:[] }, T.renderAdmin);
+// ➕ Registrar Acao Social: o formulario aberto, vazio e preenchido.
+const psForm = (extra) => ({ categoria:'', nome:'', detalhes:'', data:'', horario:'', local:'', convocar:'divisao', situacao:'marcada', erro:'', ...extra });
+add('painel social / registrar (vazio)', { ...ps, events:[], painelSocialForm:psForm() }, T.renderAdmin);
+add('painel social / registrar (barra, marcada, divisão inteira)', { ...ps, events:[], painelSocialForm:psForm({ categoria:'barra', nome:'Sopão', data:'20/11/2026' }) }, T.renderAdmin);
+add('painel social / registrar (já aconteceu, com erro)', { ...ps, events:[], painelSocialForm:psForm({ categoria:'regional', situacao:'realizada', erro:'A data precisa estar completa (dd/mm/aaaa).' }) }, T.renderAdmin);
+add('painel social / registrar (salvando)', { ...ps, events:[], painelSocialSalvando:true, painelSocialForm:psForm({ categoria:'oeste' }) }, T.renderAdmin);
+add('painel social / dentro de uma divisão (não existe)', { ...ps, adminEscopo:'barra', events:[] }, T.renderAdmin);
 add('organizador / área ADM (oeste)', { isAdmin:true, adminEscopo:'oeste', organizadorArea:'adm' }, T.renderMenuOrganizador);
 add('organizador / área Operacional (oeste)', { isAdmin:true, adminEscopo:'oeste', organizadorArea:'operacional' }, T.renderMenuOrganizador);
 for (const aba of ['eventos','membros','encerrados','presencas','insights','insights-rodadas','insights-relatorio']) {

@@ -2944,3 +2944,53 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 .externa-tirar { font: inherit; font-size: 13px; height: 32px; border: none; background: none; color: var(--text-muted); cursor: pointer; }
 .externa-tirar.vazio { cursor: default; }
 
+
+/* Painel Social (Regional -> Social, 10/11/2026): o calendario so com as
+   Acoes Sociais, a lista do mes, o quadro das divisoes e a grade do ano.
+   O calendario e as linhas das divisoes reaproveitam .calendario-* e
+   .aviso-linha; aqui so o que e dele. */
+.painel-social-busca { font-size: 12px; color: var(--text-muted); text-align: center; margin: -4px 0 10px; }
+.painel-social-legenda { font-size: 11.5px; color: var(--text-muted); text-align: center; margin-top: 10px; }
+.painel-social-detalhe { font-size: 12px; color: var(--text-muted); margin-top: 2px; line-height: 1.4; }
+.painel-social-acao .member-head { align-items: center; gap: 10px; }
+.painel-social-acao-corpo { min-width: 0; flex: 1; }
+.painel-social-pilula {
+  flex: none; font-size: 11.5px; font-weight: 600; padding: 4px 8px; border-radius: 999px;
+  border: 1px solid var(--line-strong); color: var(--text); white-space: nowrap;
+}
+.painel-social-pilula.realizada { border-color: var(--status-confirmado); color: var(--status-confirmado); }
+.painel-social-pilula.marcada { border-color: var(--status-justificada); color: var(--status-justificada); }
+.painel-social-topo { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; }
+.painel-social-rodape { font-size: 11.5px; color: var(--text-muted); padding: 8px 12px 10px; border-top: 1px solid var(--line); line-height: 1.45; }
+.painel-social-ano .painel-social-rodape { border-top: none; }
+
+/* A grade do ano: o nome da divisao, 12 meses e a conta. Cabe num celular
+   de 360px sem rolar de lado. */
+.painel-social-grade { display: flex; flex-direction: column; gap: 4px; }
+.painel-social-linha { display: grid; grid-template-columns: 62px repeat(12, minmax(0, 1fr)) 34px; gap: 2px; align-items: center; }
+.painel-social-nome { font-size: 11.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.painel-social-celula {
+  height: 24px; display: flex; align-items: center; justify-content: center;
+  font-size: 12px; border-radius: 5px; border: 1px solid transparent; cursor: pointer;
+}
+.painel-social-cabeca .painel-social-celula { font-size: 10.5px; font-weight: 700; color: var(--text-muted); height: 18px; cursor: default; }
+.painel-social-celula.aberto { background: rgba(255, 255, 255, 0.07); }
+.painel-social-cabeca .painel-social-celula.aberto { color: var(--white-strong); }
+.painel-social-celula.estado-futuro { color: var(--text-muted); }
+.painel-social-celula.pelo-regional { border-color: var(--line-strong); }
+.painel-social-conta { font-size: 11px; font-weight: 700; text-align: right; color: var(--text-muted); }
+/* Dia de uma obrigatoria do Regional ainda sem evento: so o contorno
+   tracejado, sem preencher - e lembrete, nao evento. */
+.calendario-dia.painel-social-dia-obrigatoria { border: 1.5px dashed #E0B24D; }
+.calendario-dia.painel-social-dia-obrigatoria .calendario-dia-origem { color: #E0B24D; }
+/* Relatorio de 10 em 10 dias: o nome de cada divisao separa os blocos. */
+.painel-social-relatorio-divisao { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted); padding: 12px 0 2px; border-bottom: 1px solid var(--line); }
+.painel-social-relatorio-vazio { padding: 8px 0; font-style: italic; }
+/* Planejadores das divisoes (so leitura): cada acao planejada numa linha;
+   a que ainda e so ideia fica mais apagada. */
+.painel-social-plano { padding: 4px 0; }
+.painel-social-plano[data-action] { cursor: pointer; }
+.painel-social-plano.ideia { opacity: .6; }
+.painel-social-plano-nome { font-size: 13px; color: var(--text); }
+/* ➕ Registrar Acao Social: os botoes de escolha quebram linha no celular. */
+.painel-social-chips { display: flex; flex-wrap: wrap; gap: 6px; }

@@ -31,6 +31,7 @@ import { acoes as acoesAdminEstoqueAdm, atualizarCampoEstoqueAdm } from './telas
 import { acoes as acoesAdminAcoesSociais, atualizarCampoAcaoSocial } from './telas/admin-acoes-sociais.js';
 import { acoes as acoesAdminCarteirinha, atualizarCampoCarteirinha } from './telas/admin-carteirinha.js';
 import { acoes as acoesAdminFuncoesEspeciais, atualizarCampoFuncoes } from './telas/admin-funcoes-especiais.js';
+import { acoes as acoesAdminPainelSocial, atualizarCampoPainelSocial } from './telas/admin-painel-social.js';
 import { acoes as acoesComuns, aplicarBusca } from './ui/comuns.js';
 import { acoes as acoesGraficos } from './ui/graficos.js';
 import { acoes as acoesHome } from './telas/home.js';
@@ -290,6 +291,7 @@ document.getElementById('app').addEventListener('input', (e) => {
     atualizarCampoAcaoSocial(e.target);
     atualizarCampoCarteirinha(e.target);
     atualizarCampoFuncoes(e.target);
+    atualizarCampoPainelSocial(e.target);
     return;
   }
   if (e.target.id === 'mov-motivo') {
@@ -312,6 +314,8 @@ document.getElementById('app').addEventListener('input', (e) => {
   if (atualizarListaDoacao(e.target)) return;
   // O formulario de evento das Funcoes especiais: so lembra.
   if (atualizarCampoFuncoes(e.target)) return;
+  // O ➕ Registrar Acao Social do Painel Social: so lembra.
+  if (atualizarCampoPainelSocial(e.target)) return;
   // O valor pago na Caixinha: acerta o selo e o total sem redesenhar, senao
   // o teclado do celular fecharia a cada numero.
   if (e.target.classList && e.target.classList.contains('caixinha-valor')) {
@@ -396,6 +400,7 @@ for (const [area, mapa] of Object.entries({
   acoesAdminAcoesSociais,
   acoesAdminCarteirinha,
   acoesAdminFuncoesEspeciais,
+  acoesAdminPainelSocial,
   acoesComuns,
   acoesGraficos,
   acoesHome,

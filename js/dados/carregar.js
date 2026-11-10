@@ -1,7 +1,7 @@
 // Carrega da planilha para o state e redesenha. Nao decide nada de tela.
 
 import { api, apiPost } from '../nucleo/api.js';
-import { entraNasDoacoes, escoposEmOrdemDeExibicao, temDoacoesECaixinha } from '../nucleo/config.js';
+import { entraNasDoacoes, escoposEmOrdemDeExibicao, escoposNaOrdemOficial, temDoacoesECaixinha } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
 import { emLotes } from '../nucleo/util.js';
@@ -32,6 +32,47 @@ export async function loadInitial() {
     state.loadError = e.message;
   }
   state.loading = false;
+  render();
+}
+
+// Busca de novo os eventos e o cadastro sem tirar a tela do lugar (o
+// loadInitial poe a tela de carregando). O Painel Social usa ao entrar: as
+// divisoes marcam eventos enquanto o app do Regional esta aberto.
+export async function recarregarEventos() {
+  if (state.eventosAtualizando) return;
+  state.eventosAtualizando = true;
+  state.eventosErro = null;
+  render();
+  try {
+    const r = await api('dados');
+    state.roster = r.membros || [];
+    state.events = r.eventos || [];
+  } catch (e) {
+    state.eventosErro = e.message;
+  }
+  state.eventosAtualizando = false;
+  render();
+}
+
+// Os planejadores de Acoes Sociais das 6 divisoes, pro Painel Social do
+// Regional - so leitura. O PIN do Regional abre qualquer divisao no
+// servidor, entao e o mesmo 'acoesSociais' de cada uma, as 6 de uma vez.
+// Uma que falhe nao derruba as outras: ela fica com o erro dela.
+export async function carregarPlanejadoresDivisoes() {
+  if (state.planejadoresCarregando) return;
+  state.planejadoresCarregando = true;
+  render();
+  const chaves = escoposNaOrdemOficial().filter(e => e.chave !== 'regional').map(e => e.chave);
+  const lidos = await Promise.all(chaves.map(async chave => {
+    try {
+      const r = await api('acoesSociais', { divisao: chave });
+      return [chave, { agenda: r.agenda || [] }];
+    } catch (e) {
+      return [chave, { erro: e.message }];
+    }
+  }));
+  state.planejadoresDados = Object.fromEntries(lidos);
+  state.planejadoresCarregando = false;
   render();
 }
 

@@ -985,6 +985,69 @@ Telas em `telas/admin-acoes-sociais.js`; regras e textos em
 - Na planilha: `AcoesSociaisIdeias`, `AcoesSociaisAgenda` (o mês como
   texto `yyyy-mm`) e `AcoesSociaisTextos`. Nascem sozinhas.
 
+## Painel Social (o acompanhamento do Social Regional)
+
+Card **📅 Painel Social** em Regional → Social, criado em 10/11/2026 para o
+Social Regional, que cobra de cada divisão **pelo menos 1 Ação Social por
+mês**. Só no Regional, e o primeiro card da área. Tela em
+`telas/admin-painel-social.js`; contas e texto em `dominio/painel-social.js`.
+
+- **Só lê os eventos** (`state.events`, os de tipo 🤝 Ação Social de todas
+  as divisões e do Regional): nada novo na planilha, e o `Code.gs` não
+  mudou. Ao entrar, busca os eventos de novo (`recarregarEventos`), sem
+  tirar a tela do lugar, porque as divisões marcam com o app já aberto.
+- **Dois degraus:** 📅 marcada (o evento está no calendário) e 🏁 realizada
+  (o evento foi encerrado). Mês que passou sem nada é ⭕ não fez; o de hoje
+  sem nada, ⚠️ ainda não marcou (vermelho nos últimos 10 dias); o que ainda
+  vem fica em branco.
+- **A Ação Social do Regional vale para todas as divisões** (decisão do
+  Social Regional), a mesma regra das Obrigatoriedades, que agora mora numa
+  função só (`valeParaAsDivisoes`, em `dominio/obrigatoriedades.js`). A
+  divisão pode fazer a dela também, e aí aparece a dela.
+- **A tela**, toda num mês (‹ mês ›, abre no de hoje): o calendário só com
+  as Ações Sociais (o nome de quem marcou no dia), a lista delas com o
+  degrau (tocar abre o evento), o quadro das 6 divisões na ordem oficial com
+  o **📋 Chamado** (`textoChamadoSocial`) e a **grade do ano** (divisão ×
+  mês, com os meses cumpridos dos que já fecharam; tocar num mês abre ele).
+- **As 4 obrigatórias do Regional** (Etapa 2, 10/11/2026): 🐣 Páscoa
+  (domingo calculado), 🧸 Dia das Crianças (12/10), 🩸 Doação de sangue
+  (fim de novembro, sem dia fixo — sugere o último sábado; 28/11 em 2026) e
+  🎄 Natal (25/12). Cumpre a Ação Social **do escopo Regional** dentro da
+  janela (Páscoa: 30 dias antes até 7 depois; as outras: o mês inteiro);
+  com mais de uma, vale a que tem o nome da obrigatória, senão a mais perto
+  e o painel pede "confira se é esta". Card "Obrigatórias do Regional em
+  <ano>" no Painel, dia tracejado no calendário enquanto não tem evento, e
+  **aviso no mural do Regional** de 45 dias antes (vermelho nos últimos 15)
+  até ter evento marcado — tocar abre o Painel. `obrigatoriasDoAno` /
+  `obrigatoriasParaAvisar`, em `dominio/painel-social.js`.
+- **Relatório 10 dias** (Etapa 3, 10/11/2026): segunda aba da seção.
+  Períodos 1–10, 11–20 e 21–último dia (‹ › anda entre eles; abre no de
+  hoje). Por divisão, na ordem oficial, as Ações Sociais do período: o nome
+  do evento (é o "tipo" da ação — não há campo próprio), a data e se foi
+  🏁 realizada (encerrada) ou 📅 só marcada; as do Regional vêm primeiro,
+  com "vale para todas as divisões". 📋 copia o texto pro WhatsApp
+  (`relatorioDecendial` / `textoRelatorioDecendial`). Por ora só essas
+  informações (pedido do Social Regional).
+- **Planejadores** (Etapa 4, 10/11/2026): terceira aba. Lê o planejador
+  de Ações Sociais das 6 divisões (o mesmo `acoesSociais` de cada uma — o
+  PIN do Regional é chave-mestra, então o `Code.gs` não mudou), as 6 em
+  paralelo, uma vez por entrada na seção (🔄 busca de novo). **Só
+  leitura.** Usa o mesmo mês do Painel: o que cada divisão planejou pra ele
+  (escolhidas primeiro, ideias apagadas, "📌 já virou evento" quando tem
+  `eventoId`), e a grade do ano com o ponto mais adiantado de cada mês
+  (💡/📅/✅/🏁). `planejadoresDoMes` / `gradePlanejadores`;
+  `carregarPlanejadoresDivisoes` em `dados/carregar.js`.
+- **➕ Registrar Ação Social** (10/11/2026), embaixo do calendário do
+  Painel: o Social Regional cria a Ação Social de qualquer divisão (ou do
+  Regional) sem entrar nela — o evento nasce com a categoria escolhida e
+  aparece no calendário geral, no da divisão e no Painel (o PIN do Regional
+  abre qualquer divisão no `eventoSalvar`; `Code.gs` igual). Campos: de quem
+  é, nome, **Detalhes da ação social** (vai no `outros` do evento e aparece
+  no Relatório 10 dias com "↳"), data, horário, local, situação e quem é
+  convocado (a divisão inteira, só os ativos, ou ninguém = só registro).
+  **"🏁 Já aconteceu" cria encerrado e sempre sem convocados** — encerrar
+  com gente convocada viraria falta (Infracional) de todo mundo.
+
 ## Funções especiais (Batedores e Caveiras)
 
 Card **🛡️ Funções especiais** em Regional → Operacional, criado em

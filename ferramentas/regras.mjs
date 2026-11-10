@@ -1300,6 +1300,131 @@ log('=== obrigatoriedades do mês: os 4 eventos de cada divisão ===');
 }
 
 log('');
+log('=== painel social: a Ação Social de cada divisão, mês a mês ===');
+{
+  const { quadroDoMes, gradeDoAno, acoesSociaisDoMes, textoChamadoSocial } = await import(url('dominio/painel-social.js'));
+  const e = (categoria, data, status = 'ativo', nome, extra = {}) => ({ id: categoria + data + (nome || ''), categoria, tipo: 'Ação Social', data, nome: nome || 'Ação ' + categoria, status, ...extra });
+  const eventos = [
+    e('barra', '2026-11-08', 'encerrado'),                 // feita
+    e('oeste', '2026-11-21'),                              // marcada pra depois
+    e('regional', '2026-10-12', 'encerrado', 'Dia das Crianças'), // vale pra todas em outubro
+    e('recreio', '2026-10-25', 'encerrado'),               // e o Recreio fez a dele tambem
+    e('curicica', '2026-09-05', 'encerrado'),
+    { ...e('taquara', '2026-11-03'), tipo: 'Pub' },       // nao e Ação Social
+    e('gardenia', ''),                                     // sem data: fora
+  ];
+  const q = quadroDoMes(eventos, '2026-11', '2026-11-10');
+  confere('só Ação Social, só do mês, por data', acoesSociaisDoMes(eventos, '2026-11').map(x => x.categoria), ['barra', 'oeste']);
+  confere('as 6 divisões na ordem oficial, com o degrau de cada uma', q.divisoes.map(l => [l.escopo.chave, l.estado]), [
+    ['oeste', 'marcada'], ['recreio', 'pendente'], ['barra', 'realizada'], ['curicica', 'pendente'], ['taquara', 'pendente'], ['gardenia', 'pendente']]);
+  confere('dias que faltam e urgência (mês atual)', [q.atual, q.diasRestantes, q.urgente, q.emDia.length, q.faltando.length], [true, 20, false, 2, 4]);
+  const out = quadroDoMes(eventos, '2026-10', '2026-11-10');
+  confere('a ação do Regional cobre todas; a da própria divisão aparece no lugar', out.divisoes.map(l => [l.escopo.chave, l.estado, l.peloRegional]), [
+    ['oeste', 'realizada', true], ['recreio', 'realizada', false], ['barra', 'realizada', true],
+    ['curicica', 'realizada', true], ['taquara', 'realizada', true], ['gardenia', 'realizada', true]]);
+  const desmarcada = [e('regional', '2026-10-12', 'encerrado', 'Só do Regional', { chamada: { dispensaObrigatoriedade: false } })];
+  confere('regional com "Evento regional" desmarcado não cobre ninguém (mês passado = não fez)',
+    quadroDoMes(desmarcada, '2026-10', '2026-11-10').divisoes.map(l => l.estado), Array(6).fill('nao-fez'));
+  confere('mês que ainda vem fica em branco', quadroDoMes(eventos, '2026-12', '2026-11-10').divisoes.map(l => l.estado), Array(6).fill('futuro'));
+  const grade = gradeDoAno(eventos, 2026, '2026-11-10');
+  const curicica = grade.find(l => l.escopo.chave === 'curicica');
+  confere('a grade: os meses que fecharam contam, o de hoje não', [curicica.celulas[8].estado, curicica.celulas[9].estado, curicica.celulas[10].estado, curicica.cumpridos, curicica.fechados],
+    ['realizada', 'realizada', 'pendente', 2, 10]);
+  const texto = textoChamadoSocial(q).split('\n');
+  confere('o chamado pro grupo', [texto[0], texto[2], texto[3], texto[8], texto[9], texto[10], texto[12]], [
+    '🤝 *AÇÃO SOCIAL DE NOVEMBRO* 🤝', 'Divisões que ainda não marcaram a Ação Social do mês no calendário:',
+    '❌ *RECREIO - RJ4*', 'Já marcaram:', '✅ *OESTE - RJ4*', '✅ *BARRA - RJ4*', '⏳ Faltam 20 dias para fechar Novembro.']);
+  confere('o chamado de um mês que passou fala em "fizeram"', textoChamadoSocial(out).split('\n')[2], '✅ Todas as divisões já fizeram a Ação Social de Outubro.');
+}
+
+log('');
+log('=== painel social: as 4 obrigatórias do Regional ===');
+{
+  const { domingoDePascoa, obrigatoriasDoAno, obrigatoriasParaAvisar, textoPrazoObrigatoria } = await import(url('dominio/painel-social.js'));
+  confere('domingo de Páscoa', ['2026', '2027', '2028', '2030'].map(a => domingoDePascoa(Number(a))), ['2026-04-05', '2027-03-28', '2028-04-16', '2030-04-21']);
+  const e = (categoria, data, nome, status = 'ativo') => ({ id: nome + data, categoria, tipo: 'Ação Social', data, nome, status });
+  const eventos = [
+    e('regional', '2026-03-28', 'Ovos de Páscoa no abrigo', 'encerrado'),   // 8 dias antes: vale
+    e('regional', '2026-10-03', 'Visita ao asilo', 'encerrado'),            // outubro, mas sem "criança"...
+    e('regional', '2026-10-12', 'Dia das Crianças na comunidade', 'encerrado'), // ...esta tem o nome: ganha
+    e('barra', '2026-11-28', 'Doação de sangue Barra'),                      // da divisao: nao conta pro Regional
+    { ...e('regional', '2026-12-20', 'Natal'), tipo: 'Pub' },                // nao e Ação Social
+  ];
+  const ano = obrigatoriasDoAno(eventos, 2026, '2026-11-10');
+  confere('estado de cada uma em 10/11/2026', ano.map(s => [s.ob.chave, s.estado, s.data]), [
+    ['pascoa', 'realizada', '2026-03-28'], ['criancas', 'realizada', '2026-10-12'],
+    ['sangue', 'pendente', '2026-11-28'], ['natal', 'pendente', '2026-12-25']]);
+  confere('sangue: último sábado de novembro, 18 dias, ainda não vermelho', [ano[2].dias, ano[2].urgente, textoPrazoObrigatoria(ano[2])], [18, false, 'faltam 18 dias']);
+  confere('no mural: sangue e Natal (até 45 dias), a mais perto primeiro', obrigatoriasParaAvisar(eventos, '2026-11-10').map(s => s.ob.chave), ['sangue', 'natal']);
+  confere('marcada some do mural', obrigatoriasParaAvisar(eventos.concat(e('regional', '2026-11-28', 'Doação de sangue')), '2026-11-10').map(s => s.ob.chave), ['natal']);
+  const soAsilo = obrigatoriasDoAno([eventos[1]], 2026, '2026-11-10')[1];
+  confere('sem o nome, vale a mais perto e pede pra conferir', [soAsilo.estado, soAsilo.conferir], ['realizada', true]);
+  confere('mês passou sem nada = não fez', obrigatoriasDoAno([], 2026, '2026-11-10').map(s => s.estado), ['nao-fez', 'nao-fez', 'pendente', 'pendente']);
+  const dez = obrigatoriasParaAvisar([], '2026-12-27')[0];
+  confere('depois do dia, ainda na janela', [dez.ob.chave, dez.urgente, textoPrazoObrigatoria(dez)], ['natal', true, 'a data passou · ainda vale até 31/12']);
+  confere('em fevereiro a Páscoa do ano chega no mural', obrigatoriasParaAvisar([], '2026-02-20').map(s => [s.ob.chave, s.dias]), [['pascoa', 44]]);
+}
+
+log('');
+log('=== painel social: o relatório de 10 em 10 dias ===');
+{
+  const { periodoDecendial, periodoVizinho, relatorioDecendial, textoRelatorioDecendial, rotuloDoDecendio } = await import(url('dominio/painel-social.js'));
+  const p = periodoDecendial('2026-11-10');
+  confere('os 3 períodos do mês', [periodoDecendial('2026-11-01'), p, periodoDecendial('2026-11-15'), periodoDecendial('2026-11-30'), periodoDecendial('2026-02-21')].map(x => [x.inicio, x.fim, x.numero]), [
+    ['2026-11-01', '2026-11-10', 1], ['2026-11-01', '2026-11-10', 1], ['2026-11-11', '2026-11-20', 2], ['2026-11-21', '2026-11-30', 3], ['2026-02-21', '2026-02-28', 3]]);
+  confere('andar pros vizinhos (vira o mês e o ano)', [periodoVizinho(p, -1).inicio, periodoVizinho(p, 1).inicio, periodoVizinho(periodoDecendial('2026-01-05'), -1).inicio, periodoVizinho(periodoDecendial('2026-12-25'), 1).inicio],
+    ['2026-10-21', '2026-11-11', '2025-12-21', '2027-01-01']);
+  confere('o rótulo', rotuloDoDecendio(p), '01 a 10 de Novembro de 2026');
+  const e = (categoria, data, nome, status = 'ativo', extra = {}) => ({ id: nome, categoria, tipo: 'Ação Social', data, nome, status, ...extra });
+  const eventos = [
+    e('barra', '2026-11-08', 'Arrecadação de alimentos', 'encerrado', { horario: '09:00' }),
+    e('oeste', '2026-11-10', 'Visita ao abrigo'),
+    e('oeste', '2026-11-03', 'Sopão', 'encerrado'),
+    e('barra', '2026-11-11', 'Fora do período'),
+    { ...e('taquara', '2026-11-05', 'Pub da Taquara'), tipo: 'Pub' },
+  ];
+  const r = relatorioDecendial(eventos, p, '2026-11-10');
+  confere('cada divisão com as suas, por data', r.divisoes.map(l => [l.escopo.chave, l.acoes.map(ev => ev.nome)]), [
+    ['oeste', ['Sopão', 'Visita ao abrigo']], ['recreio', []], ['barra', ['Arrecadação de alimentos']], ['curicica', []], ['taquara', []], ['gardenia', []]]);
+  confere('contas', [r.realizadas, r.marcadas, r.semAcao.length, r.emAndamento, r.diasParaFechar], [2, 1, 4, true, 0]);
+  const t = textoRelatorioDecendial(r).split('\n');
+  confere('o texto', [t[0], t[1], t[3], t[4], t[5], t[7], t[8], t[10], t[11], t[t.length - 2], t[t.length - 1]], [
+    '🤝 *RELATÓRIO DO SOCIAL REGIONAL* 🤝', '📆 01/11 a 10/11/2026 (1º período de Novembro)',
+    '*OESTE - RJ4*', '✅ ter 03/11 · Sopão', '📅 ter 10/11 · Visita ao abrigo _(marcada, ainda não encerrada)_',
+    '*RECREIO - RJ4*', '— nenhuma Ação Social no período', '*BARRA - RJ4*', '✅ dom 08/11 09:00 · Arrecadação de alimentos',
+    'Total: 2 realizadas · 1 marcada, ainda não encerrada', '💀 I.S.S.I']);
+  const comRegional = relatorioDecendial([e('regional', '2026-11-28', 'Doação de sangue')], periodoDecendial('2026-11-28'), '2026-11-10');
+  confere('ação do Regional vem primeiro e cobre todas', [textoRelatorioDecendial(comRegional).split('\n').slice(3, 5), comRegional.semAcao.length, comRegional.futuro],
+    [['*REGIONAL RJ4*', '📅 sáb 28/11 · Doação de sangue _(marcada, ainda não encerrada)_ _(vale para todas as divisões)_'], 0, true]);
+  const comDetalhes = relatorioDecendial([e('barra', '2026-11-05', 'Sopão', 'encerrado', { outros: '40 marmitas\nna praça' })], p, '2026-11-10');
+  confere('os detalhes da ação vão embaixo, numa linha', textoRelatorioDecendial(comDetalhes).split('\n').slice(10, 12),
+    ['✅ qui 05/11 · Sopão', '   ↳ 40 marmitas · na praça']);
+}
+
+log('');
+log('=== painel social: os planejadores das divisões (só leitura) ===');
+{
+  const { planejadoresDoMes, gradePlanejadores } = await import(url('dominio/painel-social.js'));
+  const a = (mes, acao, situacao, extra = {}) => ({ id: acao, mes, acao, situacao, emoji: '🤝', ...extra });
+  const dados = {
+    barra: { agenda: [a('2026-11', 'Sopão', 'ideia'), a('2026-11', 'Agasalho', 'confirmada'), a('2026-11', 'Pipa', 'ideia'), a('2026-12', 'Natal', 'planejada')] },
+    oeste: { agenda: [a('2026-11', 'Praia limpa', 'realizada')] },
+    recreio: { agenda: [] },
+    curicica: { erro: 'Sem permissao para os dados desta divisao' },
+    // taquara e gardenia ainda nao chegaram
+  };
+  const m = planejadoresDoMes(dados, '2026-11');
+  confere('as 6 na ordem oficial, com o ponto mais adiantado do mês', m.map(l => [l.escopo.chave, l.carregado, l.melhor, l.escolhidas, !!l.erro]), [
+    ['oeste', true, 'realizada', 1, false], ['recreio', true, null, 0, false], ['barra', true, 'confirmada', 1, false],
+    ['curicica', true, null, 0, true], ['taquara', false, null, 0, false], ['gardenia', false, null, 0, false]]);
+  confere('escolhida primeiro, depois as ideias na ordem delas', m[2].itens.map(x => x.acao), ['Agasalho', 'Sopão', 'Pipa']);
+  const g = gradePlanejadores(dados, 2026);
+  const barra = g.find(l => l.escopo.chave === 'barra');
+  confere('a grade do ano', [barra.celulas[10].melhor, barra.celulas[11].melhor, barra.celulas[0].melhor, barra.mesesComAcao], ['confirmada', 'planejada', null, 2]);
+  confere('só ideia não conta como mês com ação', gradePlanejadores({ barra: { agenda: [a('2026-03', 'X', 'ideia')] } }, 2026).find(l => l.escopo.chave === 'barra').mesesComAcao, 0);
+}
+
+log('');
 log('=== entrada/saída: o relatório de cada divisão e o quadro do Regional ===');
 {
   const { resumoMovimentos, quadroRegional, textoMovimentos, textoQuadroRegional, soAtivos, movimentosDoPeriodo } = await import(url('dominio/movimentos.js'));

@@ -8,7 +8,7 @@
 import { escopoPorChave, temDoacoesECaixinha } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { escapeHtml } from '../nucleo/util.js';
-import { carregarAcoesSociais, carregarCaixinha, carregarDoacoes, carregarEstoqueAdm, carregarFuncoesEspeciais, carregarMovimentos, loadEstatisticas, loadInsightStats, loadReportData } from '../dados/carregar.js';
+import { carregarAcoesSociais, carregarPlanejadoresDivisoes, recarregarEventos, carregarCaixinha, carregarDoacoes, carregarEstoqueAdm, carregarFuncoesEspeciais, carregarMovimentos, loadEstatisticas, loadInsightStats, loadReportData } from '../dados/carregar.js';
 import { fecharFormFinanceiro, fecharMesCaixinha } from '../fluxos/doacoes-caixinha.js';
 import { fecharPainelMovimento } from '../fluxos/movimentos.js';
 import { render } from '../nucleo/render.js';
@@ -20,6 +20,7 @@ import { renderAdminCaixinha } from './admin-caixinha.js';
 import { renderAdminMovimentos } from './admin-movimentos.js';
 import { renderAdminEstoqueAdm } from './admin-estoque-adm.js';
 import { renderAdminAcoesSociais } from './admin-acoes-sociais.js';
+import { renderAdminPainelSocial } from './admin-painel-social.js';
 import { fecharCarteirinha, renderAdminCarteirinhas } from './admin-carteirinha.js';
 import { fecharFuncoesEspeciais, podeDescartar, renderAdminFuncoesEspeciais, tituloFuncaoEspecial } from './admin-funcoes-especiais.js';
 
@@ -76,6 +77,11 @@ export const SECOES_ORGANIZADOR = {
   movimentos: {
     titulo: 'Entrada/Saída',
     abas: [{ chave: 'movimentos', label: 'Entrada/Saída' }],
+  },
+  // O Painel Social, so no Regional: as Acoes Sociais das divisoes.
+  painelSocial: {
+    titulo: 'Painel Social',
+    abas: [{ chave: 'painel-social', label: 'Painel' }, { chave: 'painel-social-relatorio', label: 'Relatório 10 dias' }, { chave: 'painel-social-planejadores', label: 'Planejadores' }],
   },
   // O planejador de Acoes Sociais, nas 7 divisoes (cada uma com o seu).
   acoesSociais: {
@@ -166,6 +172,8 @@ export function renderAdmin(app) {
     content.innerHTML = renderAdminEstoqueAdm();
   } else if (state.adminTab.startsWith('acoes-sociais')) {
     content.innerHTML = renderAdminAcoesSociais();
+  } else if (state.adminTab.startsWith('painel-social') && state.adminEscopo === 'regional') {
+    content.innerHTML = renderAdminPainelSocial();
   } else if (state.adminTab.startsWith('funcoes-') && state.adminEscopo === 'regional') {
     content.innerHTML = renderAdminFuncoesEspeciais();
   } else {
@@ -227,6 +235,13 @@ export async function abrirAbaOrganizador(aba) {
   state.entradasRascunho = {};
   state.entradasMsg = null;
   fecharFuncoesEspeciais();
+  // O Painel Social abre sempre no mes de hoje.
+  if (aba.startsWith('painel-social') && entrandoNaSecao) {
+    state.painelSocialAno = null;
+    state.painelSocialMes = null;
+    state.relatorioSocialInicio = null;
+    state.painelSocialForm = null;
+  }
   render();
   if (aba === 'encerrados') await loadReportData();
   if (aba === 'presencas') await loadEstatisticas();
@@ -238,6 +253,13 @@ export async function abrirAbaOrganizador(aba) {
   if (aba === 'movimentos' && (entrandoNaSecao || !state.movimentosDados)) await carregarMovimentos();
   if (aba.startsWith('estoque-adm') && entrandoNaSecao) await carregarEstoqueAdm();
   if (aba.startsWith('acoes-sociais') && entrandoNaSecao) await carregarAcoesSociais();
+  // Os eventos de novo: as divisoes marcam Acao Social com o app aberto.
+  if (aba.startsWith('painel-social') && entrandoNaSecao) {
+    state.planejadoresDados = null;
+    await recarregarEventos();
+  }
+  // Os planejadores das 6 divisoes: so quando abre a aba, uma vez por entrada.
+  if (aba === 'painel-social-planejadores' && !state.planejadoresDados) await carregarPlanejadoresDivisoes();
   // Os eventos da funcao: ao entrar nela (pelo card), e nao a cada aba -
   // Eventos, Encerrados e Estatisticas sao o mesmo dado.
   if (aba.startsWith('funcoes-') && aba !== 'funcoes-especiais' && (entrandoNaSecao || !state.funcoesDados)) await carregarFuncoesEspeciais();

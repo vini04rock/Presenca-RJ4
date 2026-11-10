@@ -425,6 +425,22 @@ export let state = {
   // A divisao aberta no card de obrigatoriedades do mes (menu do organizador
   // do Regional), com o detalhe dos tipos; null = nenhuma.
   obrigatoriedadeAberta: null,
+  // Painel Social (Regional -> Social, 10/11/2026): o mes e o ano olhados
+  // (null = o de hoje), e a busca dos eventos ao entrar, pra pegar o que as
+  // divisoes marcaram depois que o app abriu.
+  painelSocialAno: null,
+  painelSocialMes: null,
+  // O relatorio de 10 em 10 dias: o inicio do periodo olhado (null = o de hoje).
+  relatorioSocialInicio: null,
+  // Os planejadores das divisoes, so leitura: { chave: { agenda } | { erro } }
+  // (null = ainda nao buscou).
+  planejadoresDados: null,
+  // O formulario do ➕ Registrar Acao Social (null = fechado) e o salvar.
+  painelSocialForm: null,
+  painelSocialSalvando: false,
+  planejadoresCarregando: false,
+  eventosAtualizando: false,
+  eventosErro: null,
   // null = painel inicial do organizador; 'adm' | 'operacional' | 'social'
   // = submenu com as ferramentas daquela area. E so organizacao visual:
   // o PIN e as permissoes continuam sendo os da divisao escolhida.
