@@ -408,6 +408,15 @@ add('organizador / novo evento',      { isAdmin:true, adminEscopo:'barra', admin
 // desenha vazio em vez de quebrar.
 add('organizador / novo evento (sem estado do formulário)', { isAdmin:true, adminEscopo:'regional', adminTab:'eventos',
   newEventSelected:new Set(), newEventTipo:null }, T.renderAdmin);
+// Regional criando evento de outra divisao: a escolha "Onde vai ser o evento".
+add('organizador / novo evento (regional, destino barra)', { isAdmin:true, adminEscopo:'regional', adminTab:'eventos',
+  newEventSelected:new Set(['m1']), newEventTipo:'Pub',
+  newEventForm:{ nome:'Pub', data:'', horario:'', outros:'', categoria:'barra' },
+  newEventChamada:{ subtitulo:'', destino:'', destinoEndereco:'', destinoMaps:'', roteiro:'', pes:[] } }, T.renderAdmin);
+add('organizador / novo evento (regional, destino regional)', { isAdmin:true, adminEscopo:'regional', adminTab:'eventos',
+  newEventSelected:new Set(), newEventTipo:null,
+  newEventForm:{ nome:'', data:'', horario:'', outros:'', categoria:'regional' },
+  newEventChamada:{ subtitulo:'', destino:'', destinoEndereco:'', destinoMaps:'', roteiro:'', pes:[] } }, T.renderAdmin);
 add('organizador / ajustar rodada',   { isAdmin:true, adminEscopo:'regional', adminTab:'insights-rodadas',
   insightEditandoRodadaId:'r1', insightAjusteMembroIds:['m1','m2'],
   insightAjusteInfo:{ m1:{nome:'Costa',divisao:'Barra - RJ4'}, m2:{nome:'Bull',divisao:'Barra - RJ4'} } }, T.renderAdmin);

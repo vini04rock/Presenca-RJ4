@@ -327,6 +327,15 @@ evento que cobre cada um. O **📋 Chamado** copia as pendências pro grupo.
   continuam contando. A escolha fica em `chamada.dispensaObrigatoriedade`,
   no JSON já salvo na coluna Chamada; editar a convocação preserva o valor.
   Não exige coluna nova nem alteração do Apps Script.
+- **O Regional cria evento em qualquer divisão** (desde 10/11/2026): ao criar
+  (não ao editar), o formulário do Regional → Eventos tem "Onde vai ser o
+  evento" (Regional + as 6 divisões). Escolher uma divisão faz o evento
+  nascer com a `categoria` dela, como se ela mesma tivesse criado: fica no
+  Eventos dela, no calendário e conta nas obrigatoriedades dela. A lista
+  de quem participa passa a ser só os ativos daquela divisão, e a caixa
+  "Evento regional" só aparece com o destino Regional. Como o evento não
+  fica na lista do Regional, um aviso diz onde ele ficou. O PIN do Regional
+  já abre qualquer divisão, então o Code.gs não mudou.
 - **A cor acompanha o mês:** amarelo enquanto há tempo, vermelho nos
   últimos 10 dias (`DIAS_URGENTES`), pra não gritar no dia 1º, quando todo
   mundo ainda "deve" tudo.

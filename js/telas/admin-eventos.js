@@ -7,7 +7,8 @@
 
 import { eventosDoEscopo, membrosElegiveisEvento } from '../dominio/estatisticas.js';
 import { computeCounts, getReportGroups } from '../dominio/status.js';
-import { corTipoEvento, emojiTipoEvento, escoposAtivos } from '../nucleo/config.js';
+import { corTipoEvento, emojiTipoEvento, escopoPorChave, escoposAtivos, escoposNaOrdemOficial } from '../nucleo/config.js';
+import { soAtivos } from '../dominio/movimentos.js';
 import { genId, state } from '../nucleo/estado.js';
 import { TIPO_HOME_IMAGEM } from '../nucleo/imagens.js';
 import { dataDoCampoOuAvisar, escapeHtml, formatDataBR, formatDataCurta, hexParaRgba, mostrarAviso, pastilhaQuando } from '../nucleo/util.js';
@@ -173,15 +174,56 @@ function renderRelatorioParcial(ev) {
 // Nada aqui e lido do campo na hora de salvar - tudo vai pro state enquanto
 // se digita (ver aoDigitarNoFormulario), porque a tela redesenha ao escolher
 // o tipo ou mexer nos P.E.
+// No Regional o evento pode ser de qualquer divisao (ou do proprio
+// Regional): ele nasce como se a divisao mesma tivesse criado - fica no
+// Eventos dela, no calendario e conta nas obrigatoriedades dela. Fora do
+// Regional e sempre a divisao em que se entrou.
+function destinoDoEvento() {
+  const f = state.newEventForm || {};
+  return state.adminEscopo === 'regional' && f.categoria ? f.categoria : state.adminEscopo;
+}
+
+// Quem pode ser convocado no destino escolhido: no Regional, todo mundo;
+// numa divisao, so os dela. Afastado fica de fora.
+function elegiveisDoDestino() {
+  const destino = destinoDoEvento();
+  if (destino === state.adminEscopo) return membrosElegiveisEvento();
+  const nome = escopoPorChave(destino).nome;
+  return soAtivos(state.roster.filter(m => m.divisao === nome));
+}
+
+function nomeDoDestino(categoria) {
+  return categoria === 'regional' ? 'Regional' : escopoPorChave(categoria).nome.split(' - ')[0];
+}
+
+// So no Regional e so ao criar: editar mantem o evento onde ele esta.
+function quadroDestino() {
+  if (state.adminEscopo !== 'regional' || state.editingEventId) return '';
+  const destino = destinoDoEvento();
+  return `
+    <div class="card">
+      <div class="field" style="margin-bottom:0;">
+        <label>Onde vai ser o evento</label>
+        <div class="painel-social-chips">
+          ${escoposNaOrdemOficial().map(e => `<button class="chip-option ${destino === e.chave ? 'active' : ''}" data-action="pick-destino-evento" data-value="${escapeHtml(e.chave)}">${escapeHtml(nomeDoDestino(e.chave))}</button>`).join('')}
+        </div>
+        ${destino !== 'regional' ? `<div style="font-size:12.5px; color:var(--text-muted); margin-top:8px;">O evento fica na <b>${escapeHtml(nomeDoDestino(destino))}</b>: aparece no Eventos dela e no calendário, como se ela mesma tivesse criado.</div>` : ''}
+      </div>
+    </div>
+  `;
+}
+
 function renderEventForm() {
   const selected = state.newEventSelected;
   const isEditing = !!state.editingEventId;
   const f = state.newEventForm || {};
   const ch = state.newEventChamada || camposDoEvento({});
-  const elegiveis = membrosElegiveisEvento();
+  const destino = destinoDoEvento();
+  const elegiveis = elegiveisDoDestino();
   const campoF = (chave, extra) => `data-evf="${chave}" ${extra || ''}`;
   return `
     <div class="etapas-form" id="etapas-form">${etapasDoFormulario()}</div>
+    ${quadroDestino()}
     <div class="card">
       <div class="field" style="margin-bottom:0;">
         <label>Nome do evento</label>
@@ -190,9 +232,9 @@ function renderEventForm() {
     </div>
 
     ${quadroTipo({
-      campos: ch, attr: 'data-evc', categoria: state.adminEscopo,
+      campos: ch, attr: 'data-evc', categoria: destino,
       tipo: state.newEventTipo, acaoTipo: 'pick-tipo-evento',
-      tituloExtra: state.adminEscopo === 'regional' ? `
+      tituloExtra: destino === 'regional' ? `
         <label class="evento-regional-opcao" for="evento-regional" title="Marcado: este tipo de evento atende à obrigação de todas as divisões no mês.">
           <input type="checkbox" id="evento-regional" data-evf="dispensaObrigatoriedade" ${f.dispensaObrigatoriedade !== false ? 'checked' : ''}>
           <span>Evento regional</span>
@@ -297,6 +339,8 @@ function abrirFormulario(ev) {
     horario: ev ? ev.horario || '' : '',
     outros: ev ? ev.outros || '' : '',
     dispensaObrigatoriedade: !(ev && ev.chamada && ev.chamada.dispensaObrigatoriedade === false),
+    // Onde o evento fica (so o Regional escolhe; ver destinoDoEvento).
+    categoria: ev ? ev.categoria || state.adminEscopo : state.adminEscopo,
   };
   const ch = camposDoEvento(ev || {});
   // No evento o subtitulo em branco ja quer dizer "o nome do evento" - nao
@@ -535,9 +579,18 @@ export const acoes = {
     // Mexe direto nos checkboxes, sem re-renderizar, e guarda no state -
     // a tela pode redesenhar depois (ao mexer num P.E.) e precisa lembrar.
     const ligar = action === 'marcar-todos-membros';
-    state.newEventSelected = new Set(ligar ? membrosElegiveisEvento().map(m => m.id) : []);
+    state.newEventSelected = new Set(ligar ? elegiveisDoDestino().map(m => m.id) : []);
     document.querySelectorAll('.new-event-checkbox').forEach(c => { c.checked = ligar; });
     return;
+  },
+
+  // Trocar o destino troca quem pode ser convocado: a lista volta com todos
+  // os ativos do novo destino marcados, como ao abrir o formulario.
+  'pick-destino-evento': async (id, target, action, e) => {
+    if (!state.newEventForm || state.editingEventId) return;
+    state.newEventForm.categoria = target.dataset.value;
+    state.newEventSelected = new Set(elegiveisDoDestino().map(m => m.id));
+    return render();
   },
 
   'pick-tipo-evento': async (id, target, action, e) => {
@@ -559,8 +612,11 @@ export const acoes = {
       alert('Escolha o tipo do evento (Pub, Bate e Volta, Ação Social ou Reunião).\n\nSem o tipo, o evento não aparece no Calendário nem conta nas obrigatoriedades do mês.');
       return;
     }
+    // Editar mantem o evento onde ele esta; criar usa o destino escolhido.
+    const antigo = state.editingEventId ? state.events.find(e => e.id === state.editingEventId) : null;
+    const categoria = antigo ? antigo.categoria || state.adminEscopo : destinoDoEvento();
     const chamada = chamadaParaGuardar(state.newEventChamada);
-    if (state.adminEscopo === 'regional') chamada.dispensaObrigatoriedade = f.dispensaObrigatoriedade !== false;
+    if (categoria === 'regional') chamada.dispensaObrigatoriedade = f.dispensaObrigatoriedade !== false;
     const evento = {
       id: state.editingEventId || genId(),
       nome, memberIds: checked, data,
@@ -570,12 +626,10 @@ export const acoes = {
       endereco: enderecoDoEvento(chamada),
       outros: String(f.outros || '').trim(),
       tipo: state.newEventTipo || '',
-      // A categoria vem de qual botao o organizador entrou (Barra ou
-      // Regional), nao de uma escolha manual no formulario.
-      categoria: state.adminEscopo,
-      status: state.editingEventId
-        ? (state.events.find(e => e.id === state.editingEventId) || {}).status || 'ativo'
-        : 'ativo',
+      // A categoria vem de qual botao o organizador entrou; so o Regional
+      // pode escolher outra divisao (ver quadroDestino).
+      categoria,
+      status: antigo ? antigo.status || 'ativo' : 'ativo',
       chamada,
     };
     state.events = state.editingEventId
@@ -583,6 +637,9 @@ export const acoes = {
       : [...state.events, evento];
     fecharFormulario();
     render();
+    // Evento de outra divisao nao aparece na lista do Regional: o aviso diz
+    // onde ele ficou.
+    if (categoria !== state.adminEscopo) mostrarAviso(`✅ Evento criado na ${nomeDoDestino(categoria)} · está no Eventos dela e no calendário`);
     // POST: com os P.E. e as vias, a chamada nao cabe numa URL.
     await salvarOuAvisar('eventoSalvar', { ...paramsDeEvento(evento), chamada }, { post: true });
   },
