@@ -28,7 +28,7 @@ const { mascaraData, dataISOdeBR, formatDataBR } = await import(url('nucleo/util
 const { eventosProximos, semResposta } = await import(url('dominio/pendencias.js'));
 const { state: st } = await import(url('nucleo/estado.js'));
 const { hojeISO } = await import(url('nucleo/util.js'));
-const { quantidadeEstoqueAdm, resumoEstoqueAdm, textoResumoEstoqueAdm, filtrarMovimentosEstoqueAdm } = await import(url('dominio/estoque-adm.js'));
+const { quantidadeEstoqueAdm, resumoEstoqueAdm, textoResumoEstoqueAdm, filtrarMovimentosEstoqueAdm, relatorioEstoqueAdm, textoRelatorioEstoqueAdm } = await import(url('dominio/estoque-adm.js'));
 const { alertasHonrarias, dataDaHonraria, textoPrazoHonraria } = await import(url('dominio/honrarias.js'));
 
 let falhas = 0;
@@ -54,6 +54,22 @@ confere('resumo escrito', textoResumoEstoqueAdm(resumoAdm), '3 materiais · 10 u
 const movAdm = [{ id:'e', tipo:'entrada' }, { id:'s', tipo:'saida' }];
 confere('filtro de entradas', filtrarMovimentosEstoqueAdm(movAdm, 'entrada').map(x => x.id), ['e']);
 confere('filtro tudo preserva o livro', filtrarMovimentosEstoqueAdm(movAdm, 'todos').map(x => x.id), ['e','s']);
+{
+  const itensR = [{ id:'a', nome:'Cones', quantidade:7 }, { id:'b', nome:'Rádios', quantidade:0 }];
+  const movR = [
+    { id:'s', data:'2026-10-18', tipo:'saida', material:'Cones', quantidade:3, destinoNome:'Barra - RJ4', observacao:'Evento', anulado:false },
+    { id:'x', data:'2026-10-17', tipo:'saida', material:'Cones', quantidade:2, destinoNome:'Costa', observacao:'', anulado:true },
+    { id:'e', data:'2026-10-16', tipo:'entrada', material:'Cones', quantidade:10, destinoNome:'', observacao:'Compra', anulado:false },
+  ];
+  const rT = relatorioEstoqueAdm(itensR, movR, 'todos', '2026-11-11');
+  confere('relatório: anulado fica de fora', rT.movimentos.map(m => m.id), ['s','e']);
+  confere('relatório: soma entrou e saiu', [rT.entrou, rT.saiu], [10, 3]);
+  const tT = textoRelatorioEstoqueAdm(rT);
+  confere('relatório: saída mostra o destino', tT.includes('🔴 18/10/2026 · Cones · 3 un · para Barra - RJ4 · Evento'), true);
+  confere('relatório: material zerado aparece', tT.includes('• *Rádios*: zerado'), true);
+  const tE = textoRelatorioEstoqueAdm(relatorioEstoqueAdm(itensR, movR, 'entrada', '2026-11-11'));
+  confere('relatório: filtro de entradas não fala de saída', [tE.includes('Só entradas'), tE.includes('🔴')], [true, false]);
+}
 
 log('');
 

@@ -802,6 +802,8 @@ add('estoque ADM / formulario saída',     { ...eadm, adminTab:'estoque-adm-movi
 add('estoque ADM / estoque atual',        { ...eadm, adminTab:'estoque-adm-estoque' }, T.renderAdmin);
 add('estoque ADM / relatório',            { ...eadm, adminTab:'estoque-adm-relatorio', estoqueAdmFiltroTipo:'todos' }, T.renderAdmin);
 add('estoque ADM / relatório entradas',   { ...eadm, adminTab:'estoque-adm-relatorio', estoqueAdmFiltroTipo:'entrada' }, T.renderAdmin);
+add('estoque ADM / relatório (gerar aberto)', { ...eadm, adminTab:'estoque-adm-relatorio', estoqueAdmFiltroTipo:'saida', gerarRelatorioAberto:'estoque-adm-relatorio' }, T.renderAdmin);
+add('estoque ADM / relatório vazio',      { ...eadm, adminTab:'estoque-adm-relatorio', estoqueAdmDados:{ itens:[], movimentos:[] } }, T.renderAdmin);
 add('estoque ADM / confirmar anulação',   { ...eadm, adminTab:'estoque-adm-relatorio', estoqueAdmAnularId:'ea3' }, T.renderAdmin);
 add('estoque ADM / carregando',           { ...eadm, adminTab:'estoque-adm-movimentar', estoqueAdmCarregando:true }, T.renderAdmin);
 add('estoque ADM / erro',                 { ...eadm, adminTab:'estoque-adm-movimentar', estoqueAdmErro:'Falha de conexão' }, T.renderAdmin);

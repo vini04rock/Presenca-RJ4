@@ -13,6 +13,7 @@ import { diaDaSemana, formatDataBR, mostrarAviso } from '../nucleo/util.js';
 import { formatReais, nomeCurtoDoMes, nomeDoMes } from '../dominio/caixinha.js';
 import { formatKg } from '../dominio/doacoes.js';
 import { destinoPorChave, numeroEstoque, resumoDaLinha, textoQuantidade } from '../dominio/estoque.js';
+import { textoResumoEstoqueAdm } from '../dominio/estoque-adm.js';
 import { CONTEXTO_DOS_MESES, LEGENDA_CONTEXTO, MESES_NOMES, acoesDoMes, ehEscolhida, mesesDoAno, resumoDoAno, situacaoPorChave } from '../dominio/acoes-sociais.js';
 import { divisaoCurta, soFalta } from '../dominio/funcoes-especiais.js';
 import { resumoGrauV } from '../dominio/movimentos.js';
@@ -1485,6 +1486,127 @@ export async function imagensRelatorioEstoque(r, nomeDivisao, rotuloPeriodo) {
   }
   for (let i = 0; i < saidas.length; i++) {
     await desenhar((ctx, logo) => paginaSaidasEstoque(ctx, logo, saidas[i], nomeDivisao, rotuloPeriodo, 2 + tabela.length + i, paginas));
+  }
+  return telas;
+}
+
+// ---------------------------------------------------------------------------
+// O relatorio do Estoque ADM do Regional: o saldo de cada material e, embaixo,
+// as movimentacoes do filtro (uma por linha, com o destino da saida). Varias
+// imagens do mesmo tamanho quando a lista nao cabe. `r` vem de
+// relatorioEstoqueAdm (dominio/estoque-adm.js).
+function linhasEstoqueAdm(r) {
+  const linhas = [{ tipo: 'secao', texto: '📦 Saldo atual', direita: r.itens.length ? textoResumoEstoqueAdm(r.resumo) : '' }];
+  if (!r.itens.length) linhas.push({ tipo: 'vazio', texto: 'Nenhum material cadastrado' });
+  r.itens.forEach(x => linhas.push({ tipo: 'material', x }));
+  const totais = [r.filtro !== 'saida' ? `🟢 ${r.entrou} un` : '', r.filtro !== 'entrada' ? `🔴 ${r.saiu} un` : ''].filter(Boolean).join('   ');
+  linhas.push({ tipo: 'secao', texto: '📋 Movimentações', direita: totais });
+  if (!r.movimentos.length) linhas.push({ tipo: 'vazio', texto: 'Nenhuma movimentação' });
+  r.movimentos.forEach(m => linhas.push({ tipo: 'mov', m }));
+  return linhas;
+}
+
+function paginarEstoqueAdm(linhas) {
+  const paginas = [];
+  let atual = [], y = TOPO_DETALHE;
+  linhas.forEach((l, i) => {
+    const h = l.tipo === 'secao' ? ALTURA_MES : ALTURA_SAIDA;
+    // Titulo de secao nao fica sozinho no pe da pagina.
+    const prox = linhas[i + 1];
+    const precisa = l.tipo === 'secao' && prox ? h + ALTURA_SAIDA : h;
+    if (y + precisa > FIM_DETALHE && atual.length) { paginas.push(atual); atual = []; y = TOPO_DETALHE; }
+    atual.push(l);
+    y += h;
+  });
+  if (atual.length) paginas.push(atual);
+  return paginas;
+}
+
+function paginaEstoqueAdm(ctx, logo, linhas, r, pagina, paginas) {
+  cabecalhoRelatorio(ctx, logo, '📦 Estoque ADM', 'Regional', `${r.rotuloFiltro}  ·  ${formatDataBR(r.hoje)}`, pagina, paginas, 'RELATÓRIO DO ESTOQUE');
+  let y = TOPO_DETALHE;
+  ctx.textBaseline = 'middle';
+  linhas.forEach(l => {
+    if (l.tipo === 'secao') {
+      ctx.fillStyle = 'rgba(255,255,255,0.06)';
+      ctx.beginPath(); retangulo(ctx, 90, y + 8, L - 180, ALTURA_MES - 16, 16); ctx.fill();
+      fonte(ctx, 30, 400, 'rye');
+      ctx.textAlign = 'left';
+      ctx.fillStyle = COR.marfim;
+      ctx.fillText(l.texto, 120, y + ALTURA_MES / 2);
+      if (l.direita) {
+        fonteQueCabe(ctx, l.direita, 420, 22, 700);
+        ctx.textAlign = 'right';
+        ctx.fillStyle = COR.ouro;
+        ctx.fillText(l.direita, L - 120, y + ALTURA_MES / 2);
+      }
+      y += ALTURA_MES;
+      return;
+    }
+    const meio = y + ALTURA_SAIDA / 2;
+    if (l.tipo === 'vazio') {
+      fonte(ctx, 24, 600);
+      ctx.textAlign = 'left';
+      ctx.fillStyle = COR.apagado;
+      ctx.fillText(l.texto, 120, meio);
+    } else if (l.tipo === 'material') {
+      const zerado = !Number(l.x.quantidade);
+      const qtd = zerado ? 'zerado' : `${l.x.quantidade} un`;
+      fonte(ctx, 26, 700);
+      ctx.textAlign = 'right';
+      ctx.fillStyle = zerado ? COR.infracional : COR.marfim;
+      ctx.fillText(qtd, L - 120, meio);
+      const espaco = L - 240 - ctx.measureText(qtd).width - 30;
+      fonte(ctx, 25, 600);
+      ctx.textAlign = 'left';
+      ctx.fillStyle = zerado ? COR.apagado : COR.texto;
+      ctx.fillText(caber(ctx, l.x.nome, espaco), 120, meio);
+    } else {
+      const m = l.m;
+      const entrada = m.tipo === 'entrada';
+      ctx.fillStyle = entrada ? COR.confirmado : COR.infracional;
+      ctx.beginPath(); ctx.arc(126, meio, 8, 0, Math.PI * 2); ctx.fill();
+      fonte(ctx, 22, 700);
+      ctx.textAlign = 'left';
+      ctx.fillStyle = COR.ouro;
+      ctx.fillText(formatDataBR(m.data).slice(0, 5), 148, meio);
+      const valor = `${entrada ? '+' : '−'}${m.quantidade} un`;
+      fonte(ctx, 26, 700);
+      ctx.textAlign = 'right';
+      ctx.fillStyle = entrada ? COR.confirmado : COR.infracional;
+      ctx.fillText(valor, L - 120, meio);
+      const espaco = L - 120 - ctx.measureText(valor).width - 30 - 225;
+      fonte(ctx, 25, 600);
+      ctx.textAlign = 'left';
+      ctx.fillStyle = COR.texto;
+      const nome = caber(ctx, m.material, espaco);
+      ctx.fillText(nome, 225, meio);
+      const largura = ctx.measureText(nome).width;
+      const resto = espaco - largura - 12;
+      const extra = [entrada ? '' : m.destinoNome ? `para ${m.destinoNome}` : '', m.observacao || ''].filter(Boolean).join(' · ');
+      if (extra && resto > 60) {
+        fonte(ctx, 22, 600);
+        ctx.fillStyle = COR.apagado;
+        ctx.fillText(caber(ctx, `· ${extra}`, resto), 225 + largura + 12, meio);
+      }
+    }
+    ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(110, y + ALTURA_SAIDA); ctx.lineTo(L - 110, y + ALTURA_SAIDA); ctx.stroke();
+    y += ALTURA_SAIDA;
+  });
+  ctx.textBaseline = 'alphabetic';
+  ctx.textAlign = 'center';
+}
+
+export async function imagensRelatorioEstoqueAdm(r) {
+  const paginas = paginarEstoqueAdm(linhasEstoqueAdm(r));
+  const telas = [];
+  for (let p = 0; p < paginas.length; p++) {
+    const t = await novaTela();
+    paginaEstoqueAdm(t.ctx, t.logo, paginas[p], r, p + 1, paginas.length);
+    rodape(t.ctx);
+    telas.push(t.canvas);
   }
   return telas;
 }

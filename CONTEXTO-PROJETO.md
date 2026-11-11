@@ -1168,6 +1168,13 @@ cards lado a lado, Entrada e Saída, e mostra apenas o formulário escolhido.
 - As ações `estoqueAdm`, `estoqueAdmMovimentar` e `estoqueAdmAnular` pedem
   PIN e também exigem `escopo=regional`. A chave-mestra usada dentro de uma
   divisão não abre este estoque.
+- A aba **Relatório** tem o **📊 Gerar relatório** (desde 11/11/2026), com
+  📋 WhatsApp, 📄 PDF e 🖼️ Imagem, igual às Doações. Ele segue o filtro da
+  aba (Tudo / Entradas / Saídas) e traz o saldo de cada material e as
+  movimentações, com o destino da saída e a observação. Lançamento anulado
+  fica fora do relatório, mas continua na lista da tela. O texto sai de
+  `textoRelatorioEstoqueAdm` e a imagem de `imagensRelatorioEstoqueAdm`, que
+  pagina quando a lista não cabe. O Code.gs não mudou.
 
 ## A convocação: o app lê e escreve
 

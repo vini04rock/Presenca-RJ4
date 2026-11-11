@@ -6,8 +6,10 @@ import { api } from '../nucleo/api.js';
 import { escoposEmOrdemDeExibicao } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
-import { dataDoCampoOuAvisar, escapeHtml, formatDataBR, hojeISO, ordenarPorHierarquia } from '../nucleo/util.js';
-import { filtrarMovimentosEstoqueAdm, quantidadeEstoqueAdm, resumoEstoqueAdm, textoResumoEstoqueAdm } from '../dominio/estoque-adm.js';
+import { copiarTexto, dataDoCampoOuAvisar, escapeHtml, formatDataBR, hojeISO, imprimirTexto, ordenarPorHierarquia } from '../nucleo/util.js';
+import { filtrarMovimentosEstoqueAdm, quantidadeEstoqueAdm, relatorioEstoqueAdm, resumoEstoqueAdm, textoRelatorioEstoqueAdm, textoResumoEstoqueAdm } from '../dominio/estoque-adm.js';
+import { botaoGerarRelatorio } from '../ui/comuns.js';
+import { imagensRelatorioEstoqueAdm, mostrarPreviaImagem } from '../ui/imagem.js';
 
 function dados() { return state.estoqueAdmDados || { itens: [], movimentos: [] }; }
 
@@ -154,12 +156,26 @@ function linhaMovimento(m) {
   `;
 }
 
+function relatorioAtual() {
+  const d = dados();
+  return relatorioEstoqueAdm(d.itens, d.movimentos, state.estoqueAdmFiltroTipo);
+}
+
 function renderRelatorio() {
   const lista = filtrarMovimentosEstoqueAdm(dados().movimentos, state.estoqueAdmFiltroTipo);
   return `
     ${aviso()}
-    <div class="fin-categorias" style="margin-bottom:12px;">
+    <div class="fin-categorias no-print" style="margin-bottom:12px;">
       ${[['todos','Tudo'],['entrada','🟢 Entradas'],['saida','🔴 Saídas']].map(([chave, nome]) => `<button class="pilula ${state.estoqueAdmFiltroTipo === chave ? 'active' : ''}" data-action="estoque-adm-filtro" data-value="${chave}">${nome}</button>`).join('')}
+    </div>
+    <div class="card no-print">
+      <div class="painel-titulo">📊 Relatório do estoque</div>
+      <div class="fin-explica">Saldo de cada material e as movimentações de "${escapeHtml(relatorioAtual().rotuloFiltro)}". Lançamento anulado fica de fora.</div>
+      ${botaoGerarRelatorio('estoque-adm-relatorio', [
+        { acao: 'estoque-adm-relatorio-texto', rotulo: '📋 WhatsApp' },
+        { acao: 'estoque-adm-relatorio-pdf', rotulo: '📄 PDF' },
+        { acao: 'estoque-adm-relatorio-imagem', rotulo: '🖼️ Imagem' },
+      ], 'margin-top:4px;')}
     </div>
     ${lista.length ? lista.map(linhaMovimento).join('') : '<div class="empty">Nenhuma movimentação neste filtro.</div>'}
   `;
@@ -225,6 +241,13 @@ export const acoes = {
     state.estoqueAdmSalvando = false; render();
   },
   'estoque-adm-filtro': async (id, target, action, e) => { state.estoqueAdmFiltroTipo = target.dataset.value; return render(); },
+  // O relatorio pro grupo: texto, PDF (o mesmo texto, impresso) e imagem.
+  'estoque-adm-relatorio-texto': async (id, target, action, e) => copiarTexto(textoRelatorioEstoqueAdm(relatorioAtual())),
+  'estoque-adm-relatorio-pdf': async (id, target, action, e) => imprimirTexto(textoRelatorioEstoqueAdm(relatorioAtual())),
+  'estoque-adm-relatorio-imagem': async (id, target, action, e) => {
+    const r = relatorioAtual();
+    return mostrarPreviaImagem(() => imagensRelatorioEstoqueAdm(r), 'estoque-adm-relatorio.png');
+  },
   'estoque-adm-anular-pedir': async (id, target, action, e) => { state.estoqueAdmAnularId = id; return render(); },
   'estoque-adm-anular-cancelar': async (id, target, action, e) => { state.estoqueAdmAnularId = null; return render(); },
   'estoque-adm-anular-confirmar': async (id, target, action, e) => {
