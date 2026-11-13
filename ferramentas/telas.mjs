@@ -311,7 +311,25 @@ const planos = { barra:{ agenda:[{ id:'p1', mes:daquiA(0).slice(0, 7), acao:'Aga
 add('planejadores / com planos', { ...ps, adminTab:'painel-social-planejadores', planejadoresDados:planos, events:[evSocial('barra', 0, 'ativo')] }, T.renderAdmin);
 add('planejadores / buscando', { ...ps, adminTab:'painel-social-planejadores', planejadoresDados:null, planejadoresCarregando:true, events:[] }, T.renderAdmin);
 // ➕ Registrar Acao Social: o formulario aberto, vazio e preenchido.
-const psForm = (extra) => ({ categoria:'', nome:'', detalhes:'', data:'', horario:'', local:'', convocar:'divisao', situacao:'marcada', erro:'', ...extra });
+const psForm = (extra) => ({ oQue:'acao', categoria:'', nome:'', detalhes:'', data:'', horario:'', local:'', convocar:'divisao', situacao:'marcada', convocados:[], erro:'', ...extra });
+// 📊 A reuniao dos sociais: o formulario, o calendario e o relatorio de 10 dias.
+const rosterSociais = [
+  { id:'s0', nome:'Almeida', grau:'V',  cargo:'Social Regional', divisao:'Regional RJ4' },
+  { id:'s1', nome:'Costa',   grau:'VI', cargo:'Social',          divisao:'Barra - RJ4' },
+  { id:'s2', nome:'Tigre',   grau:'VI', cargo:'Social',          divisao:'Recreio - RJ4' },
+  { id:'s3', nome:'Bull',    grau:'VI', cargo:'Diretor',         divisao:'Oeste - RJ4' },
+];
+const evReuniao = evSocial('regional', 2, 'ativo', { id:'ps-reuniao', nome:'Reunião dos Sociais', tipo:'Reunião', outros:'Planejar o Natal',
+  memberIds:['s0','s1','s2'], chamada:{ reuniaoSociais:true, foraDoRank:true, dispensaObrigatoriedade:false, pes:[] } });
+add('painel social / registrar reunião (todos marcados)', { ...ps, events:[], roster:rosterSociais,
+  painelSocialForm:psForm({ oQue:'reuniao', convocados:['s0','s1','s2'], data:'20/11/2026' }) }, T.renderAdmin);
+add('painel social / registrar reunião (com erro)', { ...ps, events:[], roster:rosterSociais,
+  painelSocialForm:psForm({ oQue:'reuniao', convocados:[], erro:'Marque pelo menos um social pra convocar.' }) }, T.renderAdmin);
+add('painel social / registrar reunião (ninguém com cargo)', { ...ps, events:[], roster:[],
+  painelSocialForm:psForm({ oQue:'reuniao' }) }, T.renderAdmin);
+add('painel social / calendário com reunião', { ...ps, roster:rosterSociais, events:[evSocial('barra', 2, 'ativo'), evReuniao] }, T.renderAdmin);
+add('painel social / relatório 10 dias com reunião', { ...ps, adminTab:'painel-social-relatorio', relatorioSocialInicio:null,
+  roster:rosterSociais, events:[evReuniao] }, T.renderAdmin);
 add('painel social / registrar (vazio)', { ...ps, events:[], painelSocialForm:psForm() }, T.renderAdmin);
 add('painel social / registrar (barra, marcada, divisão inteira)', { ...ps, events:[], painelSocialForm:psForm({ categoria:'barra', nome:'Sopão', data:'20/11/2026' }) }, T.renderAdmin);
 add('painel social / registrar (já aconteceu, com erro)', { ...ps, events:[], painelSocialForm:psForm({ categoria:'regional', situacao:'realizada', erro:'A data precisa estar completa (dd/mm/aaaa).' }) }, T.renderAdmin);

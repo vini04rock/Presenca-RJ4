@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-11-06-grau-v-regional';
+var VERSAO = '2026-11-13-reuniao-sociais';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -677,7 +677,7 @@ function lerEstatisticasMembros(categoria) {
 
   var encerrados = {};
   linhas(aba(ABA_EVENTOS, CAB_EVENTOS)).forEach(function (l) {
-    if (!l[0] || String(l[6]) !== 'encerrado') return;
+    if (!l[0] || String(l[6]) !== 'encerrado' || eventoForaDoRank(l)) return;
     var cat = String(l[8] || '');
     cat = (cat === '' || cat === 'divisao') ? 'barra' : cat;
     if (!categoria || cat === categoria) encerrados[String(l[0])] = true;
@@ -728,7 +728,7 @@ function calcularEstatisticasPorEscopo(dataInicio) {
 
   var categoriaPorEvento = {};
   linhas(aba(ABA_EVENTOS, CAB_EVENTOS)).forEach(function (l) {
-    if (!l[0] || String(l[6]) !== 'encerrado') return;
+    if (!l[0] || String(l[6]) !== 'encerrado' || eventoForaDoRank(l)) return;
     if (dataInicio) {
       var dataEv = formatarData(l[2]);
       if (!dataEv || dataEv < dataInicio) return;
@@ -797,7 +797,7 @@ function calcularEstatisticasVariasJanelas(janelasEmMeses) {
 
   var eventosInfo = {};
   linhas(aba(ABA_EVENTOS, CAB_EVENTOS)).forEach(function (l) {
-    if (!l[0] || String(l[6]) !== 'encerrado') return;
+    if (!l[0] || String(l[6]) !== 'encerrado' || eventoForaDoRank(l)) return;
     var cat = String(l[8] || '');
     cat = (cat === '' || cat === 'divisao') ? 'barra' : cat;
     eventosInfo[String(l[0])] = { categoria: cat, data: formatarData(l[2]) };
@@ -2006,6 +2006,17 @@ function podeNaDivisao(divisao, pin) {
   return verificarPin(divisao, pin).valido;
 }
 var SEM_PERMISSAO_DIVISAO = { ok: false, erro: 'Sem permissao para os dados desta divisao' };
+
+// Evento fora de toda conta de presenca (rank, % da divisao, Insights,
+// relatorio individual): hoje so a reuniao do Social Regional com os
+// sociais das divisoes (Painel Social, 13/11/2026). A marca fica no JSON da
+// coluna Chamada (foraDoRank: true) - sem coluna nova. O resultado do
+// proprio evento continua normal; o app faz a mesma conta (contaNoRank).
+function eventoForaDoRank(l) {
+  var t = String(l[11] || '');
+  if (t.indexOf('foraDoRank') < 0) return false;
+  try { return JSON.parse(t).foraDoRank === true; } catch (e) { return false; }
+}
 
 // A mesma regra de lerEventos: linha antiga, sem categoria, e da Barra.
 function categoriaDaLinha(l) {
@@ -3951,7 +3962,7 @@ function calcularEstatisticasInsights() {
 function tabelasDoRelatorioIndividual() {
   var encerrados = {};
   linhas(aba(ABA_EVENTOS, CAB_EVENTOS)).forEach(function (l) {
-    if (!l[0] || String(l[6]) !== 'encerrado') return;
+    if (!l[0] || String(l[6]) !== 'encerrado' || eventoForaDoRank(l)) return;
     var cat = String(l[8] || '');
     encerrados[String(l[0])] = {
       id: String(l[0]), nome: String(l[1] || ''), data: formatarData(l[2]),

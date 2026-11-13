@@ -25,9 +25,11 @@ import { paramsDeEvento } from '../fila/presenca.js';
 import { construirGradeCalendario } from '../dominio/estatisticas.js';
 import { valeParaAsDivisoes } from '../dominio/obrigatoriedades.js';
 import { quandoEOnde, situacaoPorChave } from '../dominio/acoes-sociais.js';
-import { ESTADOS_SOCIAL, TIPO_SOCIAL, chaveDoMes, cumpriu, foiRealizada, gradeDoAno, gradePlanejadores, obrigatoriasDoAno, periodoDecendial, planejadoresDoMes, periodoVizinho, quadroDoMes, relatorioDecendial, rotuloDoDecendio, textoChamadoSocial, textoPrazoObrigatoria, textoRelatorioDecendial } from '../dominio/painel-social.js';
+import { chamadaParaGuardar } from '../dominio/convocacao.js';
+import { ESTADOS_SOCIAL, TIPO_REUNIAO, TIPO_SOCIAL, chaveDoMes, convocadosDaReuniao, ehReuniaoDosSociais, reunioesSociaisDoMes, cumpriu, foiRealizada, gradeDoAno, gradePlanejadores, obrigatoriasDoAno, periodoDecendial, planejadoresDoMes, periodoVizinho, quadroDoMes, relatorioDecendial, rotuloDoDecendio, textoChamadoSocial, textoPrazoObrigatoria, textoRelatorioDecendial } from '../dominio/painel-social.js';
 
 const COR_SOCIAL = corTipoEvento(TIPO_SOCIAL);
+const COR_REUNIAO = corTipoEvento(TIPO_REUNIAO);
 const COR_OK = '#4CAF6E';
 const COR_ATENCAO = '#E0B24D';
 const COR_URGENTE = '#D9573C';
@@ -67,6 +69,7 @@ export function renderAdminPainelSocial() {
   if (state.adminTab === 'painel-social-planejadores') return renderPlanejadores();
   const { ano, mes } = mesOlhado();
   const q = quadro();
+  const reunioes = reunioesSociaisDoMes(state.events, chaveDoMes(ano, mes));
   return `
     ${avisoDaBusca()}
     <div class="card calendario-card">
@@ -75,11 +78,12 @@ export function renderAdminPainelSocial() {
         <div class="calendario-titulo">${NOMES_MESES[mes]} de ${ano}</div>
         <button class="btn ghost" data-action="painel-social-mes" data-value="1" aria-label="Próximo mês">›</button>
       </div>
-      ${calendario(ano, mes, q.acoes, obrigatoriasDoAno(state.events, ano, hojeISO()))}
-      <div class="painel-social-legenda">🤝 Só as Ações Sociais · o nome no dia é de quem marcou · tracejado = obrigatória do Regional ainda sem evento</div>
+      ${calendario(ano, mes, q.acoes.concat(reunioes), obrigatoriasDoAno(state.events, ano, hojeISO()))}
+      <div class="painel-social-legenda">🤝 Ações Sociais · 📊 reuniões dos sociais · o nome no dia é de quem marcou · tracejado = obrigatória do Regional ainda sem evento</div>
     </div>
-    ${state.painelSocialForm ? formularioRegistrar() : '<button class="btn block no-print" style="margin-bottom:14px;" data-action="painel-social-form-abrir">➕ Registrar Ação Social</button>'}
+    ${state.painelSocialForm ? formularioRegistrar() : '<button class="btn block no-print" style="margin-bottom:14px;" data-action="painel-social-form-abrir">➕ Registrar evento</button>'}
     ${listaDoMes(q)}
+    ${listaDeReunioes(reunioes, q.nomeMes)}
     ${cardDivisoes(q)}
     ${cardObrigatorias(ano)}
     ${cardAno(ano)}
@@ -96,7 +100,7 @@ function calendario(ano, mes, acoes, obrigatorias) {
   acoes.forEach(ev => { (porDia[ev.data] = porDia[ev.data] || []).push(ev); });
   const lembrete = {};
   obrigatorias.filter(s => !s.evento).forEach(s => { lembrete[s.referencia] = s; });
-  const estilo = `border-color:${COR_SOCIAL}; background:${hexParaRgba(COR_SOCIAL, 0.18)}; --cor-dia:${COR_SOCIAL};`;
+  const estiloDe = cor => `border-color:${cor}; background:${hexParaRgba(cor, 0.18)}; --cor-dia:${cor};`;
   return `
     <div class="calendario-grade">
       ${DIAS_SEMANA_LETRA.map(l => `<div class="calendario-dia-semana">${l}</div>`).join('')}
@@ -104,7 +108,9 @@ function calendario(ano, mes, acoes, obrigatorias) {
         if (dia === null) return '<div class="calendario-dia calendario-dia-vazio"></div>';
         const iso = `${chaveDoMes(ano, mes)}-${String(dia).padStart(2, '0')}`;
         const doDia = porDia[iso] || [];
-        const rotulo = doDia.length > 1 ? `${doDia.length} ações` : doDia.length ? nomeCurto(doDia[0].categoria) : '';
+        const soReuniao = doDia.length > 0 && doDia.every(ehReuniaoDosSociais);
+        const rotulo = doDia.length > 1 ? `${doDia.length} eventos` : doDia.length ? (soReuniao ? 'Sociais' : nomeCurto(doDia[0].categoria)) : '';
+        const emojis = [doDia.some(ev => !ehReuniaoDosSociais(ev)) ? emojiTipoEvento(TIPO_SOCIAL) : '', doDia.some(ehReuniaoDosSociais) ? emojiTipoEvento(TIPO_REUNIAO) : ''].join('');
         const ob = !doDia.length && lembrete[iso];
         if (ob) {
           return `
@@ -115,10 +121,10 @@ function calendario(ano, mes, acoes, obrigatorias) {
         `;
         }
         return `
-          <div class="calendario-dia${iso === hoje ? ' calendario-dia-hoje' : ''}${doDia.length ? ' tem-evento' : ''}" style="${doDia.length ? estilo : ''}"
-               title="${escapeHtml(doDia.map(ev => `${nomeCurto(ev.categoria)} - ${ev.nome}`).join('\n'))}">
+          <div class="calendario-dia${iso === hoje ? ' calendario-dia-hoje' : ''}${doDia.length ? ' tem-evento' : ''}" style="${doDia.length ? estiloDe(soReuniao ? COR_REUNIAO : COR_SOCIAL) : ''}"
+               title="${escapeHtml(doDia.map(ev => `${ehReuniaoDosSociais(ev) ? 'Reunião dos sociais' : nomeCurto(ev.categoria)} - ${ev.nome}`).join('\n'))}">
             <span class="calendario-dia-numero">${dia}</span>
-            ${doDia.length ? `<span class="calendario-dia-emoji">${emojiTipoEvento(TIPO_SOCIAL)}</span><span class="calendario-dia-origem">${escapeHtml(rotulo)}</span>` : ''}
+            ${doDia.length ? `<span class="calendario-dia-emoji">${emojis}</span><span class="calendario-dia-origem">${escapeHtml(rotulo)}</span>` : ''}
           </div>
         `;
       }).join('')}
@@ -151,6 +157,17 @@ function listaDoMes(q) {
           </div>
         `;
       }).join('')}
+    </div>
+  `;
+}
+
+// As reunioes dos sociais do mes, a parte das acoes: nao contam no quadro.
+function listaDeReunioes(reunioes, nomeMes) {
+  if (!reunioes.length) return '';
+  return `
+    <div class="rotulo-secao">Reuniões dos sociais de ${escapeHtml(nomeMes)} · ${reunioes.length}</div>
+    <div class="card" style="padding:4px 16px;">
+      ${reunioes.map(ev => linhaDoRelatorio(ev, `${ev.memberIds.length} ${ev.memberIds.length === 1 ? 'convocado' : 'convocados'}`)).join('')}
     </div>
   `;
 }
@@ -358,6 +375,10 @@ function renderRelatorioDecendial() {
     <div class="card" style="padding:4px 16px 10px;">
       ${r.regionais.length ? blocoDoRelatorio(escopoPorChave('regional').nome, r.regionais, ev => valeParaAsDivisoes(ev) ? 'vale para todas as divisões' : '') : ''}
       ${r.divisoes.map(l => blocoDoRelatorio(l.escopo.nome, l.acoes)).join('')}
+      ${r.reunioes.length ? `
+        <div class="painel-social-relatorio-divisao">📊 Reuniões dos sociais</div>
+        ${r.reunioes.map(ev => linhaDoRelatorio(ev, '')).join('')}
+      ` : ''}
     </div>
     <button class="btn block no-print" data-action="relatorio-social-copiar">📋 Copiar relatório pro WhatsApp</button>
     <div class="painel-social-legenda">🏁 realizada (evento encerrado) · 📅 marcada, ainda não encerrada · tocar abre o evento</div>
@@ -461,10 +482,17 @@ function renderPlanejadores() {
 //     registro). "Ja aconteceu" cria o evento ja encerrado e SEMPRE sem
 //     convocados: encerrar com gente convocada faria todo mundo que nao
 //     respondeu virar falta (Infracional).
+//
+// Desde 13/11/2026 o mesmo formulario marca tambem a 📊 Reuniao dos sociais
+// (ver dominio/painel-social.js): sempre do Regional, so marcada, e quem e
+// convocado sao o Social Regional e o Social de cada divisao - todos vem
+// marcados e da pra desmarcar.
 
 function formVazio() {
-  return { categoria: '', nome: '', detalhes: '', data: '', horario: '', local: '', convocar: 'divisao', situacao: 'marcada', erro: '' };
+  return { oQue: 'acao', categoria: '', nome: '', detalhes: '', data: '', horario: '', local: '', convocar: 'divisao', situacao: 'marcada', convocados: [], erro: '' };
 }
+
+const NOME_PADRAO_REUNIAO = 'Reunião dos Sociais';
 
 function convocaveis(categoria) {
   if (!categoria) return [];
@@ -477,44 +505,94 @@ function chip(acao, valor, ativo, texto) {
   return `<button class="chip-option ${ativo ? 'active' : ''}" data-action="${acao}" data-value="${escapeHtml(valor)}">${texto}</button>`;
 }
 
-function formularioRegistrar() {
-  const f = state.painelSocialForm;
+// A lista de quem a reuniao convoca, com a caixinha de cada um e o aviso
+// das divisoes sem Social cadastrado.
+function convocadosDaReuniaoNoForm(f) {
+  const { membros, semSocial } = convocadosDaReuniao(state.roster);
+  const marcados = new Set(f.convocados);
+  return `
+    <div class="field">
+      <label>Quem é convocado (${marcados.size} de ${membros.length})</label>
+      ${membros.length ? membros.map(({ membro: m, escopo }) => `
+        <div class="checkbox-row">
+          <input type="checkbox" id="psf-m-${escapeHtml(m.id)}" data-psf-membro="${escapeHtml(m.id)}" ${marcados.has(m.id) ? 'checked' : ''}>
+          <label for="psf-m-${escapeHtml(m.id)}" style="margin:0; font-size:14.5px; color:var(--text);">${escapeHtml(m.nome)} <span style="color:var(--text-muted); font-size:12.5px;">· ${escapeHtml(m.cargo)} · ${escapeHtml(nomeCurto(escopo.chave))}</span></label>
+        </div>
+      `).join('') : '<div class="painel-social-detalhe">Ninguém com o cargo Social cadastrado ainda.</div>'}
+      ${semSocial.map(e => `<div class="painel-social-detalhe" style="color:${COR_ATENCAO};">⚠️ ${escapeHtml(nomeCurto(e.chave))} sem ${e.chave === 'regional' ? 'Social Regional' : 'Social'} cadastrado</div>`).join('')}
+      ${semSocial.length ? '<div class="painel-social-detalhe">O cargo se acerta em Membros, no cadastro do integrante.</div>' : ''}
+    </div>
+  `;
+}
+
+function camposAcao(f) {
   const jaFoi = f.situacao === 'realizada';
   const n = convocaveis(f.categoria).length;
   return `
+    <div class="field">
+      <label>De quem é a ação</label>
+      <div class="painel-social-chips">
+        ${escoposNaOrdemOficial().map(e => chip('painel-social-form-divisao', e.chave, f.categoria === e.chave, escapeHtml(nomeCurto(e.chave)))).join('')}
+      </div>
+    </div>
+    <div class="field"><label>Nome</label><input type="text" maxlength="120" data-psf="nome" value="${escapeHtml(f.nome)}" placeholder="Ex: Ação Social - Arrecadação de alimentos"></div>
+    <div class="field"><label>Detalhes da ação social</label><textarea rows="3" maxlength="600" data-psf="detalhes" placeholder="O que foi feito, para quem, quanto arrecadou…">${escapeHtml(f.detalhes)}</textarea></div>
+    ${camposQuando(f)}
+    <div class="field">
+      <label>Situação</label>
+      <div class="painel-social-chips">
+        ${chip('painel-social-form-situacao', 'marcada', !jaFoi, '📅 Marcada (vai acontecer)')}
+        ${chip('painel-social-form-situacao', 'realizada', jaFoi, '🏁 Já aconteceu')}
+      </div>
+    </div>
+    <div class="field">
+      <label>Quem fica convocado</label>
+      ${jaFoi ? `
+        <div class="painel-social-detalhe">📝 Ninguém: a ação já aconteceu, então ela entra só como registro. Se a divisão quiser marcar quem foi, ela convoca e encerra pelo Eventos dela.</div>
+      ` : `
+        <div class="painel-social-chips">
+          ${chip('painel-social-form-convocar', 'divisao', f.convocar === 'divisao', `👥 ${f.categoria === 'regional' ? 'Todos da RJ4' : 'A divisão inteira'}${f.categoria ? ` (${n})` : ''}`)}
+          ${chip('painel-social-form-convocar', 'registro', f.convocar === 'registro', '📝 Ninguém (só registro)')}
+        </div>
+      `}
+    </div>
+  `;
+}
+
+function camposQuando(f) {
+  return `
+    <div class="row-gap">
+      <div class="field" style="flex:1; min-width:130px;"><label>Data</label><input type="text" inputmode="numeric" maxlength="10" class="campo-data" data-psf="data" value="${escapeHtml(f.data)}" placeholder="dd/mm/aaaa" autocomplete="off"></div>
+      <div class="field" style="flex:1; min-width:100px;"><label>Horário (opcional)</label><input type="time" data-psf="horario" value="${escapeHtml(f.horario)}"></div>
+    </div>
+    <div class="field"><label>Local (opcional)</label><input type="text" maxlength="200" data-psf="local" value="${escapeHtml(f.local)}" placeholder="${f.oQue === 'reuniao' ? 'Ex: Sede do Regional ou online' : 'Ex: Sede da Barra'}"></div>
+  `;
+}
+
+function camposReuniao(f) {
+  return `
+    <div class="painel-social-detalhe" style="margin-bottom:10px;">📊 Do Regional · fora do Rank de Presença · não vale pela Reunião do mês das divisões</div>
+    <div class="field"><label>Nome</label><input type="text" maxlength="120" data-psf="nome" value="${escapeHtml(f.nome)}" placeholder="${NOME_PADRAO_REUNIAO}"></div>
+    <div class="field"><label>Pauta</label><textarea rows="3" maxlength="600" data-psf="detalhes" placeholder="O que vai ser tratado na reunião…">${escapeHtml(f.detalhes)}</textarea></div>
+    ${camposQuando(f)}
+    ${convocadosDaReuniaoNoForm(f)}
+  `;
+}
+
+function formularioRegistrar() {
+  const f = state.painelSocialForm;
+  const reuniao = f.oQue === 'reuniao';
+  return `
     <div class="card no-print">
-      <div class="painel-titulo">🤝 Registrar Ação Social</div>
+      <div class="painel-titulo">➕ Registrar evento</div>
       <div class="field">
-        <label>De quem é a ação</label>
+        <label>O que vai ser</label>
         <div class="painel-social-chips">
-          ${escoposNaOrdemOficial().map(e => chip('painel-social-form-divisao', e.chave, f.categoria === e.chave, escapeHtml(nomeCurto(e.chave)))).join('')}
+          ${chip('painel-social-form-oque', 'acao', !reuniao, '🤝 Ação Social')}
+          ${chip('painel-social-form-oque', 'reuniao', reuniao, '📊 Reunião dos sociais')}
         </div>
       </div>
-      <div class="field"><label>Nome</label><input type="text" maxlength="120" data-psf="nome" value="${escapeHtml(f.nome)}" placeholder="Ex: Ação Social - Arrecadação de alimentos"></div>
-      <div class="field"><label>Detalhes da ação social</label><textarea rows="3" maxlength="600" data-psf="detalhes" placeholder="O que foi feito, para quem, quanto arrecadou…">${escapeHtml(f.detalhes)}</textarea></div>
-      <div class="row-gap">
-        <div class="field" style="flex:1; min-width:130px;"><label>Data</label><input type="text" inputmode="numeric" maxlength="10" class="campo-data" data-psf="data" value="${escapeHtml(f.data)}" placeholder="dd/mm/aaaa" autocomplete="off"></div>
-        <div class="field" style="flex:1; min-width:100px;"><label>Horário (opcional)</label><input type="time" data-psf="horario" value="${escapeHtml(f.horario)}"></div>
-      </div>
-      <div class="field"><label>Local (opcional)</label><input type="text" maxlength="200" data-psf="local" value="${escapeHtml(f.local)}" placeholder="Ex: Sede da Barra"></div>
-      <div class="field">
-        <label>Situação</label>
-        <div class="painel-social-chips">
-          ${chip('painel-social-form-situacao', 'marcada', !jaFoi, '📅 Marcada (vai acontecer)')}
-          ${chip('painel-social-form-situacao', 'realizada', jaFoi, '🏁 Já aconteceu')}
-        </div>
-      </div>
-      <div class="field">
-        <label>Quem fica convocado</label>
-        ${jaFoi ? `
-          <div class="painel-social-detalhe">📝 Ninguém: a ação já aconteceu, então ela entra só como registro. Se a divisão quiser marcar quem foi, ela convoca e encerra pelo Eventos dela.</div>
-        ` : `
-          <div class="painel-social-chips">
-            ${chip('painel-social-form-convocar', 'divisao', f.convocar === 'divisao', `👥 ${f.categoria === 'regional' ? 'Todos da RJ4' : 'A divisão inteira'}${f.categoria ? ` (${n})` : ''}`)}
-            ${chip('painel-social-form-convocar', 'registro', f.convocar === 'registro', '📝 Ninguém (só registro)')}
-          </div>
-        `}
-      </div>
+      ${reuniao ? camposReuniao(f) : camposAcao(f)}
       ${f.erro ? `<div class="alert" style="margin-bottom:10px;"><div class="alert-msg">${escapeHtml(f.erro)}</div></div>` : ''}
       <div class="row-gap">
         <button class="btn" data-action="painel-social-form-salvar" ${state.painelSocialSalvando ? 'disabled' : ''}>${state.painelSocialSalvando ? 'Salvando…' : 'Registrar'}</button>
@@ -525,9 +603,18 @@ function formularioRegistrar() {
 }
 
 // Os campos de texto so lembram (sem redesenhar), senao o teclado fecharia.
+// A caixinha de um convocado da reuniao tambem: so liga/desliga o id.
 export function atualizarCampoPainelSocial(el) {
-  const chave = el.dataset && el.dataset.psf;
-  if (!chave || !state.painelSocialForm) return false;
+  if (!el.dataset || !state.painelSocialForm) return false;
+  const membro = el.dataset.psfMembro;
+  if (membro) {
+    const f = state.painelSocialForm;
+    const outros = f.convocados.filter(id => id !== membro);
+    f.convocados = el.checked ? [...outros, membro] : outros;
+    return true;
+  }
+  const chave = el.dataset.psf;
+  if (!chave) return false;
   state.painelSocialForm[chave] = el.value;
   return true;
 }
@@ -535,15 +622,32 @@ export function atualizarCampoPainelSocial(el) {
 // O evento que o formulario cria - ou o erro que impede.
 export function eventoDoFormulario(f, id) {
   const data = dataISOdeBR(f.data);
+  if (f.oQue === 'reuniao') {
+    if (!data) return { erro: 'A data precisa estar completa (dd/mm/aaaa).' };
+    if (!f.convocados.length) return { erro: 'Marque pelo menos um social pra convocar.' };
+    const local = f.local.trim();
+    return {
+      evento: {
+        id, nome: f.nome.trim() || NOME_PADRAO_REUNIAO, data, horario: f.horario || '', endereco: local, outros: f.detalhes.trim(),
+        tipo: TIPO_REUNIAO, categoria: 'regional', status: 'ativo', memberIds: [...f.convocados],
+        chamada: chamadaParaGuardar({ destino: local, pes: [], dispensaObrigatoriedade: false, reuniaoSociais: true, foraDoRank: true }),
+      },
+    };
+  }
   if (!f.categoria) return { erro: 'Escolha de quem é a ação (a divisão ou o Regional).' };
   if (!f.nome.trim()) return { erro: 'Escreva o nome da ação.' };
   if (!data) return { erro: 'A data precisa estar completa (dd/mm/aaaa).' };
   const jaFoi = f.situacao === 'realizada';
+  const local = f.local.trim();
   return {
     evento: {
-      id, nome: f.nome.trim(), data, horario: f.horario || '', endereco: f.local.trim(), outros: f.detalhes.trim(),
+      id, nome: f.nome.trim(), data, horario: f.horario || '', endereco: local, outros: f.detalhes.trim(),
       tipo: TIPO_SOCIAL, categoria: f.categoria, status: jaFoi ? 'encerrado' : 'ativo',
       memberIds: !jaFoi && f.convocar === 'divisao' ? convocaveis(f.categoria).map(m => m.id) : [],
+      // Tudo que nasce no Painel fica fora das estatisticas do app (decisao do
+      // Social Regional, 13/11/2026) - a metrica dos sociais e dele, por
+      // fora. A acao continua contando no Painel e nas obrigatorias.
+      chamada: chamadaParaGuardar({ destino: local, pes: [], foraDoRank: true }),
     },
   };
 }
@@ -572,6 +676,16 @@ export const acoes = {
   },
   'painel-social-form-abrir': async (id, target, action, e) => { state.painelSocialForm = formVazio(); return render(); },
   'painel-social-form-fechar': async (id, target, action, e) => { state.painelSocialForm = null; return render(); },
+  // Trocar entre Acao Social e Reuniao: a reuniao ja vem com todos os
+  // sociais marcados (e o nome padrao, se ainda nao tem nome).
+  'painel-social-form-oque': async (id, target, action, e) => {
+    const f = state.painelSocialForm;
+    if (!f) return;
+    const oQue = target.dataset.value === 'reuniao' ? 'reuniao' : 'acao';
+    state.painelSocialForm = { ...f, oQue, erro: '',
+      convocados: oQue === 'reuniao' ? convocadosDaReuniao(state.roster).membros.map(x => x.membro.id) : [] };
+    return render();
+  },
   'painel-social-form-divisao': async (id, target, action, e) => {
     if (state.painelSocialForm) state.painelSocialForm = { ...state.painelSocialForm, categoria: target.dataset.value, erro: '' };
     return render();
@@ -591,7 +705,10 @@ export const acoes = {
     if (r.erro) { state.painelSocialForm = { ...f, erro: r.erro }; return render(); }
     state.painelSocialSalvando = true;
     render();
-    const ok = await salvarOuAvisar('eventoSalvar', paramsDeEvento(r.evento));
+    // A reuniao leva a chamada (as marcas dela) - por POST, como no Eventos.
+    const ok = r.evento.chamada
+      ? await salvarOuAvisar('eventoSalvar', { ...paramsDeEvento(r.evento), chamada: r.evento.chamada }, { post: true })
+      : await salvarOuAvisar('eventoSalvar', paramsDeEvento(r.evento));
     state.painelSocialSalvando = false;
     if (!ok) return render();
     state.events = [...state.events, r.evento];
@@ -600,7 +717,9 @@ export const acoes = {
     state.painelSocialAno = Number(r.evento.data.slice(0, 4));
     state.painelSocialMes = Number(r.evento.data.slice(5, 7)) - 1;
     render();
-    mostrarAviso(`✅ Ação Social registrada · ${nomeCurto(r.evento.categoria)}`);
+    mostrarAviso(ehReuniaoDosSociais(r.evento)
+      ? `✅ Reunião dos sociais marcada · ${r.evento.memberIds.length} ${r.evento.memberIds.length === 1 ? 'convocado' : 'convocados'}`
+      : `✅ Ação Social registrada · ${nomeCurto(r.evento.categoria)}`);
   },
   'planejadores-atualizar': async (id, target, action, e) => carregarPlanejadoresDivisoes(),
   'relatorio-social-copiar': async (id, target, action, e) => copiarTexto(textoRelatorioDecendial(relatorio())),

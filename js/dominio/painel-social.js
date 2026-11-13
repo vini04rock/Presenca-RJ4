@@ -15,6 +15,7 @@
 import { NOMES_MESES, escopoPorChave, escoposNaOrdemOficial } from '../nucleo/config.js';
 import { DIAS_URGENTES, valeParaAsDivisoes } from './obrigatoriedades.js';
 import { SITUACOES_ACAO } from './acoes-sociais.js';
+import { soAtivos } from './movimentos.js';
 
 export const TIPO_SOCIAL = 'Ação Social';
 
@@ -31,6 +32,45 @@ export function acoesSociaisDoMes(eventos, mes) {
 }
 
 export function foiRealizada(ev) { return ev.status === 'encerrado'; }
+
+// ---------- a reuniao dos sociais (13/11/2026) ----------
+//
+// O Social Regional marca, pelo ➕ Registrar evento do Painel, reunioes com
+// o Social de cada divisao. E um evento do Regional, tipo Reuniao, com tres
+// marcas no JSON da chamada (ver METADADOS_DO_EVENTO em convocacao.js):
+//   reuniaoSociais: e dela que o Painel e o relatorio de 10 dias sabem;
+//   foraDoRank: nao entra em conta de presenca nenhuma (contaNoRank);
+//   dispensaObrigatoriedade false: nao vale pela Reuniao do mes das divisoes.
+// Nao conta no quadro das divisoes nem nas obrigatorias - so Acao Social conta.
+
+export const TIPO_REUNIAO = 'Reunião';
+export const CARGO_SOCIAL = 'Social';
+export const CARGO_SOCIAL_REGIONAL = 'Social Regional';
+
+export function ehReuniaoDosSociais(ev) {
+  return !!ev && ev.tipo === TIPO_REUNIAO && !!ev.chamada && ev.chamada.reuniaoSociais === true;
+}
+
+export function reunioesSociaisDoMes(eventos, mes) {
+  return (eventos || [])
+    .filter(ev => ehReuniaoDosSociais(ev) && typeof ev.data === 'string' && ev.data.slice(0, 7) === mes)
+    .sort((a, b) => a.data.localeCompare(b.data) || (a.horario || '').localeCompare(b.horario || ''));
+}
+
+// Quem a reuniao convoca: o Social Regional e o Social de cada divisao (o
+// cargo, do jeito que esta em Membros), so os ativos. Escopo sem ninguem
+// com o cargo vai em `semSocial`, pra tela avisar - a reuniao segue sem ele.
+export function convocadosDaReuniao(roster) {
+  const ativos = soAtivos(roster || []);
+  const membros = [], semSocial = [];
+  escoposNaOrdemOficial().forEach(e => {
+    const cargo = e.chave === 'regional' ? CARGO_SOCIAL_REGIONAL : CARGO_SOCIAL;
+    const achados = ativos.filter(m => m.divisao === e.nome && m.cargo === cargo);
+    if (achados.length) achados.forEach(m => membros.push({ membro: m, escopo: e }));
+    else semSocial.push(e);
+  });
+  return { membros, semSocial };
+}
 
 export const ESTADOS_SOCIAL = {
   realizada: { emoji: '🏁', rotulo: 'Realizada' },
@@ -270,8 +310,13 @@ export function relatorioDecendial(eventos, p, hoje) {
     .sort((a, b) => a.data.localeCompare(b.data) || (a.horario || '').localeCompare(b.horario || '') || String(a.nome).localeCompare(String(b.nome)));
   const regionais = doPeriodo.filter(ev => ev.categoria === 'regional');
   const linhas = divisoes().map(e => ({ escopo: e, acoes: doPeriodo.filter(ev => ev.categoria === e.chave) }));
+  // As reunioes dos sociais vao a parte: nao sao Acao Social e nao entram
+  // nas contas de realizadas/marcadas.
+  const reunioes = (eventos || [])
+    .filter(ev => ehReuniaoDosSociais(ev) && /^\d{4}-\d{2}-\d{2}$/.test(ev.data || '') && ev.data >= p.inicio && ev.data <= p.fim)
+    .sort((a, b) => a.data.localeCompare(b.data) || (a.horario || '').localeCompare(b.horario || ''));
   return {
-    periodo: p, regionais, divisoes: linhas,
+    periodo: p, regionais, divisoes: linhas, reunioes,
     emAndamento: hoje >= p.inicio && hoje <= p.fim,
     futuro: hoje < p.inicio,
     diasParaFechar: diasEntre(hoje, p.fim),
@@ -304,6 +349,10 @@ export function textoRelatorioDecendial(r) {
     if (l.acoes.length) l.acoes.forEach(ev => partes.push(linha(ev), ...detalhes(ev)));
     else partes.push('— nenhuma Ação Social no período');
   });
+  if (r.reunioes && r.reunioes.length) {
+    partes.push('', '📊 *REUNIÕES DOS SOCIAIS*');
+    r.reunioes.forEach(ev => partes.push(linha(ev), ...detalhes(ev)));
+  }
   const total = r.realizadas + r.marcadas;
   partes.push('', total
     ? `Total: ${r.realizadas} ${r.realizadas === 1 ? 'realizada' : 'realizadas'}${r.marcadas ? ` · ${r.marcadas} ${r.marcadas === 1 ? 'marcada' : 'marcadas'}, ainda não ${r.marcadas === 1 ? 'encerrada' : 'encerradas'}` : ''}`

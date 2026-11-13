@@ -617,6 +617,9 @@ export const acoes = {
     const categoria = antigo ? antigo.categoria || state.adminEscopo : destinoDoEvento();
     const chamada = chamadaParaGuardar(state.newEventChamada);
     if (categoria === 'regional') chamada.dispensaObrigatoriedade = f.dispensaObrigatoriedade !== false;
+    // A reuniao dos sociais (Painel Social) nunca vale pela Reuniao do mes
+    // das divisoes, mesmo que alguem marque a caixa ao editar.
+    if (chamada.reuniaoSociais) chamada.dispensaObrigatoriedade = false;
     const evento = {
       id: state.editingEventId || genId(),
       nome, memberIds: checked, data,

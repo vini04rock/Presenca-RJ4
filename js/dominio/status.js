@@ -14,6 +14,15 @@ export function statusEfetivo(ev, statusBruto) {
   return (ev.status === 'encerrado' && statusBruto === 'aguardando') ? 'infracional' : statusBruto;
 }
 
+// Evento fora de toda conta de presenca (rank, % da divisao, faltas,
+// Insights, relatorios): hoje so a reuniao do Social Regional com os sociais
+// das divisoes (Painel Social, 13/11/2026). O resultado do proprio evento
+// continua aparecendo nele. A marca fica no JSON da chamada; o Code.gs faz a
+// mesma conta (eventoForaDoRank).
+export function contaNoRank(ev) {
+  return !(ev && ev.chamada && ev.chamada.foraDoRank === true);
+}
+
 export function computeCounts(ev) {
   const statusData = state.reportData[ev.id] || {};
   const counts = { confirmado: 0, familia: 0, trabalho: 0, aguardando: 0, justificada: 0, infracional: 0 };

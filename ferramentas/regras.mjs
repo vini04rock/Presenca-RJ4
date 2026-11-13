@@ -1418,6 +1418,37 @@ log('=== painel social: o relatório de 10 em 10 dias ===');
 }
 
 log('');
+log('=== painel social: a reunião dos sociais ===');
+{
+  const { convocadosDaReuniao, ehReuniaoDosSociais, reunioesSociaisDoMes, relatorioDecendial, textoRelatorioDecendial, periodoDecendial, quadroDoMes } = await import(url('dominio/painel-social.js'));
+  const { contaNoRank } = await import(url('dominio/status.js'));
+  const { valeParaAsDivisoes } = await import(url('dominio/obrigatoriedades.js'));
+  const roster = [
+    { id: 'r', nome: 'Almeida', cargo: 'Social Regional', divisao: 'Regional RJ4' },
+    { id: 'b', nome: 'Costa', cargo: 'Social', divisao: 'Barra - RJ4' },
+    { id: 'b2', nome: 'Duque', cargo: 'Social', divisao: 'Barra - RJ4', situacao: 'afastado', situacaoDesde: '2026-10-01' },
+    { id: 'o', nome: 'Bull', cargo: 'Diretor', divisao: 'Oeste - RJ4' },
+    { id: 'x', nome: 'Raio', cargo: 'Social', divisao: 'Recreio - RJ4' },
+  ];
+  const c = convocadosDaReuniao(roster);
+  confere('convoca o Social Regional e o Social de cada divisão (só ativos)', c.membros.map(x => x.membro.id), ['r', 'x', 'b']);
+  confere('avisa quem está sem Social', c.semSocial.map(e => e.chave), ['oeste', 'curicica', 'taquara', 'gardenia']);
+  const chamada = chamadaParaGuardar({ destino: 'Sede', pes: [], dispensaObrigatoriedade: false, reuniaoSociais: true, foraDoRank: true });
+  const reuniao = { id: 'rs', nome: 'Reunião dos Sociais', tipo: 'Reunião', categoria: 'regional', data: '2026-11-05', status: 'encerrado', memberIds: ['r', 'b'], outros: 'Natal', chamada };
+  confere('a chamada guarda as três marcas', [chamada.reuniaoSociais, chamada.foraDoRank, chamada.dispensaObrigatoriedade], [true, true, false]);
+  confere('editar o evento mantém as marcas', (() => { const de = chamadaParaGuardar(camposDoEvento(reuniao)); return [de.reuniaoSociais, de.foraDoRank, de.dispensaObrigatoriedade]; })(), [true, true, false]);
+  confere('fora do rank; evento comum conta', [contaNoRank(reuniao), contaNoRank({ tipo: 'Pub' }), contaNoRank({ chamada: { dispensaObrigatoriedade: true } })], [false, true, true]);
+  confere('não vale pela Reunião do mês das divisões', valeParaAsDivisoes(reuniao), false);
+  confere('é reunião dos sociais; reunião comum do Regional não é', [ehReuniaoDosSociais(reuniao), ehReuniaoDosSociais({ ...reuniao, chamada: {} })], [true, false]);
+  confere('aparece no mês do Painel', reunioesSociaisDoMes([reuniao, { ...reuniao, id: 'z', chamada: {} }], '2026-11').map(e => e.id), ['rs']);
+  confere('não entra no quadro das divisões', quadroDoMes([reuniao], '2026-11', '2026-11-13').acoes.length, 0);
+  const r = relatorioDecendial([reuniao], periodoDecendial('2026-11-05'), '2026-11-13');
+  confere('relatório de 10 dias: à parte e fora das contas', [r.reunioes.map(e => e.id), r.realizadas, r.marcadas], [['rs'], 0, 0]);
+  const t = textoRelatorioDecendial(r);
+  confere('texto do relatório tem a parte das reuniões, com a pauta', [t.includes('📊 *REUNIÕES DOS SOCIAIS*'), t.includes('· Reunião dos Sociais'), t.includes('↳ Natal')], [true, true, true]);
+}
+
+log('');
 log('=== painel social: os planejadores das divisões (só leitura) ===');
 {
   const { planejadoresDoMes, gradePlanejadores } = await import(url('dominio/painel-social.js'));

@@ -211,7 +211,7 @@ export function camposDoEvento(ev) {
   if (!ch || typeof ch !== 'object') return camposIniciais(ev || {});
   const c = { tipo: ev.tipo || '', horario: comoHora(ev.horario) };
   // Metadado do evento no JSON ja persistido. Preservar ao editar a chamada.
-  if (typeof ch.dispensaObrigatoriedade === 'boolean') c.dispensaObrigatoriedade = ch.dispensaObrigatoriedade;
+  METADADOS_DO_EVENTO.forEach(k => { if (typeof ch[k] === 'boolean') c[k] = ch[k]; });
   CAMPOS_GUARDADOS.forEach(k => { c[k] = String(ch[k] || ''); });
   // Subtítulo em branco é o nome do evento, como nas sugestões.
   if (!c.subtitulo.trim()) c.subtitulo = String(ev.nome || '').trim();
@@ -222,10 +222,17 @@ export function camposDoEvento(ev) {
 
 // O que vai pra coluna "Chamada": só o que tem conteúdo, sem espaço sobrando.
 // P.E. totalmente vazio (nem nome, nem vias) não é guardado.
+// As marcas (sim/nao) que moram no JSON da chamada e nao sao campo da
+// convocacao - editar o evento ou a chamada tem que manter as tres:
+//   dispensaObrigatoriedade: a caixa "Evento regional";
+//   reuniaoSociais: a reuniao do Social Regional com os sociais (Painel Social);
+//   foraDoRank: fora de toda conta de presenca (ver contaNoRank).
+export const METADADOS_DO_EVENTO = ['dispensaObrigatoriedade', 'reuniaoSociais', 'foraDoRank'];
+
 export function chamadaParaGuardar(campos) {
   const c = campos || {};
   const fora = {};
-  if (typeof c.dispensaObrigatoriedade === 'boolean') fora.dispensaObrigatoriedade = c.dispensaObrigatoriedade;
+  METADADOS_DO_EVENTO.forEach(k => { if (typeof c[k] === 'boolean') fora[k] = c[k]; });
   CAMPOS_GUARDADOS.forEach(k => { fora[k] = String(c[k] || '').trim(); });
   fora.pes = (c.pes || [])
     .map(pe => {

@@ -1056,6 +1056,38 @@ mês**. Só no Regional, e o primeiro card da área. Tela em
   convocado (a divisão inteira, só os ativos, ou ninguém = só registro).
   **"🏁 Já aconteceu" cria encerrado e sempre sem convocados** — encerrar
   com gente convocada viraria falta (Infracional) de todo mundo.
+- **➕ Registrar evento** (13/11/2026): o botão acima mudou de nome e
+  passou a perguntar **o que vai ser**: 🤝 Ação Social (como acima) ou
+  📊 **Reunião dos sociais**. A reunião é sempre do Regional, tipo Reunião,
+  só marcada. Ela convoca o integrante com cargo **Social Regional** e o com
+  cargo **Social** de cada divisão (só os ativos). Todos vêm marcados e dá
+  para desmarcar. Escopo sem ninguém com o cargo aparece com ⚠️ e a reunião
+  segue sem ele. A pauta vai no `outros`.
+  - Três marcas no JSON da chamada (`METADADOS_DO_EVENTO` em
+    `dominio/convocacao.js`, que editar o evento ou a chamada preserva):
+    `reuniaoSociais: true`, que diz ao Painel que é dela;
+    `foraDoRank: true`, que a deixa fora de toda conta de presença;
+    `dispensaObrigatoriedade: false`, para não valer pela Reunião do mês
+    das divisões (o formulário do Eventos força isso ao editar).
+  - **Fora do rank:** no app, `contaNoRank` (`dominio/status.js`) tira a
+    reunião de `eventosDoRelatorioEscopo`, que alimenta Resumo, faltas e
+    fichas. No `Code.gs`, `eventoForaDoRank` tira a reunião do Rank de
+    Presença, da % das divisões e da aba Regional, dos Insights e do
+    Relatório individual. **Precisa do Code.gs na versão
+    `2026-11-13-reuniao-sociais`.** O resultado do próprio evento continua
+    normal.
+  - No Painel: aparece no calendário com 📊 em azul ("Sociais" no dia) e na
+    lista "Reuniões dos sociais de <mês>". Não entra no quadro das divisões
+    nem nas obrigatórias. No Relatório 10 dias, entra numa parte própria,
+    "📊 Reuniões dos sociais", fora do total de realizadas e marcadas. Ela
+    também aparece no calendário geral e no Eventos do Regional como
+    qualquer evento.
+- **Tudo que nasce no Painel fica fora das estatísticas do app** (decisão
+  do Social Regional, 13/11/2026; a métrica dos sociais ele faz por fora):
+  a Ação Social criada pelo ➕ também leva `foraDoRank: true` na chamada.
+  Ela continua contando no Painel, no Relatório 10 dias e nas obrigatórias
+  (das divisões e do Regional). A mesma ação criada pela divisão no Eventos
+  dela continua contando no rank normalmente.
 
 ## Funções especiais (Batedores e Caveiras)
 

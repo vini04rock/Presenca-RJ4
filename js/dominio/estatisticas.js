@@ -2,7 +2,7 @@
 
 import { soAtivos } from './movimentos.js';
 import { normalizarNome } from './parser.js';
-import { computeCounts, statusEfetivo } from './status.js';
+import { computeCounts, contaNoRank, statusEfetivo } from './status.js';
 import { TIPOS_EVENTO, escopoPorChave } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { dataCorteMeses, formatDataBR, hojeISO } from '../nucleo/util.js';
@@ -119,6 +119,8 @@ export function eventosDoRelatorioEscopo() {
         ? e.categoria === state.adminEscopo
         : (state.relatorioFiltroDivisao === 'todas' || e.categoria === state.relatorioFiltroDivisao);
       if (!bateDivisao) return false;
+      // A reuniao dos sociais (Painel Social) nao entra em conta nenhuma.
+      if (!contaNoRank(e)) return false;
       // Comparacao de texto funciona porque a data e sempre ISO (yyyy-mm-dd) -
       // ordem alfabetica bate com ordem cronologica. Evento sem data marcada
       // fica de fora assim que qualquer um dos dois limites for escolhido
