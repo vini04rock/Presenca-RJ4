@@ -456,6 +456,8 @@ export let state = {
   // 0 = tudo (o padrao), 1 = o ultimo mes, { de, ate } = o "Por periodo".
   movimentosPeriodo: 0,
   movimentosDivisaoAberta: null,
+  // O Relatorio 10 dias do ADM Regional: o 1o dia do periodo olhado (null = o de hoje).
+  movimentosRelatorioInicio: null,
 
   // Tela "Calendario" - divisao/regional escolhida e o mes/ano exibido
   // (null = usa o mes atual, preenchido na primeira renderizacao). Sem PIN,

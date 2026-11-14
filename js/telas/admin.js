@@ -76,7 +76,8 @@ export const SECOES_ORGANIZADOR = {
   },
   movimentos: {
     titulo: 'Entrada/Saída',
-    abas: [{ chave: 'movimentos', label: 'Entrada/Saída' }],
+    // O Relatorio 10 dias (14/11/2026) e do ADM Regional: so no Regional.
+    abas: [{ chave: 'movimentos', label: 'Entrada/Saída' }, { chave: 'movimentos-relatorio', label: 'Relatório 10 dias', soRegional: true }],
   },
   // O Painel Social, so no Regional: as Acoes Sociais das divisoes.
   painelSocial: {
@@ -131,7 +132,7 @@ export function secaoDaAba(aba) {
 
 // As abas da secao que existem na divisao em que se entrou.
 function abasVisiveis(secao) {
-  return secao.abas.filter(a => !(a.soNaFuncao && state.funcaoEspecial !== a.soNaFuncao));
+  return secao.abas.filter(a => !(a.soNaFuncao && state.funcaoEspecial !== a.soNaFuncao) && !(a.soRegional && state.adminEscopo !== 'regional'));
 }
 
 export function renderAdmin(app) {
@@ -166,7 +167,7 @@ export function renderAdmin(app) {
     content.innerHTML = renderAdminDoacoes();
   } else if (state.adminTab.startsWith('caixinha') && temDoacoesECaixinha(state.adminEscopo)) {
     content.innerHTML = renderAdminCaixinha();
-  } else if (state.adminTab === 'movimentos') {
+  } else if (state.adminTab === 'movimentos' || (state.adminTab === 'movimentos-relatorio' && state.adminEscopo === 'regional')) {
     content.innerHTML = renderAdminMovimentos();
   } else if (state.adminTab.startsWith('estoque-adm') && state.adminEscopo === 'regional') {
     content.innerHTML = renderAdminEstoqueAdm();
@@ -223,6 +224,8 @@ export async function abrirAbaOrganizador(aba) {
   state.caixinhaFinQtdExtrato = 15;
   fecharPainelMovimento();
   state.movimentosDivisaoAberta = null;
+  // O Relatorio 10 dias do ADM abre sempre no periodo de hoje.
+  if (aba.startsWith('movimentos') && entrandoNaSecao) state.movimentosRelatorioInicio = null;
   state.estoqueAdmAnularId = null;
   fecharCarteirinha();
   state.acaoSocialIdeiaForm = null;
@@ -250,7 +253,7 @@ export async function abrirAbaOrganizador(aba) {
   if (aba.startsWith('caixinha') && entrandoNaSecao) await carregarCaixinha();
   // O livro tambem fica velho quando se movimenta alguem no cadastro (o
   // fluxo zera movimentosDados) - por isso busca tambem quando nao ha nada.
-  if (aba === 'movimentos' && (entrandoNaSecao || !state.movimentosDados)) await carregarMovimentos();
+  if (aba.startsWith('movimentos') && (entrandoNaSecao || !state.movimentosDados)) await carregarMovimentos();
   if (aba.startsWith('estoque-adm') && entrandoNaSecao) await carregarEstoqueAdm();
   if (aba.startsWith('acoes-sociais') && entrandoNaSecao) await carregarAcoesSociais();
   // Os eventos de novo: as divisoes marcam Acao Social com o app aberto.

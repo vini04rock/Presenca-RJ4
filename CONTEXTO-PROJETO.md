@@ -658,6 +658,29 @@ cadastro**, sem ser transferência (`mudancaDeNivel`, no `Code.gs` e em
 - Subir ou descer de grau dentro da divisão, trocar cargo e função
   continuam sendo só o Editar.
 
+### Relatório 10 dias do ADM Regional (14/11/2026)
+
+A segunda aba da Entrada/Saída, **só no Regional** (`soRegional: true` na
+aba; `abasVisiveis` em `telas/admin.js` esconde nas divisões). Por enquanto
+**só para ver**: não tem WhatsApp, PDF nem imagem.
+
+- Mesmo período do Relatório 10 dias do Social (`periodoDecendial`,
+  `periodoVizinho` e `rotuloDoDecendio` de `dominio/painel-social.js`):
+  1 a 10, 11 a 20 e 21 ao fim do mês, com o ‹ › para trocar de período
+  (`movimentosRelatorioInicio`, que volta para hoje ao entrar na seção).
+- Organizado **por divisão**, na ordem oficial, com o Regional primeiro.
+  Divisão sem nada mostra "— nenhuma movimentação no período".
+- Entram 🟢 entrada, ⏸️ afastamento, ▶️ retorno, 🚪 desligamento e 🔁
+  transferência (`TIPOS_RELATORIO_ADM`). A transferência aparece nas duas
+  pontas; no total, a que foi entre divisões da RJ4 conta uma vez só (a
+  saída), e a que veio de fora conta. A subida e a descida do grau V ficam
+  de fora.
+- O **motivo aparece na tela**, como na linha do tempo, porque só quem
+  abre o Regional vê. Se um dia virar texto para o grupo, o motivo fica de
+  fora, como nos outros relatórios.
+- A conta é `relatorioDecendialMovimentos` em `dominio/movimentos.js`. Lê
+  o mesmo livro que o app já carrega, então o Code.gs não mudou.
+
 ## Doações e Caixinha
 
 Duas seções do menu do organizador, criadas em 18/10/2026 para dar número

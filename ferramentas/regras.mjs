@@ -1472,6 +1472,32 @@ log('=== painel social: os planejadores das divisões (só leitura) ===');
 }
 
 log('');
+log('=== entrada/saída: o relatório de 10 em 10 dias do ADM Regional ===');
+{
+  const { relatorioDecendialMovimentos } = await import(url('dominio/movimentos.js'));
+  const { periodoDecendial } = await import(url('dominio/painel-social.js'));
+  const mov = (id, data, divisao, tipo, extra = {}) => ({ id, data, divisao, membroId: id, nome: id, grau: 'X', tipo, motivo: '', ...extra });
+  const livro = [
+    mov('novo', '2026-11-03', 'oeste', 'entrada'),
+    mov('afas', '2026-11-05', 'barra', 'afastamento', { motivo: 'Saúde' }),
+    mov('volta', '2026-11-06', 'barra', 'retorno'),
+    mov('desl', '2026-11-09', 'recreio', 'desligamento'),
+    mov('tr', '2026-11-07', 'recreio', 'transferenciaSaida', { dePara: 'Barra - RJ4' }),
+    mov('tr', '2026-11-07', 'barra', 'transferenciaEntrada', { dePara: 'Recreio - RJ4' }),
+    mov('fora', '2026-11-08', 'taquara', 'transferenciaEntrada', { dePara: 'RJ2 · Centro' }),
+    mov('gv', '2026-11-08', 'barra', 'subidaRegional', { dePara: 'Regional RJ4' }),
+    mov('velho', '2026-10-31', 'oeste', 'entrada'),
+    mov('depois', '2026-11-11', 'oeste', 'entrada'),
+  ];
+  const r = relatorioDecendialMovimentos(livro, periodoDecendial('2026-11-04'), '2026-11-14');
+  confere('as 7 na ordem oficial, cada uma com o dela, por data', r.divisoes.map(l => [l.escopo.chave, l.movimentos.map(m => m.id)]), [
+    ['regional', []], ['oeste', ['novo']], ['recreio', ['tr', 'desl']], ['barra', ['afas', 'volta', 'tr']], ['curicica', []], ['taquara', ['fora']], ['gardenia', []]]);
+  confere('totais: transferência entre divisões daqui conta uma vez; a de fora conta', r.totais, { entradas: 1, afastamentos: 1, retornos: 1, desligamentos: 1, transferencias: 2 });
+  confere('grau V fica de fora; período fechado', [r.divisoes.flatMap(l => l.movimentos).some(m => m.tipo === 'subidaRegional'), r.emAndamento, r.futuro], [false, false, false]);
+  confere('quem não teve nada', r.semMovimento.map(l => l.escopo.chave), ['regional', 'curicica', 'gardenia']);
+}
+
+log('');
 log('=== entrada/saída: o relatório de cada divisão e o quadro do Regional ===');
 {
   const { resumoMovimentos, quadroRegional, textoMovimentos, textoQuadroRegional, soAtivos, movimentosDoPeriodo } = await import(url('dominio/movimentos.js'));

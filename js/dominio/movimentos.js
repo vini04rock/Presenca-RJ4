@@ -178,6 +178,35 @@ export function quadroRegional(movimentos, roster, meses) {
     sairamDaRJ4: soma('sairamDaRJ4') } };
 }
 
+// ---------- o Relatorio 10 dias do ADM Regional (14/11/2026) ----------
+//
+// O ADM Regional relata, a cada 10 dias, quem entrou, se afastou, voltou,
+// foi desligado ou transferido. Por divisao, na ordem oficial, igual ao
+// relatorio do Social (dominio/painel-social.js, de onde vem o periodo `p`:
+// { inicio, fim }). Por enquanto so pra ver na tela. A transferencia aparece
+// nas duas pontas (saiu de uma, chegou na outra); no total, a que foi entre
+// divisoes da RJ4 conta uma vez so. A subida/descida do grau V fica de fora.
+export const TIPOS_RELATORIO_ADM = ['entrada', 'afastamento', 'retorno', 'desligamento', 'transferenciaSaida', 'transferenciaEntrada'];
+
+export function relatorioDecendialMovimentos(movimentos, p, hoje) {
+  const doPeriodo = (movimentos || [])
+    .filter(m => TIPOS_RELATORIO_ADM.includes(m.tipo) && m.data && m.data >= p.inicio && m.data <= p.fim)
+    .sort((a, b) => a.data.localeCompare(b.data) || String(a.nome).localeCompare(String(b.nome)));
+  const divisoes = escoposNaOrdemOficial().map(e => ({ escopo: e, movimentos: doPeriodo.filter(m => m.divisao === e.chave) }));
+  const conta = tipo => doPeriodo.filter(m => m.tipo === tipo).length;
+  // Chegada de fora da RJ4 (a origem nao e uma divisao daqui) e saida pra
+  // fora contam; entre duas daqui, so a saida conta.
+  const daqui = nome => escoposEmOrdemDeExibicao().some(e => e.nome === nome);
+  const transferencias = doPeriodo.filter(m => m.tipo === 'transferenciaSaida' || (m.tipo === 'transferenciaEntrada' && !daqui(m.dePara))).length;
+  return {
+    periodo: p, divisoes,
+    emAndamento: hoje >= p.inicio && hoje <= p.fim,
+    futuro: hoje < p.inicio,
+    totais: { entradas: conta('entrada'), afastamentos: conta('afastamento'), retornos: conta('retorno'), desligamentos: conta('desligamento'), transferencias },
+    semMovimento: divisoes.filter(l => !l.movimentos.length),
+  };
+}
+
 const comGrau = m => `${m.nome}${m.grau ? ` (${m.grau})` : ''}`;
 
 // A linha a parte da subida e descida do grau V, embaixo dos quatro

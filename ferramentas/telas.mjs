@@ -791,6 +791,13 @@ const mvs = { isAdmin:true, adminTab:'movimentos', roster:rosterComAfastado, mov
 add('entrada/saída / com transferências', { ...mvs, adminEscopo:'barra', movimentosDadosEscopo:'barra', movimentosDados:comTransferencias }, T.renderAdmin);
 add('entrada/saída / barra com grau V',  { ...mvs, adminEscopo:'barra', movimentosDadosEscopo:'barra', movimentosDados:comGrauV }, T.renderAdmin);
 add('entrada/saída / regional com grau V', { ...mvs, adminEscopo:'regional', movimentosDadosEscopo:'regional', movimentosDivisaoAberta:'regional', movimentosDados:comGrauV }, T.renderAdmin);
+// O Relatorio 10 dias do ADM Regional: com movimentos (01 a 10/10/2026), vazio e numa divisao (a aba nao existe la).
+add('entrada/saída / relatório 10 dias', { ...mvs, adminTab:'movimentos-relatorio', adminEscopo:'regional', movimentosDadosEscopo:'regional',
+  movimentosDados:comTransferencias.concat([{ id:'r1', data:'2026-10-03', divisao:'barra', membroId:'m2', nome:'Bull', grau:'VIII', tipo:'retorno', motivo:'' }]),
+  movimentosRelatorioInicio:'2026-10-01' }, T.renderAdmin);
+add('entrada/saída / relatório 10 dias vazio', { ...mvs, adminTab:'movimentos-relatorio', adminEscopo:'regional', movimentosDadosEscopo:'regional',
+  movimentosDados:[], movimentosRelatorioInicio:null }, T.renderAdmin);
+add('entrada/saída / relatório 10 dias (carregando)', { ...mvs, adminTab:'movimentos-relatorio', adminEscopo:'regional', movimentosDadosEscopo:null }, T.renderAdmin);
 add('entrada/saída / quadro com transferências', { ...mvs, adminEscopo:'regional', movimentosDadosEscopo:'regional', movimentosDados:comTransferencias }, T.renderAdmin);
 add('entrada/saída / divisão',           { ...mvs, adminEscopo:'barra', movimentosDadosEscopo:'barra' }, T.renderAdmin);
 add('entrada/saída / divisão vazia',     { ...mvs, adminEscopo:'oeste', movimentosDadosEscopo:'oeste', movimentosDados:[] }, T.renderAdmin);

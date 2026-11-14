@@ -5,11 +5,12 @@
 
 import { carregarMovimentos } from '../dados/carregar.js';
 import { rotuloPilula } from '../dominio/doacoes.js';
-import { PERIODOS_MOVIMENTOS, TIPOS_MOVIMENTO, quadroRegional, resumoGrauV, rotuloMovimento, rotuloPeriodoMovimentos, resumoMovimentos, textoMovimentos, textoQuadroRegional } from '../dominio/movimentos.js';
+import { PERIODOS_MOVIMENTOS, TIPOS_MOVIMENTO, quadroRegional, relatorioDecendialMovimentos, resumoGrauV, rotuloMovimento, rotuloPeriodoMovimentos, resumoMovimentos, textoMovimentos, textoQuadroRegional } from '../dominio/movimentos.js';
+import { diasEntre, periodoDecendial, periodoVizinho, rotuloDoDecendio } from '../dominio/painel-social.js';
 import { escopoPorChave } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
-import { copiarTexto, dataDoCampoOuAvisar, escapeHtml, formatDataBR, imprimirTexto } from '../nucleo/util.js';
+import { copiarTexto, dataDoCampoOuAvisar, escapeHtml, formatDataBR, hojeISO, imprimirTexto } from '../nucleo/util.js';
 import { botaoGerarRelatorio, campoData, selinhoIniciais } from '../ui/comuns.js';
 import { esqueletoLista, renderPizza } from '../ui/graficos.js';
 import { imagemMovimentos, imagemQuadroMovimentos, mostrarPreviaImagem } from '../ui/imagem.js';
@@ -179,6 +180,46 @@ function quadro(movimentos) {
   `;
 }
 
+// ---------- o Relatorio 10 dias (so no Regional, so pra ver) ----------
+
+function periodoOlhado() {
+  return periodoDecendial(state.movimentosRelatorioInicio || hojeISO());
+}
+
+function relatorioDecendial(movimentos) {
+  const r = relatorioDecendialMovimentos(movimentos, periodoOlhado(), hojeISO());
+  const p = r.periodo;
+  const t = r.totais;
+  const dias = diasEntre(hojeISO(), p.fim);
+  let situacao;
+  if (r.futuro) situacao = 'Período que ainda não começou';
+  else if (r.emAndamento) situacao = dias <= 0 ? 'Período em andamento · fecha hoje' : `Período em andamento · fecha em ${dias} ${dias === 1 ? 'dia' : 'dias'}`;
+  else situacao = 'Período fechado';
+  const resumo = [`🟢 ${t.entradas} ${t.entradas === 1 ? 'novo' : 'novos'}`, `⏸️ ${t.afastamentos} ${t.afastamentos === 1 ? 'afastado' : 'afastados'}`,
+    `▶️ ${t.retornos} ${t.retornos === 1 ? 'retorno' : 'retornos'}`, `🚪 ${t.desligamentos} ${t.desligamentos === 1 ? 'desligado' : 'desligados'}`,
+    `🔁 ${t.transferencias} ${t.transferencias === 1 ? 'transferência' : 'transferências'}`].join(' · ');
+  return `
+    <div class="card">
+      <div class="calendario-cabecalho">
+        <button class="seta-periodo" data-action="relatorio-movimentos-periodo" data-value="-1" aria-label="Período anterior">‹</button>
+        <div class="calendario-titulo" style="font-size:15px;">${escapeHtml(rotuloDoDecendio(p))}</div>
+        <button class="seta-periodo" data-action="relatorio-movimentos-periodo" data-value="1" aria-label="Próximo período">›</button>
+      </div>
+      <div class="painel-social-legenda" style="margin-top:4px;">${p.numero}º período do mês · ${escapeHtml(situacao)}</div>
+      <div class="painel-social-legenda" style="margin-top:4px; color:var(--text);">${escapeHtml(resumo)}</div>
+    </div>
+    <div class="card" style="padding:4px 16px 10px;">
+      ${r.divisoes.map(l => `
+        <div class="painel-social-relatorio-divisao">${escapeHtml(l.escopo.nome)}</div>
+        ${l.movimentos.length
+          ? l.movimentos.map(linhaMovimento).join('')
+          : '<div class="painel-social-detalhe painel-social-relatorio-vazio">— nenhuma movimentação no período</div>'}
+      `).join('')}
+    </div>
+    <div class="painel-social-legenda">🟢 novo integrante · ⏸️ afastado · ▶️ voltou do afastamento · 🚪 desligado · 🔁 transferido · o motivo só aparece aqui no app</div>
+  `;
+}
+
 export function renderAdminMovimentos() {
   if (state.movimentosErro) {
     return `
@@ -191,6 +232,7 @@ export function renderAdminMovimentos() {
   }
   const d = dados();
   if (!d) return `<div class="card">${esqueletoLista(5)}</div>`;
+  if (state.adminTab === 'movimentos-relatorio') return relatorioDecendial(d);
   const chave = chaveAberta();
   return chave ? relatorioDivisao(d, chave) : quadro(d);
 }
@@ -215,6 +257,10 @@ export const acoes = {
       return;
     }
     state.movimentosPeriodo = de || ate ? { de, ate } : 0;
+    return render();
+  },
+  'relatorio-movimentos-periodo': async (id, target, action, e) => {
+    state.movimentosRelatorioInicio = periodoVizinho(periodoOlhado(), Number(target.dataset.value)).inicio;
     return render();
   },
   'abrir-movimentos-divisao': async (id, target, action, e) => {
