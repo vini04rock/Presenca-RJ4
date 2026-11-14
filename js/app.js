@@ -32,6 +32,7 @@ import { acoes as acoesAdminAcoesSociais, atualizarCampoAcaoSocial } from './tel
 import { acoes as acoesAdminCarteirinha, atualizarCampoCarteirinha } from './telas/admin-carteirinha.js';
 import { acoes as acoesAdminFuncoesEspeciais, atualizarCampoFuncoes } from './telas/admin-funcoes-especiais.js';
 import { acoes as acoesAdminPainelSocial, atualizarCampoPainelSocial } from './telas/admin-painel-social.js';
+import { acoes as acoesAdminPretendentes } from './telas/admin-pretendentes.js';
 import { acoes as acoesComuns, aplicarBusca } from './ui/comuns.js';
 import { acoes as acoesGraficos } from './ui/graficos.js';
 import { acoes as acoesHome } from './telas/home.js';
@@ -401,6 +402,7 @@ for (const [area, mapa] of Object.entries({
   acoesAdminCarteirinha,
   acoesAdminFuncoesEspeciais,
   acoesAdminPainelSocial,
+  acoesAdminPretendentes,
   acoesComuns,
   acoesGraficos,
   acoesHome,

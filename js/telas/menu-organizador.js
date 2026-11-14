@@ -60,6 +60,8 @@ const SECOES = [
   { area: 'adm', aba: 'estoque-adm-movimentar', nome: 'Estoque ADM', desc: 'Materiais, entradas, saídas e histórico', icone: '📦', cor: '#C47A3D',
     visivel: () => state.adminEscopo === 'regional' },
   // Nas 7: cada divisao ve o proprio livro, e o Regional o quadro de todas.
+  // As fichas de admissao (14/11/2026): nas 7, cada uma com o link dela.
+  { area: 'adm', aba: 'pretendentes', nome: 'Pretendentes', desc: 'Fichas de admissão de quem quer entrar no clube', icone: '📝', cor: '#D4A24C' },
   { area: 'adm', aba: 'movimentos', nome: 'Entrada/Saída', desc: 'Quem entrou, quem está afastado e quem saiu', icone: '🔄', cor: '#8FA3B8' },
   // Os Relatorios seguem so no Regional e na Barra - decisao do clube, que
   // mora em escoposAtivos() para nao ficar repetida aqui. Como a divisao e
@@ -74,7 +76,7 @@ const AREAS = [
   { chave: 'social', nome: 'Social', desc: 'Doações, estoque e ações sociais', icone: '🤝', cor: '#4CAF6E' },
 ];
 const ORDEM_POR_AREA = {
-  adm: ['caixinha', 'estoque-adm-movimentar', 'movimentos', 'membros'],
+  adm: ['caixinha', 'estoque-adm-movimentar', 'movimentos', 'membros', 'pretendentes'],
   operacional: ['abrir-relatorios-organizador', 'abrir-relatorio-individual', 'insights', 'funcoes-especiais', 'eventos'],
   social: ['painel-social', 'doacoes', 'acoes-sociais'],
 };

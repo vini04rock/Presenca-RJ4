@@ -35,6 +35,7 @@ const ACOES_PROTEGIDAS = [
   'fichaMembro', 'fichaMembroSalvar', 'fichasVarias', 'aniversarios',
   'funcoesEspeciais', 'funcaoEventoSalvar', 'funcaoEventoStatus', 'funcaoEventoRemover', 'funcaoPresencasSalvar',
   'funcaoConfigSalvar',
+  'pretendentes', 'pretendenteSituacao',
 ];
 
 // Anexa escopo+PIN quando a acao exige. Some do caminho nas demais, pra

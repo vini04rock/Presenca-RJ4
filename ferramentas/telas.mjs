@@ -83,9 +83,12 @@ function listar(dir, base = '') {
   return out;
 }
 log('=== 1. carregar cada modulo ===');
+const ENTRADAS = ['app.js', 'ficha.js'];
 let falhasCarga = 0;
 for (const m of listar(JS).sort()) {
-  if (m === 'app.js') continue;   // o app.js dispara a primeira carga de rede
+  // As duas entradas desenham a pagina ao carregar: o app.js dispara a
+  // primeira carga de rede, e a ficha.js (a Ficha de Admissao) le o endereco.
+  if (ENTRADAS.includes(m)) continue;
   try {
     await import(url(m));
   } catch (e) {
@@ -93,7 +96,7 @@ for (const m of listar(JS).sort()) {
     log(`   FALHOU ${m}: ${e.message}`);
   }
 }
-log(`   ${listar(JS).length - 1} modulos, ${falhasCarga} falha(s)`);
+log(`   ${listar(JS).length - ENTRADAS.length} modulos, ${falhasCarga} falha(s)`);
 
 // ---------- 2. dados de mentira ------------------------------------------
 const { state } = await import(url('nucleo/estado.js'));
@@ -336,6 +339,25 @@ add('painel social / registrar (já aconteceu, com erro)', { ...ps, events:[], p
 add('painel social / registrar (salvando)', { ...ps, events:[], painelSocialSalvando:true, painelSocialForm:psForm({ categoria:'oeste' }) }, T.renderAdmin);
 add('painel social / dentro de uma divisão (não existe)', { ...ps, adminEscopo:'barra', events:[] }, T.renderAdmin);
 add('organizador / área ADM (oeste)', { isAdmin:true, adminEscopo:'oeste', organizadorArea:'adm' }, T.renderMenuOrganizador);
+// O card Pretendentes (fichas de admissao, 14/11/2026).
+{
+  const pret = (id, divisao, situacao, extra) => ({ id, divisao, situacao, enviadoEm: '14/11/2026 10:0' + id.length, atualizadoEm: '',
+    nomeColete: 'Lobo ' + id, nomeCompleto: 'João da Silva', cpf: '529.982.247-25', rg: '123', nascimento: '1990-05-21', profissao: 'Mecânico',
+    moto: 'Sim', carro: 'Nao', cep: '22790-000', endereco: 'Av. das Américas', numero: '100', complemento: 'Não tem', bairro: 'Recreio',
+    cidade: 'Rio de Janeiro', uf: 'RJ', celular: '(21) 99999-8888', telResidencial: 'Não tenho', email: 'joao@email.com',
+    emergenciaNome: 'Maria', emergenciaParentesco: 'Esposa', emergenciaTelefone: '(21) 98888-7777', camisa: 'G',
+    colete: 'G5', coleteMaterial: 'Couro', pagamento: 'Parcelado', parcelas: '4', coletePagamento: '2026-12-10', origem: 'Indicado',
+    quemIndicou: 'Fulano', ...extra });
+  const fichas = [pret('a', 'curicica', 'Novo'), pret('bb', 'curicica', 'Em análise', { atualizadoEm: '14/11/2026 11:00' }), pret('ccc', 'barra', 'Novo')];
+  const pr = { isAdmin:true, adminTab:'pretendentes' };
+  add('pretendentes / divisão com fichas', { ...pr, adminEscopo:'curicica', pretendentesDados: fichas.filter(f => f.divisao === 'curicica') }, T.renderAdmin);
+  add('pretendentes / divisão sem fichas', { ...pr, adminEscopo:'oeste', pretendentesDados: [] }, T.renderAdmin);
+  add('pretendentes / regional, em blocos', { ...pr, adminEscopo:'regional', pretendentesDados: fichas }, T.renderAdmin);
+  add('pretendentes / ficha aberta (novo)', { ...pr, adminEscopo:'curicica', pretendentesDados: fichas, pretendenteAberto:'a' }, T.renderAdmin);
+  add('pretendentes / ficha aberta (em análise)', { ...pr, adminEscopo:'regional', pretendentesDados: fichas, pretendenteAberto:'bb' }, T.renderAdmin);
+  add('pretendentes / buscando', { ...pr, adminEscopo:'barra', pretendentesDados:null, pretendentesCarregando:true }, T.renderAdmin);
+  add('pretendentes / erro', { ...pr, adminEscopo:'barra', pretendentesDados:null, pretendentesCarregando:false, pretendentesErro:'Falha de conexao' }, T.renderAdmin);
+}
 add('organizador / área Operacional (oeste)', { isAdmin:true, adminEscopo:'oeste', organizadorArea:'operacional' }, T.renderMenuOrganizador);
 for (const aba of ['eventos','membros','encerrados','presencas','insights','insights-rodadas','insights-relatorio']) {
   add(`organizador / ${aba}`, { isAdmin:true, adminEscopo:'regional', adminTab:aba }, T.renderAdmin);

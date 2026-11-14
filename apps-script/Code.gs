@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-11-13-reuniao-sociais';
+var VERSAO = '2026-11-14-ficha-admissao';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -52,6 +52,7 @@ var ABA_FICHAS = 'MembrosFicha';
 var ABA_FUNCOES_EVENTOS = 'FuncoesEventos';
 var ABA_FUNCOES_PRESENCAS = 'FuncoesPresencas';
 var ABA_FUNCOES_CONFIG = 'FuncoesConfig';
+var ABA_PRETENDENTES = 'Pretendentes';
 
 // "Cargo" so faz sentido nos graus VI e V (ver CARGOS no js/nucleo/config.js):
 // sao os graus em que varios integrantes dividem o mesmo grau ocupando
@@ -239,6 +240,17 @@ var FUNCOES_QUE_ENTRAM = { batedor: ['batedor'], caveira: ['caveira', 'caveira_s
 // resto segue a hierarquia). Sem linha = ninguem escolhido.
 var CAB_FUNCOES_CONFIG = ['Chave', 'Valor', 'Atualizado em'];
 var CHAVES_FUNCOES_CONFIG = ['caveira01'];
+// A Ficha de Admissao (14/11/2026): o que o pretendente preenche pelo link da
+// divisao (ficha.html?divisao=...). Uma linha por pretendente. "Divisao" e a
+// chave ('curicica'...), a do link. "Situacao" comeca em 'Novo'. CPF, RG e
+// endereco sao o dado mais sensivel da planilha: a aba fica A PARTE de
+// Membros, e ler (no card Pretendentes do organizador) vai pedir PIN.
+var CAB_PRETENDENTES = ['ID', 'Divisao', 'Situacao', 'Enviado em', 'Atualizado em',
+  'Nome Colete', 'Nome Completo', 'CPF', 'RG', 'Nascimento', 'Profissao', 'Moto', 'Carro',
+  'CEP', 'Endereco', 'Numero', 'Complemento', 'Bairro', 'Cidade', 'UF',
+  'Celular', 'Tel Residencial', 'Email', 'Emergencia Nome', 'Emergencia Parentesco', 'Emergencia Telefone',
+  'Camisa', 'Colete', 'Colete Material', 'Pagamento', 'Parcelas', 'Colete Pagamento',
+  'Origem', 'Quem Indicou'];
 
 // Na planilha fica o rotulo legivel; o app continua falando em chaves.
 var STATUS_ROTULO = {
@@ -344,7 +356,10 @@ var ACOES_PROTEGIDAS = [
   'fichaMembro', 'fichaMembroSalvar', 'fichasVarias', 'aniversarios',
   // As Funcoes especiais (Batedores e Caveiras): so do Regional, ate pra ler.
   'funcoesEspeciais', 'funcaoEventoSalvar', 'funcaoEventoStatus', 'funcaoEventoRemover', 'funcaoPresencasSalvar',
-  'funcaoConfigSalvar'
+  'funcaoConfigSalvar',
+  // As fichas de admissao: CPF, RG e endereco. Enviar (admissaoEnviar) e
+  // publico; ler e mexer, so com o PIN da divisao do link.
+  'pretendentes', 'pretendenteSituacao'
 ];
 
 function executar(action, p) {
@@ -443,6 +458,12 @@ function executar(action, p) {
   if (action === 'funcaoEventoRemover') return comTrava(function () { return removerEventoFuncao(p); });
   if (action === 'funcaoPresencasSalvar') return comTrava(function () { return salvarPresencasFuncao(p); });
   if (action === 'funcaoConfigSalvar') return comTrava(function () { return salvarConfigFuncoes(p); });
+  // A ficha do pretendente: grava SEM PIN, de proposito - quem preenche e
+  // alguem de fora do clube, pelo link da divisao. Por isso fica fora de
+  // ACOES_PROTEGIDAS (como a "presenca") e confere tudo aqui dentro.
+  if (action === 'admissaoEnviar') return comTrava(function () { return receberFichaAdmissao(p); });
+  if (action === 'pretendentes') return lerPretendentes(String(p.divisao || ''), String(p.pin || ''));
+  if (action === 'pretendenteSituacao') return comTrava(function () { return mudarSituacaoPretendente(p); });
   throw new Error('Acao desconhecida: ' + action);
 }
 
@@ -2417,6 +2438,173 @@ function lerAniversarios(divisao, pin) {
     .filter(function (m) { return nascimento[m.id] && (divisao === 'regional' || m.divisao === nomeDaDivisao); })
     .map(function (m) { return { id: m.id, nome: m.nome, grau: m.grau, divisao: m.divisao, nascimento: nascimento[m.id] }; });
   return { ok: true, aniversarios: lista };
+}
+
+// ---------- FICHA DE ADMISSAO (o link do pretendente) ----------
+// A unica gravacao sem PIN alem da presenca: o link circula, entao tudo e
+// conferido aqui de novo, do jeito que o app confere (js/dominio/admissao.js
+// - as listas abaixo estao escritas nos dois lados, mudou la, muda aqui).
+// O pretendente so ENVIA: nao ha leitura publica da ficha, nem a dele.
+var ADMISSAO_SIM_NAO = ['Sim', 'Nao'];
+var ADMISSAO_TAMANHOS = ['P', 'M', 'G', 'GG', 'XG', 'XGG'];
+var ADMISSAO_MATERIAIS = ['Jeans', 'Couro'];
+var ADMISSAO_TAMANHOS_COLETE = ['P', 'M', 'G', 'GG', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8'];
+var ADMISSAO_PAGAMENTOS = ['À vista', 'Parcelado'];
+var ADMISSAO_PARCELAS_MAX = 10;
+// A caixinha "Nao tenho" do telefone residencial (o "Nao tem" do complemento
+// passa como texto comum). O mesmo texto de SEM_TELEFONE no app.
+var ADMISSAO_SEM_TELEFONE = 'Não tenho';
+var ADMISSAO_ORIGENS = ['Redes Sociais', 'Ação Social', 'Expansão', 'Evento', 'Indicado'];
+var ADMISSAO_UFS = ['AC', 'AL', 'AM', 'AP', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MG', 'MS', 'MT', 'PA', 'PB',
+  'PE', 'PI', 'PR', 'RJ', 'RN', 'RO', 'RR', 'RS', 'SC', 'SE', 'SP', 'TO'];
+// Freio pra link que caiu em mao errada: passou disso no mesmo dia (somando
+// todas as divisoes), recusa ate amanha. Um dia normal tem 1 ou 2 fichas.
+var ADMISSAO_POR_DIA = 40;
+var SITUACAO_PRETENDENTE_NOVO = 'Novo';
+
+function soDigitos(v) { return String(v === undefined || v === null ? '' : v).replace(/\D/g, ''); }
+
+// Os dois digitos verificadores. Sequencia repetida passa na conta, mas nao
+// existe. A mesma conta de cpfValido em dominio/admissao.js.
+function cpfValido(v) {
+  var d = soDigitos(v);
+  if (d.length !== 11 || /^(\d)\1{10}$/.test(d)) return false;
+  var digito = function (n) {
+    var soma = 0;
+    for (var i = 0; i < n; i++) soma += Number(d.charAt(i)) * (n + 1 - i);
+    var resto = (soma * 10) % 11;
+    return resto === 10 ? 0 : resto;
+  };
+  return digito(9) === Number(d.charAt(9)) && digito(10) === Number(d.charAt(10));
+}
+
+function cpfFormatado(d) { return d.slice(0, 3) + '.' + d.slice(3, 6) + '.' + d.slice(6, 9) + '-' + d.slice(9); }
+
+// O telefone e remontado so com os digitos: (21) 99999-9999. Nada do que a
+// pessoa escreveu alem dos numeros chega na planilha.
+function telefoneDaFicha(v, rotulo, obrigatorio) {
+  var d = soDigitos(v);
+  if (!d && !obrigatorio) return '';
+  if (d.length !== 10 && d.length !== 11) throw new Error(rotulo + ': coloque o DDD e o numero');
+  var corte = d.length === 11 ? 7 : 6;
+  return '(' + d.slice(0, 2) + ') ' + d.slice(2, corte) + '-' + d.slice(corte);
+}
+
+function receberFichaAdmissao(p) {
+  var divisao = String(p.divisao || '');
+  if (ESCOPOS_VALIDOS.indexOf(divisao) === -1) throw new Error('Link sem divisao - peca o link certo ao ADM da sua divisao');
+  // O campo-isca da pagina: gente nao ve, robo preenche. Finge que recebeu.
+  if (String(p.site || '')) return { ok: true };
+
+  var texto = function (chave, max, rotulo) {
+    var v = linhaCurta(p[chave], max);
+    if (rotulo && !v) throw new Error('Preencha: ' + rotulo);
+    return v;
+  };
+  var escolha = function (chave, opcoes, rotulo) {
+    var v = String(p[chave] || '');
+    if (opcoes.indexOf(v) === -1) throw new Error('Escolha: ' + rotulo);
+    return v;
+  };
+  var hoje = Utilities.formatDate(new Date(), fuso(), 'yyyy-MM-dd');
+
+  var cpf = soDigitos(p.cpf);
+  if (!cpfValido(cpf)) throw new Error('CPF invalido');
+  var nascimento = dataISOValidaEstoqueAdm(p.nascimento);
+  if (!nascimento || nascimento > hoje || nascimento < '1920-01-01') throw new Error('Data de nascimento invalida');
+  var cep = soDigitos(p.cep);
+  if (cep.length !== 8) throw new Error('CEP invalido');
+  var uf = String(p.uf || '').toUpperCase();
+  if (ADMISSAO_UFS.indexOf(uf) === -1) throw new Error('UF invalida');
+  var email = linhaCurta(p.email, 120);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) throw new Error('E-mail invalido');
+  var pagamento = escolha('pagamento', ADMISSAO_PAGAMENTOS, 'Forma de pagamento');
+  var parcelas = '';
+  if (pagamento === 'Parcelado') {
+    var n = Number(p.parcelas);
+    if (!(n >= 2 && n <= ADMISSAO_PARCELAS_MAX && Math.floor(n) === n)) throw new Error('Parcelas: de 2 a ' + ADMISSAO_PARCELAS_MAX + ' vezes');
+    parcelas = String(n);
+  }
+  // Tudo o que estava no PDF e obrigatorio (decisao do clube, 14/11/2026).
+  var coletePagamento = dataISOValidaEstoqueAdm(p.coletePagamento);
+  if (!coletePagamento) throw new Error('Data de pagamento do colete invalida');
+  var origem = escolha('origem', ADMISSAO_ORIGENS, 'Origem da admissao');
+  var quemIndicou = origem === 'Indicado' ? texto('quemIndicou', 80, 'Quem te indicou (seu futuro padrinho)') : '';
+
+  // Na ordem de CAB_PRETENDENTES, a partir de "Nome Colete".
+  var valores = [
+    texto('nomeColete', 60, 'Nome no colete'), texto('nomeCompleto', 120, 'Nome completo'),
+    cpfFormatado(cpf), texto('rg', 20, 'RG'), nascimento, texto('profissao', 60, 'Profissao'),
+    escolha('moto', ADMISSAO_SIM_NAO, 'Possui moto'), escolha('carro', ADMISSAO_SIM_NAO, 'Possui carro'),
+    cep.slice(0, 5) + '-' + cep.slice(5), texto('endereco', 120, 'Endereco'), texto('numero', 10, 'Numero'),
+    texto('complemento', 60, 'Complemento'), texto('bairro', 60, 'Bairro'), texto('cidade', 60, 'Cidade'), uf,
+    telefoneDaFicha(p.celular, 'Celular', true), String(p.telResidencial || '') === ADMISSAO_SEM_TELEFONE ? ADMISSAO_SEM_TELEFONE
+      : telefoneDaFicha(p.telResidencial, 'Telefone residencial', true), email,
+    texto('emergenciaNome', 80, 'Contato de emergencia'), texto('emergenciaParentesco', 40, 'Grau de parentesco'),
+    telefoneDaFicha(p.emergenciaTelefone, 'Telefone do contato de emergencia', true),
+    escolha('camisa', ADMISSAO_TAMANHOS, 'Tamanho da camisa'),
+    escolha('colete', ADMISSAO_TAMANHOS_COLETE, 'Tamanho do colete'), escolha('coleteMaterial', ADMISSAO_MATERIAIS, 'Material do colete'),
+    pagamento, parcelas, coletePagamento, origem, quemIndicou
+  ];
+
+  var s = aba(ABA_PRETENDENTES, CAB_PRETENDENTES);
+  var existentes = linhas(s);
+  // O mesmo CPF duas vezes: recusa, em vez de trocar a ficha que ja esta la -
+  // senao qualquer um com o link e o CPF de alguem sobrescreveria a ficha
+  // dele. Corrigir e com o ADM.
+  if (existentes.some(function (l) { return soDigitos(l[7]) === cpf; })) {
+    throw new Error('Ja recebemos uma ficha com este CPF. Se precisa corrigir algo, fale com o ADM da sua divisao');
+  }
+  var diaDeHoje = agora().slice(0, 10);
+  if (existentes.filter(function (l) { return String(l[3] || '').slice(0, 10) === diaDeHoje; }).length >= ADMISSAO_POR_DIA) {
+    throw new Error('Muitas fichas hoje - tente de novo amanha ou fale com o ADM da sua divisao');
+  }
+  gravarLinhaComoTexto(s, s.getLastRow() + 1, [novoId(), divisao, SITUACAO_PRETENDENTE_NOVO, agora(), ''].concat(valores));
+  return { ok: true };
+}
+
+// ---------- PRETENDENTES (o card do organizador) ----------
+// Ler pede PIN (ACOES_PROTEGIDAS) e o PIN tem de valer pra divisao dos
+// dados: cada divisao ve as fichas do link dela, e o Regional ve todas.
+
+// As chaves dos campos da ficha, na ordem das colunas de CAB_PRETENDENTES a
+// partir de "Nome Colete" - a mesma ordem de CAMPOS_FICHA no app.
+var ADMISSAO_CHAVES = ['nomeColete', 'nomeCompleto', 'cpf', 'rg', 'nascimento', 'profissao', 'moto', 'carro',
+  'cep', 'endereco', 'numero', 'complemento', 'bairro', 'cidade', 'uf', 'celular', 'telResidencial', 'email',
+  'emergenciaNome', 'emergenciaParentesco', 'emergenciaTelefone', 'camisa', 'colete', 'coleteMaterial',
+  'pagamento', 'parcelas', 'coletePagamento', 'origem', 'quemIndicou'];
+// O caminho do pretendente: Novo (acabou de enviar) -> Em analise (esperando
+// entrar no sistema do clube). O Aprovado e o Desistiu sao a Etapa 3.
+var SITUACOES_PRETENDENTE = ['Novo', 'Em análise'];
+
+function pretendenteDaLinha(l) {
+  var p = { id: String(l[0]), divisao: String(l[1] || ''), situacao: String(l[2] || SITUACAO_PRETENDENTE_NOVO),
+    enviadoEm: String(l[3] || ''), atualizadoEm: String(l[4] || '') };
+  ADMISSAO_CHAVES.forEach(function (chave, i) {
+    var v = l[5 + i];
+    p[chave] = (chave === 'nascimento' || chave === 'coletePagamento') ? formatarData(v) : String(v === undefined || v === null ? '' : v);
+  });
+  return p;
+}
+
+function lerPretendentes(divisao, pin) {
+  if (!podeNaDivisao(divisao, pin)) return SEM_PERMISSAO_DIVISAO;
+  var s = planilha().getSheetByName(ABA_PRETENDENTES);
+  var lista = s ? linhas(s).filter(function (l) { return l[0] && (divisao === 'regional' || String(l[1]) === divisao); }).map(pretendenteDaLinha) : [];
+  return { ok: true, pretendentes: lista };
+}
+
+// Muda a situacao (Novo <-> Em analise). Vale a divisao da LINHA gravada:
+// a Barra nao mexe na ficha de quem mandou pelo link do Oeste.
+function mudarSituacaoPretendente(p) {
+  var situacao = String(p.situacao || '');
+  if (SITUACOES_PRETENDENTE.indexOf(situacao) === -1) throw new Error('Situacao invalida');
+  var s = aba(ABA_PRETENDENTES, CAB_PRETENDENTES);
+  var achado = acharLinha(s, function (l) { return String(l[0]) === String(p.id || ''); });
+  if (!achado) throw new Error('Ficha nao encontrada - pode ter sido apagada');
+  if (!podeNaDivisao(String(achado.valores[1]), String(p.pin || ''))) return SEM_PERMISSAO_DIVISAO;
+  gravarLinhaComoTexto(s, achado.indice, [achado.valores[0], achado.valores[1], situacao, String(achado.valores[3] || ''), agora()]);
+  return { ok: true };
 }
 
 // ---------- ACOES SOCIAIS (o planejador de cada divisao) ----------

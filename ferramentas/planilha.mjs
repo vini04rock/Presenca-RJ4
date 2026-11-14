@@ -398,8 +398,11 @@ log('=== permissao: quem pode gravar na planilha ===');
     const fonte = fs.readFileSync(CODE_GS, 'utf8');
     const { contexto } = monta();
     const gravam = [...fonte.matchAll(/if \(action === '([a-zA-Z]+)'\) return comTrava/g)].map(m => m[1]);
-    const desprotegidas = gravam.filter(a => a !== 'presenca' && !contexto.ACOES_PROTEGIDAS.includes(a));
-    confere('toda acao que grava esta na lista (menos presenca)', desprotegidas, []);
+    // As duas gravacoes publicas de proposito: a presenca e a ficha do
+    // pretendente (quem preenche e de fora do clube, nao tem PIN).
+    const PUBLICAS = ['presenca', 'admissaoEnviar'];
+    const desprotegidas = gravam.filter(a => !PUBLICAS.includes(a) && !contexto.ACOES_PROTEGIDAS.includes(a));
+    confere('toda acao que grava esta na lista (menos presenca e a ficha de admissao)', desprotegidas, []);
   }
 }
 
@@ -1706,6 +1709,97 @@ log('=== funções especiais: Batedores e Caveiras, à parte do resto ===');
   confere('a Barra não apaga evento da função', tenta('funcaoEventoRemover', { escopo: 'barra', pin: '1801', id: idCav }).ok, false);
   contexto.executar('funcaoEventoRemover', { ...reg, id: idCav });
   confere('o Regional apaga', ler('caveira'), []);
+}
+
+log('');
+log('=== ficha de admissão: o link do pretendente grava sem PIN, e confere tudo ===');
+{
+  const p = montaPlanilha([], []);
+  const { contexto } = carregaCodeGs(p, { PIN_REGIONAL: '0418', PIN_BARRA: '1801' });
+  const ficha = (extra) => ({ divisao: 'curicica', nomeColete: 'Lobo', nomeCompleto: 'João da Silva', cpf: '529.982.247-25',
+    rg: '12.345.678-9', nascimento: '1990-05-21', profissao: 'Mecânico', moto: 'Sim', carro: 'Nao', cep: '22790-000',
+    endereco: 'Av. das Américas', numero: '100', complemento: 'Bloco 2', bairro: 'Recreio', cidade: 'Rio de Janeiro', uf: 'rj',
+    celular: '21999998888', telResidencial: '2122223333', email: 'joao@email.com', emergenciaNome: 'Maria',
+    emergenciaParentesco: 'Esposa', emergenciaTelefone: '(21) 98888-7777', camisa: 'G', colete: 'G6',
+    coleteMaterial: 'Jeans', pagamento: 'À vista', parcelas: '5', coletePagamento: '2026-12-10', origem: 'Evento',
+    quemIndicou: 'Fulano', site: '', ...extra });
+  const tenta = (x) => { try { return contexto.executar('admissaoEnviar', x); } catch (e) { return { ok: false, erro: e.message }; } };
+  const linhasP = () => (p.abas.Pretendentes ? p.abas.Pretendentes.dados.slice(1) : []);
+  const outro = '111.444.777-35';
+
+  confere('enviar sem PIN passa', tenta(ficha()).ok, true);
+  const l = linhasP()[0];
+  confere('uma linha, na divisão do link, como Novo', [linhasP().length, l[1], l[2]], [1, 'curicica', 'Novo']);
+  confere('CPF, CEP, UF e telefones gravados no formato certo', [l[7], l[13], l[19], l[20], l[25]],
+    ['529.982.247-25', '22790-000', 'RJ', '(21) 99999-8888', '(21) 98888-7777']);
+  confere('à vista: as parcelas não valem; quem indicou só no Indicado', [l[30], l[33]], ['', '']);
+  confere('o cabeçalho tem uma coluna por valor', p.abas.Pretendentes.dados[0].length, l.length);
+  confere('o mesmo CPF de novo é recusado e não troca a ficha',
+    [tenta(ficha({ nomeColete: 'Outro' })).ok, linhasP().length, linhasP()[0][5]], [false, 1, 'Lobo']);
+  confere('CPF inválido é recusado', tenta(ficha({ cpf: '529.982.247-26' })).ok, false);
+  confere('sequência repetida não é CPF', tenta(ficha({ cpf: '111.111.111-11' })).ok, false);
+  confere('link sem divisão é recusado', tenta(ficha({ cpf: outro, divisao: 'xyz' })).ok, false);
+  confere('faltando campo obrigatório é recusado', tenta(ficha({ cpf: outro, nomeCompleto: ' ' })).ok, false);
+  confere('escolha fora da lista é recusada', tenta(ficha({ cpf: outro, camisa: 'XXXG' })).ok, false);
+  confere('parcelado sem parcelas válidas é recusado (de 2 a 10)',
+    ['1', '11'].map(n => tenta(ficha({ cpf: outro, pagamento: 'Parcelado', parcelas: n })).ok), [false, false]);
+  confere('tudo o que estava no PDF é obrigatório',
+    ['complemento', 'telResidencial', 'coletePagamento'].map(c => tenta(ficha({ cpf: outro, [c]: '' })).ok), [false, false, false]);
+  confere('tamanho de camisa não serve pro colete', tenta(ficha({ cpf: outro, colete: 'XG' })).ok, false);
+  confere('telefone residencial: só "Não tenho" passa no lugar do número',
+    [tenta(ficha({ cpf: outro, telResidencial: 'não tenho' })).ok, linhasP().length], [false, 1]);
+  confere('indicado sem quem indicou é recusado', tenta(ficha({ cpf: outro, origem: 'Indicado', quemIndicou: '' })).ok, false);
+  confere('nascimento no futuro é recusado', tenta(ficha({ cpf: outro, nascimento: daquiA(3) })).ok, false);
+  confere('telefone sem DDD é recusado', tenta(ficha({ cpf: outro, celular: '99999-8888' })).ok, false);
+  confere('nada recusado foi gravado', linhasP().length, 1);
+  confere('parcelado e indicado entram',
+    tenta(ficha({ cpf: outro, divisao: 'regional', pagamento: 'Parcelado', parcelas: '4', origem: 'Indicado' })).ok, true);
+  confere('com as parcelas e quem indicou', [linhasP()[1][30], linhasP()[1][33]], ['4', 'Fulano']);
+  confere('"Não tem" e "Não tenho" das caixinhas', tenta(ficha({ cpf: '123.456.789-09', complemento: 'Não tem', telResidencial: 'Não tenho' })).ok, true);
+  confere('vão assim pra planilha', [linhasP()[2][16], linhasP()[2][21]], ['Não tem', 'Não tenho']);
+  confere('o campo-isca preenchido finge que recebeu e não grava',
+    [tenta(ficha({ cpf: '390.533.447-05', site: 'http://spam' })).ok, linhasP().length], [true, 3]);
+  const hojeBR = contexto.agora().slice(0, 10);
+  for (let i = 0; i < 37; i++) p.abas.Pretendentes.dados.push(['x' + i, 'barra', 'Novo', hojeBR + ' 10:00', '', 'N', 'N', '-']);
+  confere('passou de 40 fichas no dia, recusa', tenta(ficha({ cpf: '390.533.447-05' })).ok, false);
+  // A ficha nao pode ter virado acao protegida por engano: o pretendente nao
+  // tem PIN, e o link pararia de funcionar pra todo mundo.
+  confere('a ficha não está na lista de ações protegidas', contexto.ACOES_PROTEGIDAS.includes('admissaoEnviar'), false);
+}
+
+log('');
+log('=== pretendentes: ler e mudar a situação, só com o PIN da divisão do link ===');
+{
+  const p = montaPlanilha([], []);
+  const { contexto } = carregaCodeGs(p, { PIN_REGIONAL: '0418', PIN_BARRA: '1801', PIN_CURICICA: '2020' });
+  const base = { nomeColete: 'Lobo', nomeCompleto: 'João', rg: '1', nascimento: '1990-05-21', profissao: 'X', moto: 'Sim', carro: 'Nao',
+    cep: '22790-000', endereco: 'Rua', numero: '1', complemento: 'Não tem', bairro: 'B', cidade: 'Rio', uf: 'RJ', celular: '21999998888',
+    telResidencial: 'Não tenho', email: 'a@b.com', emergenciaNome: 'M', emergenciaParentesco: 'Mãe', emergenciaTelefone: '21988887777',
+    camisa: 'G', colete: 'G3', coleteMaterial: 'Couro', pagamento: 'À vista', parcelas: '', coletePagamento: '2026-12-01',
+    origem: 'Evento', quemIndicou: '', site: '' };
+  contexto.executar('admissaoEnviar', { ...base, divisao: 'curicica', cpf: '529.982.247-25' });
+  contexto.executar('admissaoEnviar', { ...base, divisao: 'barra', cpf: '111.444.777-35', nomeColete: 'Urso' });
+  const tenta = (acao, x) => { try { return contexto.executar(acao, x); } catch (e) { return { ok: false, erro: e.message }; } };
+  const cur = { escopo: 'curicica', pin: '2020', divisao: 'curicica' };
+  const reg = { escopo: 'regional', pin: '0418', divisao: 'regional' };
+
+  confere('ler sem PIN é recusado', tenta('pretendentes', { divisao: 'curicica' }).ok, false);
+  const daCuricica = tenta('pretendentes', cur).pretendentes;
+  confere('a Curicica lê só as do link dela', daCuricica.map(x => x.nomeColete), ['Lobo']);
+  confere('a ficha volta com os campos da ficha', [daCuricica[0].cpf, daCuricica[0].nascimento, daCuricica[0].colete, daCuricica[0].situacao],
+    ['529.982.247-25', '1990-05-21', 'G3', 'Novo']);
+  confere('a Curicica NÃO lê as da Barra', tenta('pretendentes', { ...cur, divisao: 'barra' }).ok, false);
+  confere('o Regional lê todas', tenta('pretendentes', reg).pretendentes.map(x => x.nomeColete), ['Lobo', 'Urso']);
+
+  const idUrso = tenta('pretendentes', reg).pretendentes[1].id;
+  confere('a Curicica NÃO muda a situação da ficha da Barra', tenta('pretendenteSituacao', { ...cur, id: idUrso, situacao: 'Em análise' }).ok, false);
+  confere('situação fora da lista é recusada', tenta('pretendenteSituacao', { ...reg, id: idUrso, situacao: 'Aprovado' }).ok, false);
+  confere('o Regional marca Em análise', tenta('pretendenteSituacao', { ...reg, id: idUrso, situacao: 'Em análise' }).ok, true);
+  const urso = tenta('pretendentes', reg).pretendentes[1];
+  confere('fica gravado, com a hora, e o resto da ficha não muda', [urso.situacao, !!urso.atualizadoEm, urso.cpf, urso.nomeColete],
+    ['Em análise', true, '111.444.777-35', 'Urso']);
+  confere('e volta pra Novo', [tenta('pretendenteSituacao', { ...reg, id: idUrso, situacao: 'Novo' }).ok, tenta('pretendentes', reg).pretendentes[1].situacao], [true, 'Novo']);
+  confere('ficha que não existe é avisada', tenta('pretendenteSituacao', { ...reg, id: 'zz', situacao: 'Novo' }).ok, false);
 }
 
 log('');

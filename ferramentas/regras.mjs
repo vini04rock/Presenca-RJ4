@@ -1787,6 +1787,78 @@ log('');
   confere('resumo dos relatórios: sem doações carregadas, a parte não aparece', resumo.some(l => l.includes('Doações')), false);
   confere('saldo do estoque, cada item na sua medida', textoSaldoEstoque([{ item: 'Sapatos', quantidade: 2, medida: 'par' }], 'barra').split('\n').pop(), '• *Sapatos*: 2 pares');
 }
+log('=== ficha de admissão: máscaras, CPF e a conferência antes de enviar ===');
+{
+  const A = await import(url('dominio/admissao.js'));
+  confere('máscara do CPF', ['529', '5299822', '52998224725999'].map(A.mascaraCpf), ['529', '529.982.2', '529.982.247-25']);
+  confere('máscara do CEP', ['2279', '22790000'].map(A.mascaraCep), ['2279', '22790-000']);
+  confere('máscara do telefone: celular e fixo', ['21999998888', '2122223333', '21'].map(A.mascaraTelefone),
+    ['(21) 99999-8888', '(21) 2222-3333', '(21']);
+  confere('CPF: válido, dígito errado, repetido, curto',
+    ['529.982.247-25', '111.444.777-35', '529.982.247-26', '111.111.111-11', '5299822'].map(A.cpfValido), [true, true, false, false, false]);
+
+  const completa = {
+    nomeColete: 'Lobo', nomeCompleto: 'João da Silva', cpf: '529.982.247-25', rg: '123', nascimento: '1990-05-21',
+    profissao: 'Mecânico', moto: 'Sim', carro: 'Nao', cep: '22790-000', endereco: 'Av. X', numero: '10', complemento: 'não tem',
+    bairro: 'Recreio', cidade: 'Rio', uf: 'rj', celular: '(21) 99999-8888', telResidencial: '(21) 2222-3333', email: 'a@b.com',
+    emergenciaNome: 'Maria', emergenciaParentesco: 'Esposa', emergenciaTelefone: '(21) 98888-7777',
+    camisa: 'G', colete: 'G5', coleteMaterial: 'Couro', pagamento: 'À vista', parcelas: '7', coletePagamento: '2026-12-10', origem: 'Evento', quemIndicou: 'x',
+  };
+  const chaves = (v) => A.conferirFicha(v, '2026-11-14').map(e => e.chave);
+  confere('ficha completa passa', chaves(completa), []);
+  confere('tudo o que estava no PDF é cobrado',
+    chaves({ ...completa, nomeCompleto: ' ', moto: '', complemento: '', telResidencial: '', coletePagamento: '' }),
+    ['nomeCompleto', 'moto', 'complemento', 'telResidencial', 'coletePagamento']);
+  confere('o padrinho não é mais campo à parte: é quem indicou', A.CAMPOS_FICHA.some(c => c.chave === 'padrinho'), false);
+  confere('as caixinhas "Não tem" e "Não tenho" valem como resposta',
+    chaves({ ...completa, complemento: A.SEM_COMPLEMENTO, telResidencial: A.SEM_TELEFONE }), []);
+  confere('quem esquece o campo é avisado da caixinha', A.conferirFicha({ ...completa, complemento: '' }, '2026-11-14')[0].msg,
+    'Preencha: Complemento (ou marque "Não tem")');
+  confere('o "Não tenho" é o mesmo no app e no Code.gs',
+    (/var ADMISSAO_SEM_TELEFONE = '([^']*)';/.exec(fs.readFileSync(path.join(AQUI, '..', 'apps-script', 'Code.gs'), 'utf8')) || [])[1], A.SEM_TELEFONE);
+  confere('colete vai do P ao G8; XG é só da camisa', [chaves({ ...completa, colete: 'G8' }), chaves({ ...completa, colete: 'XG' })], [[], ['colete']]);
+  confere('parcelas só são cobradas no Parcelado, de 2 a 10',
+    ['1', '10', '11'].map(n => chaves({ ...completa, pagamento: 'Parcelado', parcelas: n })), [['parcelas'], [], ['parcelas']]);
+  confere('quem indicou só é cobrado no Indicado', chaves({ ...completa, origem: 'Indicado', quemIndicou: '' }), ['quemIndicou']);
+  confere('data que não virou data, e nascimento no futuro',
+    [chaves({ ...completa, nascimento: '31/02/1990' }), chaves({ ...completa, nascimento: '2030-01-01' })], [['nascimento'], ['nascimento']]);
+  confere('CPF, CEP, telefone, e-mail e UF inválidos',
+    chaves({ ...completa, cpf: '529.982.247-26', cep: '2279', celular: '9999', email: 'a@b', uf: 'XX' }), ['cpf', 'cep', 'uf', 'celular', 'email']);
+  const envio = A.fichaParaEnvio({ ...completa, nomeCompleto: '  João   da  Silva ' });
+  confere('o envio: campo escondido vai vazio, UF em maiúscula, sem espaço sobrando',
+    [envio.parcelas, envio.quemIndicou, envio.uf, envio.nomeCompleto], ['', '', 'RJ', 'João da Silva']);
+
+  // As listas de opcoes estao escritas tambem no Code.gs (o link e publico,
+  // e ele confere de novo). Se uma mudar sem a outra, a ficha passa no app e
+  // a planilha recusa - ou o contrario.
+  const gs = fs.readFileSync(path.join(AQUI, '..', 'apps-script', 'Code.gs'), 'utf8');
+  const doGs = (nome) => { const m = new RegExp(`var ${nome} = \\[([\\s\\S]*?)\\];`).exec(gs); return m ? [...m[1].matchAll(/'([^']*)'/g)].map(x => x[1]) : null; };
+  confere('as opções da ficha são as mesmas no app e no Code.gs',
+    [doGs('ADMISSAO_SIM_NAO'), doGs('ADMISSAO_TAMANHOS'), doGs('ADMISSAO_TAMANHOS_COLETE'), doGs('ADMISSAO_MATERIAIS'),
+      doGs('ADMISSAO_PAGAMENTOS'), doGs('ADMISSAO_ORIGENS'), doGs('ADMISSAO_UFS')],
+    [A.SIM_NAO, A.TAMANHOS, A.TAMANHOS_COLETE, A.MATERIAIS_COLETE.map(m => m.valor), A.FORMAS_PAGAMENTO, A.ORIGENS, A.UFS]);
+  confere('o máximo de parcelas é o mesmo nos dois lados', Number((/var ADMISSAO_PARCELAS_MAX = (\d+);/.exec(gs) || [])[1]), A.PARCELAS_MAX);
+  const cab = doGs('CAB_PRETENDENTES');
+  confere('as colunas da planilha seguem a ordem dos campos da ficha', doGs('ADMISSAO_CHAVES'), A.CAMPOS_FICHA.map(c => c.chave));
+  confere('as situações são as mesmas no app e no Code.gs', doGs('SITUACOES_PRETENDENTE'), Object.keys(A.SITUACOES_PRETENDENTE));
+
+  // O card Pretendentes: a ordem da lista, o link e o texto da ficha.
+  const pr = (id, situacao, enviadoEm) => ({ id, situacao, enviadoEm });
+  confere('lista: os Novos primeiro, o mais recente em cima',
+    A.ordenarPretendentes([pr('a', 'Em análise', '15/11/2026 09:00'), pr('b', 'Novo', '01/11/2026 10:00'), pr('c', 'Novo', '02/11/2026 08:00')]).map(x => x.id),
+    ['c', 'b', 'a']);
+  confere('o link de cada divisão', [A.linkDaFicha('https://x.github.io/Presenca-RJ4/index.html', 'curicica'), A.linkDaFicha('', 'barra')],
+    ['https://x.github.io/Presenca-RJ4/ficha.html?divisao=curicica', 'ficha.html?divisao=barra']);
+  confere('o nome da divisão', [A.nomeDivisaoAdmissao('gardenia'), A.nomeDivisaoAdmissao('regional')], ['Divisão Gardênia', 'Regional RJ4']);
+  const texto = A.textoFichaAdmissao({ ...completa, divisao: 'curicica', situacao: 'Novo', enviadoEm: '14/11/2026 10:00',
+    pagamento: 'Parcelado', parcelas: '4', carro: 'Nao' }).split('\n');
+  confere('o texto da ficha: o cabeçalho', texto.slice(0, 4),
+    ['📝 *FICHA DE ADMISSÃO*', '*Lobo* · João da Silva', 'Divisão Curicica · enviada em 14/11/2026 10:00', '🆕 Novo']);
+  confere('o texto da ficha: datas, Não, colete e parcelas como se lê',
+    ['Data de nascimento: 21/05/1990', 'Possui carro?: Não', 'Material do colete: Couro (R$ 900,00)', 'Em quantas vezes?: 4x (com juros da operadora)'].every(l => texto.includes(l)), true);
+  confere('o texto da ficha: quem indicou só aparece no Indicado', texto.some(l => l.startsWith('Quem te indicou')), false);
+  confere('a planilha tem uma coluna por campo da ficha (mais as 5 de controle)', cab ? cab.length : 0, A.CAMPOS_FICHA.length + 5);
+}
 log(falhas === 0 ? 'TUDO OK' : `${falhas} FALHA(S) — veja acima`);
 fs.writeFileSync(SAIDA, linhas.join('\n'), 'utf8');
 process.exit(falhas === 0 ? 0 : 1);

@@ -385,6 +385,25 @@ export async function carregarMovimentos() {
   render();
 }
 
+// As fichas de admissao (card Pretendentes): as do link da divisao, ou todas
+// no Regional. Busca ao entrar na secao - a ficha chega a qualquer hora.
+export async function carregarPretendentes() {
+  const escopo = state.adminEscopo;
+  state.pretendentesCarregando = true;
+  state.pretendentesErro = null;
+  render();
+  try {
+    const r = await api('pretendentes', { divisao: escopo });
+    if (state.adminEscopo !== escopo) return;
+    state.pretendentesDados = r.pretendentes || [];
+  } catch (e) {
+    if (state.adminEscopo !== escopo) return;
+    state.pretendentesErro = e.message;
+  }
+  state.pretendentesCarregando = false;
+  render();
+}
+
 // Estoque de materiais administrativos, exclusivo do Regional. Entradas e
 // saidas podem ser registradas por outro organizador, por isso recarrega ao
 // entrar na secao.

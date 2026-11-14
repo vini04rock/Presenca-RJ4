@@ -449,6 +449,14 @@ export let state = {
   // Secao Entrada/Saida do organizador: o livro de movimentacoes da divisao
   // (ou de todas, no Regional) e o periodo. No Regional, a divisao aberta
   // mostra a linha do tempo dela; null = o quadro de todas.
+  // O card Pretendentes (14/11/2026): as fichas de admissao da divisao (ou
+  // de todas, no Regional) e a ficha aberta (null = a lista).
+  pretendentesDados: null,
+  pretendentesCarregando: false,
+  pretendentesErro: null,
+  pretendenteAberto: null,
+  pretendenteSalvando: false,
+
   movimentosDados: null,
   movimentosDadosEscopo: null,
   movimentosCarregando: false,

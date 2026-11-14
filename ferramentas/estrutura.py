@@ -150,7 +150,8 @@ for n in sorted(g):
 for c in ciclos:
     erro('import circular: ' + ' -> '.join(c))
 
-CAMADA = {'nucleo': 0, 'dados': 1, 'dominio': 2, 'fila': 3, 'ui': 4, 'telas': 5, 'fluxos': 5, 'app.js': 6}
+# ficha.js e a entrada da ficha.html (a Ficha de Admissao), irma do app.js.
+CAMADA = {'nucleo': 0, 'dados': 1, 'dominio': 2, 'fila': 3, 'ui': 4, 'telas': 5, 'fluxos': 5, 'app.js': 6, 'ficha.js': 6}
 def camada(m):
     return CAMADA.get(m.split('/')[0] if '/' in m else m, 9)
 for o in sorted(g):

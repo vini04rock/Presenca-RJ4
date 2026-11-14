@@ -36,6 +36,7 @@ Sirva a pasta e acesse `http://localhost:8765`:
 
     .
     ├── index.html            só o esqueleto: <head>, #app e o <script>
+    ├── ficha.html            a Ficha de Admissão (link do pretendente)
     ├── css/estilo.css        todo o visual
     ├── img/                  as artes dos cards, a logo e o fundo
     ├── js/

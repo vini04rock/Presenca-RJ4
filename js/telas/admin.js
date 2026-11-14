@@ -8,7 +8,7 @@
 import { escopoPorChave, temDoacoesECaixinha } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { escapeHtml } from '../nucleo/util.js';
-import { carregarAcoesSociais, carregarPlanejadoresDivisoes, recarregarEventos, carregarCaixinha, carregarDoacoes, carregarEstoqueAdm, carregarFuncoesEspeciais, carregarMovimentos, loadEstatisticas, loadInsightStats, loadReportData } from '../dados/carregar.js';
+import { carregarAcoesSociais, carregarPlanejadoresDivisoes, recarregarEventos, carregarCaixinha, carregarDoacoes, carregarEstoqueAdm, carregarFuncoesEspeciais, carregarMovimentos, carregarPretendentes, loadEstatisticas, loadInsightStats, loadReportData } from '../dados/carregar.js';
 import { fecharFormFinanceiro, fecharMesCaixinha } from '../fluxos/doacoes-caixinha.js';
 import { fecharPainelMovimento } from '../fluxos/movimentos.js';
 import { render } from '../nucleo/render.js';
@@ -21,6 +21,7 @@ import { renderAdminMovimentos } from './admin-movimentos.js';
 import { renderAdminEstoqueAdm } from './admin-estoque-adm.js';
 import { renderAdminAcoesSociais } from './admin-acoes-sociais.js';
 import { renderAdminPainelSocial } from './admin-painel-social.js';
+import { renderAdminPretendentes } from './admin-pretendentes.js';
 import { fecharCarteirinha, renderAdminCarteirinhas } from './admin-carteirinha.js';
 import { fecharFuncoesEspeciais, podeDescartar, renderAdminFuncoesEspeciais, tituloFuncaoEspecial } from './admin-funcoes-especiais.js';
 
@@ -111,6 +112,11 @@ export const SECOES_ORGANIZADOR = {
       { chave: 'funcoes-relatorio-caveiras', label: 'Relatório', soNaFuncao: 'caveira' },
     ],
   },
+  // As fichas de admissao que chegam pelo link de cada divisao (14/11/2026).
+  pretendentes: {
+    titulo: 'Pretendentes',
+    abas: [{ chave: 'pretendentes', label: 'Pretendentes' }],
+  },
   estoqueAdm: {
     titulo: 'Estoque ADM',
     abas: [
@@ -175,6 +181,8 @@ export function renderAdmin(app) {
     content.innerHTML = renderAdminAcoesSociais();
   } else if (state.adminTab.startsWith('painel-social') && state.adminEscopo === 'regional') {
     content.innerHTML = renderAdminPainelSocial();
+  } else if (state.adminTab === 'pretendentes') {
+    content.innerHTML = renderAdminPretendentes();
   } else if (state.adminTab.startsWith('funcoes-') && state.adminEscopo === 'regional') {
     content.innerHTML = renderAdminFuncoesEspeciais();
   } else {
@@ -227,6 +235,7 @@ export async function abrirAbaOrganizador(aba) {
   // O Relatorio 10 dias do ADM abre sempre no periodo de hoje.
   if (aba.startsWith('movimentos') && entrandoNaSecao) state.movimentosRelatorioInicio = null;
   state.estoqueAdmAnularId = null;
+  state.pretendenteAberto = null;
   fecharCarteirinha();
   state.acaoSocialIdeiaForm = null;
   state.acaoSocialAgendaForm = null;
@@ -255,6 +264,7 @@ export async function abrirAbaOrganizador(aba) {
   // fluxo zera movimentosDados) - por isso busca tambem quando nao ha nada.
   if (aba.startsWith('movimentos') && (entrandoNaSecao || !state.movimentosDados)) await carregarMovimentos();
   if (aba.startsWith('estoque-adm') && entrandoNaSecao) await carregarEstoqueAdm();
+  if (aba === 'pretendentes' && entrandoNaSecao) await carregarPretendentes();
   if (aba.startsWith('acoes-sociais') && entrandoNaSecao) await carregarAcoesSociais();
   // Os eventos de novo: as divisoes marcam Acao Social com o app aberto.
   if (aba.startsWith('painel-social') && entrandoNaSecao) {

@@ -3009,3 +3009,107 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 .seta-periodo:hover { background: rgba(212, 162, 76, 0.22); border-color: #D4A24C; }
 .seta-periodo:active { transform: scale(0.94); }
 .seta-periodo:focus-visible { outline: 2px solid #D4A24C; outline-offset: 2px; }
+
+/* ---- Ficha de Admissao (ficha.html, 14/11/2026) ----
+   A pagina que a divisao manda pro pretendente. Usa os mesmos cards, campos
+   e botoes de escolha do app; aqui so o que e dela: o titulo de cada parte,
+   os campos lado a lado, o erro em vermelho e a confirmacao. */
+.ficha-intro { font-size: 14.5px; line-height: 1.65; }
+.ficha-intro-titulo {
+  font-size: 19px; color: var(--white-strong); margin-bottom: 10px;
+  padding-bottom: 10px; border-bottom: 1px solid rgba(212, 162, 76, 0.45);
+}
+.ficha-intro p { margin: 0; }
+.ficha-intro-nota { font-size: 12px; color: var(--text-muted); margin-top: 12px; }
+.ficha-parte { padding-bottom: 6px; }
+.ficha-parte-titulo {
+  font-size: 17px; color: var(--white-strong); margin-bottom: 14px;
+  padding-bottom: 8px; border-bottom: 1px solid var(--line);
+}
+.ficha-campos { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 10px; }
+.ficha-campo input { min-width: 0; }
+.ficha-campo { grid-column: 1 / -1; min-width: 0; }
+.ficha-campo.meia { grid-column: auto; }
+.ficha-campo[hidden] { display: none; }
+.ficha-campo input { margin-bottom: 4px; }
+.ficha-ajuda { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; }
+.ficha-escolhas { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+.ficha-escolhas .chip-option { flex: 1 1 28%; min-width: 0; padding: 10px 6px; font-size: 14px; }
+.ficha-escolhas.larga .chip-option { flex-basis: 40%; }
+.ficha-escolhas.estreita .chip-option { flex-basis: 18%; }
+/* A caixinha "Não tem" fica na linha do rotulo, encostada a direita. */
+/* Altura fixa em todo rotulo, com ou sem caixinha: os campos lado a lado
+   (Numero e Complemento) ficam na mesma linha. */
+.ficha-rotulo { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 20px; margin-bottom: 5px; }
+.ficha-rotulo label { margin-bottom: 0; }
+.ficha-rotulo label:first-child { flex: 1; min-width: 0; }
+.ficha-sem {
+  display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
+  font-size: 12px; color: var(--text); cursor: pointer;
+}
+.ficha-sem input {
+  width: 16px; height: 16px; margin: 0; padding: 0; accent-color: #D4A24C; cursor: pointer;
+}
+/* Marcado: o campo fica riscado e apagado - nao ha o que escrever ali. */
+.ficha-campo.sem-valor input[data-campo] {
+  opacity: 0.35; cursor: not-allowed;
+  background-image: linear-gradient(to bottom right, transparent calc(50% - 1px), var(--line-strong) 50%, transparent calc(50% + 1px));
+}
+.ficha-opcao-detalhe { display: block; font-size: 11px; font-weight: 400; opacity: 0.75; margin-top: 2px; }
+.ficha-erro-msg { font-size: 12px; color: var(--status-infracional); min-height: 0; }
+.ficha-erro-msg:empty { display: none; }
+.ficha-campo.com-erro input { border-color: var(--status-infracional); }
+.ficha-campo.com-erro .ficha-escolhas .chip-option:not(.active) { border-color: rgba(217, 99, 90, 0.6); }
+.ficha-campo.com-erro label { color: var(--status-infracional); }
+.ficha-resumo-erros {
+  margin: 4px 0 12px; padding: 10px 12px; font-size: 13.5px; line-height: 1.5;
+  color: #F0C4BF; background: rgba(217, 99, 90, 0.12);
+  border: 1px solid rgba(217, 99, 90, 0.5); border-radius: 8px;
+}
+.ficha-enviar { font-size: 16px; padding: 14px 18px; }
+.ficha-enviar:disabled { opacity: 0.6; }
+/* O campo-isca: fora da tela, nao some do HTML (robo le o HTML). */
+.ficha-isca { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+.ficha-recebida { text-align: center; font-size: 14.5px; line-height: 1.6; }
+.ficha-recebida-titulo { font-family: 'Rye', serif; font-size: 22px; color: var(--white-strong); margin-bottom: 8px; }
+.ficha-observacoes p { font-size: 13.5px; line-height: 1.6; margin: 0 0 10px; }
+.ficha-observacoes .ficha-assinatura { font-family: 'Rye', serif; color: var(--white-strong); margin: 4px 0 0; }
+
+/* ---- Pretendentes (card do organizador, 14/11/2026) ----
+   As fichas de admissao: o link pra mandar, a lista e a ficha de cada um. */
+.pret-explica { font-size: 12.5px; color: var(--text-muted); line-height: 1.5; margin: 4px 0 10px; }
+.pret-link-linha { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); }
+.pret-link-linha:first-of-type { border-top: none; }
+.pret-link-texto { flex: 1; min-width: 0; }
+.pret-link-nome { font-size: 13px; font-weight: 600; color: var(--text); }
+.pret-link-url { font-size: 11.5px; color: var(--text-muted); word-break: break-all; }
+.pret-link-copiar { flex-shrink: 0; padding: 8px 12px; font-size: 13px; }
+.pret-resumo { font-size: 12.5px; color: var(--text-muted); margin: 0 0 10px; }
+.pret-linha { gap: 10px; }
+.pret-linha-texto { flex: 1; min-width: 0; }
+.pret-linha .name { font-size: 16px; padding-right: 0; }
+.pret-situacao {
+  flex-shrink: 0; font-size: 11.5px; font-weight: 600; padding: 4px 8px; border-radius: 6px; white-space: nowrap;
+}
+.pret-situacao.novo { color: #E7C77E; background: rgba(212, 162, 76, 0.12); border: 1px solid rgba(212, 162, 76, 0.55); }
+.pret-situacao.analise { color: #9FC1EE; background: rgba(76, 134, 217, 0.12); border: 1px solid rgba(76, 134, 217, 0.55); }
+.pret-bloco { margin-bottom: 14px; }
+.pret-bloco-titulo { font-family: 'Rye', serif; font-size: 15px; color: var(--white-strong); margin: 4px 0 8px; }
+.pret-bloco-titulo span { font-family: 'IBM Plex Sans', sans-serif; font-size: 12px; color: var(--text-muted); }
+.pret-vazio { font-size: 12.5px; color: var(--text-muted); padding: 2px 0 6px; }
+.pret-cabeca-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.pret-nome { font-family: 'Rye', serif; font-size: 22px; color: var(--white-strong); line-height: 1.2; }
+.pret-nome-completo { font-size: 13.5px; color: var(--text); margin-top: 2px; }
+.pret-meta { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+.pret-situacao-acao { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.pret-situacao-acao .pret-explica { margin: 6px 0 0; }
+.pret-dado { display: flex; gap: 12px; padding: 7px 0; border-top: 1px solid rgba(255, 255, 255, 0.05); }
+.pret-dado:first-of-type { border-top: none; }
+.pret-dado-rotulo { flex: 0 0 42%; font-size: 12px; color: var(--text-muted); }
+.pret-dado-valor { flex: 1; min-width: 0; font-size: 14px; color: var(--text); word-break: break-word; }
+/* O titulo de cada parte e um h2 na ficha e um div no card: a fonte do clube
+   nos dois. E os botoes que sao link (Ligar, WhatsApp) sem o sublinhado. */
+.ficha-parte-titulo { font-family: 'Rye', serif; font-weight: 400; }
+a.btn { text-decoration: none; }
+/* O link do site do M.C. nas observacoes da ficha: dourado, sublinhado. */
+.ficha-link { color: #E7C77E; text-decoration: underline; font-weight: 600; word-break: break-all; }

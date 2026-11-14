@@ -978,6 +978,73 @@ que saiu.
   A ação `aniversarios` devolve só nome, grau, divisão e data. Quem nasceu
   em 29/02 faz aniversário em 28/02 nos anos que não são bissextos.
 
+## Ficha de Admissão (o link do pretendente)
+
+Criada em 14/11/2026 para tirar do WhatsApp (e do PDF editável) a ficha de
+quem quer entrar no clube. Em três etapas: **1)** o link e a gravação;
+**2)** o card **📝 Pretendentes** (abaixo); **3)** ainda a fazer: o
+**✅ Aprovado** (cadastra em Membros com grau X, data de ingresso no dia,
+carteirinha preenchida, e apaga o que não é da carteirinha) e o
+**❌ Desistiu** (apaga tudo).
+
+- **Uma página à parte**, `ficha.html` + `js/ficha.js`, irmã do `index.html`:
+  só a ficha, sem calendário, rank nem menu. **Um link por divisão**:
+  `ficha.html?divisao=curicica` (as 7 chaves de `ESCOPOS`, inclusive
+  `regional`). Sem divisão válida, a página diz que o link está incompleto.
+- **As regras moram em `dominio/admissao.js`**: as 7 partes do PDF
+  (`PARTES_FICHA`), as máscaras (CPF, CEP, telefone), o `cpfValido`, o
+  `conferirFicha` e o `fichaParaEnvio`. Ajustada pro celular: o "Sim ou Não",
+  os tamanhos, o material, a forma de pagamento e a origem viraram botões;
+  "Em quantas vezes?" só aparece no Parcelado e "Quem te indicou ao clube (seu
+  futuro padrinho)" só no
+  Indicado (`soSe`). **Tudo o que estava no PDF é obrigatório** (decisão do
+  clube). O complemento e o telefone residencial têm a caixinha **"Não tem" /
+  "Não tenho"** (`sem`): marcada, o campo fica riscado e o texto vai assim
+  pra planilha (o Code.gs aceita o "Não tenho" no lugar do número). Camisa: P a XGG; **colete: P, M, G, GG e G3
+  a G8**. Parcelado: **até 10x, com juros da operadora** (o aviso aparece no
+  botão e no campo).
+- **Desenhada uma vez só**, ao contrário do app: é formulário, e redesenhar
+  fecharia o teclado. Botões e máscaras mexem direto no elemento.
+- **O CEP preenche o endereço** pelo ViaCEP (grátis, só recebe o CEP). Só
+  preenche o que está vazio ou o que ele mesmo preencheu; se falhar, digita-se
+  à mão.
+- **A gravação é pública**, a única além da presença: `admissaoEnviar`, fora
+  de `ACOES_PROTEGIDAS` de propósito (o pretendente não tem PIN). Por isso o
+  `receberFichaAdmissao` (`Code.gs`) confere tudo de novo, remonta CPF, CEP e
+  telefones só com os dígitos, recusa **CPF repetido** (em vez de trocar a
+  ficha: senão quem tivesse o link e o CPF de alguém sobrescreveria), para em
+  **40 fichas por dia** e tem um **campo-isca** escondido que robô preenche
+  (aí finge que recebeu e não grava). As listas de opções estão escritas nos
+  dois lados; o `regras.mjs` confere que batem.
+- **O pretendente só envia.** Não há leitura pública da ficha, nem da dele;
+  corrigir é com o ADM. As observações do fim do PDF (grupos do WhatsApp,
+  site 18mc, boleto de R$ 100 e mensalidade de R$ 75, assinadas "Regional
+  RJ4") aparecem no fim da ficha, antes do Enviar, e de novo depois de
+  enviar (`htmlObservacoes`).
+- Na planilha: a aba `Pretendentes`, uma linha por ficha, com a divisão do
+  link e a situação `Novo`. É o dado mais sensível da planilha (CPF, RG,
+  endereço): fica fora de `Membros`, e a leitura (Etapa 2) vai pedir PIN.
+  **Precisa do Code.gs na versão `2026-11-14-ficha-admissao`.**
+
+**📝 Pretendentes** (Etapa 2, 14/11/2026), na área ADM das 7 divisões
+(`telas/admin-pretendentes.js`; texto e ordem em `dominio/admissao.js`):
+
+- **🔗 Link da ficha** no topo, com o 📋 Copiar: na divisão, o dela; no
+  Regional, os 7 (o endereço sai do próprio app, `linkDaFicha`).
+- **A lista**: os 🆕 Novos primeiro, o mais recente em cima
+  (`ordenarPretendentes`). No Regional, um bloco por divisão na ordem
+  oficial, com "— nenhuma ficha" nas vazias.
+- **Tocar abre a ficha** inteira, nas 7 partes, com 📞 Ligar e 💬 WhatsApp
+  pro celular dele, o **🔎 Marcar Em análise** (quando começa a lançar no
+  sistema do clube; dá pra voltar pra Novo) e o 📊 Gerar relatório com
+  📋 WhatsApp e 📄 PDF: o mesmo texto (`textoFichaAdmissao`), pra passar os
+  dados pro sistema do clube.
+- **Ler e mudar pedem PIN** (`pretendentes` e `pretendenteSituacao` em
+  `ACOES_PROTEGIDAS`), conferido contra a divisão do link: a Barra não lê nem
+  mexe na ficha da Curicica, e o Regional vê todas. A situação só vai de Novo
+  pra Em análise e de volta (`SITUACOES_PRETENDENTE`, nos dois lados).
+- Busca as fichas ao entrar na seção (`carregarPretendentes`).
+
 ## Ações Sociais (o planejador de cada divisão)
 
 Card **🤝 Ações Sociais** na área Social, criado em 21/10/2026, nas 7
