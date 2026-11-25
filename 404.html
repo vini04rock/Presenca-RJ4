@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<!-- Gerada por ferramentas/paginas.mjs - o endereco antigo, que manda pro novo. -->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Insanos MC · Regional RJ4 - endereço novo</title>
+<script>
+(function () {
+  var site = 'https://insanosrj4.github.io';
+  var pastas = {"regional":"Regional","oeste":"Oeste","recreio":"Recreio","barra":"Barra","curicica":"Curicica","taquara":"Taquara","gardenia":"Gardenia"};
+  var p = location.pathname.toLowerCase();
+  var q = new URLSearchParams(location.search);
+  var destino = '/App';
+  if (/ficha\.html$/.test(p) && pastas[q.get('divisao')]) destino = '/Ficha-pretendentes/' + pastas[q.get('divisao')];
+  else if (/mesa\.html$/.test(p)) destino = '/Controle-pretendentes';
+  location.replace(site + destino);
+})();
+</script>
+</head>
+<body style="background:#111;color:#eee;font-family:sans-serif;text-align:center;padding:40px 16px;">
+<p>O app do Insanos MC Regional RJ4 mudou de endereço.</p>
+<p><a style="color:#D4A24C;" href="https://insanosrj4.github.io/App">insanosrj4.github.io/App</a></p>
+</body>
+</html>
